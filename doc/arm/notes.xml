@@ -19,10 +19,16 @@
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude" href="noteversion.xml"/>
   <section xml:id="relnotes_intro"><info><title>Introduction</title></info>
     <para>
-      This document summarizes changes since the last production
-      release on the BIND 9.11 (Extended Support Version) branch.
-      Please see the <filename>CHANGES</filename> file for a further
-      list of bug fixes and other changes.
+      This is a release of the BIND 9.11 Supported Preview Edition, a
+      special feature preview branch of BIND which is available to ISC
+      customers.
+    </para>
+    <para>
+      This document summarizes significant changes since the last
+      production release on the BIND 9.11 (Extended Support Version) branch.
+      Please see the file CHANGES for a complete list of bug fixes and
+      other changes, or CHANGES.SE for a list of changes that have been
+      applied specifically to the Supported Preview edition.
     </para>
   </section>
 
@@ -33,36 +39,6 @@
       There you will find additional information about each release,
       source code, and pre-compiled versions for Microsoft Windows
       operating systems.
-    </para>
-  </section>
-
-  <section xml:id="relnotes_license"><info><title>License Change</title></info>
-    <para>
-      With the release of BIND 9.11.0, ISC changed to the open
-      source license for BIND from the ISC license to the Mozilla
-      Public License (MPL 2.0).
-    </para>
-    <para>
-      The MPL-2.0 license requires that if you make changes to
-      licensed software (e.g. BIND) and distribute them outside
-      your organization, that you publish those changes under that
-      same license. It does not require that you publish or disclose
-      anything other than the changes you made to our software.
-    </para>
-    <para>
-      This requirement will not affect anyone who is using BIND, with
-      or without modifications, without redistributing it, nor anyone
-      redistributing it without changes. Therefore, this change will be
-      without consequence for most individuals and organizations who are
-      using BIND.
-    </para>
-    <para>
-      Those unsure whether or not the license change affects their
-      use of BIND, or who wish to discuss how to comply with the
-      license may contact ISC at <link
-      xmlns:xlink="http://www.w3.org/1999/xlink"
-      xlink:href="https://www.isc.org/mission/contact/">
-      https://www.isc.org/mission/contact/</link>.
     </para>
   </section>
 
@@ -174,6 +150,118 @@
 	  from a previous <command>rndc reload</command> command were
 	  completed. [RT #47076]
 	</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+
+  <section xml:id="relnotes_features"><info><title>New Features</title></info>
+    <itemizedlist>
+      <listitem>
+	<para>
+	  This release introduces support for the EDNS CLIENT-SUBNET (ECS)
+	  option in recursive servers.
+	</para>
+	<itemizedlist>
+	  <listitem>
+	    ECS options are generated when sending recursive
+	    queries to zones listed in <option>ecs-zones</option>.
+	  </listitem>
+	  <listitem>
+	    ECS options from the client are forwarded when sending queries
+	    to whitelisted domains if the client is in allowed by the
+	    <option>ecs-forward</option> ACL, or when the source prefix
+	    length is 0
+	  </listitem>
+	  <listitem>
+	    ECS options are never sent for DNS infrastructure types (i.e.,
+	    NS, SOA, DNSKEY, etc) as these are presumed to be of global
+	    scope. ECS queries can be further restricted to a specific set
+	    of query types by using the <option>ecs-types</option> option.
+	  </listitem>
+	  <listitem>
+	    ECS options are sent using a default source prefix length of 24
+	    for IPv4 queries and 56 for IPv6 queries. These defaults can be
+	    reduced to lower values by using <option>ecs-bits</option>, or
+	    on a per-domain basis in the <option>ecs-zones</option> option.
+	  </listitem>
+	  <listitem>
+	    Servers that do not support ECS can be blacklisted using
+	    <command>server IPADDR { ecs no; };</command>
+	  </listitem>
+	  <listitem>
+	    The dns_db API and the red-black tree database implementation
+	    have been updated to allow storage and retrieval of data tagged
+	    with ECS information.
+	  </listitem>
+	</itemizedlist>
+	<para>
+	  See the ARM for more details of these options.
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The EDNS CLIENT SUBNET (ECS) option is also experimentally
+	  supported for authoritative servers: if an authoritative
+	  query contains an ECS option, then ACLs containing
+	  <option>geoip</option> or <option>ecs</option> elements
+	  can be matched against the address or prefix encoded in the
+	  option.  This can be used to select a view for the query,
+	  so that different answers can be provided depending on the
+	  client network.  Note, however, that this authoritative
+	  support is based on an outdated version of the ECS specification;
+	  in its current form it may be useful for testing, but is
+	  not recommended for production use. Thanks to Vincent Bernat
+	  for the contribution. [RT #36781]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Added support for the EDNS TCP Keepalive option (RFC 7828);
+	  this allows negotiation of longer-lived TCP sessions
+	  to reduce the overhead of setting up TCP for individual
+	  queries. [RT #42126]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Added support for the EDNS Padding option (RFC 7830),
+	  which obfuscates packet size analysis when DNS queries
+	  are sent over an encrypted channel. [RT #42094]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The <option>print-time</option> option in the
+	  <option>logging</option> configuration can now take arguments
+	  <command>local</command>, <command>iso8601</command> or
+	  <command>iso8601-utc</command> to indicate the format in
+	  which the date and time should be logged. For backward
+	  compatibility, <command>yes</command> is a synonym for
+	  <command>local</command>.  [RT #42585]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  New classification options have been added for response rate
+	  limiting (RRL):
+	</para>
+	<itemizedlist>
+	  <listitem>
+	    Multiple <option>rate-limit</option> statements can now be
+	    configured, each defined by a specific <option>domain</option>.
+	    This allows different rate limiting options to be applied for
+	    different namespaces.
+	  </listitem>
+	  <listitem>
+	    Each rate limiter may be configured with up to five
+	    <option>responses-per-second</option> options, with the
+	    value selected depending on the size of the response or
+	    the ratio of the response size to the query size (i.e.,
+	    the amplification factor). For example, responses could
+	    rate limited to 10 per second in general, but only 2 per
+	    second for responses larger than 1100 bytes.
+	  </listitem>
+	</itemizedlist>
       </listitem>
     </itemizedlist>
   </section>
@@ -320,7 +408,11 @@
     <para>
       BIND 9.11 (Extended Support Version) will be supported until at
       least December, 2021.
-      See <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.isc.org/downloads/software-support-policy/">https://www.isc.org/downloads/software-support-policy/</link> for details of ISC's software support policy.
+      BIND 9.11-S (Supported Preview Edition) releases will continue to
+      be published in tandem with BIND 9.11 releases until the Supported
+      Preview Edition moves to a new branch. This may happen before BIND 9.11
+      reaches end of life, but not later. See
+      <link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://www.isc.org/downloads/software-support-policy/">https://www.isc.org/downloads/software-support-policy/</link> for details of ISC's software support policy.
     </para>
   </section>
   <section xml:id="relnotes_thanks"><info><title>Thank You</title></info>

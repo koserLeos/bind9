@@ -34,6 +34,15 @@ restore_files () {
     # restore the generated documentation
     git checkout HEAD -- doc/arm/*.html doc/arm/Bv9ARM.pdf
     git checkout HEAD -- bin/*/*.html bin/*/*.[0-9]
+    git checkout HEAD -- lib/*/tests/Atffile
+    git checkout HEAD -- lib/*/tests/Kyuafile
+    git checkout HEAD -- lib/*/Atffile
+    git checkout HEAD -- lib/*/Kyuafile
+    git checkout HEAD -- lib/Atffile
+    git checkout HEAD -- lib/Kyuafile
+    git checkout HEAD -- Atffile
+    git checkout HEAD -- Kyuafile
+    git checkout HEAD -- version
     # don't update the EXCLUDED file
     if [ -f EXCLUDED ]; then
         git checkout HEAD -- EXCLUDED
@@ -116,6 +125,12 @@ if [ -z "$continuing" ]; then
     git checkout -f $SOURCEBRANCH > /dev/null 2>&1
     git pull origin $SOURCEBRANCH > /dev/null 2>&1
     git checkout -f $BRANCH > /dev/null 2>&1
+    if [ ! -f branchsync.dat ]; then
+	echo "$0: branchsync data file disappeared"
+        exit 0
+    fi
+
+    . branchsync.dat
 fi
 
 # loop through commits looking for ones that should be cherry-picked

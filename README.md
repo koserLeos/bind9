@@ -16,6 +16,7 @@
 1. [Reporting bugs and getting help](#help)
 1. [Contributing to BIND](#contrib)
 1. [BIND 9.11 features](#features)
+1. [BIND 9.11 (Supported Preview Edition)](#sp)
 1. [Building BIND](#build)
 1. [macOS](#macos)
 1. [Compile-time options](#opts)
@@ -260,6 +261,28 @@ store data related to zones added via `rndc addzone` or catalog zones.
 
 BIND 9.11.3 is a maintenance release, and addresses the security flaw
 disclosed in CVE-2017-3145.
+
+### <a name="sp"/> BIND 9.11 (Supported Preview Edition)
+
+The BIND Supported Preview Edition is a special release of BIND featuring
+functionality not included in BIND 9.11, and in some cases not yet in any
+publicly accessible BIND 9 branch. These features may be of particular
+interest to large server operators.
+
+For a detailed list of user-visible changes from previous releases
+(including the Subscription Edition features), see the file `CHANGES`.
+For a separate list of changes that have been applied specifically to the
+Supported Preview Edition but not to BIND 9.11, see the file `CHANGES.SE`.
+
+#### BIND (Supported Preview Edition) 9.11.3-S1 (2018)
+
+This version introduces the new 9.11 supported preview branch. It is
+branched from BIND 9.11.3, and includes the following additional features:
+
+* Recursive server support for the EDNS CLIENT-SUBNET option
+* Support for multiple response rate limiting bands based on response size
+  or query/response size ratio
+* Support for multiple response rate limiters based on query name
 
 ### <a name="build"/> Building BIND
 
