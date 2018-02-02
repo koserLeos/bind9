@@ -2364,6 +2364,8 @@ resquery_send(resquery_t *query) {
 			isc_boolean_t sendcookie = res->view->sendcookie;
 			isc_boolean_t sendecs;
 			unsigned char cookie[64], ecsbuf[20];
+			isc_boolean_t tcpkeepalive = ISC_FALSE;
+			isc_uint16_t padding = 0;
 
 			if ((flags & FCTX_ADDRINFO_EDNSOK) != 0 &&
 			    (query->options & DNS_FETCHOPT_EDNS512) == 0) {
@@ -2540,6 +2542,32 @@ resquery_send(resquery_t *query) {
 
 				inc_stats(query->fctx->res,
 					  dns_resstatscounter_ecsout);
+			}
+
+			/* Add TCP keepalive option if appropriate */
+			if ((peer != NULL) &&
+			    (query->options & DNS_FETCHOPT_TCP) != 0)
+				(void) dns_peer_gettcpkeepalive(peer,
+								&tcpkeepalive);
+			if (tcpkeepalive) {
+				INSIST(ednsopt < DNS_EDNSOPTIONS);
+				ednsopts[ednsopt].code = DNS_OPT_TCP_KEEPALIVE;
+				ednsopts[ednsopt].length = 0;
+				ednsopts[ednsopt].value = NULL;
+				ednsopt++;
+			}
+
+			/* Add PAD for current peer? Require TCP for now */
+			if ((peer != NULL) &&
+			    (query->options & DNS_FETCHOPT_TCP) != 0)
+				(void) dns_peer_getpadding(peer, &padding);
+			if (padding) {
+				INSIST(ednsopt < DNS_EDNSOPTIONS);
+				ednsopts[ednsopt].code = DNS_OPT_PAD;
+				ednsopts[ednsopt].length = 0;
+				ednsopt++;
+				dns_message_setpadding(fctx->qmessage,
+						       padding);
 			}
 
 			query->ednsversion = version;

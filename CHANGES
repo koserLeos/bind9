@@ -1,3 +1,9 @@
+4549.	[func]		Added support for the EDNS TCP Keepalive option
+			(RFC 7828). [RT #42126]
+
+4548.	[func]		Added support for the EDNS Padding option (RFC 7830).
+			[RT #42094]
+
 4518.	[func]		The "print-time" option in the logging configuration
 			can now take arguments "local", "iso8601" or
 			"iso8601-utc" to indicate the format in which the

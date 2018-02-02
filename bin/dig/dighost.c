@@ -802,6 +802,8 @@ make_empty_lookup(void) {
 	looknew->opcode = dns_opcode_query;
 	looknew->expire = ISC_FALSE;
 	looknew->nsid = ISC_FALSE;
+	looknew->tcp_keepalive = ISC_FALSE;
+	looknew->padding = 0;
 	looknew->header_only = ISC_FALSE;
 	looknew->sendcookie = ISC_FALSE;
 	looknew->seenbadcookie = ISC_FALSE;
@@ -942,6 +944,7 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	looknew->opcode = lookold->opcode;
 	looknew->expire = lookold->expire;
 	looknew->nsid = lookold->nsid;
+	looknew->tcp_keepalive = lookold->tcp_keepalive;
 	looknew->header_only = lookold->header_only;
 	looknew->sendcookie = lookold->sendcookie;
 	looknew->seenbadcookie = lookold->seenbadcookie;
@@ -954,6 +957,7 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 		looknew->ednsoptscnt = 0;
 	}
 	looknew->ednsneg = lookold->ednsneg;
+	looknew->padding = lookold->padding;
 	looknew->mapped = lookold->mapped;
 	looknew->idnout = lookold->idnout;
 #ifdef DIG_SIGCHASE
@@ -1652,6 +1656,11 @@ dig_ednsoptname_t optnames[] = {
 };
 
 #define N_EDNS_OPTNAMES  (sizeof(optnames) / sizeof(optnames[0]))
+
+/*
+ * Array of up to 100 options configured by +ednsopt
+ */
+#define EDNSOPT_OPTIONS 100U
 
 void
 save_opt(dig_lookup_t *lookup, char *code, char *value) {
@@ -2623,6 +2632,12 @@ setup_lookup(dig_lookup_t *lookup) {
 		unsigned int flags;
 		unsigned int i = 0;
 
+		/*
+		 * There can't be more than MAXOPTS options to send:
+		 * a maximum of EDNSOPT_OPTIONS set by +ednsopt
+		 * and DNS_EDNSOPTIONS set by other arguments
+		 * (+nsid, +cookie, etc).
+		 */
 		if (lookup->udpsize == 0)
 			lookup->udpsize = 4096;
 		if (lookup->edns < 0)
@@ -2745,11 +2760,34 @@ setup_lookup(dig_lookup_t *lookup) {
 			i++;
 		}
 
+		if (lookup->tcp_keepalive) {
+			INSIST(i < MAXOPTS);
+			opts[i].code = DNS_OPT_TCP_KEEPALIVE;
+			opts[i].length = 0;
+			opts[i].value = NULL;
+			i++;
+		}
+
 		if (lookup->ednsoptscnt != 0) {
 			INSIST(i + lookup->ednsoptscnt <= MAXOPTS);
 			memmove(&opts[i], lookup->ednsopts,
 				sizeof(dns_ednsopt_t) * lookup->ednsoptscnt);
 			i += lookup->ednsoptscnt;
+		}
+
+		if (lookup->padding && (i >= MAXOPTS)) {
+			debug("turned off padding because of EDNS overflow");
+			lookup->padding = 0;
+		}
+
+		if (lookup->padding) {
+			INSIST(i < MAXOPTS);
+			opts[i].code = DNS_OPT_PAD;
+			opts[i].length = 0;
+			opts[i].value = NULL;
+			i++;
+			dns_message_setpadding(lookup->sendmsg,
+					       lookup->padding);
 		}
 
 		flags = lookup->ednsflags;
