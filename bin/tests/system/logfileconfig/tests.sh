@@ -24,8 +24,14 @@ SYMCONF="${THISDIR}/${CONFDIR}/named.symconf"
 SYMFILE="named_sym"
 VERSCONF="${THISDIR}/${CONFDIR}/named.versconf"
 VERSFILE="named_vers"
+TSCONF="${THISDIR}/${CONFDIR}/named.tsconf"
+TSFILE="named_ts"
 UNLIMITEDCONF="${THISDIR}/${CONFDIR}/named.unlimited"
 UNLIMITEDFILE="named_unlimited"
+ISOCONF="${THISDIR}/${CONFDIR}/named.iso8601"
+ISOFILE="named_iso8601"
+ISOCONFUTC="${THISDIR}/${CONFDIR}/named.iso8601-utc"
+ISOUTCFILE="named_iso8601_utc"
 DLFILE="named_deflog"
 
 PIDFILE="${THISDIR}/${CONFDIR}/named.pid"
@@ -259,8 +265,6 @@ else
 	echo_i "skipping symlink test (unable to create symlink)"
 fi
 
-status=0
-
 n=`expr $n + 1`
 echo_i "testing default logfile using named -L file ($n)"
 # Now stop the server again and test the -L option
@@ -358,6 +362,28 @@ if test_with_retry ! -f $UNLIMITEDFILE.4
 then
 	echo_i "testing unlimited versions failed: $UNLIMITEDFILE.4 does not exist"
 	status=`expr $status + 1`
+fi
+
+n=`expr $n + 1`
+echo_i "testing iso8601 timestamp ($n)"
+copy_setports $ISOCONF named.conf
+$myRNDC reconfig > rndc.out.test$n 2>&1
+if grep '^....-..-..T..:..:..\.... ' $ISOFILE > /dev/null; then
+        echo_i "testing iso8601 timestamp succeeded"
+else
+        echo_i "testing iso8601 timestamp failed"
+        status=`expr $status + 1`
+fi
+
+n=`expr $n + 1`
+echo_i "testing iso8601-utc timestamp ($n)"
+copy_setports $ISOCONFUTC named.conf
+$myRNDC reconfig > rndc.out.test$n 2>&1
+if grep '^....-..-..T..:..:..\....Z' $ISOUTCFILE > /dev/null; then
+        echo_i "testing iso8601-utc timestamp succeeded"
+else
+        echo_i "testing iso8601-utc timestamp failed"
+        status=`expr $status + 1`
 fi
 
 echo_i "exit status: $status"
