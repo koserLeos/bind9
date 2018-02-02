@@ -225,7 +225,19 @@ struct dns_view {
 
 	dns_dtenv_t			*dtenv;		/* Dnstap environment */
 	dns_dtmsgtype_t			dttypes;	/* Dnstap message types
-							   to log */
+							 * to log */
+
+	isc_uint8_t			ecsbits4;	/* Default ECS
+							 * prefix len IPv4 */
+	isc_uint8_t			ecsbits6;	/* Default ECS
+							 * prefix len IPv6 */
+
+	dns_acl_t			*ecsforward;
+	isc_boolean_t			ecscache;	/* Cache ECS? */
+	isc_boolean_t			ecsprivacy;	/* Disable ECS when
+							 * forwarding */
+	isc_buffer_t *			ecstypes;	/* ECS types */
+	dns_ecszones_t *		ecszones;	/* ECS zones tree */
 };
 
 #define DNS_VIEW_MAGIC			ISC_MAGIC('V','i','e','w')

@@ -129,10 +129,10 @@ static const size_t ordered_names_count = (sizeof(ordered_names) /
 					   sizeof(*ordered_names));
 
 static void
-delete_data(void *data, void *arg) {
-	UNUSED(arg);
+delete_data(dns_rbtnode_t *node, void *arg) {
+	isc_mem_t *memctx = (isc_mem_t *) arg;
 
-	isc_mem_put(mctx, data, sizeof(size_t));
+	isc_mem_put(memctx, node->data, sizeof(size_t));
 }
 
 static test_context_t *
@@ -145,11 +145,11 @@ test_context_setup(void) {
 	ATF_REQUIRE(ctx != NULL);
 
 	ctx->rbt = NULL;
-	result = dns_rbt_create(mctx, delete_data, NULL, &ctx->rbt);
+	result = dns_rbt_create(mctx, delete_data, mctx, &ctx->rbt);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	ctx->rbt_distances = NULL;
-	result = dns_rbt_create(mctx, delete_data, NULL, &ctx->rbt_distances);
+	result = dns_rbt_create(mctx, delete_data, mctx, &ctx->rbt_distances);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	for (i = 0; i < domain_names_count; i++) {
@@ -341,7 +341,7 @@ ATF_TC_BODY(rbt_check_distance_random, tc) {
 	result = dns_test_begin(NULL, ISC_TRUE);
 	ATF_CHECK_EQ(result, ISC_R_SUCCESS);
 
-	result = dns_rbt_create(mctx, delete_data, NULL, &mytree);
+	result = dns_rbt_create(mctx, delete_data, mctx, &mytree);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	/* Names are inserted in random order. */
@@ -425,7 +425,7 @@ ATF_TC_BODY(rbt_check_distance_ordered, tc) {
 	result = dns_test_begin(NULL, ISC_TRUE);
 	ATF_CHECK_EQ(result, ISC_R_SUCCESS);
 
-	result = dns_rbt_create(mctx, delete_data, NULL, &mytree);
+	result = dns_rbt_create(mctx, delete_data, mctx, &mytree);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	/* Names are inserted in sorted order. */
@@ -701,7 +701,7 @@ ATF_TC_BODY(rbt_remove, tc) {
 		size_t start_node;
 
 		/* Create a tree. */
-		result = dns_rbt_create(mctx, delete_data, NULL, &mytree);
+		result = dns_rbt_create(mctx, delete_data, mctx, &mytree);
 		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 		/* Insert test data into the tree. */
@@ -1010,7 +1010,7 @@ ATF_TC_BODY(rbt_insert_and_remove, tc) {
 	result = dns_test_begin(NULL, ISC_TRUE);
 	ATF_CHECK_EQ(result, ISC_R_SUCCESS);
 
-	result = dns_rbt_create(mctx, delete_data, NULL, &mytree);
+	result = dns_rbt_create(mctx, delete_data, mctx, &mytree);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	memset(names, 0, sizeof(names));

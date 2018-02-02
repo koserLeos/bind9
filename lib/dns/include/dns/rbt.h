@@ -176,15 +176,19 @@ typedef isc_result_t (*dns_rbtfindcallback_t)(dns_rbtnode_t *node,
 					      void *callback_arg);
 
 typedef isc_result_t (*dns_rbtdatawriter_t)(FILE *file,
-					    unsigned char *data,
+					    dns_rbtnode_t *node,
 					    void *arg,
-					    isc_uint64_t *crc);
+					    isc_uint64_t *crc,
+					    void **node_data);
 
 typedef isc_result_t (*dns_rbtdatafixer_t)(dns_rbtnode_t *rbtnode,
 					   void *base, size_t offset,
 					   void *arg, isc_uint64_t *crc);
 
-typedef void (*dns_rbtdeleter_t)(void *, void *);
+typedef isc_result_t (*dns_rbtdatafixer_postload_t)(dns_rbtnode_t *root,
+						    void *arg);
+
+typedef void (*dns_rbtdeleter_t)(dns_rbtnode_t *node, void *arg);
 
 /*****
  *****  Chain Info
@@ -745,6 +749,8 @@ dns_rbt_deserialize_tree(void *base_address, size_t filesize,
 			 off_t header_offset, isc_mem_t *mctx,
 			 dns_rbtdeleter_t deleter, void *deleter_arg,
 			 dns_rbtdatafixer_t datafixer, void *fixer_arg,
+			 dns_rbtdatafixer_postload_t datafixer_postload,
+			 void *fixer_postload_arg,
 			 dns_rbtnode_t **originp, dns_rbt_t **rbtp);
 /*%<
  * Read a RBT structure and its data from a file.

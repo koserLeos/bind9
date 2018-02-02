@@ -68,6 +68,11 @@ options {\n\
 "	files unlimited;\n"
 #endif
 "\
+	ecs-bits 24 56;\n\
+	ecs-forward { none; };\n\
+	ecs-privacy no;\n\
+	ecs-types ANY;\n\
+#	fake-iquery <obsolete>;\n\
 #	has-old-clients <obsolete>;\n\
 	heartbeat-interval 60;\n\
 #	host-statistics <obsolete>;\n\

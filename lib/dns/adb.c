@@ -4051,7 +4051,7 @@ fetch_name(dns_adbname_t *adbname, isc_boolean_t start_at_zone,
 	}
 	fetch->depth = depth;
 
-	result = dns_resolver_createfetch3(adb->view->resolver, &adbname->name,
+	result = dns_resolver_createfetch4(adb->view->resolver, &adbname->name,
 					   type, name, nameservers, NULL,
 					   NULL, 0, options, depth, qc,
 					   adb->task, fetch_callback, adbname,

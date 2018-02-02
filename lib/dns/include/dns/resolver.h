@@ -48,6 +48,7 @@
 #include <isc/socket.h>
 #include <isc/stats.h>
 
+#include <dns/ecs.h>
 #include <dns/types.h>
 #include <dns/fixedname.h>
 
@@ -75,6 +76,7 @@ typedef struct dns_fetchevent {
 	isc_sockaddr_t *		client;
 	dns_messageid_t			id;
 	isc_result_t			vresult;
+	dns_ecs_t			ecs;
 } dns_fetchevent_t;
 
 /*%
@@ -100,10 +102,13 @@ typedef enum {
 #define DNS_FETCHOPT_PREFETCH		0x0100	     /*%< Do prefetch */
 #define DNS_FETCHOPT_NOCDFLAG		0x0200	     /*%< Don't set CD flag. */
 #define DNS_FETCHOPT_NONTA		0x0400	     /*%< Ignore NTA table. */
-/* RESERVED ECS				0x0000 */
-/* RESERVED ECS				0x1000 */
-/* RESERVED ECS				0x2000 */
-/* RESERVED TCPCLIENT			0x4000 */
+
+#define DNS_FETCHOPT_ECSPRIVATE		0x0800	     /*%< ECS privacy
+						          requested. */
+#define DNS_FETCHOPT_SENDECS		0x1000	     /*%< Send an ECS option. */
+#define DNS_FETCHOPT_RETURNECS		0x2000	     /*%< Return ECS to
+						          client. */
+#define DNS_FETCHOPT_TCPCLIENT		0x4000	     /*%< Client uses TCP */
 #define DNS_FETCHOPT_NOCACHED		0x8000	     /*%< Force cache update. */
 
 /* Reserved in use by adb.c		0x00400000 */
@@ -296,6 +301,17 @@ dns_resolver_createfetch3(dns_resolver_t *res, dns_name_t *name,
 			  dns_rdataset_t *rdataset,
 			  dns_rdataset_t *sigrdataset,
 			  dns_fetch_t **fetchp);
+isc_result_t
+dns_resolver_createfetch4(dns_resolver_t *res, dns_name_t *name,
+			  dns_rdatatype_t type, dns_name_t *domain,
+			  dns_rdataset_t *nameservers, dns_ecs_t *client_ecs,
+			  isc_sockaddr_t *client, isc_uint16_t id,
+			  unsigned int options, unsigned int depth,
+			  isc_counter_t *qc, isc_task_t *task,
+			  isc_taskaction_t action, void *arg,
+			  dns_rdataset_t *rdataset,
+			  dns_rdataset_t *sigrdataset,
+			  dns_fetch_t **fetchp);
 /*%<
  * Recurse to answer a question.
  *
@@ -308,8 +324,8 @@ dns_resolver_createfetch3(dns_resolver_t *res, dns_name_t *name,
  *	such name server information is available, set
  * 	'domain' and 'nameservers' to NULL.
  *
- *\li	'forwarders' is unimplemented, and subject to change when
- *	we figure out how selective forwarding will work.
+ *\li	'forwarders' is unimplemented, and has been removed from the
+ *	parameters for dns_resolver_createfetch4().
  *
  *\li	When the fetch completes (successfully or otherwise), a
  *	#DNS_EVENT_FETCHDONE event with action 'action' and arg 'arg' will be
@@ -321,6 +337,12 @@ dns_resolver_createfetch3(dns_resolver_t *res, dns_name_t *name,
  *\li	'client' and 'id' are used for duplicate query detection.  '*client'
  *	must remain stable until after 'action' has been called or
  *	dns_resolver_cancelfetch() is called.
+ *
+ *\li   'client_ecs' passes in data for an EDNS Client Subnet option to be
+ *	forwarded upstream. Forwarding of ECS options with a zero prefix
+ *	length (i.e., a request that client address information not be
+ *	used in resolving the query) can also be initiated by setting
+ *	DNS_FETCHOPT_ECSPRIVATE in 'options'.
  *
  * Requires:
  *

@@ -125,6 +125,12 @@ isc_netaddr_any6(isc_netaddr_t *netaddr);
  * Return the IPv6 wildcard address.
  */
 
+void
+isc_netaddr_unspec(isc_netaddr_t *netaddr);
+/*%<
+ * Initialize as AF_UNSPEC address.
+ */
+
 isc_boolean_t
 isc_netaddr_ismulticast(isc_netaddr_t *na);
 /*%<

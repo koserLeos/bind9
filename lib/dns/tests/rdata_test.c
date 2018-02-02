@@ -757,111 +757,190 @@ ATF_TC_BODY(doa, tc) {
 ATF_TC(edns_client_subnet);
 ATF_TC_HEAD(edns_client_subnet, tc) {
 	atf_tc_set_md_var(tc, "descr",
-			  "OPT RDATA with EDNS Client Subnet manipulations");
+			  "check EDNS client subnet option parsing");
 }
 ATF_TC_BODY(edns_client_subnet, tc) {
-	wire_ok_t wire_ok[] = {
-		/*
-		 * Option code with no content.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00, 0x00),
-		/*
-		 * Option code family 0, source 0, scope 0.
-		 */
-		WIRE_VALID(0x00, 0x08, 0x00, 0x04,
-			   0x00, 0x00, 0x00, 0x00),
-		/*
-		 * Option code family 1 (IPv4), source 0, scope 0.
-		 */
-		WIRE_VALID(0x00, 0x08, 0x00, 0x04,
-			   0x00, 0x01, 0x00, 0x00),
-		/*
-		 * Option code family 2 (IPv6) , source 0, scope 0.
-		 */
-		WIRE_VALID(0x00, 0x08, 0x00, 0x04,
-			   0x00, 0x02, 0x00, 0x00),
-		/*
-		 * Extra octet.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00, 0x05,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00),
-		/*
-		 * Source too long for IPv4.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00,    8,
-			     0x00, 0x01,   33, 0x00,
-			     0x00, 0x00, 0x00, 0x00),
-		/*
-		 * Source too long for IPv6.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00,   20,
-			     0x00, 0x02,  129, 0x00,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00),
-		/*
-		 * Scope too long for IPv4.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00,    8,
-			     0x00, 0x01, 0x00,   33,
-			     0x00, 0x00, 0x00, 0x00),
-		/*
-		 * Scope too long for IPv6.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00,   20,
-			     0x00, 0x02, 0x00,  129,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00),
-		/*
-		 * When family=0, source and scope should be 0.
-		 */
-		WIRE_VALID(0x00, 0x08, 0x00,    4,
-			   0x00, 0x00, 0x00, 0x00),
-		/*
-		 * When family=0, source and scope should be 0.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00,    5,
-			     0x00, 0x00, 0x01, 0x00,
-			     0x00),
-		/*
-		 * When family=0, source and scope should be 0.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00,    5,
-			     0x00, 0x00, 0x00, 0x01,
-			     0x00),
-		/*
-		 * Length too short for source IPv4.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00,    7,
-			     0x00, 0x01,   32, 0x00,
-			     0x00, 0x00, 0x00),
-		/*
-		 * Length too short for source IPv6.
-		 */
-		WIRE_INVALID(0x00, 0x08, 0x00,   19,
-			     0x00, 0x02,  128, 0x00,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00, 0x00,
-			     0x00, 0x00, 0x00),
-		/*
-		 * Sentinel.
-		 */
-		WIRE_SENTINEL()
+	struct {
+		unsigned char data[64];
+		size_t len;
+		isc_boolean_t ok;
+	} test_data[] = {
+		{
+			/* option code with no content */
+			{ 0x00, 0x08, 0x0, 0x00 }, 4, ISC_FALSE
+		},
+		{
+			/* Option code family 0, source 0, scope 0 */
+			{
+			  0x00, 0x08, 0x00, 0x04,
+			  0x00, 0x00, 0x00, 0x00
+			},
+			8, ISC_TRUE
+		},
+		{
+			/* Option code family 1 (ipv4), source 0, scope 0 */
+			{
+			  0x00, 0x08, 0x00, 0x04,
+			  0x00, 0x01, 0x00, 0x00
+			},
+			8, ISC_TRUE
+		},
+		{
+			/* Option code family 2 (ipv6) , source 0, scope 0 */
+			{
+			  0x00, 0x08, 0x00, 0x04,
+			  0x00, 0x02, 0x00, 0x00
+			},
+			8, ISC_TRUE
+		},
+		{
+			/* extra octet */
+			{
+			  0x00, 0x08, 0x00, 0x05,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00
+			},
+			9, ISC_FALSE
+		},
+		{
+			/* source too long for IPv4 */
+			{
+			  0x00, 0x08, 0x00,    8,
+			  0x00, 0x01,   33, 0x00,
+			  0x00, 0x00, 0x00, 0x00
+			},
+			12, ISC_FALSE
+		},
+		{
+			/* source too long for IPv6 */
+			{
+			  0x00, 0x08, 0x00,   20,
+			  0x00, 0x02,  129, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			},
+			24, ISC_FALSE
+		},
+		{
+			/* scope too long for IPv4 */
+			{
+			  0x00, 0x08, 0x00,    8,
+			  0x00, 0x01, 0x00,   33,
+			  0x00, 0x00, 0x00, 0x00
+			},
+			12, ISC_FALSE
+		},
+		{
+			/* scope too long for IPv6 */
+			{
+			  0x00, 0x08, 0x00,   20,
+			  0x00, 0x02, 0x00,  129,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			},
+			24, ISC_FALSE
+		},
+		{
+			/* length too short for source generic */
+			{
+			  0x00, 0x08, 0x00,    5,
+			  0x00, 0x00,   17, 0x00,
+			  0x00, 0x00,
+			},
+			19, ISC_FALSE
+		},
+		{
+			/* length too short for source ipv4 */
+			{
+			  0x00, 0x08, 0x00,    7,
+			  0x00, 0x01,   32, 0x00,
+			  0x00, 0x00, 0x00, 0x00
+			},
+			11, ISC_FALSE
+		},
+		{
+			/* length too short for source ipv6 */
+			{
+			  0x00, 0x08, 0x00,   19,
+			  0x00, 0x02,  128, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			  0x00, 0x00, 0x00, 0x00,
+			},
+			23, ISC_FALSE
+		},
+		{
+			/* sentinal */
+			{ 0x00 }, 0, ISC_FALSE
+		}
 	};
+	unsigned char buf[1024*1024];
+	isc_buffer_t source, target1;
+	dns_rdata_t rdata;
+	dns_decompress_t dctx;
+	isc_result_t result;
+	size_t i;
 
 	UNUSED(tc);
 
-	check_rdata(NULL, wire_ok, ISC_TRUE, dns_rdataclass_in,
-		    dns_rdatatype_opt, sizeof(dns_rdata_opt_t));
+	for (i = 0; test_data[i].len != 0; i++) {
+		isc_buffer_init(&source, test_data[i].data, test_data[i].len);
+		isc_buffer_add(&source, test_data[i].len);
+		isc_buffer_setactive(&source, test_data[i].len);
+		isc_buffer_init(&target1, buf, sizeof(buf));
+		dns_rdata_init(&rdata);
+		dns_decompress_init(&dctx, -1, DNS_DECOMPRESS_ANY);
+		result = dns_rdata_fromwire(&rdata, dns_rdataclass_in,
+					    dns_rdatatype_opt, &source,
+					    &dctx, 0, &target1);
+		dns_decompress_invalidate(&dctx);
+		if (test_data[i].ok)
+			ATF_CHECK_EQ(result, ISC_R_SUCCESS);
+		else
+			ATF_CHECK(result != ISC_R_SUCCESS);
+	}
 }
 
+
 /*
- * Successful load test.
+ * HIP RR test.
+ * RFC 5205:
+ *
+ * The RDATA for a HIP RR consists of a public key algorithm type, the
+ * HIT length, a HIT, a public key, and optionally one or more
+ * rendezvous server(s).
+ *
+ *  0                   1                   2                   3
+ *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |  HIT length   | PK algorithm  |          PK length            |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * ~                           HIT                                 ~
+ * |                                                               |
+ * +                     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                     |                                         |
+ * +-+-+-+-+-+-+-+-+-+-+-+                                         +
+ * |                           Public Key                          |
+ * ~                                                               ~
+ * |                                                               |
+ * +                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                               |                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+ * |                                                               |
+ * ~                       Rendezvous Servers                      ~
+ * |                                                               |
+ * +             +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |             |
+ * +-+-+-+-+-+-+-+
+ *
+ * The HIT length, PK algorithm, PK length, HIT, and Public Key fields
+ * are REQUIRED.  The Rendezvous Servers field is OPTIONAL.
  */
 ATF_TC(hip);
 ATF_TC_HEAD(hip, tc) {
@@ -903,8 +982,6 @@ ATF_TC_BODY(hip, tc) {
 				    0, &target);
 	dns_decompress_invalidate(&dctx);
 	ATF_REQUIRE_EQ(result, DNS_R_FORMERR);
-
-	dns_test_end();
 }
 
 /*

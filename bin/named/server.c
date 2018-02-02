@@ -231,6 +231,7 @@ struct ns_cache {
 struct dumpcontext {
 	isc_mem_t			*mctx;
 	isc_boolean_t			dumpcache;
+	isc_boolean_t			dumpecscache;
 	isc_boolean_t			dumpzones;
 	isc_boolean_t			dumpadb;
 	isc_boolean_t			dumpbad;
@@ -418,6 +419,24 @@ const char *empty_zones[] = {
 
 	NULL
 };
+
+#define NS_NAME_INIT(A,B) \
+	 { \
+		DNS_NAME_MAGIC, \
+		A, sizeof(A), sizeof(B), \
+		DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE, \
+		B, NULL, { (void *)-1, (void *)-1}, \
+		{NULL, NULL} \
+	}
+
+static unsigned char arpa_inaddr_offsets[] = { 0, 8, 13 };
+static unsigned char arpa_ip6_offsets[] = { 0, 4, 9 };
+static unsigned char arpa_inaddr_data[] = "\007in-addr\004arpa";
+static unsigned char arpa_ip6_data[] = "\003ip6\004arpa";
+static dns_name_t arpa_inaddr = NS_NAME_INIT(arpa_inaddr_data,
+					     arpa_inaddr_offsets);
+static dns_name_t arpa_ip6 = NS_NAME_INIT(arpa_ip6_data,
+					  arpa_ip6_offsets);
 
 ISC_PLATFORM_NORETURN_PRE static void
 fatal(const char *msg, isc_result_t result) ISC_PLATFORM_NORETURN_POST;
@@ -1462,6 +1481,11 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 			goto cleanup;
 		ns_add_reserved_dispatch(ns_g_server, cfg_obj_assockaddr(obj));
 	}
+
+	obj = NULL;
+	(void)cfg_map_get(cpeer, "ecs", &obj);
+	if (obj != NULL)
+		CHECK(dns_peer_setsupportecs(peer, cfg_obj_asboolean(obj)));
 
 	*peerp = peer;
 	return (ISC_R_SUCCESS);
@@ -3229,6 +3253,183 @@ create_mapped_acl(void) {
 }
 
 /*
+ * parse_typemap() - convert a list of RR types to a typemap
+ * representation (same format as NSEC/NSEC3/CSYNC)
+ *
+ * 'target' buffer may be resized and moved.
+ */
+static isc_result_t
+parse_typemap(const cfg_obj_t *typelist, isc_buffer_t **target) {
+	isc_result_t result;
+	const cfg_listelt_t *element;
+	unsigned char bm[8*1024]; /* 64k bits */
+	dns_rdatatype_t covered, max_used;
+	unsigned int end = 0;
+	int window;
+
+	max_used = 0;
+	bm[0] = 0;
+
+	for (element = cfg_list_first(typelist);
+	     element != NULL;
+	     element = cfg_list_next(element))
+	{
+		const cfg_obj_t *obj = cfg_listelt_value(element);
+		isc_consttextregion_t tr;
+
+		if (!cfg_obj_isstring(obj))
+			return (ISC_R_FAILURE);
+
+		tr.base = cfg_obj_asstring(obj);
+		tr.length = strlen(tr.base);
+
+		CHECK(dns_rdatatype_fromtext(&covered,
+					     (isc_textregion_t *) &tr));
+
+		if (covered > max_used) {
+			unsigned int newend = covered / 8;
+			if (newend > end) {
+				memset(&bm[end + 1], 0, newend - end);
+				end = newend;
+			}
+			max_used = covered;
+		}
+
+		bm[covered / 8] |= (0x80 >> (covered % 8));
+	}
+
+	for (window = 0; window < 256; window++) {
+		unsigned max_octet;
+		int octet;
+
+		if (max_used < window * 256)
+			break;
+
+		max_octet = max_used - (window * 256);
+		if (max_octet >= 256)
+			max_octet = 31;
+		else
+			max_octet /= 8;
+
+		/*
+		 * Find if we have a type in this window.
+		 */
+		for (octet = max_octet; octet >= 0; octet--) {
+			if (bm[window * 32 + octet] != 0)
+				break;
+		}
+		if (octet < 0)
+			continue;
+
+		CHECK(putuint8(target, window));
+		CHECK(putuint8(target, octet + 1));
+		CHECK(putmem(target, (const char *) &bm[window * 32],
+			     octet + 1));
+	}
+
+	result = ISC_R_SUCCESS;
+
+ cleanup:
+	return (result);
+}
+
+static isc_result_t
+configure_ecszones(dns_view_t *view, const cfg_obj_t *domains) {
+	isc_result_t result = ISC_R_SUCCESS;
+	const cfg_listelt_t *element;
+
+	for (element = cfg_list_first(domains);
+	     element != NULL;
+	     element = cfg_list_next(element))
+	{
+		dns_fixedname_t fn;
+		dns_name_t *name;
+		isc_uint8_t bits4, bits6;
+		const cfg_obj_t *domain = cfg_listelt_value(element);
+		const cfg_obj_t *obj;
+		isc_boolean_t negated = ISC_FALSE;
+
+		dns_fixedname_init(&fn);
+		name = dns_fixedname_name(&fn);
+
+		bits4 = view->ecsbits4;
+		bits6 = view->ecsbits6;
+
+		obj = cfg_tuple_get(domain, "name");
+		if (cfg_obj_istuple(obj)) {
+			negated = ISC_TRUE;
+			obj = cfg_tuple_get(obj, "negname");
+		}
+
+		if (!cfg_obj_isstring(obj)) {
+			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
+				    "invalid element type");
+			CHECK(ISC_R_FAILURE);
+		}
+
+		CHECK(dns_name_fromstring(name, cfg_obj_asstring(obj),
+					  0, NULL));
+		/*
+		 * Warn if ecs-zones is configured for root, a TLD,
+		 * or a public suffix (currently this is limited to
+		 * in-addr.arpa and ip6.arpa but this could be
+		 * expanded)
+		 */
+		if (dns_name_countlabels(name) <= 2 ||
+		    dns_name_equal(name, &arpa_inaddr) ||
+		    dns_name_equal(name, &arpa_ip6))
+		{
+			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
+				    "WARNING: '%s' is a public suffix "
+				    "and should not be used in 'ecs-zones'",
+				    cfg_obj_asstring(obj));
+		}
+
+		/*
+		 * Also warn if ecs-zones is configured for any reverse zone.
+		 */
+		if (dns_name_issubdomain(name, &arpa_inaddr) ||
+		    dns_name_issubdomain(name, &arpa_ip6))
+		{
+			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
+				    "WARNING: '%s' is a reverse zone "
+				    "and should not be used in 'ecs-zones'",
+				    cfg_obj_asstring(obj));
+		}
+
+		obj = cfg_tuple_get(domain, "bits4");
+		if (obj != NULL && cfg_obj_isuint32(obj)) {
+			isc_uint8_t val = cfg_obj_asuint32(obj);
+			if (val > 24) {
+				cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
+					    "'bits-v4' cannot exceed 24; "
+					    "reducing");
+				val = 24;
+			}
+			bits4 = ISC_MIN(val, view->ecsbits4);
+		}
+
+		obj = cfg_tuple_get(domain, "bits6");
+		if (obj != NULL && cfg_obj_isuint32(obj)) {
+			isc_uint8_t val = cfg_obj_asuint32(obj);
+			if (val > 56) {
+				cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
+					    "'bits-v6' cannot exceed 56; "
+					    "reducing");
+				val = 56;
+			}
+			bits6 = ISC_MIN(val, view->ecsbits6);
+		}
+
+		CHECK(dns_ecszones_setdomain(view->ecszones,
+					     name, negated, bits4, bits6));
+	}
+
+ cleanup:
+	return (result);
+}
+
+/*
  * Configure 'view' according to 'vconfig', taking defaults from 'config'
  * where values are missing in 'vconfig'.
  *
@@ -4889,6 +5090,50 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 		view->redirectzone = name;
 	} else
 		view->redirectzone = NULL;
+
+	obj = NULL;
+	result = ns_config_get(maps, "ecs-bits", &obj);
+	if (result == ISC_R_SUCCESS) {
+		isc_uint8_t bits;
+		obj2 = cfg_tuple_get(obj, "bits4");
+		bits = cfg_obj_asuint32(obj2);
+		if (bits > 24) {
+			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
+				    "ECS IPv4 prefix length cannot exceed 24; "
+				    "reducing");
+			bits = 24;
+		}
+		view->ecsbits4 = bits;
+
+		obj2 = cfg_tuple_get(obj, "bits6");
+		bits = cfg_obj_asuint32(obj2);
+		if (bits > 56) {
+			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
+				    "ECS IPv6 prefix length cannot exceed 56; "
+				    "reducing");
+			bits = 56;
+		}
+		view->ecsbits6 = bits;
+	}
+
+	CHECK(configure_view_acl(vconfig, config, ns_g_config,
+				 "ecs-forward", NULL, actx,
+				 ns_g_mctx, &view->ecsforward));
+
+	obj = NULL;
+	result = ns_config_get(maps, "ecs-privacy", &obj);
+	if (result == ISC_R_SUCCESS)
+		view->ecsprivacy = cfg_obj_asboolean(obj);
+
+	obj = NULL;
+	result = ns_config_get(maps, "ecs-zones", &obj);
+	if (result == ISC_R_SUCCESS)
+		CHECK(configure_ecszones(view, obj));
+
+	obj = NULL;
+	result = ns_config_get(maps, "ecs-types", &obj);
+	if (result == ISC_R_SUCCESS)
+		CHECK(parse_typemap(obj, &view->ecstypes));
 
 #ifdef HAVE_DNSTAP
 	/*
@@ -9853,15 +10098,22 @@ dumpdone(void *arg, isc_result_t result) {
 			dctx->view->view->name,
 			dns_cache_getname(dctx->view->view->cache));
 	} else if (dctx->zone == NULL && dctx->cache == NULL &&
-		   dctx->dumpcache)
+		   (dctx->dumpcache || dctx->dumpecscache))
 	{
-		style = &dns_master_style_cache;
+		if (dctx->dumpecscache)
+			style = &dns_master_style_ecscache;
+		else
+			style = &dns_master_style_cache;
 		/* start cache dump */
 		if (dctx->view->view->cachedb != NULL)
 			dns_db_attach(dctx->view->view->cachedb, &dctx->cache);
 		if (dctx->cache != NULL) {
 			fprintf(dctx->fp,
-				";\n; Cache dump of view '%s' (cache %s)\n;\n",
+				dctx->dumpecscache ?
+				";\n; ECS cache dump of view '%s' "
+				"(cache %s)\n;\n" :
+				";\n; Cache dump of view '%s' "
+				"(cache %s)\n;\n",
 				dctx->view->view->name,
 				dns_cache_getname(dctx->view->view->cache));
 			result = dns_master_dumptostreaminc(dctx->mctx,
@@ -9977,6 +10229,7 @@ ns_server_dumpdb(ns_server_t *server, isc_lex_t *lex, isc_buffer_t **text) {
 
 	dctx->mctx = server->mctx;
 	dctx->dumpcache = ISC_TRUE;
+	dctx->dumpecscache = ISC_FALSE;
 	dctx->dumpadb = ISC_TRUE;
 	dctx->dumpbad = ISC_TRUE;
 	dctx->dumpfail = ISC_TRUE;
@@ -10008,6 +10261,10 @@ ns_server_dumpdb(ns_server_t *server, isc_lex_t *lex, isc_buffer_t **text) {
 		ptr = next_token(lex, NULL);
 	} else if (ptr != NULL && strcmp(ptr, "-cache") == 0) {
 		/* this is the default */
+		ptr = next_token(lex, NULL);
+	} else if (ptr != NULL && strcmp(ptr, "-ecscache") == 0) {
+		/* dump ECS cache */
+		dctx->dumpecscache = ISC_TRUE;
 		ptr = next_token(lex, NULL);
 	} else if (ptr != NULL && strcmp(ptr, "-zones") == 0) {
 		/* only dump zones, suppress caches */

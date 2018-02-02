@@ -767,6 +767,32 @@ dns_rdata_makedelete(dns_rdata_t *rdata);
 const char *
 dns_rdata_updateop(dns_rdata_t *rdata, dns_section_t section);
 
+void
+dns_rdata_settypebit(unsigned char *array, unsigned int type,
+		     unsigned int bit);
+/*%<
+ * Set type bit in raw 'array' to 'bit'.
+ */
+
+isc_boolean_t
+dns_rdata_issettypebit(const unsigned char *array, unsigned int type);
+/*%<
+ * Test if the corresponding 'type' bit is set in 'array'.
+ */
+
+isc_boolean_t
+dns_rdata_typepresent(unsigned char *typemapbits, size_t typemaplen,
+		      dns_rdatatype_t type, isc_boolean_t checkany);
+/*%<
+ * Determine if a type is marked as present in a typemap.
+ *
+ * Requires:
+ *\li	'typemapbits' points to a valid typemap bits buffer.
+ *\li	'typemaplen' length of typemapbits in bytes.
+ *\li	'type' type being searched for.
+ *\li   'checkany' If a bit is set for the ANY type in typemapbits, return true.
+ */
+
 ISC_LANG_ENDDECLS
 
 #endif /* DNS_RDATA_H */

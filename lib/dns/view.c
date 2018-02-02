@@ -37,6 +37,7 @@
 #include <dns/dlz.h>
 #include <dns/dns64.h>
 #include <dns/dnssec.h>
+#include <dns/ecs.h>
 #include <dns/events.h>
 #include <dns/forward.h>
 #include <dns/keytable.h>
@@ -250,6 +251,12 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->v6bias = 0;
 	view->dtenv = NULL;
 	view->dttypes = 0;
+	view->ecsbits4 = 24;
+	view->ecsbits6 = 56;
+	view->ecsforward = NULL;
+	view->ecscache = ISC_TRUE;
+	view->ecsprivacy = ISC_FALSE;
+	view->ecszones = NULL;
 
 	result = isc_mutex_init(&view->new_zone_lock);
 	if (result != ISC_R_SUCCESS)
@@ -261,13 +268,22 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 			goto cleanup_new_zone_lock;
 	}
 
-	result = dns_peerlist_new(view->mctx, &view->peers);
+	view->ecstypes = NULL;
+	result = isc_buffer_allocate(mctx, &view->ecstypes, 256);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_order;
+
+	result = dns_peerlist_new(view->mctx, &view->peers);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup_ecstypes;
 
 	result = dns_aclenv_init(view->mctx, &view->aclenv);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup_peerlist;
+
+	result = dns_ecszones_create(view->mctx, &view->ecszones);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup_aclenv;
 
 	ISC_LINK_INIT(view, link);
 	ISC_EVENT_INIT(&view->resevent, sizeof(view->resevent), 0, NULL,
@@ -286,9 +302,16 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 
 	return (ISC_R_SUCCESS);
 
+ cleanup_aclenv:
+	dns_aclenv_destroy(&view->aclenv);
+
  cleanup_peerlist:
 	if (view->peers != NULL)
 		dns_peerlist_detach(&view->peers);
+
+ cleanup_ecstypes:
+	if (view->ecstypes != NULL)
+		isc_buffer_free(&view->ecstypes);
 
  cleanup_order:
 	if (view->order != NULL)
@@ -414,6 +437,8 @@ destroy(dns_view_t *view) {
 		dns_db_detach(&view->cachedb);
 	if (view->cache != NULL)
 		dns_cache_detach(&view->cache);
+	if (view->ecsforward != NULL)
+		dns_acl_detach(&view->ecsforward);
 	if (view->nocasecompress != NULL)
 		dns_acl_detach(&view->nocasecompress);
 	if (view->matchclients != NULL)
@@ -526,6 +551,10 @@ destroy(dns_view_t *view) {
 		view->new_zone_db = NULL;
 	}
 #endif /* HAVE_LMDB */
+	if (view->ecszones != NULL)
+		dns_ecszones_free(&view->ecszones);
+	if (view->ecstypes != NULL)
+		isc_buffer_free(&view->ecstypes);
 	dns_fwdtable_destroy(&view->fwdtable);
 	dns_aclenv_destroy(&view->aclenv);
 	if (view->failcache != NULL)

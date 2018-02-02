@@ -1,0 +1,25 @@
+4480.	[func]		Add recursive support for EDNS CLIENT-SUBNET (ECS).
+
+			- ECS options are generated when sending recursive
+			  queries to zones listed in "ecs-zones".
+			- ECS options from the client are forwarded when
+			  sending queries to whitelisted domains if the
+			  client is in allowed by the "ecs-forward" ACL,
+			  or when the source prefix length is 0
+			- ECS options are never sent for DNS infrastructure
+			  types (i.e., NS, SOA, DNSKEY, etc) as these are
+			  presumed to be of global scope. ECS queries
+			  can be further restricted to a specific set of
+			  query types by using the "ecs-types" option.
+			- ECS options are sent using a default source
+			  prefix length of 24 for IPv4 queries and 56 for
+			  IPv6 queries. These defaults can be reduced to
+			  lower values by using "ecs-bits", or on a
+			  per-domain basis in the "ecs-zones" option.
+			- Servers that do not support ECS can be
+			  blacklisted using "server <ip> { ecs no; };"
+			- The dns_db API and the red-black tree database
+			  implementation have been updated to allow storage
+			  and retrieval of data tagged with ECS information.
+
+			See the ARM for more details of these options.

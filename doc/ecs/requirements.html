@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width; initial-scale=1.0;" />
+  <title>Software Requirements Specification for EDNS Client Subnet Support in BIND 9</title>
+  <link rel="stylesheet" type="text/css" media="screen" href="main.css" />
+  <link rel="stylesheet" type="text/css" media="print" href="print.css" />
+  <meta name="description" content="This document describes the requirements for adding support for the EDNS Client Subnet (ECS) feature to the BIND 9 open source DNS resolver software." />
+</head>
+
+<body>
+
+<h1>Software Requirements Specification for EDNS Client Subnet Support in BIND 9</h1>
+<p>Version 1.8 (26 April 2016)</p>
+
+<section>
+<h2>Revision History</h2>
+<table>
+  <tr>
+    <th>Date</th>
+    <th>Description</th>
+    <th>Author</th>
+    <th>Comment</th>
+  </tr>
+  <tr>
+    <td>5 Dec 2014</td>
+    <td>Version 0.1</td>
+    <td>Sara Dickinson</td>
+    <td>Initial Draft</td>
+  </tr>
+  <tr>
+    <td>23 Dec 2014</td>
+    <td>Version 1.0</td>
+    <td>Sara Dickinson</td>
+    <td>First 1.x version following review</td>
+  </tr>
+  <tr>
+    <td>6 Jan 2015</td>
+    <td>Version 1.1</td>
+    <td>Sara Dickinson</td>
+    <td>Clarify handling of negative answers.</td>
+  </tr>
+  <tr>
+    <td>14 Jan 2015</td>
+    <td>Version 1.2</td>
+    <td>Sara Dickinson</td>
+    <td>
+      <ul>
+        <li>Added paragraph on recent mailing list activity</li>
+        <li>Downgraded 2.13 and 2.1.5 to desirable</li>
+        <li>Updated 2.9 to consider server priority</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td>11 Jan 2016</td>
+    <td>Version 1.3</td>
+    <td>Stephen Morris</td>
+    <td>Updated for version 6 of the EDNS Client Subnet Internet Draft</td>
+  </tr>
+  <tr>
+    <td>29 Jan 2016</td>
+    <td>Version 1.4</td>
+    <td>Stephen Morris</td>
+    <td>Updated after ISC/Infoblox meeting on 26 Jan 2016</td>
+  </tr>
+  <tr>
+    <td>8 Feb 2016</td>
+    <td>Version 1.5</td>
+    <td>Stephen Morris</td>
+    <td>Updated with changes suggested during correspondence following the 26 Jan 2016 meeting.</td>
+  </tr>
+  <tr>
+    <td>5 Apr 2016</td>
+    <td>Version 1.6</td>
+    <td>Stephen Morris</td>
+    <td>Updated with changes agreed during correspondence following the release of 1.5.</td>
+  </tr>
+  <tr>
+    <td>26 Apr 2016</td>
+    <td>Version 1.7</td>
+    <td>Stephen Morris</td>
+    <td>Changes to reflect -08 version of draft. Clarification of Whitelist/Blacklists. Some minor corrections.</td>
+  </tr>
+  <tr>
+    <td>4 Jul 2016</td>
+    <td>Version 1.8</td>
+    <td>Stephen Morris, Mukund Sivaraman</td>
+    <td>Change to HTML format. Update requirements 2.4 and 2.6 about maximum allowed prefix lengths. Update with changes suggested by Stephen in email sent on 14 Jun 2016.</td>
+  </tr>
+</table>
+</section>
+
+<section>
+<h2>Introduction</h2>
+<p>This document describes the requirements for adding support for the
+EDNS Client Subnet (ECS) feature to the BIND 9 open source DNS resolver
+software. The most recent definition of the DNS EDNS0 extension to carry
+client subnet information is available in the IETF
+Draft <a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08">draft-ietf-dnsop-edns-client-subnet-08</a>,
+published March 21, 2016.</p>
+
+<h3>Background</h3>
+<p>Many major Content Delivery Network (CDN) providers (e.g. Google,
+FaceBook, EdgeCast) have already implemented and deployed ECS based on
+specifications in earlier versions of the edns-client-subnet
+draft. Details of this collaborative effort may be found, for example,
+at <a href="http://www.afasterinternet.com/participants.htm">http://www.afasterinternet.com/participants.htm</a>.
+The feature enables CDNs to deliver content faster and more efficiently
+to the end user by providing information about the end users subnet to
+the authoritative DNS system operated by the content provider. This
+information can be used to direct requests to the optimal datacenter to
+access geographically distributed content.</p>
+
+<h3>Purpose &amp; Scope</h3>
+<p>The purpose of this project is to incorporate a ECS feature into the
+ISC general public distribution of BIND. The implementation must
+successfully interoperate with the existing implementations of the
+feature currently deployed by numerous CDNs.</p>
+
+<h3>Audience</h3>
+<p>The primary audience for this document is the group of software
+engineers who will be responsible for the oversight and implementation
+of this feature in BIND. A secondary audience is those engineers
+involved in testing, supporting and deploying the software.</p>
+
+<h3>Definitions, Acronyms and Abbreviations</h3>
+<ol>
+  <li><strong>ECS</strong> - EDNS Client Subnet</li>
+  <li><strong>ECS draft</strong>
+  - <a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-07">draft-ietf-dnsop-edns-client-subnet-08</a></li>
+  <li><strong>ECS option</strong> - used as shorthand to mean the EDNS0
+  extension used to carry client subnet information</li>
+  <li><strong>ECS data</strong> - used as shorthand to mean the <em>FAMILY</em>,
+  <em>ADDRESS</em> and <em>SCOPE Prefix-Length</em> information in ECS
+  option of a response from an authoritative nameserver</li>
+  <li><strong>CDN</strong> - Content Delivery Network provider</li>
+  <li><strong>Requirement Type</strong> - E (Essential), D (Desirable)</li>
+  <li><strong>BIND Mode</strong> - BIND nameserver mode: R (Recursive resolver), A (Authoritative nameserver), B (Both)</li>
+</ol>
+
+<h3>References</h3>
+<ol>
+  <li><a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08">https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08</a></li>
+  <li><a href="https://tools.ietf.org/html/rfc6890">RFC6890</a></li>
+  <li><a href="http://www.isc.org/community/">ISC Community Website</a></li>
+  <li><a href="https://source.isc.org/cgi-bin/gitweb.cgi?p=bind9.git;a=summary">ISC BIND 9 git repository</a></li>
+</ol>
+
+</section>
+
+<section>
+<h2>General Description</h2>
+
+<h3>Product Perspective</h3>
+<p>The ECS feature will be included in BIND but will be disabled by
+default. It will most likely be controlled by use of a restrictive
+mechanism, such as a whitelist. These conditions are needed to limit the
+risk of adverse consequences on BIND and the DNS from introducing
+significant changes in BIND, and to respect the privacy implications of
+providing more end user information than was provided previously.</p>
+
+<p>The main goal of the project is to implement the ECS feature in BIND
+when operating as a recursive resolver. An implementation in the the
+authoritative server mode of BIND will be developed to enable testing,
+but it is not yet determined how complete an implementation will be
+released in the the general public distribution of BIND. As such, all
+references specific to only this authoritative implementation are marked
+as 'desirable'.</p>
+
+<h3>Design and Implementation Constraints</h3>
+<ol>
+  <li>The implementation of the ECS feature must not alter the existing
+  functionality of BIND when ECS is disabled.</li>
+  <li>It is vital that the any performance impact resulting from code
+  changes to support the ECS feature should be minimised as much as
+  possible. It is desirable that there is no performance change when ECS
+  is disabled, compared the the version of BIND to which the feature is
+  first added (9.10.2).</li>
+</ol>
+
+<h3>Assumptions and Dependencies</h3>
+<ol>
+  <li>This document is generated referencing the latest ECS
+  draft, <a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08">draft-ietf-dnsop-edns-client-subnet-08</a>. If
+  a new version of the draft is issued before implementation of the ECS
+  feature a change management process will have to be employed to
+  determine if the requirements should be updated to reflect the new
+  draft.</li>
+  <li>Whilst the requirements are generated referencing the latest ECS
+  draft, the end goal is interoperability with existing
+  implementations. It is assumed that other implementors have
+  implemented the draft accurately and that implementing the draft will
+  achieve interoperability.</li>
+  <li>Interoperability testing will likely require the co-operation of third parties.</li>
+</ol>
+
+</section>
+
+<section>
+<h2>Requirements</h2>
+
+<p>In the following tables all references in square brackets with only a
+section number refer to the relevant section of the ECS draft.</p>
+
+<p>For reference the ECS EDNS0 option structure and an abbreviated
+definition is reproduced in <a href="#appendix-a">Appendix A</a>.</p>
+
+<h3>General Requirements</h3>
+<table class="req">
+  <tr>
+    <th>ID</th>
+    <th>Requirement</th>
+    <th>BIND Mode</th>
+    <th>Req. Type</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td><strong>High Level Requirements</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>1.1</td>
+    <td><span class="underline">Software Version:</span> Support for ECS will be added to BIND 9.10.2.
+      <ul>
+        <li>The version number of the result will be something other than 9.10.2.</li>
+      </ul>
+    </td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+  <tr>
+    <td>1.2</td>
+    <td><span class="underline">Recursive Resolver:</span> BIND will
+    implement full support for ECS when operating as a recursive
+    resolver.</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+  <tr>
+    <td>1.3</td>
+    <td><span class="underline">Authoritative Server:</span> BIND will
+    implement full support for ECS when operating as an authoritative
+    server. (This feature will support testing, but it is not yet
+    determined what will be supported in a production release.)</td>
+    <td>A</td>
+    <td>E</td>
+  </tr>
+  <tr>
+    <td>1.4</td>
+    <td><span class="underline">Default:</span> ECS will be disabled by
+    default.</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+  <tr>
+    <td>1.5</td>
+    <td><span class="underline">Backwards compatibility:</span> ECS will
+    be fully compatible with the existing implementation of DNS and
+    DNSSEC
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-9">Section
+    9</a>].</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+</table>
+
+<h3>Functional Requirements</h3>
+
+<table class="req">
+  <tr>
+    <th>ID</th>
+    <th>Requirement</th>
+    <th>BIND Mode</th>
+    <th>Req. Type</th>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><strong>Configuration file options</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>2.1</td>
+    <td><span class="underline">Enable Recursive ECS:</span> There must be a configuration option that enables/disables Recursive resolver ECS.
+      <ul>
+        <li>The default will be disabled.</li>
+        <li>It is likely that the option to enable ECS processing will
+        be combined with the whitelist (see Requirement 2.7): if the
+        whitelist is empty or not present, ECS processing is
+        disabled.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+  <tr>
+    <td>2.2</td>
+    <td><span class="underline">Enable Authoritative ECS:</span> There must be a configuration option that enables/disables Authoritative ECS.
+      <ul>
+        <li>The default will be disabled.</li>
+      </ul>
+    </td>
+    <td>A</td>
+    <td>D</td>
+  </tr>
+  <tr>
+    <td>2.3</td>
+    <td><span class="underline">Enable ECS Forwarding:</span> There must be a configuration option that enables/disables ECS Forwarding for specified clients.
+      <ul>
+        <li>ECS forwarding allows the resolver to include ECS options received by the client in upstream queries.</li>
+        <li>The default will be disabled for all clients.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+  <tr>
+    <td>2.4</td>
+    <td><span class="underline">ECS configuration (<em>Source Prefix-Length</em> in queries):</span> It must be possible to configure the default <em>Source Prefix-Length</em> (i.e. subnet size) separately for both IPv4 and IPv6 that will be used when sending ECS queries [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-11.1">Section 11.1</a>].
+      <ul>
+        <li>The default values will be /24 for IPv4 and /56 for IPv6.</li>
+        <li>The maximum allowed values will be /24 for IPv4 and /56 for IPv6.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+  <tr>
+    <td>2.5</td>
+    <td>Requirement deleted</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>2.6</td>
+    <td><span class="underline">ECS configuration (<em>Scope
+    Prefix-Length</em> in responses):</span> It must be possible to
+    configure the upper limit on the <em>Scope Prefix-Length</em>
+    (i.e. subnet size) separately for both IPv4 and IPv6 that will be
+    used when sending ECS responses.
+      <ul>
+        <li>The default values will be /24 for IPv4 and /56 for IPv6.</li>
+        <li>The maximum allowed values will be /24 for IPv4 and /56 for IPv6.</li>
+      </ul>
+    </td>
+    <td>A</td>
+    <td>D</td>
+  </tr>
+  <tr>
+    <td>2.7</td>
+    <td>Requirement deleted</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>2.7.1</td>
+    <td>Requirement deleted</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>2.8</td>
+    <td>Requirement deleted</td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>2.8.1</td>
+    <td><span class="underline">Whitelist/Blacklist (domains):</span> It
+    will be possible to specify a list of both whitelisted and
+    blacklisted domains. When deciding a match, all domains in the list
+    are inspected, and the longest match determines whether the domain
+    in question is whitelisted or blacklisted.
+      <ul>
+        <li>As an example, if google.com is whitelisted,
+        groups.google.com blacklisted and allowed.groups.google.com
+        whitelisted, then "alpha.google.com" is in the whitelist,
+        "beta.groups.google.com" would be blacklisted, and
+        "gamma.allowed.groups.google.com" would be whitelisted.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+  <tr>
+    <td>2.9</td>
+    <td><span class="underline">Blacklist (servers):</span> There must be a configurable blacklist of individual servers (specified by IP address or name) to which ECS options will not be sent.
+      <ul>
+        <li>This blacklist must be empty by default.</li>
+        <li>Having decided that a query is sent with ECS options because it matches the domain whitelist, the ECS options are included in all upstream queries unless the server to which the query is being sent is in the blacklist.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+  <tr>
+    <td>2.10</td>
+    <td><span class="underline">Whitelist (query type):</span> There must be a configurable list of the query types for which ECS options will be sent. This may be defined per domain/IP address.
+      <ul>
+        <li>This whitelist will be ANY with the exception of built-in blacklisted types (see below).</li>
+        <li>The following RR types will be blacklisted: SOA, NS, DNSKEY, DS, NSEC, NSEC3. Allowing these records to be associated with differing network lengths raises questions about the operation of the internal name server algorithms (including DNSSEC validation) should the cache contain records associated with differing prefix lengths. [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.3.1">Section 7.3.1</a>].</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+  <tr>
+    <td>2.11</td>
+    <td><span class="underline">Whitelist (<em>Source
+    Prefix-Length</em>):</span> There must be a way to additionally
+    configure domain specific Source Prefix-Lengths for IPv4 and IPv6,
+    to be used when sending queries to a whitelisted domain.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+  <tr>
+    <td>2.12</td>
+    <td><span class="underline">Cache controls (Maximum ECS TTL):</span>
+    It must be possible to configure limits on the maximum time the
+    server will cache ordinary (positive) answers which have ECS
+    data.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+  <tr>
+    <td>2.13</td>
+    <td><span class="underline">Cache controls (Maximum total networks):</span>
+    It must be possible to configure the maximum total number of
+    networks stored in the cache.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>2.14</td>
+    <td><span class="underline">Cache controls (Maximum total
+    answers):</span> It must be possible to configure the maximum total
+    number of answers stored in the cache.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>2.15</td>
+    <td>Requirement deleted</td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>2.16</td>
+    <td><span class="underline">Cache controls (max answers per
+    query):</span> It must be possible to configure the maximum number
+    of answers cached for a given query.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>2.17</td>
+    <td><span class="underline">Authoritative ECS configuration:</span>
+    It must be possible to configure an ACL with ECS access restrictions
+    which specify an address or network prefix.</td>
+    <td>A</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>2.18</td>
+    <td><span class="underline">Authoritative ECS configuration (GeoIP
+    support):</span> It must be possible to configure an ACL to use
+    either
+      <ol type="i">
+        <li>the address information in the ECS option or</li>
+        <li>the client source address</li>
+      </ol>
+      when matching GeoIP elements.
+      <ul>
+        <li>The match will be against the ECS option by default.</li>
+      </ul>
+    </td>
+    <td>A</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>3</td>
+    <td><strong>Recursive Mode: Processing queries from clients</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>3.1</td>
+    <td><span class="underline">ECS handling of client queries:</span>
+    When Recursive ECS is enabled, a query should be treated as
+    requiring ECS handling only if it meets <strong>all</strong> the
+    following criteria:
+      <ul>
+        <li>It does not include a ECS option with the <em>Source
+        Prefix-Length</em> set to 0
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.1.2">Section
+        7.1.2</a>]</li>
+        <li>The query domain passes a whitelist/blacklist test</li>
+        <li>(Desirable) The destination server IP address and server
+        name pass a blacklist test</li>
+        <li>(Desirable) The query type passes a blacklist test</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>3.2</td>
+    <td><span class="underline">Cache lookups for queries requiring ECS
+    handling:</span> For queries that require ECS handling a cache
+    lookup for the answer must be done as described below
+    in <a href="#req-8">Requirement 8</a>.</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>3.3</td>
+    <td><span class="underline">In-flight queries for same tuple:</span>
+    As with the current implementation, for queries that require
+    recursion only a single upstream query should be in-flight at any
+    time for the same tuple. For queries that require ECS handling the
+    tuple definition is extended to include client subnet
+    i.e. (name/class/type/client subnet).
+      <ul>
+        <li>The owner name of the query may be a part of a CNAME chain,
+        not necessarily corresponding to the query name from a
+        client.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>3.4</td>
+    <td>When making an upstream query to an authoritative nameserver,
+    ECS options are only added to the query if the destination server IP
+    address and/or server name pass a blacklist test.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>4</td>
+    <td><strong>Recursive: Sending queries to authoritative servers</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>4.1</td>
+    <td><span class="underline">Recursion for queries requiring ECS
+    handling (no Client ECS information):</span> If the originating
+    client query did not include ECS information, then for queries that
+    require ECS handling and require recursion, the outgoing query must
+    have an ECS option
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-6">Section
+    6</a>]. The ECS option fields must contain:
+      <ol type="i">
+        <li><em>Family</em>: indicate the family of the address
+        contained in the option using address family codes as assigned
+        by IANA.</li>
+        <li><em>Source Prefix-Length</a>: the default
+        configured <em>Source Prefix-Length</em>, or if applicable a
+        domain-specific <em>Source Prefix-Length</em>.</li>
+        <li><em>Scope Prefix-Length</em>: this must be set to zero.</li>
+        <li><em>Address</em>: IPv4 or IPv6 address (depending on Family)
+        truncated to the number of bits indicated by the <em>SOURCE
+        Prefix-Length</em> field, with bits set to 0 to pad up to the
+        end of the last octet used. The number of octets used must be
+        the minimum required to contain the truncated address.</li>
+      </ol>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>5</td>
+    <td><strong>Recursive: Processing responses from authoritative servers</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>5.1</td>
+    <td><span class="underline">Response ECS handling (no ECS option
+    present in response):</span> The response should be processed as if
+    containing a ECS option with <em>Scope Prefix-Length</em> set to
+    0.</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>5.2</td>
+    <td><span class="underline">Response validation for ECS handling
+    (ECS option present):</span> On receiving a response
+    the <em>FAMILY</em>, <em>SOURCE Prefix-Length</em>, and <em>SOURCE
+    Prefix-Length</em> bits of <em>Address</em> in the response must
+    match the fields in the corresponding query:
+      <ol type="i">
+        <li>If the fields do not match, the response from the
+        authoritative server should be dropped and the resolver wait for
+        a valid response or a
+        timeout. [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.3">Section
+        7.3</a>, <a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-11.2">Section
+        11.2</a>].</li>
+        <li>Sub-requirement deleted.</li>
+        <li>If the fields do match and the option is valid then the
+        response should be cached according the caching logic described
+        in <a href="#req-7">Requirement 7</a> below and the response
+        returned to the client. (Note: this is true even if <em>Scope
+        Prefix-Length</em> in the response is longer than the <em>SOURCE
+        Prefix-Length</em> in the query and the client is in a different
+        address range
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.2">Section
+        7.2.2</a>.)</li>
+        <li>If a REFUSED response is received, the resolver must retry
+        the query without ECS. (This is to check whether the
+        authoritative name server is not responsible for the name or
+        whether there was a problem with the ECS option sent.)
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.3">Section
+        7.3</a>].</li>
+      </ol>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>6</td>
+    <td><strong>Recursive: Sending responses to clients</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>6.1</td>
+    <td><span class="underline">Response to queries containing no ECS
+    option:</span> The response must not include an ECS option
+    regardless of whether Recursive ECS is enabled or not
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2">Section
+    7.2.2</a>].</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>6.2</td>
+    <td><span class="underline">Recursive ECS Disabled/ECS Forwarding
+    Enabled:</span> The ECS option in the query will not be included in
+    upstream queries. However, all responses to such a query from the
+    client should contain an ECS option with a scope prefix length of 0.<br />
+    <br />
+    Note: this requirement means that a client sending ECS options will
+    get a consistent response from the server, regardless of the domain
+    being queried for.</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>6.3</td>
+    <td><span class="underline">Recursive ECS enabled: Response to
+    queries containing ECS option with <em>Source Prefix-Length</em> set
+    to 0:</span> If the original query contained a valid ECS option with
+    the <em>Source Prefix-Length</em> set to 0 then the response should
+    contain an ECS option with <em>Family</em> and <em>Source
+    Prefix-Length</em> matching that in the query and a <em>Scope
+    Prefix-Length</em> of 0
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2">Section
+    7.2</a>]. (Note: The answer will have been generated without ECS
+    handling).
+      <ul>
+        <li>This occurs regardless of whether ECS forwarding is enabled or disabled.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>6.4</td>
+    <td><span class="underline">Recursive ECS enabled/ECS Forwarding
+    enabled: Response to queries containing ECS option with
+    non-zero <em>Source Prefix-Length</em>:</span> If the original query
+    contained a valid ECS option with a non-zero the <em>Source
+    Prefix-Length</em> and the query required ECS handling, the response
+    should contain an ECS option.
+      <ul>
+        <li>If the upstream server returns a response without ECS
+        information, the resolver should return a response with the
+        Scope Prefix-Length in the ECS option set to 0.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>6.5</td>
+    <td><span class="underline">ECS Forwarding disabled: Response to
+    queries containing ECS option with non-zero Source
+    Prefix-Length:</span> If the original query contained a valid ECS
+    option with a non-zero Source Prefix-Length, the resolver should
+    return a REFUSED response
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.1.1">Section
+    7.1.1</a>].<br >
+    <br />
+    Note: the REFUSED response is returned regardless of whether or not
+    the domain being queried for is in the white list.  Like requirement
+    6.2, this gives a consistent response to the client regardless of
+    domain name being queried for.
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td><a name="req-7"></a>7</td>
+    <td><strong>Recursive Mode: Caching responses</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>7.1</td>
+    <td><span class="underline">Answers (<em>Scope Prefix-Length</em> in
+    response set to 0):</span>
+      <ol type="i">
+        <li>Where the upstream query included a <em>Source
+        Prefix-Length</em> option with a value of 0, the response is
+        cached globally, i.e. applying to any network.</li>
+        <li>Where the upstream query included a <em>Source
+        Prefix-Length</em> option with a value greater than zero, the
+        response should be cached as applying only to the network
+        indicated by the <em>Source Prefix-Length</em>.</li>
+      </ol>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>7.2</td>
+    <td><span class="underline">Answers (<em>Scope Prefix-Length</em> in
+    response non-zero):</span> The resource records in the answer
+    section of a response must be cached according to family, address
+    and a combination of source/scope prefix lengths. In particular:
+      <ol type="i">
+        <li>If the source prefix length of the upstream query is greater
+        than or equal to the scope prefix length of the response, the
+        cached answer must be associated with a prefix length equal to
+        the scope prefix length.</li>
+        <li>If the source prefix length of the upstream query is less
+        than the scope prefix length of the response, the cached answer
+        must be associated with a prefix length equal to the source
+        prefix length. In addition, information must be associated with
+        the entry to show that it is an "exact match".</li>
+      </ol>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>7.3</td>
+    <td><span class="underline">Negative answers:</span> Negative
+    answers (NODATA, NXDOMAIN) will be cached at global scope.</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>7.4</td>
+    <td><span class="underline">The additional and authority sections in
+    a response must not be tied to a network
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.3.1">Section
+    7.3.1</a>].</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>7.5</td>
+    <td><span class="underline">Answers (No ECS Option):</span>
+    Responses containing no ECS option should be cached globally.</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td><a name="req-8"></a>8</td>
+    <td><strong>Recursive Mode: Cache lookup</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>8.1</td>
+    <td><span class="underline">Cache matches:</span> If a positive
+    match is found based on name and type of an entry in the cache the
+    resolver will check whether the originating IP address and family of
+    the client matches one of the networks in the cache for that entry
+    [Section 7.3]:
+      <ol type="i">
+        <li>If the effective source network (see below) equals any of
+        the networks in the cache requiring an exact match, that entry
+        is used for the response.</li>
+        <li>If no exact match is found but the effective source network
+        matches one or more networks in the cache not marked by the
+        "exact match" flag, the entry associated with the longest prefix
+        length is used for the response.</li>
+        <li>If the address of the client does not match any network in
+        the cache, then the system must behave as if no match was found
+        and perform resolution as usual.</li>
+      </ol>
+      The effective source network is given by the following:
+      <ul>
+        <li>If the client does not contain an ECS option, the client's
+        address is truncated to the resolver’s configured prefix
+        length.</li>
+        <li>If the client contains an ECS option, the shorter of the
+        source prefix length in the ECS option and the default prefix
+        length of the resolver is used to truncate the network
+        information in the ECS option: the result is used as the
+        effective source network.</li>
+      </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>8.2</td>
+    <td>Requirement deleted</td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>8.3</td>
+    <td><span class="underline">Cache refresh:</span> an upstream query
+    to refresh an expired cache entry must, if unrestricted by the
+    client query providing a <em>Source Prefix-Length</em>, specify the
+    longest <em>Source Prefix-Length</em> that the resolver is willing to
+    cache, even if the cache entry indicated that a shorter prefix
+    length was
+    sufficient. [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.1.1">Section
+    7.1.1</a>]</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>9</td>
+    <td><strong>Recursive Mode: Cache cleaning</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>9.1</td>
+    <td><span class="underline">Maximum cache ECS TTL:</span> When cache
+    cleaning occurs, the system should use the specified maximum cache
+    ECS TTL to remove answers with ECS data.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>9.2</td>
+    <td><span class="underline">ECS intelligent cache cleaning:</span>
+    Additional intelligence may be used when cleaning the cache
+    regarding ECS data e.g. the most specific cache entries may be
+    discarded first.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>10</td>
+    <td><strong>Forwarding</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>10.1</td>
+    <td><span class="underline">Forwarding of ECS options (Recursive ECS
+    enabled):</span> Options with a <em>SOURCE Prefix-Length</em> set to
+    0 (i.e., completely anonymized) must be forwarded unchanged,
+    regardless of the setting of the ECS forwarding configuration
+    item. Such an option must not be replaced with an option with more
+    accurate address information
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.1.2">Section
+    7.1.2</a>].</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>10.1.1</td>
+    <td><span class="underline">Forwarding of ECS option with source
+    prefix length of 0 (Recursive ECS disabled):</span> The forwarding
+    of options with a source prefix-length of 0 depends on the target
+    server:
+    <ol type="i">
+      <li>If the server is listed in a &ldquo;forwarders&rdquo; statement, the ECS option will be included in the upstream query.</li>
+      <li>If the server is not listed in a &ldquo;forwarders&rdquo; statement, the upstream query will not include the ECS option.</li>
+    </ol>
+    Note:
+    <ul>
+      <li>This requirement prevents a response customised to the resolver's address from being retrieved from the upstream server.</li>
+      <li>Notwithstanding this requirement, no ECS option will be sent to any address in the server blacklist (requirement 2.9).</li>
+    </ul>
+    </td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>10.2</td>
+    <td><span class="underline">Forwarding (valid ECS option):</span> If
+    ECS forwarding is enabled, all queries containing an valid ECS
+    option must be forwarded. If the query contains a SOURCE
+    PREFIX-LENGTH that is shorter than the maximum cacheable SCOPE
+    PREFIX-LENGTH configured for recursive ECS then the upstream query
+    should be altered to contain the shorter of the two
+    [<a
+    href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.1.1">Section
+    7.1.1</a>].</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>10.3</td>
+    <td>Requirement deleted</td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>11</td>
+    <td><strong>Authoritative Mode</strong> (Note: For reference an
+    initial implement of this is available in commit d46855ca.)</td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>11.1</td>
+    <td><span class="underline">Response to queries containing no ECS
+    option:</span> The response must not include an ECS option
+    regardless of whether Authoritative ECS is enabled or not
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.1">Section
+    7.2.1</a>].</td>
+    <td>A</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>11.2</td>
+    <td><span class="underline">Handling of ECS options:</span>
+      <ol type="i">
+        <li>If Authoritative ECS is enabled, and the query contains an
+        ECS option then when selecting a view to use to answer the query
+        the address encoded in the ECS option will be matched against
+        the specified ECS access restriction for the ACLs.</li>
+        <li>If GeoIP is supported then either the address in the ECS
+        option or the client source address will be used to match
+        against the GeoIP element, depending on the configuration
+        option. </li>
+        <li>If Authoritative ECS is disabled, the ECS option in all
+        queries should be ignored and the response must not include an
+        ECS option
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.1">Section
+        7.2.1</a>].</li>
+      </ol>
+    </td>
+    <td>A</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>11.3</td>
+    <td>Requirement moved (now <a href="#req-12-2">requirement
+    12.2</a>)</td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>11.4</td>
+    <td><span class="underline">Authoritative ECS Enabled: Response to
+    queries containing valid ECS option:</span>
+      <ol type="i">
+        <li>The response must contain an ECS option
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.1">Section
+        7.2.1</a>].</li>
+        <li>The <em>Family</em>, <em>Source Prefix-Length</em> and the
+        first <em>Source Prefix-Length</em> bits of the <em>Address</em>
+        must match that in the query
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.1">Section
+        7.2.1</a>, <a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-11.2">Section
+        11.2</a>].</li>
+        <li>Sub-requirement deleted.</li>
+        <li>Sub-requirement deleted.</li>
+        <li>The <em>Scope Prefix-Length</em>in the response must
+        indicate the Prefix-Length of the network for which the answer
+        is intended
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.1">Section
+        7.2.1</a>].</li>
+        <li>If the <em>Scope Prefix-Length</em>in the response is longer
+        than the <em>Source Prefix-Length</em>in the query
+        the <em>Address</em> must be extended to <em>Scope
+        Prefix-Length</em> significant bits to indicate the network for
+        which is optimal and and 0 filled to the end of an octet
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-6">Section
+        6</a>].</li>
+        <li>If the authoritative server does not use the information
+        provided in the query at all to determine the answer in the
+        response (e.g. if the reply is invariant across network space)
+        then the <em>Scope Prefix-Length</em> in the response must be
+        set to 0
+        [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.1">Section
+        7.2.1</a>].</li>
+      </ol>
+    </td>
+    <td>A</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>12</td>
+    <td><strong>General</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>12.1</td>
+    <td><span class="underline">Cache pollution:</span> Authoritative
+    Nameservers and Recursive Resolvers should discard ECS options that
+    are either obviously forged or otherwise known to be wrong. They
+    should at least treat unroutable addresses, such as some of the
+    address blocks defined in
+    [<a href="https://tools.ietf.org/html/rfc6890">RFC6890</a>], as
+    equivalent to the Recursive Resolver's own identity. They should
+    ignore and never forward ECS options specifying other routable
+    addresses that are known not to be served by the query source
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-11.3">Section
+    11.3</a>].</td>
+    <td>B</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td><a name="req-12-2"></a>12.2</td>
+    <td><span class="underline">ECS Enabled: Response to query
+    containing invalid ECS option:</span> If the ECS option is wrongly
+    formatted, the server must reject the query and respond with FORMERR
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.1">Section
+    7.2.1</a>].</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>13</td>
+    <td><strong>Tools</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>13.1</td>
+    <td><span class="underline">rndc (White/Blacklists):</span> The
+    content of the white/blacklists must be available for inspection via
+    the <code>rndc</code> tool.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>13.2</td>
+    <td><span class="underline">rndc (White/Blacklists):</span> The
+    content of the white/blacklists must be available for editing via
+    the <code>rndc</code> tool.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>13.3</td>
+    <td><span class="underline">rndc (dumpdb):</span> It must be
+    possible to display some or all the ECS-tagged versions of an RRset
+    when dumping the cache database using the command <code>rndc
+    dumpdb</code>.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>13.4</td>
+    <td><span class="underline">rndc (flush/flushname/flushtree):</span>
+    Flushing the cache using these commands should correctly flush any
+    ECS entries in the cache.</td>
+    <td>R</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>13.5</td>
+    <td><span class="underline">rndc (flush -ecsonly):</span> A new
+    option for <code>rndc flush</code> could be implemented that flushed
+    only ECS entries from the cache. (This would be particularly useful
+    in testing.)</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>13.6</td>
+    <td><span class="underline">dig (+subnet):</span> A new option
+    +subnet must be supported for both IPv4 and IPv6 addresses. The
+      option will have the following format:
+      <pre>
+        +subnet=&lt;Optional IP address of client&gt;/&lt;Optional Source Prefix Length&gt;/&lt;Optional Scope Prefix Length&gt;
+      </pre>
+      for example:
+      <pre>
+        dig @ns1.google.com www.google.com +subnet=130.89.89.0/24
+      </pre>
+      Defaults are:
+      <ol>
+        <li>IP address of client: local IPv4 address of client</li>
+        <li>Source Prefix-Length: /24 (IPv4) or /56 (IPv6) for depending on the family of the client IP address</li>
+        <li>Scope Prefix-Length: 0</li>
+      </ol>
+    </td>
+    <td>-</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>13.7</td>
+    <td>Requirement deleted</td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>13.8</td>
+    <td><span class="underline">delv:</span> <code>delv</code> should be
+    extended with the same new options as described above
+    for <code>dig</code>.</td>
+    <td>-</td>
+    <td>D</td>
+  </tr>
+
+</table>
+
+<h3>Non-functional Requirements</h3>
+<table class="req">
+  <tr>
+    <th>ID</th>
+    <th>Requirement</th>
+    <th>BIND Mode</th>
+    <th>Req. Type</th>
+  </tr>
+
+  <tr>
+    <td>14</td>
+    <td><strong>Performance</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>14.1</td>
+    <td><span class="underline">Non-ECS cache lookups:</span>
+    Performance for non-ECS cache lookups should be as close as possible
+    to the performance for cache lookups in the version of BIND to which
+    the feature will be added (9.10.2).</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td>14.2</td>
+    <td><span class="underline">ECS cache lookups:</span> Performance
+    for looking up ECS-tagged data in the cache should be as close as
+    possible to performance for non-ECS cache lookups.</td>
+    <td>R</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>15</td>
+    <td><strong>Testing</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>15.1</td>
+    <td><span class="underline">Automated unit testing:</span> Where
+    possible, new automated unit tests must be added for the new ECS
+    implementation.</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>15.2</td>
+    <td><span class="underline">Automated system testing:</span> There
+    must be an automated test suite that verifies that BIND recursive
+    interoperates correctly with both a stub resolver and an
+    authoritative server which implement ECS. (More details of the test
+    suite should be provided in a separate document.)</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>15.3</td>
+    <td><span class="underline">Interoperability:</span> Manual testing
+    must be performed to confirm that BIND recursive interoperates
+    correctly with known authoritative servers that implement the ECS
+    option (e.g. Google, Facebook). (More details of this testing should
+    be provided in a separate document.)</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>15.4</td>
+    <td><span class="underline">Platform support:</span> Sufficient
+    testing must be performed to confirm that the ECS feature operates
+    on the range of platforms for which BIND is supported.</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>16</td>
+    <td><strong>Documentation</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>16.1</td>
+    <td><span class="underline">Man pages:</span> The ECS feature must
+    be documented in the appropriate .docbook manual pages. This
+    includes any updates to dig/delv.</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>16.2</td>
+    <td><span class="underline">BIND ARM:</span> The ECS feature must be
+    documented in the BIND 9 Administrator Reference Manual. This
+    includes any updates to dig/delv.</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>16.3</td>
+    <td><span class="underline">Code:</span> The ECS feature must be
+    documented where required in the API via Doxygen style comments and
+    with inline code comments where appropriate.</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>16.4</td>
+    <td><span class="underline">ISC Website:</span> An article should be
+    added to the ISC Knowledge Base describing the ECS feature
+    implementation. A section should be added tot he BIND Developer
+    information page describing the new cache design.</td>
+    <td>B</td>
+    <td>D</td>
+  </tr>
+
+  <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>17</td>
+    <td><strong>Support and Maintenance</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>17.1</td>
+    <td><span class="underline">Support:</span> The ECS implementation
+    must be supportable by the ISC support group.</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+
+  <tr>
+    <td>17.2</td>
+    <td><span class="underline">Maintenance:</span> The ECS
+    implementation must be maintainable by the ISC software development
+    team.</td>
+    <td>B</td>
+    <td>E</td>
+  </tr>
+</table>
+
+<h3>Non-Requirements</h3>
+<table class="req">
+  <tr>
+    <th>ID</th>
+    <th>Requirement</th>
+    <th>BIND Mode</th>
+    <th>Req. Type</th>
+  </tr>
+
+  <tr>
+    <td>18</td>
+    <td><strong>Non-requirements</strong></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>18.1</td>
+    <td><span class="underline">Stub resolver use of ECS options:</span>
+    A Stub Resolver may add non-empty ECS options to its queries, but
+    Recursive Resolvers are not required to use this information unless
+    the <em>Source Prefix-Length</em> is set to 0
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.1.2">Section
+    7.1.2</a>].</td>
+    <td>R</td>
+    <td>-</td>
+  </tr>
+
+  <tr>
+    <td>18.2</td>
+    <td><span class="error">MISSING</span></td>
+    <td></td>
+    <td></td>
+  </tr>
+
+  <tr>
+    <td>18.3</td>
+    <td><span class="underline">Probing by recursive resolvers:</span>
+    There is no requirement to probe authoritative servers for ECS
+    support (it is only recommended in the ECS draft)
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-12.1">Section
+    12.1</a>]. If a query, using the ECS option, is sent to a DNS server
+    and receives a FORMERR or no response at all, it is not necessary to
+    retry without the option.</td>
+    <td>R</td>
+    <td>-</td>
+  </tr>
+
+  <tr>
+    <td>18.4</td>
+    <td><span class="underline">Authoritative responses:</span> There is
+    no requirement to check consistency between responses (e.g. as not
+    all netblocks are the same size, an Authoritative Nameserver may
+    return different values of <em>SCOPE Prefix-Length</em> for
+    different networks)
+    [<a href="https://tools.ietf.org/html/draft-ietf-dnsop-edns-client-subnet-08#section-7.2.1">Section
+    7.2.1</a>].</td>
+    <td>R</td>
+    <td>-</td>
+  </tr>
+
+</table>
+</section>
+
+<section>
+<h2>Appendix</h2>
+
+<h3><a name="appendix-a"></a>Appendix A: ECS EDNS0 option structure and
+abbreviated definition</h3>
+
+<pre>
+                +0 (MSB)                            +1 (LSB)
+      +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   0: |                          OPTION-CODE                          |
+      +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   2: |                         OPTION-LENGTH                         |
+      +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   4: |                            FAMILY                             |
+      +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   6: |     SOURCE PREFIX-LENGTH      |     SCOPE PREFIX-LENGTH       |
+      +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+   8: |                           ADDRESS...                          /
+      +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+</pre>
+
+<ol>
+  <li><strong>OPTION-CODE</strong> - 2 octets, for edns-client- subnet
+  is 8 (0x00 0x08).</li>
+  <li><strong>OPTION-LENGTH</strong> - 2 octets, contains the length of
+  the payload (everything after OPTION-LENGTH) in octets.</li>
+  <li><strong>FAMILY</strong> - 2 octets, indicates the family of the
+  address contained in the option, using address family codes as
+  assigned by IANA in IANA-AFI.</li>
+  <li><strong>SOURCE Prefix-Length</strong> - unsigned octet
+  representing the leftmost number of significant bits of ADDRESS to be
+  used in the lookup.</li>
+  <li><strong>SCOPE Prefix-Length</strong> - unsigned octet representing
+  the leftmost number of significant bits of ADDRESS that the response
+  covers.</li>
+  <li><strong>ADDRESS</strong> - variable number of octets, contains
+  either an IPv4 or Pv6 address, depending on <em>Family</em>, truncated
+  as required, with bits set to 0 to pad up to the end of the last octet
+  used.</li>
+</ol>
+
+</section>
+
+</body>
+</html>

@@ -94,5 +94,5 @@ dns_test_rdata_fromstring(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 			  dns_rdatatype_t rdtype, unsigned char *dst,
 			  size_t dstlen, const char *src);
 
-void
+isc_result_t
 dns_test_namefromstring(const char *namestr, dns_fixedname_t *fname);

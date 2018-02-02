@@ -1,0 +1,69 @@
+Copyright (C) 2016  Internet Systems Consortium, Inc. ("ISC")
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+REQUIREMENTS
+ans.py requires the following modules, and has been tested with the versions
+listed. Other versions may not work.
+clientsubnetoption (2.1.0) (included)
+dnspython (1.12.0)
+
+"ans.py" is a fairly simple Python script that will respond as an
+authoritative server to DNS queries. It opens a UDP socket on 10.53.0.8
+and fd92:7065:b8e:ffff::8, port 5300 (these are for DNS queries) and a TCP
+socket addresses on 10.53.0.8 at port 5301 (this is the control channel).
+
+Please note that all functionality and formatting are subject to change as
+we determine what features the tool will need.
+
+"ans.py" will respond to queries as follows:
+
+- If the QNAME and ECS option in the query exactly match a key in the
+  answer database (see below), then we return the answer specified in
+  the database. (This currently only supports queries of type A.)
+- Otherwise, there are default answers that can be returned for QTYPEs
+  A, AAAA, and TXT
+- Certain QNAME patterns trigger specific response behaviors:
+  + If QNAME is of the form x.drop.y.z (where x, y, and z are arbitrary
+    labels), drop the query and do not respond
+  + If QNAME is of the form x.noecs.y.z (where x, y, and z are arbitrary
+    labels), respond to the query with no ECS option.
+  + If QNAME is of the form x.refuse.y.z (where x, y, and z are arbitrary
+    labels), respond to the query with REFUSED iff. an ECS option was
+    included in the query.
+  + If QNAME is of the form x.nxdomain.y.z (where x, y, and z are arbitrary
+    labels), respond to the query with NXDOMAIN
+  + If QNAME is of the form x.short-ttl.y.z (where x, y, and z are arbitrary
+    labels), respond to the query with TTL=10
+  + If QNAME is of the form x.cname.y.z (where x, y, and z are arbitrary
+    labels), respond to the query with a CNAME chain pointing to x.y.z.
+    (Note: if the name is of the form x.short-ttl.cname.y.z, then the CNAME
+    target will be x.short-ttl.y.z, which when queried will return a
+    short TTL.)
+
+The answer database is a Python dictionary of the following form:
+
+  'x.test.example./10.0.0.0/8': ['5.6.7.8', '000110000a35'],
+  'y.test.example./10.53.0.0/20': ['1.2.3.4', None, '127.0.0.22', '13', '14']
+
+The key for each record is a tuple of QNAME, ECS address, and ECS source
+prefix length.  The value is a list, in which the first field is the
+address to return in response to a query of type A, followed by either a
+hexadecimal dump of an ECS option or an address, source prefix length and
+scope prefix length from which to construct an ECS option.
+
+Currently, dictionary entries can only be added or overwritten, not
+deleted.
+
+To update the dictionary, use a command like:
+
+    perl send.pl 10.53.0.8 5301 < [filename]
+
+...where [filename] contains:
+
+x.test.example./127.0.0.0/8|15.16.17.18, 127.0.0.0, 9, 12
+
+...which will replace the first item in the sample database above, or...
+
+y.test.example./10.53.0.0/20|15.16.17.18, 000110000a35
+
+...which will replace the second.

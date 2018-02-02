@@ -480,5 +480,218 @@ $CHECKCONF options.conf || ret=1
 [ $ret -eq 0 ] || echo_i "failed"
 status=`expr $status + $ret`
 
+# ECS auth and resolver tests start here.
+#
+# NOTE: that some of the following tests are redundant, testing
+# functionality already addressed above, but they use a different
+# geoip database: one that has addresses in the 10.53.1/24 and 10.53.2/24
+# net blocks, so that they can be used for ECS testing.
+
+# ECS auth tests
+echo_i "check auth server using ECS options with various source prefixes"
+
+n=`expr $n + 1`
+ret=0
+echo_i "check /16 source prefix length matches geoip db ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.3 txt www.test.example -b 127.0.0.1 +subnet=10.53.2.99/16 > dig.out.ns3.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.53.0.0/16/32' dig.out.ns3.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns3.test$n.1 > /dev/null || ret=1
+# 10.53.2.99/16 is really 10.53.0.0
+grep "www.test.example..*This is the IS Iceland zone" dig.out.ns3.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+echo_i "check /32 source prefix length matches geoip db ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.3 txt www.test.example -b 127.0.0.1 +subnet=10.53.2.99/32 > dig.out.ns3.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.53.2.99/32/24' dig.out.ns3.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns3.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the DE Germany zone" dig.out.ns3.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+echo_i "check /32 source prefix length is not clamped by auth server"
+echo_i "and matches geoip db ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.3 txt www.test.example -b 127.0.0.1 +subnet=10.53.0.5/32 > dig.out.ns3.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.53.0.5/32/24' dig.out.ns3.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns3.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the CA Canada zone" dig.out.ns3.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+echo_i "check /8 source prefix length will not match custom geoip db ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.3 txt www.test.example -b 127.0.0.1 +subnet=10.53.0.5/8 > dig.out.ns3.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.0.0.0/8/0' dig.out.ns3.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns3.test$n.1 > /dev/null || ret=1
+# the custom geoip db, doesn't have 10.0.0.0, so fall back to last view
+grep "www.test.example..*This is the non-matching zone" dig.out.ns3.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+echo_i "check that a match-clients ACL using an 'ecs' keyword can be "
+echo_i "used to bypass the geoip db ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.3 txt www.test.example -b 127.0.0.1 +subnet=10.53.0.7/32 > dig.out.ns3.test$n.1 || ret=1
+# 10.53.0.7 is US in DB, but views has it match CA first using "ecs" keyword
+grep 'CLIENT-SUBNET: 10.53.0.7/32/24' dig.out.ns3.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns3.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the CA Canada zone" dig.out.ns3.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+# ECS resolver tests
+echo_i "check resolver with synthesized or forwarded ECS options"
+
+# "ecs-forward" configured, no "ecs-zones" (@10.53.0.4 ns4)
+echo_i "'ecs-forward' defined, no 'ecs-zones':"
+
+n=`expr $n + 1`
+ret=0
+# TTL 1, so a sleep should clear the cache
+sleep 2
+echo_i "check when source length is not 0, no ECS option is sent ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.4 txt www.test.example -b 127.0.0.1 +subnet=10.53.0.0/24 > dig.out.ns4.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.53.0.0/24/0' dig.out.ns4.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns4.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the non-matching zone" dig.out.ns4.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+# "ecs-forward" and "ecs-zones" configured (@10.53.0.5 ns5)
+echo_i "'ecs-zones' and 'ecs-forward' both defined"
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check REFUSED if name is whitelisted but client not allowed ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.5 txt www.test.example -b 127.0.0.1 +subnet="10.53.1.4/24" > dig.out.ns5.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.53.1.0/24/0' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep 'status: REFUSED' dig.out.ns5.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check success if name is whitelisted and client address is allowed ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.5 txt www.test.example -b 10.53.0.1 +subnet="10.53.1.4/24" > dig.out.ns5.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.53.1.0/24/0' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns5.test$n.1 > /dev/null || ret=1
+# NOTE: not checking for specific result here, just want to make sure
+# received anything.
+# Note that 10.53.1.4 is United States, but 10.53.1.0/24/0 doesn't
+# match geoip so is the auth server's none view.
+grep "www.test.example..*This is the" dig.out.ns5.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check ECS forwarding with source length /16 matches a.b.0.0 ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.5 txt www.test.example -b 10.53.0.1 +subnet="10.53.2.8/16" > dig.out.ns5.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.53.0.0/16/32' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the IS Iceland zone" dig.out.ns5.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check ECS forwarding with source length /8 will not match ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.5 txt www.test.example -b 10.53.0.1 +subnet="10.53.2.8/8" > dig.out.ns5.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.0.0.0/8/0' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the non-matching zone" dig.out.ns5.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check source length /32 is clamped and does not match database ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.5 txt www.test.example -b 10.53.0.1 +subnet="10.53.1.2/32" > dig.out.ns5.test$n.1 || ret=1
+# 10.53.1.2 is JP Japan, but becomes 10.53.1.0/24 which is not in db
+grep 'CLIENT-SUBNET: 10.53.1.2/32/0' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the non-matching zone" dig.out.ns5.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check source length /32 is clamped and does match database ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.5 txt www.test.example -b 10.53.0.1 +subnet="10.53.2.2/32" > dig.out.ns5.test$n.1 || ret=1
+# 10.53.2.2 is n DE Germany and becomes 10.53.2.0/24 which also is DE
+grep 'CLIENT-SUBNET: 10.53.2.2/32/24' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns5.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the DE Germany zone" dig.out.ns5.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+# "ecs-zones" only (@10.53.0.6 ns6)
+echo_i "'ecs-zones' defined, 'ecs-forward' not enabled"
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check REFUSED on nonzero source prefix length and whitelisted name ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.6 txt www.test.example -b 127.0.0.1 +subnet="10.53.1.4/24" > dig.out.ns6.test$n.1 || ret=1
+grep 'CLIENT-SUBNET: 10.53.1.0/24/0' dig.out.ns6.test$n.1 > /dev/null || ret=1
+grep 'status: REFUSED' dig.out.ns6.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check success on zero prefix length and whitelisted name ($n)"
+$DIG +tcp -p ${PORT} @10.53.0.6 txt www.test.example -b 127.0.0.1 +subnet="10.53.1.4/0" > dig.out.ns6.test$n.1 || ret=1
+# this is the same as +subnet=0.0.0.0/0
+# the  +subnet="10.53.1.4/0" is 0.0.0.0/0/0
+grep 'CLIENT-SUBNET: 0.0.0.0/0/0' dig.out.ns6.test$n.1 > /dev/null || ret=1
+grep 'status: NOERROR' dig.out.ns6.test$n.1 > /dev/null || ret=1
+grep "www.test.example..*This is the non-matching zone" dig.out.ns6.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check for synthesized ECS for a TCP query for a whitelisted name ($n)"
+# +nosubnet is the default
+$DIG +tcp -p ${PORT} -b 10.53.2.1 @10.53.0.6 txt www.test.example +nosubnet > dig.out.ns6.test$n.1 || ret=1
+# should not have CLIENT-SUBNET
+grep 'CLIENT-SUBNET:' dig.out.ns6.test$n.1 > /dev/null && ret=1
+grep 'status: NOERROR' dig.out.ns6.test$n.1 > /dev/null || ret=1
+# Expect that 10.53.2.7 will become synthesized 10.53.2.0/24
+# which should match this geoip database for 10.53.2.0 for DE.
+grep "www.test.example..*This is the DE Germany zone" dig.out.ns6.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
+n=`expr $n + 1`
+ret=0
+sleep 2
+echo_i "check for synthesized ECS for a UDP query for a whitelisted name ($n)"
+# +nosubnet is the default, +notcp is the default (udp)
+$DIG +notcp -p ${PORT} -b 10.53.2.1 @10.53.0.6 txt www.test.example +nosubnet > dig.out.ns6.test$n.1 || ret=1
+# should not have CLIENT-SUBNET
+grep 'CLIENT-SUBNET:' dig.out.ns6.test$n.1 > /dev/null && ret=1
+grep 'status: NOERROR' dig.out.ns6.test$n.1 > /dev/null || ret=1
+# The 10.53.2.7 will become synthesized 10.53.2.0/24
+# which will match in geoip database for 10.53.2.0 for DE.
+grep "www.test.example..*This is the DE Germany zone" dig.out.ns6.test$n.1 > /dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=`expr $status + $ret`
+
 echo_i "exit status: $status"
 [ $status -eq 0 ] || exit 1

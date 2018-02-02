@@ -77,11 +77,13 @@ create_name(char *s) {
 
 static void
 delete_name(void *data, void *arg) {
-	dns_name_t *name;
+	isc_mem_t *memctx = (isc_mem_t *) arg;
+	isc_mem_put(memctx, data, sizeof(dns_name_t) + DNSNAMELEN);
+}
 
-	UNUSED(arg);
-	name = data;
-	isc_mem_put(mctx, name, sizeof(*name) + DNSNAMELEN);
+static void
+delete_nodedata(dns_rbtnode_t *node, void *arg) {
+	delete_name(node->data, arg);
 }
 
 static void
@@ -294,7 +296,7 @@ main(int argc, char **argv) {
 		exit(1);
 	}
 
-	result = dns_rbt_create(mctx, delete_name, NULL, &rbt);
+	result = dns_rbt_create(mctx, delete_nodedata, mctx, &rbt);
 	if (result != ISC_R_SUCCESS) {
 		printf("dns_rbt_create: %s: exiting\n",
 		       dns_result_totext(result));
@@ -343,7 +345,7 @@ main(int argc, char **argv) {
 					result = dns_rbt_deletename(rbt, name,
 								    ISC_FALSE);
 					PRINTERR(result);
-					delete_name(name, NULL);
+					delete_name(name, mctx);
 				}
 
 			} else if (CMDCHECK("nuke")) {
@@ -354,7 +356,7 @@ main(int argc, char **argv) {
 					result = dns_rbt_deletename(rbt, name,
 								    ISC_TRUE);
 					PRINTERR(result);
-					delete_name(name, NULL);
+					delete_name(name, mctx);
 				}
 
 			} else if (CMDCHECK("search")) {
@@ -394,7 +396,7 @@ main(int argc, char **argv) {
 						printf("UNEXPECTED RESULT\n");
 					}
 
-					delete_name(name, NULL);
+					delete_name(name, mctx);
 				}
 
 			} else if (CMDCHECK("check")) {
@@ -412,7 +414,7 @@ main(int argc, char **argv) {
 				if (name != NULL) {
 					detail(rbt, name);
 
-					delete_name(name, NULL);
+					delete_name(name, mctx);
 				}
 
 			} else if (CMDCHECK("forward")) {

@@ -9,8 +9,6 @@
 # See the COPYRIGHT file distributed with this work for additional
 # information regarding copyright ownership.
 
-# $Id: send.pl,v 1.7 2011/03/05 23:52:29 tbox Exp $
-
 #
 # Send a file to a given address and port using TCP.  Used for
 # configuring the test server in ans.pl.
@@ -19,15 +17,21 @@
 use IO::File;
 use IO::Socket;
 
-@ARGV == 2 or die "usage: send.pl host port [file ...]\n";
+@ARGV >= 2 or die "usage: send.pl host port [file ...]\n";
 
 my $host = shift @ARGV;
 my $port = shift @ARGV;
 
-my $sock = IO::Socket::INET->new(PeerAddr => $host, PeerPort => $port,
-				 Proto => "tcp",) or die "$!";
-while (<>) {
-	$sock->syswrite($_, length $_);
+my $file = "STDIN";
+if (@ARGV >= 1) {
+    my $filename = shift @ARGV;
+    open FH, "<$filename" or die "$filename: $!";
+    $file = "FH";
 }
 
+my $sock = IO::Socket::INET->new(PeerAddr => $host, PeerPort => $port,
+				 Proto => "tcp",) or die "$!";
+while (<$file>) {
+	$sock->syswrite($_, length $_);
+}
 $sock->close;

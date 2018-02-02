@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id: acl.h,v 1.35 2011/06/17 23:47:49 tbox Exp $ */
-
 #ifndef DNS_ACL_H
 #define DNS_ACL_H 1
 
@@ -209,11 +207,9 @@ dns_acl_match(const isc_netaddr_t *reqaddr,
 	      const dns_aclelement_t **matchelt);
 
 isc_result_t
-dns_acl_match2(const isc_netaddr_t *reqaddr,
+dns_acl_matchx(const isc_netaddr_t *reqaddr,
 	       const dns_name_t *reqsigner,
-	       const isc_netaddr_t *ecs,
-	       isc_uint8_t ecslen,
-	       isc_uint8_t *scope,
+	       dns_ecs_t *ecs,
 	       const dns_acl_t *acl,
 	       const dns_aclenv_t *env,
 	       int *match,
@@ -223,11 +219,11 @@ dns_acl_match2(const isc_netaddr_t *reqaddr,
  * be useful even for weird stuff like the topology and sortlist statements.
  *
  * Match the address 'reqaddr', and optionally the key name 'reqsigner',
- * and optionally the client prefix 'ecs' of length 'ecslen'
- * (reported via EDNS client subnet option) against 'acl'.
+ * and optionally the client subnet 'ecs' (reported via EDNS client
+ * subnet option) against 'acl'.
  *
- * 'reqsigner' and 'ecs' may be NULL.  If an ACL matches against 'ecs'
- * and 'ecslen', then 'scope' will be set to indicate the netmask that
+ * 'reqsigner' and 'ecs' may be NULL.  If an ACL matches 'ecs'
+ * then 'ecs->scope' field will be updated to indicate the netmask that
  * matched.
  *
  * If there is a match, '*match' will be set to an integer whose absolute
@@ -245,6 +241,8 @@ dns_acl_match2(const isc_netaddr_t *reqaddr,
  * current values of localhost and localnets and (if applicable)
  * the GeoIP context.
  *
+ * dns_acl_match2() is deprecated; dns_acl_matchx() supports ECS.
+ *
  * Returns:
  *\li	#ISC_R_SUCCESS		Always succeeds.
  */
@@ -257,11 +255,9 @@ dns_aclelement_match(const isc_netaddr_t *reqaddr,
 		     const dns_aclelement_t **matchelt);
 
 isc_boolean_t
-dns_aclelement_match2(const isc_netaddr_t *reqaddr,
+dns_aclelement_matchx(const isc_netaddr_t *reqaddr,
 		      const dns_name_t *reqsigner,
-		      const isc_netaddr_t *ecs,
-		      isc_uint8_t ecslen,
-		      isc_uint8_t *scope,
+		      dns_ecs_t *ecs,
 		      const dns_aclelement_t *e,
 		      const dns_aclenv_t *env,
 		      const dns_aclelement_t **matchelt);
@@ -273,6 +269,9 @@ dns_aclelement_match2(const isc_netaddr_t *reqaddr,
  * caller should examine e->negative.  Since the element 'e' may be
  * a reference to a named ACL or a nested ACL, a matching element
  * returned through 'matchelt' is not necessarily 'e' itself.
+ *
+ * dns_aclelement_match2() is deprecated; dns_aclelement_matchx()
+ * supports ECS.
  */
 
 ISC_LANG_ENDDECLS

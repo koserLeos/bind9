@@ -253,6 +253,10 @@ sub start_server {
                         $command = "$PYTHON -u ans.py 10.53.0.$' $queryport";
                 } elsif (-e "$testdir/$server/ans.pl") {
                         $command = "$PERL ans.pl";
+                } elsif (-e "$testdir/$server/anspl") {
+                        $command = "$PERL $topdir/ans.pl 10.53.0.$'";
+                } elsif (-e "$testdir/$server/anspy") {
+                        $command = "$PYTHON $topdir/ans.py 10.53.0.$' 5300";
                 } else {
                         $command = "$PERL $topdir/ans.pl 10.53.0.$'";
                 }

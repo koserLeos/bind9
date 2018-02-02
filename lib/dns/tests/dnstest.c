@@ -490,28 +490,26 @@ dns_test_rdata_fromstring(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 
  destroy_lexer:
 	isc_lex_destroy(&lex);
-
 	return (result);
 }
 
-void
+isc_result_t
 dns_test_namefromstring(const char *namestr, dns_fixedname_t *fname) {
 	size_t length;
-	isc_buffer_t *b = NULL;
+	isc_buffer_t b;
 	isc_result_t result;
 	dns_name_t *name;
 
 	length = strlen(namestr);
 
-	result = isc_buffer_allocate(mctx, &b, length);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	isc_buffer_putmem(b, (const unsigned char *) namestr, length);
+	isc_buffer_constinit(&b, namestr, length);
+	isc_buffer_add(&b, length);
 
 	dns_fixedname_init(fname);
 	name = dns_fixedname_name(fname);
-	ATF_REQUIRE(name != NULL);
-	result = dns_name_fromtext(name, b, dns_rootname, 0, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	if (name == NULL)
+		return (ISC_R_NOMEMORY);
 
-	isc_buffer_free(&b);
+	result = dns_name_fromtext(name, &b, dns_rootname, 0, NULL);
+	return (result);
 }

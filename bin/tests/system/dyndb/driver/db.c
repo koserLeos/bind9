@@ -626,6 +626,11 @@ static dns_dbmethods_t sampledb_methods = {
 	hashsize,
 	NULL,
 	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
 };
 
 /* Auxiliary driver functions. */

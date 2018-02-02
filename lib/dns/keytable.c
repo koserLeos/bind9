@@ -53,8 +53,8 @@ struct dns_keynode {
 };
 
 static void
-free_keynode(void *node, void *arg) {
-	dns_keynode_t *keynode = node;
+free_keynode(dns_rbtnode_t *node, void *arg) {
+	dns_keynode_t *keynode = node->data;
 	isc_mem_t *mctx = arg;
 
 	dns_keynode_detachall(mctx, &keynode);

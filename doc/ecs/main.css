@@ -1,0 +1,170 @@
+* {
+    box-sizing: border-box;
+}
+
+html {
+    background-color: white;
+
+    font-family: "Arial", "Helvetica", sans-serif;
+    font-size: 16px;
+    text-rendering: optimizeLegibility;
+    line-height: 1.5;
+
+    margin: 0;
+    padding: 2em;
+}
+
+@media (min-width: 64em) {
+    html {
+        font-size: 20px;
+    }
+}
+
+body {
+    background-color: white;
+    color: #484848;
+
+    margin: 0;
+    padding: 0;
+}
+
+a, a:visited, a:hover, a:active {
+    color: #2455c3;
+}
+
+a {
+    text-decoration: none;
+}
+
+a:hover, a:active {
+    text-decoration: underline;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+ul {
+    padding-left: 1.5rem;
+}
+
+hr {
+    border-top: 0;
+    border-bottom: 3px solid #f0f0f0;
+    border-left: 0;
+    border-right: 0;
+}
+
+h1, h2, h3, h4 {
+    font-weight: bold;
+    line-height: 1.25;
+    max-width: 50rem;
+}
+
+h1, h2, h3, h4, h1 a, h2 a, h3 a, h4 a {
+    color: #235ea4;
+}
+
+h1 a:visited, h2 a:visited, h3 a:visited, h4 a:visited {
+    color: #235ea4;
+}
+
+h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover {
+    color: #235ea4;
+}
+
+h1 a, h2 a, h3 a, h4 a, h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover {
+    text-decoration: none;
+}
+
+h1 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 2rem;
+}
+
+h2 {
+    margin-top: 3rem;
+    font-size: 1.5rem;
+    border-bottom: 2px solid #235ea4;
+}
+
+h3 {
+    font-style: italic;
+}
+
+code, pre, tt {
+    font-family: "DejaVu Sans Mono", monospace;
+    font-size: 0.9rem;
+}
+
+pre {
+    background-color: #f8f8f8;
+    padding: 1rem;
+    border: 1px solid #f7f7f7;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    line-height: 1rem;
+    overflow: auto;
+}
+
+code {
+    background-color: #f8f8f8;
+    color: brown;
+    font-size: 85%;
+}
+
+blockquote {
+    background-color: rgba(250, 250, 250, 0.9);
+    margin: 0.8rem 0;
+    padding: 0.5rem 1rem;
+    border-left: 0.3rem solid #e0e0e0;
+}
+
+@media (min-width: 48rem) {
+    blockquote {
+        padding-left: 1.25rem;
+        padding-right: 5rem;
+    }
+}
+
+table, th, td {
+    border: 1px solid #484848;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 0.5rem;
+    text-align: left;
+}
+
+th {
+    background-color: #c0c0c0;
+    color: black;
+}
+
+span.underline {
+    text-decoration: underline;
+}
+
+table.req tr th, table.req tr td {
+    vertical-align: top;
+}
+
+table.req tr td ul, table.req tr td ol {
+    margin: 0;
+}
+
+table.req tr td ul li {
+    font-style: italic;
+}
+
+table.req tr th:nth-child(3), table.req tr td:nth-child(3), table.req tr th:nth-child(4), table.req tr td:nth-child(4) {
+    text-align: center;
+}
+
+span.error {
+    font-weight: bold;
+    color: red;
+}

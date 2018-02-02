@@ -1,0 +1,3 @@
+For ECS testing, first read data/GeoIP.csv to learn what scope
+prefix-length should be sent back for an incoming ECS option in the
+query.

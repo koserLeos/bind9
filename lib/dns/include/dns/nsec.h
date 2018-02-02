@@ -83,13 +83,16 @@ dns_nsec_compressbitmap(unsigned char *map, const unsigned char *raw,
 void
 dns_nsec_setbit(unsigned char *array, unsigned int type, unsigned int bit);
 /*%<
- * Set type bit in raw 'array' to 'bit'.
+ * Set type bit in raw 'array' to 'bit'. THIS FUNCTION IS DEPRECATED AND
+ * SHOULD NOT BE USED IN NEW CODE. Use dns_rdata_settypebit() instead.
  */
 
 isc_boolean_t
 dns_nsec_isset(const unsigned char *array, unsigned int type);
 /*%<
- * Test if the corresponding 'type' bit is set in 'array'.
+ * Test if the corresponding 'type' bit is set in 'array'. THIS FUNCTION
+ * IS DEPRECATED AND SHOULD NOT BE USED IN NEW CODE. Use
+ * dns_rdata_issettypebit() instead.
  */
 
 isc_result_t

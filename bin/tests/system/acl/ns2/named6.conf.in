@@ -24,13 +24,14 @@ options {
 	transfer-source 10.53.0.2;
 	port @PORT@;
 	pid-file "named.pid";
-	listen-on { 10.53.0.2; };
+	listen-on { 10.53.0.2; 10.53.0.3; };
 	listen-on-v6 { none; };
-	recursion no;
+	recursion yes;
 	notify yes;
 	ixfr-from-differences yes;
 	check-integrity no;
 	allow-query-on { 10.53.0.2; };
+	ecs-forward { 10.53.0.3; none; };
 };
 
 zone "." {

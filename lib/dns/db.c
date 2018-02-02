@@ -682,6 +682,20 @@ dns_db_expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 	return ((db->methods->expirenode)(db, node, now));
 }
 
+isc_result_t
+dns_db_expirenodeall(dns_db_t *db, dns_dbnode_t *node) {
+
+	/*
+	 * Expire and mark as stale, all records at 'node'.
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE((db->attributes & DNS_DBATTR_CACHE) != 0);
+	REQUIRE(node != NULL);
+
+	return ((db->methods->expirenodeall)(db, node));
+}
+
 void
 dns_db_printnode(dns_db_t *db, dns_dbnode_t *node, FILE *out) {
 	/*
@@ -733,9 +747,44 @@ dns_db_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		(DNS_RDATASET_VALID(sigrdataset) &&
 		 ! dns_rdataset_isassociated(sigrdataset)));
 
-	return ((db->methods->findrdataset)(db, node, version, type,
-					    covers, now, rdataset,
-					    sigrdataset));
+	if (db->methods->findrdataset != NULL)
+		return ((db->methods->findrdataset)(db, node, version, type,
+						    covers, now, rdataset,
+						    sigrdataset));
+	else
+		return ((db->methods->findrdatasetext)(db, node, version, type,
+						       covers, now,
+						       NULL, NULL,
+						       rdataset, sigrdataset));
+}
+
+isc_result_t
+dns_db_findrdatasetext(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
+		       dns_rdatatype_t type, dns_rdatatype_t covers,
+		       isc_stdtime_t now,
+		       dns_clientinfomethods_t *methods,
+		       dns_clientinfo_t *clientinfo,
+		       dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset)
+{
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(node != NULL);
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(! dns_rdataset_isassociated(rdataset));
+	REQUIRE(covers == 0 || type == dns_rdatatype_rrsig);
+	REQUIRE(type != dns_rdatatype_any);
+	REQUIRE(sigrdataset == NULL ||
+		(DNS_RDATASET_VALID(sigrdataset) &&
+		 ! dns_rdataset_isassociated(sigrdataset)));
+
+	if (db->methods->findrdatasetext != NULL)
+		return ((db->methods->findrdatasetext)(db, node, version, type,
+						       covers, now,
+						       methods, clientinfo,
+						       rdataset, sigrdataset));
+	else
+		return ((db->methods->findrdataset)(db, node, version, type,
+						    covers, now,
+						    rdataset, sigrdataset));
 }
 
 isc_result_t
@@ -750,8 +799,33 @@ dns_db_allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(iteratorp != NULL && *iteratorp == NULL);
 
-	return ((db->methods->allrdatasets)(db, node, version, now,
-					    iteratorp));
+	if (db->methods->allrdatasets != NULL)
+		return ((db->methods->allrdatasets)(db, node, version, now,
+						    iteratorp));
+	else
+		return ((db->methods->allrdatasetsext)(db, node, version, now,
+						       ISC_FALSE, iteratorp));
+}
+
+isc_result_t
+dns_db_allrdatasetsext(dns_db_t *db, dns_dbnode_t *node,
+		       dns_dbversion_t *version, isc_stdtime_t now,
+		       isc_boolean_t ecs, dns_rdatasetiter_t **iteratorp)
+{
+	/*
+	 * Make '*iteratorp' an rdataset iteratator for all rdatasets at
+	 * 'node' in version 'version' of 'db'.
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(iteratorp != NULL && *iteratorp == NULL);
+
+	if (db->methods->allrdatasetsext != NULL)
+		return ((db->methods->allrdatasetsext)(db, node, version, now,
+						       ecs, iteratorp));
+	else
+		return ((db->methods->allrdatasets)(db, node, version, now,
+						    iteratorp));
 }
 
 isc_result_t
@@ -777,8 +851,51 @@ dns_db_addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		(DNS_RDATASET_VALID(addedrdataset) &&
 		 ! dns_rdataset_isassociated(addedrdataset)));
 
-	return ((db->methods->addrdataset)(db, node, version, now, rdataset,
-					   options, addedrdataset));
+	if (db->methods->addrdataset != NULL)
+		return ((db->methods->addrdataset)(db, node, version, now,
+						   rdataset, options,
+						   addedrdataset));
+	else
+		return ((db->methods->addrdatasetext)(db, node, version, now,
+						      rdataset, options,
+						      NULL, NULL,
+						      addedrdataset));
+}
+
+isc_result_t
+dns_db_addrdatasetext(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
+		      isc_stdtime_t now, dns_rdataset_t *rdataset,
+		      unsigned int options, dns_clientinfomethods_t *methods,
+		      dns_clientinfo_t *clientinfo,
+		      dns_rdataset_t *addedrdataset)
+{
+	/*
+	 * Add 'rdataset' to 'node' in version 'version' of 'db'.
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(node != NULL);
+	REQUIRE(((db->attributes & DNS_DBATTR_CACHE) == 0 && version != NULL)||
+		((db->attributes & DNS_DBATTR_CACHE) != 0 &&
+		 version == NULL && (options & DNS_DBADD_MERGE) == 0));
+	REQUIRE((options & DNS_DBADD_EXACT) == 0 ||
+		(options & DNS_DBADD_MERGE) != 0);
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(dns_rdataset_isassociated(rdataset));
+	REQUIRE(rdataset->rdclass == db->rdclass);
+	REQUIRE(addedrdataset == NULL ||
+		(DNS_RDATASET_VALID(addedrdataset) &&
+		 ! dns_rdataset_isassociated(addedrdataset)));
+
+	if (db->methods->addrdatasetext != NULL)
+		return ((db->methods->addrdatasetext)(db, node, version, now,
+						      rdataset, options,
+						      methods, clientinfo,
+						      addedrdataset));
+	else
+		return ((db->methods->addrdataset)(db, node, version, now,
+						   rdataset, options,
+						   addedrdataset));
 }
 
 isc_result_t
@@ -820,8 +937,39 @@ dns_db_deleterdataset(dns_db_t *db, dns_dbnode_t *node,
 	REQUIRE(((db->attributes & DNS_DBATTR_CACHE) == 0 && version != NULL)||
 		((db->attributes & DNS_DBATTR_CACHE) != 0 && version == NULL));
 
-	return ((db->methods->deleterdataset)(db, node, version,
-					      type, covers));
+	if (db->methods->deleterdataset != NULL)
+		return ((db->methods->deleterdataset)(db, node, version,
+						      type, covers));
+	else
+		return ((db->methods->deleterdatasetext)(db, node, version,
+							 type, covers,
+							 NULL, NULL));
+}
+
+isc_result_t
+dns_db_deleterdatasetext(dns_db_t *db, dns_dbnode_t *node,
+			 dns_dbversion_t *version, dns_rdatatype_t type,
+			 dns_rdatatype_t covers,
+			 dns_clientinfomethods_t *methods,
+			 dns_clientinfo_t *clientinfo)
+{
+	/*
+	 * Make it so that no rdataset of type 'type' exists at 'node' in
+	 * version version 'version' of 'db'.
+	 */
+
+	REQUIRE(DNS_DB_VALID(db));
+	REQUIRE(node != NULL);
+	REQUIRE(((db->attributes & DNS_DBATTR_CACHE) == 0 && version != NULL)||
+		((db->attributes & DNS_DBATTR_CACHE) != 0 && version == NULL));
+
+	if (db->methods->deleterdatasetext != NULL)
+		return ((db->methods->deleterdatasetext)(db, node, version,
+							 type, covers,
+							 methods, clientinfo));
+	else
+		return ((db->methods->deleterdataset)(db, node, version,
+						      type, covers));
 }
 
 void

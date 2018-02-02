@@ -93,6 +93,9 @@
 #endif
 
 #define TCP_CLIENT(c)	(((c)->attributes & NS_CLIENTATTR_TCP) != 0)
+#define ECS_RECEIVED(c)	(((c)->attributes & NS_CLIENTATTR_ECSRECEIVED) != 0)
+#define WANTNSID(c)	(((c)->attributes & NS_CLIENTATTR_WANTNSID) != 0)
+#define WANTEXPIRE(c)	(((c)->attributes & NS_CLIENTATTR_WANTEXPIRE) != 0)
 
 #define TCP_BUFFER_SIZE			(65535 + 2)
 #define SEND_BUFFER_SIZE		4096
@@ -118,9 +121,6 @@
 
 #define COOKIE_SIZE 24U /* 8 + 4 + 4 + 8 */
 #define ECS_SIZE 20U /* 2 + 1 + 1 + [0..16] */
-
-#define WANTNSID(x) (((x)->attributes & NS_CLIENTATTR_WANTNSID) != 0)
-#define WANTEXPIRE(x) (((x)->attributes & NS_CLIENTATTR_WANTEXPIRE) != 0)
 
 /*% nameserver client manager structure */
 struct ns_clientmgr {
@@ -245,8 +245,8 @@ static isc_result_t get_client(ns_clientmgr_t *manager, ns_interface_t *ifp,
 static isc_result_t get_worker(ns_clientmgr_t *manager, ns_interface_t *ifp,
 			       isc_socket_t *sock);
 static inline isc_boolean_t
-allowed(isc_netaddr_t *addr, dns_name_t *signer, isc_netaddr_t *ecs_addr,
-	isc_uint8_t ecs_addrlen, isc_uint8_t *ecs_scope, dns_acl_t *acl);
+allowed(isc_netaddr_t *addr, dns_name_t *signer,
+	dns_ecs_t *ecs, dns_acl_t *acl);
 static void compute_cookie(ns_client_t *client, isc_uint32_t when,
 			   isc_uint32_t nonce, isc_buffer_t *buf);
 
@@ -1104,7 +1104,7 @@ client_send(ns_client_t *client) {
 			name = &client->message->tsigkey->name;
 
 		if (client->view->nocasecompress == NULL ||
-		    !allowed(&netaddr, name, NULL, 0, NULL,
+		    !allowed(&netaddr, name, NULL,
 			     client->view->nocasecompress))
 		{
 			dns_compress_setsensitive(&cctx, ISC_TRUE);
@@ -1626,10 +1626,10 @@ ns_client_addopt(ns_client_t *client, dns_message_t *message,
 		ednsopts[count].value = expire;
 		count++;
 	}
-	if (((client->attributes & NS_CLIENTATTR_HAVEECS) != 0) &&
-	    (client->ecs_addr.family == AF_INET ||
-	     client->ecs_addr.family == AF_INET6 ||
-	     client->ecs_addr.family == AF_UNSPEC))
+	if (ECS_RECEIVED(client) &&
+	    (client->ecs.addr.family == AF_INET ||
+	     client->ecs.addr.family == AF_INET6 ||
+	     client->ecs.addr.family == AF_UNSPEC))
 	{
 		isc_buffer_t buf;
 		isc_uint8_t addr[16];
@@ -1638,12 +1638,27 @@ ns_client_addopt(ns_client_t *client, dns_message_t *message,
 
 		/* Add CLIENT-SUBNET option. */
 
-		plen = client->ecs_addrlen;
+		plen = client->ecs.source;
 
 		/* Round up prefix len to a multiple of 8 */
 		addrl = (plen + 7) / 8;
 
-		switch (client->ecs_addr.family) {
+		/* This must be enforced elsewhere in code. */
+		INSIST(client->ecs.addr.family != AF_UNSPEC ||
+		       client->ecs.source == 0);
+
+		/*
+		 * XXXMUKS If nothing set the scope, then it might be a
+		 * non-ECS answer, but we have to return the ECS option
+		 * in the reply. So set it to 0 here. This is better
+		 * handled differently, i.e., we ensure that in the case
+		 * of non-ECS answers, the caller sets scope = 0
+		 * somewhere.
+		 */
+		if (client->ecs.scope == 0xff)
+			client->ecs.scope = 0;
+
+		switch (client->ecs.addr.family) {
 		case AF_UNSPEC:
 			INSIST(plen == 0);
 			family = 0;
@@ -1651,12 +1666,12 @@ ns_client_addopt(ns_client_t *client, dns_message_t *message,
 		case AF_INET:
 			INSIST(plen <= 32);
 			family = 1;
-			memmove(addr, &client->ecs_addr.type, addrl);
+			memmove(addr, &client->ecs.addr.type, addrl);
 			break;
 		case AF_INET6:
 			INSIST(plen <= 128);
 			family = 2;
-			memmove(addr, &client->ecs_addr.type, addrl);
+			memmove(addr, &client->ecs.addr.type, addrl);
 			break;
 		default:
 			INSIST(0);
@@ -1666,9 +1681,9 @@ ns_client_addopt(ns_client_t *client, dns_message_t *message,
 		/* family */
 		isc_buffer_putuint16(&buf, family);
 		/* source prefix-length */
-		isc_buffer_putuint8(&buf, client->ecs_addrlen);
+		isc_buffer_putuint8(&buf, plen);
 		/* scope prefix-length */
-		isc_buffer_putuint8(&buf, client->ecs_scope);
+		isc_buffer_putuint8(&buf, client->ecs.scope);
 
 		/* address */
 		if (addrl > 0) {
@@ -1693,16 +1708,15 @@ ns_client_addopt(ns_client_t *client, dns_message_t *message,
 
 static inline isc_boolean_t
 allowed(isc_netaddr_t *addr, dns_name_t *signer,
-	isc_netaddr_t *ecs_addr, isc_uint8_t ecs_addrlen,
-	isc_uint8_t *ecs_scope, dns_acl_t *acl)
+	dns_ecs_t *ecs, dns_acl_t *acl)
 {
 	int match;
 	isc_result_t result;
 
 	if (acl == NULL)
 		return (ISC_TRUE);
-	result = dns_acl_match2(addr, signer, ecs_addr, ecs_addrlen, ecs_scope,
-				acl, &ns_g_server->aclenv, &match, NULL);
+	result = dns_acl_matchx(addr, signer, ecs, acl,
+				&ns_g_server->aclenv, &match, NULL);
 	if (result == ISC_R_SUCCESS && match > 0)
 		return (ISC_TRUE);
 	return (ISC_FALSE);
@@ -1765,10 +1779,8 @@ ns_client_isself(dns_view_t *myview, dns_tsigkey_t *mykey,
 			tsig = dns_tsigkey_identity(mykey);
 		}
 
-		if (allowed(&netsrc, tsig, NULL, 0, NULL,
-			    view->matchclients) &&
-		    allowed(&netdst, tsig, NULL, 0, NULL,
-			    view->matchdestinations))
+		if (allowed(&netsrc, tsig, NULL, view->matchclients) &&
+		    allowed(&netdst, tsig, NULL, view->matchdestinations))
 			break;
 	}
 	return (ISC_TF(view == myview));
@@ -1978,28 +1990,16 @@ process_cookie(ns_client_t *client, isc_buffer_t *buf, size_t optlen) {
 static isc_result_t
 process_ecs(ns_client_t *client, isc_buffer_t *buf, size_t optlen) {
 	isc_uint16_t family;
-	isc_uint8_t addrlen, addrbytes, scope, *paddr;
+	unsigned int addrbytes;
+	isc_uint8_t addrlen, scope, *paddr;
 	isc_netaddr_t caddr;
 
 	/*
 	 * If we have already seen a ECS option skip this ECS option.
 	 */
-	if ((client->attributes & NS_CLIENTATTR_HAVEECS) != 0) {
-		isc_buffer_forward(buf, (unsigned int)optlen);
+	if (ECS_RECEIVED(client)) {
+		isc_buffer_forward(buf, optlen);
 		return (ISC_R_SUCCESS);
-	}
-
-	/*
-	 * XXXMUKS: Is there any need to repeat these checks here
-	 * (except query's scope length) when they are done in the OPT
-	 * RDATA fromwire code?
-	 */
-
-	if (optlen < 4U) {
-		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
-			      "EDNS client-subnet option too short");
-		return (DNS_R_FORMERR);
 	}
 
 	family = isc_buffer_getuint16(buf);
@@ -2007,6 +2007,11 @@ process_ecs(ns_client_t *client, isc_buffer_t *buf, size_t optlen) {
 	scope = isc_buffer_getuint8(buf);
 	optlen -= 4;
 
+	/*
+	 * Many of the ECS field values are already validated when
+	 * parsing the client message. We only check SCOPE PREFIX-LENGTH
+	 * here.
+	 */
 	if (scope != 0U) {
 		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
@@ -2018,58 +2023,24 @@ process_ecs(ns_client_t *client, isc_buffer_t *buf, size_t optlen) {
 	switch (family) {
 	case 0:
 		/*
-		 * XXXMUKS: In queries, if FAMILY is set to 0, SOURCE
-		 * PREFIX-LENGTH must be 0 and ADDRESS should not be
-		 * present as the address and prefix lengths don't make
+		 * In queries, if FAMILY is set to 0, then SOURCE
+		 * PREFIX-LENGTH must also be 0 and ADDRESS should not be
+		 * present, as the address and prefix lengths don't make
 		 * sense because the family is unknown.
 		 */
-		if (addrlen != 0U) {
-			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-				      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
-				      "EDNS client-subnet option: invalid "
-				      "address length (%u) for FAMILY=0",
-				      addrlen);
-			return (DNS_R_OPTERR);
-		}
 		caddr.family = AF_UNSPEC;
 		break;
 	case 1:
-		if (addrlen > 32U) {
-			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-				      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
-				      "EDNS client-subnet option: invalid "
-				      "address length (%u) for IPv4",
-				      addrlen);
-			return (DNS_R_OPTERR);
-		}
 		caddr.family = AF_INET;
 		break;
 	case 2:
-		if (addrlen > 128U) {
-			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-				      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
-				      "EDNS client-subnet option: invalid "
-				      "address length (%u) for IPv6",
-				      addrlen);
-			return (DNS_R_OPTERR);
-		}
 		caddr.family = AF_INET6;
 		break;
 	default:
-		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
-			      "EDNS client-subnet option: invalid family");
-		return (DNS_R_OPTERR);
+		INSIST(0);
 	}
 
 	addrbytes = (addrlen + 7) / 8;
-	if (isc_buffer_remaininglength(buf) < addrbytes) {
-		ns_client_log(client, NS_LOGCATEGORY_CLIENT,
-			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(2),
-			      "EDNS client-subnet option: address too short");
-		return (DNS_R_OPTERR);
-	}
-
 	paddr = (isc_uint8_t *) &caddr.type;
 	if (addrbytes != 0U) {
 		memmove(paddr, isc_buffer_current(buf), addrbytes);
@@ -2084,12 +2055,19 @@ process_ecs(ns_client_t *client, isc_buffer_t *buf, size_t optlen) {
 		}
 	}
 
-	memmove(&client->ecs_addr, &caddr, sizeof(caddr));
-	client->ecs_addrlen = addrlen;
-	client->ecs_scope = 0;
-	client->attributes |= NS_CLIENTATTR_HAVEECS;
+	isc_buffer_forward(buf, (unsigned int) optlen);
 
-	isc_buffer_forward(buf, (unsigned int)optlen);
+	memmove(&client->ecs.addr, &caddr, sizeof(caddr));
+	client->ecs.source = addrlen;
+	/*
+	 * Start with scope set to 0xff that indicates that it is
+	 * unset. It must be set to something else before a reply is
+	 * returned to the client.
+	 */
+	client->ecs.scope = 0xff;
+
+	client->attributes |= NS_CLIENTATTR_ECSRECEIVED;
+
 	return (ISC_R_SUCCESS);
 }
 
@@ -2152,7 +2130,6 @@ process_opt(ns_client_t *client, dns_rdataset_t *opt) {
 		goto cleanup;
 	}
 
-	/* Check for NSID request */
 	result = dns_rdataset_first(opt);
 	if (result == ISC_R_SUCCESS) {
 		dns_rdata_init(&rdata);
@@ -2188,6 +2165,7 @@ process_opt(ns_client_t *client, dns_rdataset_t *opt) {
 					ns_client_error(client, result);
 					goto cleanup;
 				}
+
 				isc_stats_increment(ns_g_server->nsstats,
 						  dns_nsstatscounter_ecsopt);
 				break;
@@ -2510,9 +2488,6 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	else
 		opt = dns_message_getopt(client->message);
 
-	client->ecs_addrlen = 0;
-	client->ecs_scope = 0;
-
 	if (opt != NULL) {
 		/*
 		 * Are we dropping all EDNS queries?
@@ -2612,8 +2587,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 		    client->message->rdclass == dns_rdataclass_any)
 		{
 			dns_name_t *tsig = NULL;
-			isc_netaddr_t *addr = NULL;
-			isc_uint8_t *scope = NULL;
+			dns_ecs_t *ecs = NULL;
 
 			sigresult = dns_message_rechecksig(client->message,
 							   view);
@@ -2624,15 +2598,12 @@ client_request(isc_task_t *task, isc_event_t *event) {
 				tsig = dns_tsigkey_identity(tsigkey);
 			}
 
-			if ((client->attributes & NS_CLIENTATTR_HAVEECS) != 0) {
-				addr = &client->ecs_addr;
-				scope = &client->ecs_scope;
-			}
+			if (ECS_RECEIVED(client))
+				ecs = &client->ecs;
 
-			if (allowed(&netaddr, tsig, addr, client->ecs_addrlen,
-				    scope, view->matchclients) &&
+			if (allowed(&netaddr, tsig, ecs, view->matchclients) &&
 			    allowed(&client->destaddr, tsig, NULL,
-				    0, NULL, view->matchdestinations) &&
+				    view->matchdestinations) &&
 			    !(view->matchrecursiveonly &&
 			    (client->message->flags & DNS_MESSAGEFLAG_RD) == 0))
 			{
@@ -2801,6 +2772,35 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	ns_client_log(client, DNS_LOGCATEGORY_SECURITY, NS_LOGMODULE_CLIENT,
 		      ISC_LOG_DEBUG(3), ra ? "recursion available" :
 					     "recursion not available");
+
+	/*
+	 * Are we able to forward ECS options in recursive queries
+	 * for this client?
+	 */
+	if ((client->attributes & NS_CLIENTATTR_RA) != 0 &&
+	    ECS_RECEIVED(client))
+	{
+		isc_boolean_t ecsfwd = ISC_FALSE;
+		if (client->ecs.source == 0) {
+			client->attributes |= NS_CLIENTATTR_ECSFORWARD;
+			ecsfwd = ISC_TRUE;
+		} else {
+			isc_netaddr_t peeraddr;
+			isc_netaddr_fromsockaddr(&peeraddr, &client->peeraddr);
+			if (client->view->ecsforward != NULL &&
+			    allowed(&peeraddr, NULL, NULL,
+				    client->view->ecsforward))
+			{
+				client->attributes |= NS_CLIENTATTR_ECSFORWARD;
+				ecsfwd = ISC_TRUE;
+			}
+		}
+
+		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
+			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
+			      "ECS forwarding %savailable",
+			      ecsfwd ? "" : "not ");
+	}
 
 	/*
 	 * Adjust maximum UDP response size for this client.
@@ -3038,8 +3038,9 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 	client->recursionquota = NULL;
 	client->interface = NULL;
 	client->peeraddr_valid = ISC_FALSE;
-	client->ecs_addrlen = 0;
-	client->ecs_scope = 0;
+
+	dns_ecs_init(&client->ecs);
+
 #ifdef ALLOW_FILTER_AAAA
 	client->filter_aaaa = dns_aaaa_ok;
 #endif
@@ -3237,7 +3238,7 @@ client_newconn(isc_task_t *task, isc_event_t *event) {
 				      "no more TCP clients(accept): %s",
 				      isc_result_totext(result));
 		} else if (ns_g_server->keepresporder == NULL ||
-			   !allowed(&netaddr, NULL, NULL, 0, NULL,
+			   !allowed(&netaddr, NULL, NULL,
 				    ns_g_server->keepresporder)) {
 			client->pipelined = ISC_TRUE;
 		}
@@ -3662,8 +3663,7 @@ ns_client_checkaclsilent(ns_client_t *client, isc_netaddr_t *netaddr,
 {
 	isc_result_t result;
 	isc_netaddr_t tmpnetaddr;
-	isc_netaddr_t *ecs_addr = NULL;
-	isc_uint8_t ecs_addrlen = 0;
+	dns_ecs_t *ecs = NULL;
 	int match;
 
 	if (acl == NULL) {
@@ -3678,15 +3678,11 @@ ns_client_checkaclsilent(ns_client_t *client, isc_netaddr_t *netaddr,
 		netaddr = &tmpnetaddr;
 	}
 
-	if ((client->attributes & NS_CLIENTATTR_HAVEECS) != 0) {
-		ecs_addr = &client->ecs_addr;
-		ecs_addrlen = client->ecs_addrlen;
-	}
+	if (ECS_RECEIVED(client))
+		ecs = &client->ecs;
 
-	result = dns_acl_match2(netaddr, client->signer,
-				ecs_addr, ecs_addrlen, NULL, acl,
+	result = dns_acl_matchx(netaddr, client->signer, ecs, acl,
 				&ns_g_server->aclenv, &match, NULL);
-
 	if (result != ISC_R_SUCCESS)
 		goto deny; /* Internal error, already logged. */
 

@@ -158,10 +158,10 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 	/*
 	 * At zone cuts, deny the existence of glue in the parent zone.
 	 */
-	if (dns_nsec_isset(bm, dns_rdatatype_ns) &&
-	    ! dns_nsec_isset(bm, dns_rdatatype_soa)) {
+	if (dns_rdata_issettypebit(bm, dns_rdatatype_ns) &&
+	    ! dns_rdata_issettypebit(bm, dns_rdatatype_soa)) {
 		for (i = 0; i <= max_type; i++) {
-			if (dns_nsec_isset(bm, i) &&
+			if (dns_rdata_issettypebit(bm, i) &&
 			    ! dns_rdatatype_iszonecutauth((dns_rdatatype_t)i))
 				dns_nsec_setbit(bm, i, 0);
 		}
@@ -185,7 +185,6 @@ dns_nsec3_typepresent(dns_rdata_t *rdata, dns_rdatatype_t type) {
 	dns_rdata_nsec3_t nsec3;
 	isc_result_t result;
 	isc_boolean_t present;
-	unsigned int i, len, window;
 
 	REQUIRE(rdata != NULL);
 	REQUIRE(rdata->type == dns_rdatatype_nsec3);
@@ -194,23 +193,8 @@ dns_nsec3_typepresent(dns_rdata_t *rdata, dns_rdatatype_t type) {
 	result = dns_rdata_tostruct(rdata, &nsec3, NULL);
 	INSIST(result == ISC_R_SUCCESS);
 
-	present = ISC_FALSE;
-	for (i = 0; i < nsec3.len; i += len) {
-		INSIST(i + 2 <= nsec3.len);
-		window = nsec3.typebits[i];
-		len = nsec3.typebits[i + 1];
-		INSIST(len > 0 && len <= 32);
-		i += 2;
-		INSIST(i + len <= nsec3.len);
-		if (window * 256 > type)
-			break;
-		if ((window + 1) * 256 <= type)
-			continue;
-		if (type < (window * 256) + len * 8)
-			present = ISC_TF(dns_nsec_isset(&nsec3.typebits[i],
-							type % 256));
-		break;
-	}
+	present = dns_rdata_typepresent(nsec3.typebits, nsec3.len,
+					type, ISC_FALSE);
 	dns_rdata_freestruct(&nsec3);
 	return (present);
 }

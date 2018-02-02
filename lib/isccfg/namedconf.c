@@ -106,6 +106,8 @@ static cfg_type_t cfg_type_dlz;
 static cfg_type_t cfg_type_dnstap;
 static cfg_type_t cfg_type_dnstapoutput;
 static cfg_type_t cfg_type_dyndb;
+static cfg_type_t cfg_type_ecsbits;
+static cfg_type_t cfg_type_ecszones;
 static cfg_type_t cfg_type_filter_aaaa;
 static cfg_type_t cfg_type_ixfrdifftype;
 static cfg_type_t cfg_type_key;
@@ -116,6 +118,7 @@ static cfg_type_t cfg_type_lwres;
 static cfg_type_t cfg_type_masterselement;
 static cfg_type_t cfg_type_maxttl;
 static cfg_type_t cfg_type_minimal;
+static cfg_type_t cfg_type_namematch;
 static cfg_type_t cfg_type_nameportiplist;
 static cfg_type_t cfg_type_negated;
 static cfg_type_t cfg_type_notifytype;
@@ -1740,6 +1743,11 @@ view_clauses[] = {
 	{ "dnstap", &cfg_type_dnstap, CFG_CLAUSEFLAG_NOTCONFIGURED },
 #endif /* HAVE_DNSTAP */
 	{ "dual-stack-servers", &cfg_type_nameportiplist, 0 },
+	{ "ecs-bits", &cfg_type_ecsbits, 0 },
+	{ "ecs-zones", &cfg_type_ecszones, 0 },
+	{ "ecs-forward", &cfg_type_bracketed_aml, 0 },
+	{ "ecs-privacy", &cfg_type_boolean, 0 },
+	{ "ecs-types", &cfg_type_rrtypelist, 0 },
 	{ "edns-udp-size", &cfg_type_uint32, 0 },
 	{ "empty-contact", &cfg_type_astring, 0 },
 	{ "empty-server", &cfg_type_astring, 0 },
@@ -2251,6 +2259,7 @@ static cfg_type_t cfg_type_key = {
 static cfg_clausedef_t
 server_clauses[] = {
 	{ "bogus", &cfg_type_boolean, 0 },
+	{ "ecs", &cfg_type_boolean, 0 },
 	{ "edns", &cfg_type_boolean, 0 },
 	{ "edns-udp-size", &cfg_type_uint32, 0 },
 	{ "edns-version", &cfg_type_uint32, 0 },
@@ -3884,7 +3893,7 @@ doc_maxttl(cfg_printer_t *pctx, const cfg_type_t *type) {
 }
 
 /*%
- * A size or "unlimited", but not "default".
+ * A TTL value or "unlimited"
  */
 static const char *maxttl_enums[] = { "unlimited", NULL };
 static cfg_type_t cfg_type_maxttl = {
@@ -4006,3 +4015,101 @@ cfg_print_zonegrammar(const unsigned int zonetype,
 	pctx.indent--;
 	cfg_print_cstr(&pctx, "};\n");
 }
+
+static keyword_type_t bits4_kw = { "bits-v4", &cfg_type_uint32 };
+static cfg_type_t cfg_type_optional_bits4 = {
+	"optional_bits_v4", parse_optional_keyvalue, print_keyvalue,
+	doc_optional_keyvalue, &cfg_rep_uint32, &bits4_kw
+};
+
+static keyword_type_t bits6_kw = { "bits-v6", &cfg_type_uint32 };
+static cfg_type_t cfg_type_optional_bits6 = {
+	"optional_bits_v6", parse_optional_keyvalue, print_keyvalue,
+	doc_optional_keyvalue, &cfg_rep_uint32, &bits6_kw
+};
+
+static cfg_tuplefielddef_t ecszoneelt_fields[] = {
+	{ "name", &cfg_type_namematch, 0 },
+	{ "bits4", &cfg_type_optional_bits4, 0 },
+	{ "bits6", &cfg_type_optional_bits6, 0 },
+	{ NULL, NULL, 0 }
+};
+static cfg_type_t cfg_type_ecszoneelt = {
+	"ecszoneelt", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, ecszoneelt_fields
+};
+/*%
+ * A domain name filter list indicating zones for which ECS options
+ * should be used when sending queries.
+ */
+static cfg_type_t cfg_type_ecszones = {
+	"ecszones", cfg_parse_bracketed_list, cfg_print_bracketed_list,
+	cfg_doc_bracketed_list, &cfg_rep_list, &cfg_type_ecszoneelt
+};
+
+/*% Negated name */
+static cfg_tuplefielddef_t negname_fields[] = {
+	{ "negname", &cfg_type_namematch, 0 },
+	{ NULL, NULL, 0 }
+};
+static void
+print_negname(cfg_printer_t *pctx, const cfg_obj_t *obj) {
+	cfg_print_cstr(pctx, "!");
+	cfg_print_tuple(pctx, obj);
+}
+static cfg_type_t cfg_type_negname = {
+	"negname", cfg_parse_tuple, print_negname, NULL, &cfg_rep_tuple,
+	&negname_fields
+};
+
+
+/*%
+ * Name match list (similar to address match list, allowing names in the
+ * list to be negated with '!').
+ */
+static isc_result_t
+parse_name_matchelt(cfg_parser_t *pctx, const cfg_type_t *type,
+		    cfg_obj_t **ret)
+{
+	isc_result_t result;
+	UNUSED(type);
+
+	CHECK(cfg_peektoken(pctx, CFG_LEXOPT_QSTRING));
+
+	if (pctx->token.type == isc_tokentype_string ||
+	    pctx->token.type == isc_tokentype_qstring) {
+		CHECK(cfg_parse_astring(pctx, NULL, ret));
+	} else if (pctx->token.type == isc_tokentype_special) {
+		if (pctx->token.value.as_char == '!') {
+			CHECK(cfg_gettoken(pctx, 0)); /* read "!" */
+			CHECK(cfg_parse_obj(pctx, &cfg_type_negname, ret));
+		} else {
+			goto bad;
+		}
+	} else {
+	bad:
+		cfg_parser_error(pctx, CFG_LOG_NEAR,
+			     "expected name list element");
+		return (ISC_R_UNEXPECTEDTOKEN);
+	}
+ cleanup:
+	return (result);
+}
+
+/*% A name matching element: can be prepended with '!' to negate */
+static cfg_type_t cfg_type_namematch = {
+	"ecs_domain_name", parse_name_matchelt, NULL, cfg_doc_terminal,
+	NULL, NULL
+};
+
+/*% ECS source or scope prefix lengths */
+static cfg_tuplefielddef_t ecsbits_fields[] = {
+	{ "bits4", &cfg_type_uint32, 0 },
+	{ "bits6", &cfg_type_uint32, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_ecsbits = {
+	"ecsbits", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, ecsbits_fields
+};

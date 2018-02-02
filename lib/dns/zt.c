@@ -50,7 +50,7 @@ struct dns_zt {
 #define VALID_ZT(zt) 		ISC_MAGIC_VALID(zt, ZTMAGIC)
 
 static void
-auto_detach(void *, void *);
+auto_detach(dns_rbtnode_t *node, void *arg);
 
 static isc_result_t
 load(dns_zone_t *zone, void *uap);
@@ -574,8 +574,8 @@ doneloading(dns_zt_t *zt, dns_zone_t *zone, isc_task_t *task) {
  ***/
 
 static void
-auto_detach(void *data, void *arg) {
-	dns_zone_t *zone = data;
+auto_detach(dns_rbtnode_t *node, void *arg) {
+	dns_zone_t *zone = node->data;
 
 	UNUSED(arg);
 	dns_zone_detach(&zone);

@@ -5914,12 +5914,7 @@ options {
 	      <term><command>geoip-use-ecs</command></term>
 	      <listitem>
 		<para>
-		  When BIND is compiled with GeoIP support and configured
-		  with "geoip" ACL elements, this option indicates whether
-		  the EDNS Client Subnet option, if present in a request,
-		  should be used for matching against the GeoIP database.
-		  The default is
-		  <command>geoip-use-ecs</command> <userinput>yes</userinput>.
+		  See <xref linkend="ecs"/>.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -10552,6 +10547,274 @@ example.com                 CNAME   rpz-tcp-only.
 	    the redirect zone is tried first.
 	  </para>
 	</section>
+
+	<section xml:id="ecs"><info><title>EDNS CLIENT-SUBNET (ECS) Support</title></info>
+	  <para>
+	    The EDNS CLIENT-SUBNET option (ECS) is a mechanism to allow
+	    partially anonymized IP address information about the client
+	    originating a query to be passed via a recursive resolver or
+	    forwarder to the authoritative server which answers the
+	    query. This enables an authoritative server to provide
+	    different answers depending on the originating client
+	    address; for example, this may be used to route users to
+	    different resources depending on their geographic location.
+	  </para>
+	  <para>
+	    An ECS-tagged query contains the subnet from which the query
+	    originated, but not the specific IP address of the client.
+	    BIND is able to reference this information in ACLs that use
+	    the "ecs" or "geoip" keywords (see <xref linkend="acl"/>).
+	  </para>
+	  <para>
+	    An ECS-tagged response also indicates the prefix from which
+	    the query originated, and adds a "scope length" value
+	    indicating for which address prefix(es) this response is
+	    valid.  (For example, an ECS tagged response to a query from
+	    subnet 192.0.1/24 may be valid for all addresses in 192/8.)
+	    A recursive name server may cache this response, and
+	    subsequently re-use it for all queries originating from
+	    192/8, but not for queries originating from other addresses.
+	  </para>
+	  <para>
+	    Note: The ECS implementation for authoritative servers is
+	    based on an early version of the specification and is known
+	    to have some incompatibilities with other implementations.
+	    It can be used for testing purposes, but is not recommended
+	    for production use.  The ECS implementation for recursive
+	    resolvers, however, is fully supported.
+	  </para>
+
+	  <section xml:id="auth_ecs"><info><title>Authoritative ECS Options</title></info>
+	    <variablelist>
+	      <varlistentry>
+		<term><command>geoip-use-ecs</command></term>
+		<listitem>
+		  <para>
+		    When BIND is compiled with GeoIP support and configured
+		    with "geoip" ACL elements, this option indicates whether
+		    the EDNS Client Subnet option, if present in a request,
+		    should be used for matching against the GeoIP database.
+		    The default is
+		    <command>geoip-use-ecs</command> <userinput>yes</userinput>.
+		  </para>
+		</listitem>
+	      </varlistentry>
+	    </variablelist>
+	  </section>
+
+	  <section xml:id="recursive_ecs"><info><title>Recursive ECS Options</title></info>
+	    <variablelist>
+	      <varlistentry>
+		<term><command>ecs-bits</command></term>
+		<listitem>
+		  <para>
+		    This option takes exactly two arguments, representing
+		    the default SOURCE prefix-length to use in ECS queries
+		    for IPv4 and IPv6 addresses respectively.  These
+		    values can be overridden on a per-domain basis by
+		    specifying
+		    <literal>bits-v4</literal> and <literal>bits-v6</literal>
+		    values in <option>ecs-zones</option>.
+		    The default values are 24 and 56, which are also the
+		    maxima. Higher values are not permitted, and will
+		    be capped to 24 and 56 respectively.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>ecs-zones</command></term>
+		<listitem>
+		  <para>
+		    A domain name filter set, indicating to which zones
+		    ECS-tagged queries may be sent.
+		  </para>
+		  <para>
+		    Each element of <command>ecs-zones</command>
+		    is a zone name, which may optionally be
+		    negated with a leading exclamation mark (`!'); this
+		    allows certain subdomains to be excluded.
+		    The longest matching element
+		    in <command>ecs-zones</command> is used to determine
+		    whether or not to send ECS options when resolving a
+		    given query.
+		  </para>
+		  <para>
+		    Elements in <command>ecs-zones</command> may be followed
+		    with optional <literal>bits-v4</literal> and
+		    <literal>bits-v6</literal> values, indicating the
+		    source prefix-lengths to be used in ECS options when
+		    sending IPv4 and IPv6 queries, respectively, for names
+		    at or below that subdomain. If <literal>bits-v4</literal>
+		    and <literal>bits-v6</literal> are not specified,
+		    the default source prefix-lengths are whatever are set
+		    by <option>ecs-bits</option>, which in turn default
+		    to 24 for IPv4 and 56 for IPv6. Higher values than
+		    these are not accepted, and will be clamped.
+		  </para>
+		  <para>
+		    As names in <command>ecs-zones</command> become more
+		    specific, prefix-lengths cannot increase. If
+		    "example.com" is specified with
+		    <userinput>bits-v4 20</userinput>, then no prefix
+		    length higher than 20 can be used for IPv4 queries
+		    for any subdomain of "example.com".
+		  </para>
+		  <para>
+		    In the following example:
+		  </para>
+		  <itemizedlist>
+		    <listitem>
+		      ECS options are sent when looking up names in the
+		      zone "example.com", with a source prefix-length of 20
+		      bits for IPv4 queries, and the default 56 bits for
+		      IPv6 queries.
+		    </listitem>
+		    <listitem>
+		      ECS options are also sent when looking up names
+		      in the zone "example.org", but in this case the
+		      prefix-lengths will be 22 and 48. However, ECS
+		      is not used for names below "excluded.example.org."
+		    </listitem>
+		    <listitem>
+		      ECS options are also sent when looking up names in
+		      the zone "example.net", with the default source prefix
+		      lengths of 24 and 56 bits.
+		    </listitem>
+		  </itemizedlist>
+<programlisting>
+	ecs-zones {
+	    example.com bits-v4 20;
+	    ! excluded.example.org;
+	    example.org bits-v4 22 bits-v6 48;
+	    example.net;
+	};
+</programlisting>
+		  <para>
+		    It is assumed that ECS will be configured at the
+		    zone level, not using individual names within a zone.
+		    Consequently, ECS options are only sent when
+		    the name being queried and the apex of the zone
+		    being queried both match <command>ecs-zones</command>.
+		    For example, if the zone "example.com" contains the name
+		    "www.example.com", then <command>ecs-zones</command>
+		    should be configured with "example.com",
+		    <emphasis>not</emphasis> with "www.example.com".
+		    The latter configuration would result in no ECS queries
+		    being sent, because the zone apex ("example.com")
+		    would not match.
+		  </para>
+		  <para>
+		    Note that negated entries do not need to be zone apexes
+		    to be effective: If <command>ecs-zones</command> were
+		    configured with "example.com" and "!www.example.com",
+		    then an ECS option would not be sent for "www.example.com"
+		    even though zone apex was allowed. An ECS option would
+		    also not be sent for "foo.www.example.com", as it is a
+		    subdomain of "www.example.com".
+		  </para>
+		  <para>
+		    The zone apex is defined here as the delegation point.
+		    Sometimes a server is authoritative for both parent and
+		    child zones, so that a query sent to the parent zone
+		    will get an authoritative answer for the child, with
+		    no delegation taking place; in this case,
+		    <command>ecs-zones</command> must match the
+		    <emphasis>parent</emphasis> zone apex to be effective.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>ecs-forward</command></term>
+		<listitem>
+		  <para>
+		    Specifies an ACL of client addresses from which
+		    ECS-tagged queries may be forwarded. The default is
+		    <userinput>none</userinput>.
+		  </para>
+		  <para>
+		    If a client is not allowed in this ACL, then recursive
+		    queries which contain ECS options with non-zero source
+		    prefix-length will be answered with REFUSED.  (This
+		    does not apply to ECS options with zero prefix-lengths;
+		    all clients are permitted to send those.)
+		  </para>
+		  <para>
+		    If the client <emphasis>is</emphasis> allowed,
+		    and if the query would normally be processed
+		    using ECS (i.e., because the query name is covered
+		    by <command>ecs-zones</command>), then the
+		    ECS option that was sent by the client may be
+		    forwarded.
+		  </para>
+		  <para>
+		    When ECS options are forwarded, their source prefix
+		    lengths are clamped to the length that would ordinarily
+		    be sent by the resolver.  For example, if a domain is
+		    configured in <command>ecs-zones</command> to be
+		    sent a source prefix length of 20 bits, an ECS option
+		    sent by a client with a source prefix length of
+		    24 bits would be truncated to 20 bits and then forwarded.
+		    A query with an ECS source prefix length of 20 or
+		    less would be forwarded as-is.
+		  </para>
+		  <para>
+		    A query with an ECS source prefix length of zero
+		    is a signal from the client that ECS should not be
+		    used in processing this query. Any client may
+		    send such a query, regardless of
+		    <command>ecs-forward</command> and
+		    <command>ecs-zones</command> and it will always be
+		    forwarded. A matching ECS option will always be
+		    included in the response sent back to the client.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>ecs-privacy</command></term>
+		<listitem>
+		  <para>
+		    If set to <userinput>yes</userinput>, then when the
+		    query is allowed for ECS processing and no client
+		    ECS option is being forwarded, the resolver will
+		    always include an ECS option with a source prefix
+		    length of zero in all of its upstream queries.  This
+		    is a request to upstream intermediate resolvers to
+		    disable ECS when processing queries sent by this
+		    resolver.  The default is <userinput>no</userinput>.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	      <varlistentry>
+		<term><command>ecs-types</command></term>
+		<listitem>
+		  <para>
+		    Specifies a list of RR types for which ECS-tagged
+		    queries may be sent, and for which ECS-tagged
+		    replies may be cached.  The default is "ANY",
+		    which matches all types with the exception of
+		    DNS infrastructure types (NS, SOA), and
+		    DNSSEC-related types (DS, DNSKEY, NSEC).
+		    those types are never ECS-tagged, even if explicitly
+		    included in <command>ecs-types</command>.
+		  </para>
+		  <para>
+		    Note that, regardless of whether or not CNAME is included
+		    in <command>ecs-types</command>, if an answer of
+		    type CNAME is found in a reply to an ECS-tagged
+		    query, then the CNAME data may always be cached
+		    with ECS.
+		  </para>
+		</listitem>
+	      </varlistentry>
+
+	    </variablelist>
+	  </section>
+
+	</section>
       </section>
 
       <section xml:id="server_statement_grammar"><info><title><command>server</command> Statement Grammar</title></info>
@@ -10647,6 +10910,18 @@ example.com                 CNAME   rpz-tcp-only.
 	    expiration timer is set from the EXPIRE field of the SOA
 	    record instead.
 	    The default is <command>yes</command>.
+	  </para>
+
+	  <para>
+	    The <command>ecs</command> clause determines whether
+	    the local server will send the EDNS Client Subnet
+	    option when communicating with the remote server.  The default
+	    is <command>yes</command>, but the option is only sent if
+	    the name being queried matches a domain listed in the
+	    <command>ecs-zones</command> statement. (See
+	    <xref linkend="recursive_ecs"/>.) Changing the value to
+	    <command>no</command> disables the ECS option for the
+	    remote server, regardless of query name.
 	  </para>
 
 	  <para>
@@ -16653,7 +16928,7 @@ zone "example.com" {
 	  resolver for different resolver clients.  An ACL containing
 	  an element of the form
 	  <command>ecs <replaceable>prefix</replaceable></command>
-	  will match if a request arrives in containing an ECS option
+	  can match if a request arrives containing an ECS option
 	  encoding an address within that prefix.  If the request has no
 	  ECS option, then "ecs" elements are simply ignored.  Addresses
 	  in ACLs that are not prefixed with "ecs" are matched only
@@ -16671,6 +16946,11 @@ zone "example.com" {
 	    not recommended for production use.)
 	  </simpara>
 	</note>
+	<para>
+	  Currently, only <command>match-clients</command> ACLs support
+	  the use of "ecs" elements; in all other ACLs, these elements are
+	  ignored.
+	</para>
 	<para>
 	  When <acronym>BIND</acronym> 9 is built with GeoIP support,
 	  ACLs can also be used for geographic access restrictions.
@@ -16717,11 +16997,14 @@ zone "example.com" {
 	</para>
 	<para>
 	  By default, if a DNS query includes an EDNS Client Subnet (ECS)
-	  option which encodes a non-zero address prefix, then GeoIP ACLs
-	  will be matched against that address prefix.  Otherwise, they
-	  are matched against the source address of the query.  To
+	  option which encodes a non-zero address prefix, then GeoIP ACL
+	  elements will be matched against that address prefix.  Otherwise,
+	  they are matched against the source address of the query.  To
 	  prevent GeoIP ACLs from matching against ECS options, set
 	  the <command>geoip-use-ecs</command> to <literal>no</literal>.
+	  As with "ecs" elements, only <command>match-clients</command>
+	  ACLs support the use of the ECS option in matching GeoIP
+	  ACL elements.
 	</para>
 	<para>
 	  Some example GeoIP ACLs:

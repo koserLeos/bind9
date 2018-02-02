@@ -36,7 +36,7 @@ struct dns_fwdtable {
 #define VALID_FWDTABLE(ft) 	ISC_MAGIC_VALID(ft, FWDTABLEMAGIC)
 
 static void
-auto_detach(void *, void *);
+auto_detach(dns_rbtnode_t *node, void *arg);
 
 isc_result_t
 dns_fwdtable_create(isc_mem_t *mctx, dns_fwdtable_t **fwdtablep) {
@@ -241,8 +241,8 @@ dns_fwdtable_destroy(dns_fwdtable_t **fwdtablep) {
  ***/
 
 static void
-auto_detach(void *data, void *arg) {
-	dns_forwarders_t *forwarders = data;
+auto_detach(dns_rbtnode_t *node, void *arg) {
+	dns_forwarders_t *forwarders = node->data;
 	dns_fwdtable_t *fwdtable = arg;
 	dns_forwarder_t *fwd;
 

@@ -605,24 +605,48 @@ sendquery(struct query *query, isc_task_t *task)
 			INSIST(i < DNS_EDNSOPTIONS);
 			opts[i].code = DNS_OPT_CLIENT_SUBNET;
 			opts[i].length = (isc_uint16_t) addrl + 4;
-			CHECK("isc_buffer_allocate", result);
 			isc_buffer_init(&b, ecsbuf, sizeof(ecsbuf));
-			if (sa->sa_family == AF_INET) {
+
+			/*
+			 * XXX: According to RFC7871, "If there is no
+			 * ADDRESS set, i.e., SOURCE PREFIX-LENGTH is
+			 * set to 0, then FAMILY SHOULD be set to the
+			 * transport over which the query is sent."
+			 *
+			 * However, this is broken in 'dig' because
+			 * we set up the lookup before we know what
+			 * addresses it'll be sent to. That isn't the
+			 * case here, but in the interest of keeping
+			 * +subnet option behavior compatible in 'dig'
+			 * and 'mdig', we're leaving it broken here too:
+			 * we use IPv4 as the default if the +subnet
+			 * option used an IPv4 prefix, and for +subnet=0;
+			 * we use IPv6 if the +subnet option used an
+			 * IPv6 prefix.
+			 *
+			 * (For future work: when this is fixed in 'dig',
+			 * fix it here too.)
+			 */
+			switch (sa->sa_family) {
+			case AF_UNSPEC:
+				INSIST(plen == 0);
+				family = 1;
+				break;
+			case AF_INET:
+				INSIST(plen > 0);
 				family = 1;
 				sin = (struct sockaddr_in *) sa;
 				memmove(addr, &sin->sin_addr, 4);
-				if ((plen % 8) != 0)
-					addr[addrl-1] &=
-						~0U << (8 - (plen % 8));
-			} else {
+				break;
+			case AF_INET6:
+				INSIST(plen > 0);
 				family = 2;
 				sin6 = (struct sockaddr_in6 *) sa;
 				memmove(addr, &sin6->sin6_addr, 16);
+				break;
+			default:
+				INSIST(0);
 			}
-
-			/* Mask off last address byte */
-			if (addrl > 0 && (plen % 8) != 0)
-				addr[addrl - 1] &= ~0U << (8 - (plen % 8));
 
 			/* family */
 			isc_buffer_putuint16(&b, family);
@@ -631,9 +655,14 @@ sendquery(struct query *query, isc_task_t *task)
 			/* scope prefix-length */
 			isc_buffer_putuint8(&b, 0);
 			/* address */
-			if (addrl > 0)
+			if (addrl > 0) {
+				/* Mask off last address byte */
+				if ((plen % 8) != 0)
+					addr[addrl - 1] &=
+						~0U << (8 - (plen % 8));
 				isc_buffer_putmem(&b, addr,
-						  (unsigned)addrl);
+						  (unsigned int) addrl);
+			}
 
 			opts[i].value = (isc_uint8_t *) ecsbuf;
 			i++;
@@ -896,40 +925,49 @@ parse_netprefix(isc_sockaddr_t **sap, const char *value) {
 	isc_sockaddr_t *sa = NULL;
 	struct in_addr in4;
 	struct in6_addr in6;
-	isc_uint32_t netmask = 0xffffffff;
+	isc_uint32_t prefix_length = 0xffffffff;
 	char *slash = NULL;
 	isc_boolean_t parsed = ISC_FALSE;
+	isc_boolean_t prefix_parsed = ISC_FALSE;
 	char buf[sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:XXX.XXX.XXX.XXX/128")];
 
 	if (strlcpy(buf, value, sizeof(buf)) >= sizeof(buf))
 		fatal("invalid prefix '%s'\n", value);
 
+	sa = isc_mem_allocate(mctx, sizeof(*sa));
+	if (sa == NULL)
+		fatal("out of memory");
+	memset(sa, 0, sizeof(*sa));
+
 	slash = strchr(buf, '/');
 	if (slash != NULL) {
 		*slash = '\0';
-		result = isc_parse_uint32(&netmask, slash + 1, 10);
+		result = isc_parse_uint32(&prefix_length, slash + 1, 10);
 		if (result != ISC_R_SUCCESS) {
 			fatal("invalid prefix length in '%s': %s\n",
 			      value, isc_result_totext(result));
 		}
-	} else if (strcmp(value, "0") == 0) {
-		netmask = 0;
+		prefix_parsed = ISC_TRUE;
 	}
 
-	sa = isc_mem_allocate(mctx, sizeof(*sa));
-	if (sa == NULL)
-		fatal("out of memory");
+	if (strcmp(buf, "0") == 0) {
+		sa->type.sa.sa_family = AF_UNSPEC;
+		parsed = ISC_TRUE;
+		prefix_length = 0;
+		goto done;
+	}
+
 	if (inet_pton(AF_INET6, buf, &in6) == 1) {
 		parsed = ISC_TRUE;
 		isc_sockaddr_fromin6(sa, &in6, 0);
-		if (netmask > 128)
-			netmask = 128;
+		if (prefix_length > 128)
+			prefix_length = 128;
 	} else if (inet_pton(AF_INET, buf, &in4) == 1) {
 		parsed = ISC_TRUE;
 		isc_sockaddr_fromin(sa, &in4, 0);
-		if (netmask > 32)
-			netmask = 32;
-	} else if (netmask != 0xffffffff) {
+		if (prefix_length > 32)
+			prefix_length = 32;
+	} else if (prefix_parsed) {
 		int i;
 
 		for (i = 0; i < 3 && strlen(buf) < sizeof(buf) - 2; i++) {
@@ -941,14 +979,15 @@ parse_netprefix(isc_sockaddr_t **sap, const char *value) {
 			}
 		}
 
-		if (netmask > 32)
-			netmask = 32;
+		if (prefix_length > 32)
+			prefix_length = 32;
 	}
 
 	if (!parsed)
 		fatal("invalid address '%s'", value);
 
-	sa->length = netmask;
+done:
+	sa->length = prefix_length;
 	*sap = sa;
 
 	return (ISC_R_SUCCESS);
@@ -1413,6 +1452,7 @@ plus_option(char *option, struct query *query, isc_boolean_t global)
 			}
 			if (query->edns == -1)
 				query->edns = 0;
+
 			result = parse_netprefix(&query->ecs_addr, value);
 			CHECK("parse_netprefix", result);
 			break;

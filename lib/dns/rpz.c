@@ -1393,8 +1393,10 @@ add_name(dns_rpz_zones_t *rpzs, dns_rpz_num_t rpz_num,
  * Callback to free the data for a node in the summary RBT database.
  */
 static void
-rpz_node_deleter(void *nm_data, void *mctx) {
-	isc_mem_put(mctx, nm_data, sizeof(dns_rpz_nm_data_t));
+rpz_node_deleter(dns_rbtnode_t *node, void *arg) {
+	isc_mem_t *mctx = arg;
+	void *data = node->data;
+	isc_mem_put(mctx, data, sizeof(dns_rpz_nm_data_t));
 }
 
 /*

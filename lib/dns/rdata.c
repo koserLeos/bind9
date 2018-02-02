@@ -573,6 +573,67 @@ typemap_test(isc_region_t *sr, isc_boolean_t allow_empty) {
 	return (ISC_R_SUCCESS);
 }
 
+void
+dns_rdata_settypebit(unsigned char *array, unsigned int type,
+		     unsigned int bit)
+{
+	unsigned int shift, mask;
+
+	shift = 7 - (type % 8);
+	mask = 1 << shift;
+
+	if (bit != 0)
+		array[type / 8] |= mask;
+	else
+		array[type / 8] &= (~mask & 0xFF);
+}
+
+isc_boolean_t
+dns_rdata_issettypebit(const unsigned char *array, unsigned int type) {
+	unsigned int byte, shift, mask;
+
+	byte = array[type / 8];
+	shift = 7 - (type % 8);
+	mask = 1 << shift;
+
+	return (ISC_TF(byte & mask));
+}
+
+isc_boolean_t
+dns_rdata_typepresent(unsigned char *typemapbits, size_t typemaplen,
+		      dns_rdatatype_t type, isc_boolean_t checkany)
+{
+	isc_boolean_t present;
+	unsigned int i, len, window;
+
+	REQUIRE(typemapbits != NULL);
+
+	present = ISC_FALSE;
+	for (i = 0; i < typemaplen; i += len) {
+		INSIST(i + 2 <= typemaplen);
+		window = typemapbits[i];
+		len = typemapbits[i + 1];
+		INSIST(len > 0 && len <= 32);
+		i += 2;
+		INSIST(i + len <= typemaplen);
+
+		/* check for the presence of ANY */
+		if (checkany && window == 0 && len * 8 >= dns_rdatatype_any &&
+		    dns_rdata_issettypebit(&typemapbits[i], dns_rdatatype_any))
+			return (ISC_TRUE);
+
+		if (window * 256 > type)
+			break;
+		if ((window + 1) * 256 <= type)
+			continue;
+		if (type < (window * 256) + len * 8)
+			present = ISC_TF(dns_rdata_issettypebit(&typemapbits[i],
+								type % 256));
+		break;
+	}
+	return (present);
+}
+
 static const char hexdigits[] = "0123456789abcdef";
 static const char decdigits[] = "0123456789";
 

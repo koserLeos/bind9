@@ -19,8 +19,8 @@
 #include <isc/util.h>
 
 #include <dns/acl.h>
+#include <dns/ecs.h>
 #include <dns/iptable.h>
-
 
 /*
  * Create a new ACL, including an IP table and an array with room
@@ -186,16 +186,14 @@ dns_acl_match(const isc_netaddr_t *reqaddr,
 	      int *match,
 	      const dns_aclelement_t **matchelt)
 {
-	return (dns_acl_match2(reqaddr, reqsigner, NULL, 0, NULL, acl, env,
+	return (dns_acl_matchx(reqaddr, reqsigner, NULL, acl, env,
 			       match, matchelt));
 }
 
 isc_result_t
-dns_acl_match2(const isc_netaddr_t *reqaddr,
+dns_acl_matchx(const isc_netaddr_t *reqaddr,
 	       const dns_name_t *reqsigner,
-	       const isc_netaddr_t *ecs,
-	       isc_uint8_t ecslen,
-	       isc_uint8_t *scope,
+	       dns_ecs_t *ecs,
 	       const dns_acl_t *acl,
 	       const dns_aclenv_t *env,
 	       int *match,
@@ -212,7 +210,6 @@ dns_acl_match2(const isc_netaddr_t *reqaddr,
 
 	REQUIRE(reqaddr != NULL);
 	REQUIRE(matchelt == NULL || *matchelt == NULL);
-	REQUIRE(ecs != NULL || scope == NULL);
 
 	if (env != NULL && env->match_mapped &&
 	    addr->family == AF_INET6 &&
@@ -249,8 +246,8 @@ dns_acl_match2(const isc_netaddr_t *reqaddr,
 	 * see if we find a better match on an ECS node
 	 */
 	if (ecs != NULL) {
+		addr = &ecs->addr;
 		node = NULL;
-		addr = ecs;
 
 		if (env != NULL && env->match_mapped &&
 		    addr->family == AF_INET6 &&
@@ -260,7 +257,7 @@ dns_acl_match2(const isc_netaddr_t *reqaddr,
 			addr = &v4addr;
 		}
 
-		NETADDR_TO_PREFIX_T(addr, pfx, ecslen, ISC_TRUE);
+		NETADDR_TO_PREFIX_T(addr, pfx, ecs->source, ISC_TRUE);
 
 		result = isc_radix_search(acl->iptable->radix, &node, &pfx);
 		if (result == ISC_R_SUCCESS && node != NULL) {
@@ -269,8 +266,7 @@ dns_acl_match2(const isc_netaddr_t *reqaddr,
 			    node->node_num[off] < match_num)
 			{
 				match_num = node->node_num[off];
-				if (scope != NULL)
-					*scope = node->bit;
+				ecs->scope = node->bit;
 				if (*(isc_boolean_t *) node->data[off])
 					*match = match_num;
 				else
@@ -290,8 +286,8 @@ dns_acl_match2(const isc_netaddr_t *reqaddr,
 			break;
 		}
 
-		if (dns_aclelement_match2(reqaddr, reqsigner, ecs, ecslen,
-					  scope, e, env, matchelt))
+		if (dns_aclelement_matchx(reqaddr, reqsigner, ecs,
+					  e, env, matchelt))
 		{
 			if (match_num == -1 || e->node_num < match_num) {
 				if (e->negative)
@@ -431,16 +427,14 @@ dns_aclelement_match(const isc_netaddr_t *reqaddr,
 		     const dns_aclenv_t *env,
 		     const dns_aclelement_t **matchelt)
 {
-	return (dns_aclelement_match2(reqaddr, reqsigner, NULL, 0, NULL,
+	return (dns_aclelement_matchx(reqaddr, reqsigner, NULL,
 				      e, env, matchelt));
 }
 
 isc_boolean_t
-dns_aclelement_match2(const isc_netaddr_t *reqaddr,
+dns_aclelement_matchx(const isc_netaddr_t *reqaddr,
 		      const dns_name_t *reqsigner,
-		      const isc_netaddr_t *ecs,
-		      isc_uint8_t ecslen,
-		      isc_uint8_t *scope,
+		      dns_ecs_t *ecs,
 		      const dns_aclelement_t *e,
 		      const dns_aclenv_t *env,
 		      const dns_aclelement_t **matchelt)
@@ -450,9 +444,8 @@ dns_aclelement_match2(const isc_netaddr_t *reqaddr,
 	isc_result_t result;
 #ifdef HAVE_GEOIP
 	const isc_netaddr_t *addr = NULL;
+	isc_uint8_t *scope = NULL;
 #endif
-
-	REQUIRE(ecs != NULL || scope == NULL);
 
 	switch (e->type) {
 	case dns_aclelementtype_keyname:
@@ -484,7 +477,12 @@ dns_aclelement_match2(const isc_netaddr_t *reqaddr,
 	case dns_aclelementtype_geoip:
 		if (env == NULL || env->geoip == NULL)
 			return (ISC_FALSE);
-		addr = (env->geoip_use_ecs && ecs != NULL) ? ecs : reqaddr;
+		if (env->geoip_use_ecs && ecs != NULL) {
+			addr = &ecs->addr;
+			scope = &ecs->scope;
+		} else {
+			addr = reqaddr;
+		}
 		return (dns_geoip_match(addr, scope, env->geoip,
 					&e->geoip_elem));
 #endif
@@ -493,7 +491,7 @@ dns_aclelement_match2(const isc_netaddr_t *reqaddr,
 		INSIST(0);
 	}
 
-	result = dns_acl_match2(reqaddr, reqsigner, ecs, ecslen, scope,
+	result = dns_acl_matchx(reqaddr, reqsigner, ecs,
 				inner, env, &indirectmatch, matchelt);
 	INSIST(result == ISC_R_SUCCESS);
 

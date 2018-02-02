@@ -89,26 +89,32 @@ KRB5_CONFIG=NUL
 #
 # List of tests that use ports 5300 and 9953.  For this reason, these must
 # be run sequentially.
-SEQUENTIALDIRS="acl additional addzone autosign builtin \
-	 cacheclean case \
-	 checkconf @CHECKDS@ checknames checkzone cookie @COVERAGE@ \
-	 database digdelv dlv dlvauto dlz dlzexternal \
-	 dns64 dnssec @DNSTAP@ dscp dsdigest dyndb ecdsa eddsa \
-	 ednscompliance emptyzones \
-	 fetchlimit filter-aaaa formerr forward geoip glue gost inline ixfr \
-	 @KEYMGR@ legacy limits logfileconfig lwresd masterfile masterformat \
-	 metadata mkeys names notify nslookup nsupdate nzd2nzf pending \
-	 @PKCS11_TEST@ pipelined reclimit redirect resolver rndc rpz \
-	 rrchecker rrl rrsetorder rsabigexponent runtime sfcache \
-	 smartsign sortlist spf staticstub statistics statschannel stub tcp \
-	 tkey tsig tsiggss unknown upforwd verify views wildcard xfer \
-	 xferquota zero zonechecks"
+SEQUENTIALDIRS="ecs ecdsa eddsa gost lwresd @PKCS11_TEST@ tkey"
 
 # List of tests that use unique ports (other than 5300 and 9953). These
 # tests can be run in parallel.
 #
 # This symbol must be kept in step with the PARALLEL macro in Makefile.in
-PARALLELDIRS="allow_query catz rpzrecurse"
+PARALLELDIRS="acl additional addzone allow-query autosign \
+	builtin cacheclean case catz chain \
+	checkconf checknames checkzone \
+	@CHECKDS@ @COVERAGE@ @KEYMGR@ \
+	cookie database digdelv dlv dlz dlzexternal \
+	dns64 dnssec @DNSTAP@ dscp dsdigest dyndb \
+	ednscompliance emptyzones \
+	fetchlimit filter-aaaa formerr forward \
+	geoip glue inline integrity ixfr \
+	legacy limits logfileconfig \
+        masterfile masterformat metadata mkeys \
+        names notify nslookup nsupdate nzd2nzf \
+        pending pipelined \
+        reclimit redirect resolver rndc rpz rpzrecurse \
+        rrchecker rrl rrsetorder rsabigexponent runtime \
+        sfcache smartsign sortlist \
+        spf staticstub statistics statschannel stub \
+        tcp tsig tsiggss \
+        unknown upforwd verify views wildcard \
+        xfer xferquota zero zonechecks"
 
 SUBDIRS="$SEQUENTIALDIRS $PARALLELDIRS"
 

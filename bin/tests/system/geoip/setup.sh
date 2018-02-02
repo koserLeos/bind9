@@ -14,7 +14,12 @@ SYSTEMTESTTOP=..
 
 $SHELL clean.sh
 
+copy_setports ns1/named.conf.in ns1/named.conf
 copy_setports ns2/named1.conf.in ns2/named.conf
+copy_setports ns3/named.conf.in ns3/named.conf
+copy_setports ns4/named.conf.in ns4/named.conf
+copy_setports ns5/named.conf.in ns5/named.conf
+copy_setports ns6/named.conf.in ns6/named.conf
 
 for i in 1 2 3 4 5 6 7 other bogus; do
         cp ns2/example.db.in ns2/example${i}.db

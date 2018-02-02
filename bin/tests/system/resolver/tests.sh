@@ -607,7 +607,7 @@ status=`expr $status + $ret`
 n=`expr $n + 1`
 echo_i "check that dig +subnet zeros address bits correctly (${n})"
 ret=0
-$DIG $DIGOPTS soa . @10.53.0.5 +subnet=255.255.255.255/23 > dig.out.ns5.test${n} || ret=1
+$DIG $DIGOPTS soa . @10.53.0.5 +norec +subnet=255.255.255.255/23 > dig.out.ns5.test${n} || ret=1
 grep "status: NOERROR" dig.out.ns5.test${n} > /dev/null || ret=1
 grep "CLIENT-SUBNET: 255.255.254.0/23/0" dig.out.ns5.test${n} > /dev/null || ret=1
 if [ $ret != 0 ]; then echo_i "failed"; fi

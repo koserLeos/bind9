@@ -1,0 +1,16 @@
+Copyright (C) 2016  Internet Systems Consortium, Inc. ("ISC")
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+ns1 is the root server. It needs to delegate directly to
+second-level domains (e.g. "test.example" instead of "example)
+because ECS options are not sent to top-level domains.
+
+ns5 is a resolver which can be reconfigured as needed.
+
+ns6 is a resolver which is not configured to use ECS at all.
+
+ns7 is a resolver which is configured to use ECS for certain domains.
+
+ans8 is a python-based responder which logs ECS options it receives
+and can be configured to answer in different ways depending on the
+query name.

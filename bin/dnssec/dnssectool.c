@@ -1054,7 +1054,7 @@ verifynsec3(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *origin,
 					     0, 0, &rdataset, NULL);
 	if (result != ISC_R_SUCCESS &&
 	    (!delegation || (empty && !optout) ||
-	     (!empty && dns_nsec_isset(types, dns_rdatatype_ds))))
+	     (!empty && dns_rdata_issettypebit(types, dns_rdatatype_ds))))
 	{
 		dns_name_format(name, namebuf, sizeof(namebuf));
 		dns_name_format(hashname, hashbuf, sizeof(hashbuf));

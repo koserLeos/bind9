@@ -129,7 +129,8 @@ static dns_rdatasetitermethods_t rdatasetiter_methods = {
 	rdatasetiter_destroy,
 	rdatasetiter_first,
 	rdatasetiter_next,
-	rdatasetiter_current
+	rdatasetiter_current,
+	NULL
 };
 
 isc_result_t
@@ -586,7 +587,13 @@ static dns_dbmethods_t ecdb_methods = {
 	NULL,			/* setcachestats */
 	NULL,			/* hashsize */
 	NULL,			/* nodefullname */
-	NULL			/* getsize */
+	NULL,			/* getsize */
+	NULL,			/* findrdatasetext */
+	NULL,			/* addrdatasetext */
+	NULL,			/* deleterdatasetext */
+	NULL,			/* expirenodeall */
+	NULL,			/* allrdatasetsext */
+	NULL			/* nodefullname */
 };
 
 static isc_result_t

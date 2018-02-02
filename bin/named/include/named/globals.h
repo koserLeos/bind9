@@ -108,6 +108,7 @@ EXTERN isc_boolean_t		ns_g_conffileset	INIT(ISC_FALSE);
 EXTERN isc_boolean_t		lwresd_g_useresolvconf	INIT(ISC_FALSE);
 EXTERN isc_uint16_t		ns_g_udpsize		INIT(4096);
 EXTERN cfg_aclconfctx_t *	ns_g_aclconfctx		INIT(NULL);
+EXTERN dns_acl_t *		ns_g_ecsforward		INIT(NULL);
 
 /*
  * Initial resource limits.

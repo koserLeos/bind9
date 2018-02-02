@@ -70,6 +70,86 @@ ATF_TC_BODY(getoriginnode, tc) {
 	isc_mem_detach(&mymctx);
 }
 
+ATF_TC(nodefullname);
+ATF_TC_HEAD(nodefullname, tc) {
+	atf_tc_set_md_var(tc, "descr",
+			  "test multiple calls to dns_db_nodefullname");
+}
+ATF_TC_BODY(nodefullname, tc) {
+	dns_db_t *db = NULL;
+	dns_dbnode_t *node;
+	isc_mem_t *mymctx;
+	isc_result_t result;
+	dns_fixedname_t fname, retfname;
+	dns_name_t *name, *retname;
+	isc_boolean_t equals;
+	dns_dbiterator_t *iterator;
+
+	mymctx = NULL;
+	result = isc_mem_create(0, 0, &mymctx);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	result = isc_hash_create(mymctx, NULL, 256);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	result = dns_db_create(mymctx, "rbt", dns_rootname, dns_dbtype_zone,
+			    dns_rdataclass_in, 0, NULL, &db);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	result = dns_test_namefromstring("example.org", &fname);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	name = dns_fixedname_name(&fname);
+
+	node = NULL;
+	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	ATF_REQUIRE(node != NULL);
+
+	result = dns_test_namefromstring("isc.org", &fname);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	name = dns_fixedname_name(&fname);
+
+	/* Split "org." out */
+
+	node = NULL;
+	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	ATF_REQUIRE(node != NULL);
+
+	iterator = NULL;
+	result = dns_db_createiterator(db, 0, &iterator);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	result = dns_dbiterator_first(iterator);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	/* Skip the origin node */
+	result = dns_dbiterator_next(iterator);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	node = NULL;
+	result = dns_dbiterator_current(iterator, &node, NULL);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	dns_fixedname_init(&retfname);
+	retname = dns_fixedname_name(&retfname);
+	result = dns_db_nodefullname(db, node, retname);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+
+	result = dns_test_namefromstring("org", &fname);
+	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	name = dns_fixedname_name(&fname);
+
+	equals = dns_name_equal(name, retname);
+	ATF_REQUIRE_EQ(equals, ISC_TRUE);
+
+	dns_db_detachnode(db, &node);
+	dns_dbiterator_destroy(&iterator);
+
+	dns_db_detach(&db);
+	isc_mem_detach(&mymctx);
+}
+
 ATF_TC(class);
 ATF_TC_HEAD(class, tc) {
 	atf_tc_set_md_var(tc, "descr", "database class");
@@ -206,6 +286,7 @@ ATF_TC_BODY(version, tc) {
  */
 ATF_TP_ADD_TCS(tp) {
 	ATF_TP_ADD_TC(tp, getoriginnode);
+	ATF_TP_ADD_TC(tp, nodefullname);
 	ATF_TP_ADD_TC(tp, class);
 	ATF_TP_ADD_TC(tp, dbtype);
 	ATF_TP_ADD_TC(tp, version);

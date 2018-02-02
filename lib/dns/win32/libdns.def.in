@@ -30,11 +30,11 @@ dns_acl_isany
 dns_acl_isinsecure
 dns_acl_isnone
 dns_acl_match
-dns_acl_match2
+dns_acl_matchx
 dns_acl_merge
 dns_acl_none
 dns_aclelement_match
-dns_aclelement_match2
+dns_aclelement_matchx
 dns_aclenv_copy
 dns_aclenv_destroy
 dns_aclenv_init
@@ -187,7 +187,9 @@ dns_compress_setmethods
 dns_compress_setsensitive
 dns_counter_fromtext
 dns_db_addrdataset
+dns_db_addrdatasetext
 dns_db_allrdatasets
+dns_db_allrdatasetsext
 dns_db_attach
 dns_db_attachnode
 dns_db_attachversion
@@ -199,6 +201,7 @@ dns_db_createiterator
 dns_db_createsoatuple
 dns_db_currentversion
 dns_db_deleterdataset
+dns_db_deleterdatasetext
 dns_db_detach
 dns_db_detachnode
 dns_db_diff
@@ -207,6 +210,7 @@ dns_db_dump
 dns_db_dump2
 dns_db_endload
 dns_db_expirenode
+dns_db_expirenodeall
 dns_db_getsize
 dns_db_find
 dns_db_findext
@@ -214,6 +218,7 @@ dns_db_findnode
 dns_db_findnodeext
 dns_db_findnsec3node
 dns_db_findrdataset
+dns_db_findrdatasetext
 dns_db_findzonecut
 dns_db_getnsec3parameters
 dns_db_getoriginnode
@@ -391,6 +396,15 @@ dns_dyndb_createctx
 dns_dyndb_destroyctx
 dns_ecdb_register
 dns_ecdb_unregister
+dns_ecs_equals
+dns_ecs_format
+dns_ecs_formatfordump
+dns_ecs_init
+dns_ecs_type_allowed
+dns_ecszones_create
+dns_ecszones_free
+dns_ecszones_name_allowed
+dns_ecszones_setdomain
 dns_fwdtable_add
 dns_fwdtable_addfwd
 dns_fwdtable_create
@@ -416,6 +430,18 @@ dns_iptable_attach
 dns_iptable_create
 dns_iptable_detach
 dns_iptable_merge
+dns_iptree_common_prefix
+dns_iptree_destroy_foreach
+dns_iptree_foreach
+dns_iptree_get_data
+dns_iptree_get_nodecount
+dns_iptree_iter_create
+dns_iptree_iter_next
+dns_iptree_iter_destroy
+dns_iptree_print_dot
+dns_iptree_search
+dns_iptree_set_data
+dns_iptree_set_scope
 dns_journal_begin_transaction
 dns_journal_commit
 dns_journal_compact
@@ -688,6 +714,7 @@ dns_peer_getrequestexpire
 dns_peer_getrequestixfr
 dns_peer_getrequestnsid
 dns_peer_getsendcookie
+dns_peer_getsupportecs
 dns_peer_getsupportedns
 dns_peer_gettransferdscp
 dns_peer_gettransferformat
@@ -711,6 +738,7 @@ dns_peer_setrequestexpire
 dns_peer_setrequestixfr
 dns_peer_setrequestnsid
 dns_peer_setsendcookie
+dns_peer_setsupportecs
 dns_peer_setsupportedns
 dns_peer_settransferdscp
 dns_peer_settransferformat
@@ -790,12 +818,14 @@ dns_rdata_hip_current
 dns_rdata_hip_first
 dns_rdata_hip_next
 dns_rdata_init
+dns_rdata_issettypebit
 dns_rdata_makedelete
 dns_rdata_notexist
 dns_rdata_opt_current
 dns_rdata_opt_first
 dns_rdata_opt_next
 dns_rdata_reset
+dns_rdata_settypebit
 dns_rdata_tofmttext
 dns_rdata_toregion
 dns_rdata_tostruct
@@ -804,6 +834,7 @@ dns_rdata_towire
 dns_rdata_txt_current
 dns_rdata_txt_first
 dns_rdata_txt_next
+dns_rdata_typepresent
 dns_rdata_updateop
 dns_rdatacallbacks_init
 dns_rdatacallbacks_init_stdio
@@ -844,6 +875,7 @@ dns_rdataset_towirepartial
 dns_rdataset_towiresorted
 dns_rdataset_trimttl
 dns_rdatasetiter_current
+dns_rdatasetiter_current_ecs
 dns_rdatasetiter_destroy
 dns_rdatasetiter_first
 dns_rdatasetiter_next
@@ -902,6 +934,7 @@ dns_resolver_create
 dns_resolver_createfetch
 dns_resolver_createfetch2
 dns_resolver_createfetch3
+dns_resolver_createfetch4
 dns_resolver_destroyfetch
 dns_resolver_detach
 dns_resolver_disable_algorithm

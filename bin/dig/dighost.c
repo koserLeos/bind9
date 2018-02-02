@@ -2654,11 +2654,10 @@ setup_lookup(dig_lookup_t *lookup) {
 			INSIST(i < MAXOPTS);
 			opts[i].code = DNS_OPT_CLIENT_SUBNET;
 			opts[i].length = (isc_uint16_t) addrl + 4;
-			check_result(result, "isc_buffer_allocate");
 
 			/*
-			 * XXXMUKS: According to RFC7871, "If there is
-			 * no ADDRESS set, i.e., SOURCE PREFIX-LENGTH is
+			 * XXX: According to RFC7871, "If there is no
+			 * ADDRESS set, i.e., SOURCE PREFIX-LENGTH is
 			 * set to 0, then FAMILY SHOULD be set to the
 			 * transport over which the query is sent."
 			 *
@@ -2712,7 +2711,7 @@ setup_lookup(dig_lookup_t *lookup) {
 					addr[addrl - 1] &=
 						~0U << (8 - (plen % 8));
 				isc_buffer_putmem(&b, addr,
-						  (unsigned)addrl);
+						  (unsigned int) addrl);
 			}
 
 			opts[i].value = (isc_uint8_t *) ecsbuf;

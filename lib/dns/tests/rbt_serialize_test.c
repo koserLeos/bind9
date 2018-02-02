@@ -97,16 +97,18 @@ rbt_testdata_t testdata[] = {
 };
 
 static void
-delete_data(void *data, void *arg) {
+delete_data(dns_rbtnode_t *node, void *arg) {
+	UNUSED(node);
 	UNUSED(arg);
-	UNUSED(data);
 }
 
 static isc_result_t
-write_data(FILE *file, unsigned char *datap, void *arg, isc_uint64_t *crc) {
+write_data(FILE *file, dns_rbtnode_t *node, void *arg, isc_uint64_t *crc,
+	   void **node_data)
+{
 	isc_result_t result;
 	size_t ret = 0;
-	data_holder_t *data = (data_holder_t *)datap;
+	data_holder_t *data = (data_holder_t *) node->data;
 	data_holder_t temp;
 	off_t where;
 
@@ -137,6 +139,8 @@ write_data(FILE *file, unsigned char *datap, void *arg, isc_uint64_t *crc) {
 		if (ret != 1)
 			return (ISC_R_FAILURE);
 	}
+
+	DE_CONST(data->data, *node_data);
 
 	return (ISC_R_SUCCESS);
 }
@@ -329,6 +333,7 @@ ATF_TC_BODY(serialize, tc) {
 
 	result = dns_rbt_deserialize_tree(base, filesize, 0, mctx,
 					  delete_data, NULL, fix_data, NULL,
+					  NULL, NULL,
 					  NULL, &rbt_deserialized);
 
 	/* Test to make sure we have a valid tree */
@@ -406,6 +411,7 @@ ATF_TC_BODY(deserialize_corrupt, tc) {
 		result = dns_rbt_deserialize_tree(base, filesize, 0, mctx,
 						  delete_data, NULL,
 						  fix_data, NULL,
+						  NULL, NULL,
 						  NULL, &rbt_deserialized);
 		printf("%d: %s\n", i, isc_result_totext(result));
 

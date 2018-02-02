@@ -47,6 +47,7 @@
 #include <isc/lang.h>
 #include <isc/stats.h>
 #include <isc/stdtime.h>
+#include <isc/xml.h>
 
 #include <dns/types.h>
 

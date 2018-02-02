@@ -92,8 +92,8 @@ nta_detach(isc_mem_t *mctx, dns_nta_t **ntap) {
 }
 
 static void
-free_nta(void *data, void *arg) {
-	dns_nta_t *nta = (dns_nta_t *) data;
+free_nta(dns_rbtnode_t *node, void *arg) {
+	dns_nta_t *nta = (dns_nta_t *) node->data;
 	isc_mem_t *mctx = (isc_mem_t *) arg;
 
 	nta_detach(mctx, &nta);

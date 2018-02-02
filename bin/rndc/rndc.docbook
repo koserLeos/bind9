@@ -326,7 +326,7 @@
       </varlistentry>
 
       <varlistentry>
-	<term><userinput>dumpdb <optional>-all|-cache|-zones|-adb|-bad|-fail</optional> <optional><replaceable>view ...</replaceable></optional></userinput></term>
+	<term><userinput>dumpdb <optional>-all|-cache|-ecscache|-zone|-adb|-bad|-fail</optional> <optional><replaceable>view ...</replaceable></optional></userinput></term>
 	<listitem>
 	  <para>
 	    Dump the server's caches (default) and/or zones to

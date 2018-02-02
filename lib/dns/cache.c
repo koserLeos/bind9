@@ -1176,37 +1176,6 @@ dns_cache_flush(dns_cache_t *cache) {
 }
 
 static isc_result_t
-clearnode(dns_db_t *db, dns_dbnode_t *node) {
-	isc_result_t result;
-	dns_rdatasetiter_t *iter = NULL;
-
-	result = dns_db_allrdatasets(db, node, NULL, (isc_stdtime_t)0, &iter);
-	if (result != ISC_R_SUCCESS)
-		return (result);
-
-	for (result = dns_rdatasetiter_first(iter);
-	     result == ISC_R_SUCCESS;
-	     result = dns_rdatasetiter_next(iter))
-	{
-		dns_rdataset_t rdataset;
-		dns_rdataset_init(&rdataset);
-
-		dns_rdatasetiter_current(iter, &rdataset);
-		result = dns_db_deleterdataset(db, node, NULL,
-					       rdataset.type, rdataset.covers);
-		dns_rdataset_disassociate(&rdataset);
-		if (result != ISC_R_SUCCESS && result != DNS_R_UNCHANGED)
-			break;
-	}
-
-	if (result == ISC_R_NOMORE)
-		result = ISC_R_SUCCESS;
-
-	dns_rdatasetiter_destroy(&iter);
-	return (result);
-}
-
-static isc_result_t
 cleartree(dns_db_t *db, dns_name_t *name) {
 	isc_result_t result, answer = ISC_R_SUCCESS;
 	dns_dbiterator_t *iter = NULL;
@@ -1248,7 +1217,7 @@ cleartree(dns_db_t *db, dns_name_t *name) {
 		/*
 		 * If clearnode fails record and move onto the next node.
 		 */
-		result = clearnode(db, node);
+		result = dns_db_expirenodeall(db, node);
 		if (result != ISC_R_SUCCESS && answer == ISC_R_SUCCESS)
 			answer = result;
 		dns_db_detachnode(db, &node);
@@ -1303,7 +1272,7 @@ dns_cache_flushnode(dns_cache_t *cache, dns_name_t *name,
 		}
 		if (result != ISC_R_SUCCESS)
 			goto cleanup_db;
-		result = clearnode(cache->db, node);
+		result = dns_db_expirenodeall(cache->db, node);
 		dns_db_detachnode(cache->db, &node);
 	}
 

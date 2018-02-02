@@ -1,4 +1,4 @@
-Copyright (C) 2013, 2014, 2016, 2018  Internet Systems Consortium, Inc. ("ISC")
+Copyright (C) Internet Systems Consortium, Inc. ("ISC")
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,7 +7,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 See the COPYRIGHT file distributed with this work for additional
 information regarding copyright ownership.
 
-The data data files in this directory are sample GeoIP databases,
+The data files in this directory are sample GeoIP databases,
 generated from the corresponding CSV files.  Thanks to MaxMind, Inc.
 for assistance with producing these files.
 
@@ -24,7 +24,7 @@ GeoIPDoain.dat: Domain Name
 GeoIPASNum.dat: AS Number
 GeoIPNetSpeed.dat: Net Speed
 
-GeoIP.dat can also be egenerated using the open source 'geoip-csv-to-dat'
+GeoIP.dat can also be generated using the open source 'geoip-csv-to-dat'
 utility (also known in some packages as "geoip-generator"):
 
 $ geoip-csv-to-dat -i "BIND9 geoip test data v1" -o GeoIP.dat << EOF

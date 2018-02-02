@@ -1044,14 +1044,14 @@
 	  <term><option>+[no]subnet=addr[/prefix-length]</option></term>
 	  <listitem>
 	    <para>
-	      Send (don't send) an EDNS Client Subnet option with the
+	      Send (don't send) an EDNS CLIENT-SUBNET option with the
 	      specified IP address or network prefix.
 	    </para>
 	    <para>
               <command>dig +subnet=0.0.0.0/0</command>, or simply
               <command>dig +subnet=0</command> for short, sends an EDNS
               CLIENT-SUBNET option with an empty address and a source
-              prefix-length of zero, which signals a resolver that
+              prefix-length of zero, which signals to a resolver that
               the client's address information must
               <emphasis>not</emphasis> be used when resolving
               this query.

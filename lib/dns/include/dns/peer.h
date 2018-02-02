@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id: peer.h,v 1.35 2009/01/17 23:47:43 tbox Exp $ */
-
 #ifndef DNS_PEER_H
 #define DNS_PEER_H 1
 
@@ -67,6 +65,7 @@ struct dns_peer {
 	isc_boolean_t		provide_ixfr;
 	isc_boolean_t		request_ixfr;
 	isc_boolean_t		support_edns;
+	isc_boolean_t		support_ecs;
 	isc_boolean_t		request_nsid;
 	isc_boolean_t		send_cookie;
 	isc_boolean_t		request_expire;
@@ -256,6 +255,12 @@ dns_peer_setednsversion(dns_peer_t *peer, isc_uint8_t ednsversion);
 
 isc_result_t
 dns_peer_getednsversion(dns_peer_t *peer, isc_uint8_t *ednsversion);
+
+isc_result_t
+dns_peer_setsupportecs(dns_peer_t *peer, isc_boolean_t newval);
+
+isc_result_t
+dns_peer_getsupportecs(dns_peer_t *peer, isc_boolean_t *retval);
 ISC_LANG_ENDDECLS
 
 #endif /* DNS_PEER_H */

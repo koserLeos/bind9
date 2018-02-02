@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id: client.h,v 1.96 2012/01/31 23:47:31 tbox Exp $ */
-
 #ifndef NAMED_CLIENT_H
 #define NAMED_CLIENT_H 1
 
@@ -63,6 +61,7 @@
 #include <isc/queue.h>
 
 #include <dns/db.h>
+#include <dns/ecs.h>
 #include <dns/fixedname.h>
 #include <dns/name.h>
 #include <dns/rdataclass.h>
@@ -139,9 +138,8 @@ struct ns_client {
 	isc_netaddr_t		destaddr;
 	isc_sockaddr_t		destsockaddr;
 
-	isc_netaddr_t		ecs_addr;	/*%< EDNS client subnet */
-	isc_uint8_t		ecs_addrlen;
-	isc_uint8_t		ecs_scope;
+	dns_ecs_t		ecs;   /*%< EDNS client subnet sent by client */
+	dns_ecs_t               prefetch_ecs; /*%< ECS used during cache find */
 
 	struct in6_pktinfo	pktinfo;
 	isc_dscp_t		dscp;
@@ -176,25 +174,26 @@ typedef ISC_LIST(ns_client_t) client_list_t;
 #define NS_CLIENT_MAGIC			ISC_MAGIC('N','S','C','c')
 #define NS_CLIENT_VALID(c)		ISC_MAGIC_VALID(c, NS_CLIENT_MAGIC)
 
-#define NS_CLIENTATTR_TCP		0x0001
-#define NS_CLIENTATTR_RA		0x0002 /*%< Client gets recursive service */
-#define NS_CLIENTATTR_PKTINFO		0x0004 /*%< pktinfo is valid */
-#define NS_CLIENTATTR_MULTICAST		0x0008 /*%< recv'd from multicast */
-#define NS_CLIENTATTR_WANTDNSSEC	0x0010 /*%< include dnssec records */
-#define NS_CLIENTATTR_WANTNSID          0x0020 /*%< include nameserver ID */
+#define NS_CLIENTATTR_TCP		0x00001
+#define NS_CLIENTATTR_RA		0x00002 /*%< Client gets recursive service */
+#define NS_CLIENTATTR_PKTINFO		0x00004 /*%< pktinfo is valid */
+#define NS_CLIENTATTR_MULTICAST		0x00008 /*%< recv'd from multicast */
+#define NS_CLIENTATTR_WANTDNSSEC	0x00010 /*%< include dnssec records */
+#define NS_CLIENTATTR_WANTNSID          0x00020 /*%< include nameserver ID */
 #ifdef ALLOW_FILTER_AAAA
-#define NS_CLIENTATTR_FILTER_AAAA	0x0040 /*%< suppress AAAAs */
-#define NS_CLIENTATTR_FILTER_AAAA_RC	0x0080 /*%< recursing for A against AAAA */
+#define NS_CLIENTATTR_FILTER_AAAA	0x00040 /*%< suppress AAAAs */
+#define NS_CLIENTATTR_FILTER_AAAA_RC	0x00080 /*%< recursing for A against AAAA */
 #endif
-#define NS_CLIENTATTR_WANTAD		0x0100 /*%< want AD in response if possible */
-#define NS_CLIENTATTR_WANTCOOKIE	0x0200 /*%< return a COOKIE */
-#define NS_CLIENTATTR_HAVECOOKIE	0x0400 /*%< has a valid COOKIE */
-#define NS_CLIENTATTR_WANTEXPIRE	0x0800 /*%< return seconds to expire */
-#define NS_CLIENTATTR_HAVEEXPIRE	0x1000 /*%< return seconds to expire */
-#define NS_CLIENTATTR_WANTOPT		0x2000 /*%< add opt to reply */
-#define NS_CLIENTATTR_HAVEECS		0x4000 /*%< received an ECS option */
+#define NS_CLIENTATTR_WANTAD		0x00100 /*%< want AD in response if possible */
+#define NS_CLIENTATTR_WANTCOOKIE	0x00200 /*%< return a COOKIE */
+#define NS_CLIENTATTR_HAVECOOKIE	0x00400 /*%< has a valid COOKIE */
+#define NS_CLIENTATTR_WANTEXPIRE	0x00800 /*%< return seconds to expire */
+#define NS_CLIENTATTR_HAVEEXPIRE	0x01000 /*%< return seconds to expire */
+#define NS_CLIENTATTR_WANTOPT		0x02000 /*%< add opt to reply */
+#define NS_CLIENTATTR_ECSRECEIVED	0x04000 /*%< received an ECS option */
 
-#define NS_CLIENTATTR_NOSETFC		0x8000 /*%< don't set servfail cache */
+#define NS_CLIENTATTR_NOSETFC		0x08000 /*%< don't set servfail cache */
+#define NS_CLIENTATTR_ECSFORWARD	0x10000 /*%< ECS may be forwarded */
 
 /*
  * Flag to use with the SERVFAIL cache to indicate

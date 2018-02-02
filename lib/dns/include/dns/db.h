@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id$ */
-
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
 
@@ -194,6 +192,35 @@ typedef struct dns_dbmethods {
 					dns_name_t *name);
 	isc_result_t	(*getsize)(dns_db_t *db, dns_dbversion_t *version,
 				   isc_uint64_t *records, isc_uint64_t *bytes);
+	isc_result_t	(*findrdatasetext)(dns_db_t *db, dns_dbnode_t *node,
+					   dns_dbversion_t *version,
+					   dns_rdatatype_t type,
+					   dns_rdatatype_t covers,
+					   isc_stdtime_t now,
+					   dns_clientinfomethods_t *methods,
+					   dns_clientinfo_t *clientinfo,
+					   dns_rdataset_t *rdataset,
+					   dns_rdataset_t *sigrdataset);
+	isc_result_t	(*addrdatasetext)(dns_db_t *db, dns_dbnode_t *node,
+					  dns_dbversion_t *version,
+					  isc_stdtime_t now,
+					  dns_rdataset_t *rdataset,
+					  unsigned int options,
+					  dns_clientinfomethods_t *methods,
+					  dns_clientinfo_t *clientinfo,
+					  dns_rdataset_t *addedrdataset);
+	isc_result_t	(*deleterdatasetext)(dns_db_t *db, dns_dbnode_t *node,
+					     dns_dbversion_t *version,
+					     dns_rdatatype_t type,
+					     dns_rdatatype_t covers,
+					     dns_clientinfomethods_t *methods,
+					     dns_clientinfo_t *clientinfo);
+	isc_result_t    (*expirenodeall)(dns_db_t *db, dns_dbnode_t *node);
+	isc_result_t	(*allrdatasetsext)(dns_db_t *db, dns_dbnode_t *node,
+					   dns_dbversion_t *version,
+					   isc_stdtime_t now,
+					   isc_boolean_t ecs,
+					   dns_rdatasetiter_t **iteratorp);
 } dns_dbmethods_t;
 
 typedef isc_result_t
@@ -1054,9 +1081,22 @@ dns_db_transfernode(dns_db_t *db, dns_dbnode_t **sourcep,
 isc_result_t
 dns_db_expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now);
 /*%<
- * Mark as stale all records at 'node' which expire at or before 'now'.
+ * Mark as stale all records at 'node' which expire at or before
+ * 'now'.
  *
  * Note: if 'now' is zero, then the current time will be used.
+ *
+ * Requires:
+ *
+ * \li	'db' is a valid cache database.
+ *
+ * \li	'node' is a valid node.
+ */
+
+isc_result_t
+dns_db_expirenodeall(dns_db_t *db, dns_dbnode_t *node);
+/*%<
+ * Expire and mark as stale, all records at 'node'.
  *
  * Requires:
  *
@@ -1126,6 +1166,13 @@ dns_db_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		    dns_rdatatype_t type, dns_rdatatype_t covers,
 		    isc_stdtime_t now, dns_rdataset_t *rdataset,
 		    dns_rdataset_t *sigrdataset);
+isc_result_t
+dns_db_findrdatasetext(dns_db_t *db, dns_dbnode_t *node,
+		       dns_dbversion_t *version, dns_rdatatype_t type,
+		       dns_rdatatype_t covers, isc_stdtime_t now,
+		       dns_clientinfomethods_t *methods,
+		       dns_clientinfo_t *clientinfo,
+		       dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset);
 
 /*%<
  * Search for an rdataset of type 'type' at 'node' that are in version
@@ -1174,6 +1221,10 @@ dns_db_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 isc_result_t
 dns_db_allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		    isc_stdtime_t now, dns_rdatasetiter_t **iteratorp);
+isc_result_t
+dns_db_allrdatasetsext(dns_db_t *db, dns_dbnode_t *node,
+		       dns_dbversion_t *version, isc_stdtime_t now,
+		       isc_boolean_t ecs, dns_rdatasetiter_t **iteratorp);
 /*%<
  * Make '*iteratorp' an rdataset iterator for all rdatasets at 'node' in
  * version 'version' of 'db'.
@@ -1186,7 +1237,8 @@ dns_db_allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
  *	cache database, an rdataset will not be found unless it expires after
  *	'now'.  Any ANY query will not match unless at least one rdataset at
  *	the node expires after 'now'.  If 'now' is zero, then the current time
- *	will be used.
+ *	will be used. If 'ecs' is set, the iterator will iterate over any
+ *	ECS rdatasets too.
  *
  * Requires:
  *
@@ -1213,6 +1265,13 @@ isc_result_t
 dns_db_addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		   isc_stdtime_t now, dns_rdataset_t *rdataset,
 		   unsigned int options, dns_rdataset_t *addedrdataset);
+isc_result_t
+dns_db_addrdatasetext(dns_db_t *db, dns_dbnode_t *node,
+		      dns_dbversion_t *version, isc_stdtime_t now,
+		      dns_rdataset_t *rdataset, unsigned int options,
+		      dns_clientinfomethods_t *methods,
+		      dns_clientinfo_t *clientinfo,
+		      dns_rdataset_t *addedrdataset);
 /*%<
  * Add 'rdataset' to 'node' in version 'version' of 'db'.
  *
@@ -1317,6 +1376,12 @@ isc_result_t
 dns_db_deleterdataset(dns_db_t *db, dns_dbnode_t *node,
 		      dns_dbversion_t *version, dns_rdatatype_t type,
 		      dns_rdatatype_t covers);
+isc_result_t
+dns_db_deleterdatasetext(dns_db_t *db, dns_dbnode_t *node,
+			 dns_dbversion_t *version, dns_rdatatype_t type,
+			 dns_rdatatype_t covers,
+			 dns_clientinfomethods_t *methods,
+			 dns_clientinfo_t *clientinfo);
 /*%<
  * Make it so that no rdataset of type 'type' exists at 'node' in version
  * version 'version' of 'db'.

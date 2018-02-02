@@ -1,0 +1,12 @@
+Copyright (C) 2016  Internet Systems Consortium, Inc. ("ISC")
+See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
+
+This directory contains a sample GeoIP database and the CSV file
+from which it was generated.
+
+To regenerate the database, use the "csv2dat.py" script as follows.
+
+   $ python csv2dat.py -w GeoIP.dat mmcountry GeoIPCountry-ecs.csv
+
+(Note: This script is available from https://github.com/mteodoro/mmutils,
+and depends on the "pygeoip" module at https://github.com/appliedsec/pygeoip.)

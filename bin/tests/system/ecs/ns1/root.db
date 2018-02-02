@@ -1,0 +1,61 @@
+; Copyright (C) 2016  Internet Systems Consortium, Inc. ("ISC")
+;
+; Permission to use, copy, modify, and/or distribute this software for any
+; purpose with or without fee is hereby granted, provided that the above
+; copyright notice and this permission notice appear in all copies.
+;
+; THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+; REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+; AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+; INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+; LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+; OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+; PERFORMANCE OF THIS SOFTWARE.
+
+$TTL 300
+. 			IN SOA	example.root a.root.servers.nil. (
+				2016012800   	; serial
+				600         	; refresh
+				600         	; retry
+				1200    	; expire
+				600       	; minimum
+				)
+.			NS	a.root-servers.nil.
+a.root-servers.nil.	A	10.53.0.1
+
+; Note: For the ECS test, all delegations must be to second-level
+; domains: ECS options are not sent to TLDs.
+
+; the ans server is listed here serveral times so the resolver can try
+; queries with different server names when necessary.
+test.example.		NS	ns1.test.example
+ns1.test.example.	A	10.53.0.8
+ns1.test.example.	AAAA	fd92:7065:b8e:ffff::8
+test.example.		NS	ns2.test.example
+ns2.test.example.	A	10.53.0.8
+ns2.test.example.	AAAA	fd92:7065:b8e:ffff::8
+test.example.		NS	ns3.test.example
+ns3.test.example.	A	10.53.0.8
+ns3.test.example.	AAAA	fd92:7065:b8e:ffff::8
+
+; a domain that only has v4 servers
+4only.example.		NS	ns1.4only.example
+ns1.4only.example.	A	10.53.0.8
+4only.example.		NS	ns2.4only.example
+ns2.4only.example.	A	10.53.0.8
+4only.example.		NS	ns3.4only.example
+ns3.4only.example.	A	10.53.0.8
+
+; a domain that only has v6 servers
+6only.example.		NS	ns1.6only.example
+ns1.6only.example.	AAAA	fd92:7065:b8e:ffff::8
+6only.example.		NS	ns2.6only.example
+ns2.6only.example.	AAAA	fd92:7065:b8e:ffff::8
+6only.example.		NS	ns3.6only.example
+ns3.6only.example.	AAAA	fd92:7065:b8e:ffff::8
+
+short.example.		NS	ns.short.example
+ns.short.example.	A	10.53.0.8
+
+outside.whitelist.	NS	ns.outside.whitelist.
+ns.outside.whitelist.	A	10.53.0.8

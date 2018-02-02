@@ -47,8 +47,8 @@ struct dns_dbtable {
 #define VALID_DBTABLE(dbtable)	ISC_MAGIC_VALID(dbtable, DBTABLE_MAGIC)
 
 static void
-dbdetach(void *data, void *arg) {
-	dns_db_t *db = data;
+dbdetach(dns_rbtnode_t *node, void *arg) {
+	dns_db_t *db = node->data;
 
 	UNUSED(arg);
 

@@ -73,6 +73,9 @@ typedef struct dns_rdatasetitermethods {
 	isc_result_t	(*next)(dns_rdatasetiter_t *iterator);
 	void		(*current)(dns_rdatasetiter_t *iterator,
 				   dns_rdataset_t *rdataset);
+	void		(*current_ecs)(dns_rdatasetiter_t *iterator,
+				       dns_rdataset_t *rdataset,
+				       dns_ecs_t *ecs);
 } dns_rdatasetitermethods_t;
 
 #define DNS_RDATASETITER_MAGIC	     ISC_MAGIC('D','N','S','i')
@@ -95,6 +98,7 @@ struct dns_rdatasetiter {
 	dns_dbnode_t *			node;
 	dns_dbversion_t *		version;
 	isc_stdtime_t			now;
+	isc_boolean_t                   ecs;
 };
 
 void
@@ -154,6 +158,24 @@ dns_rdatasetiter_current(dns_rdatasetiter_t *iterator,
  *\li	'iterator' is a valid iterator.
  *
  *\li	'rdataset' is a valid, disassociated rdataset.
+ *
+ *\li	The rdataset cursor of 'iterator' is at a valid location (i.e. the
+ *	result of last call to a cursor movement command was #ISC_R_SUCCESS).
+ */
+
+void
+dns_rdatasetiter_current_ecs(dns_rdatasetiter_t *iterator,
+			     dns_rdataset_t *rdataset,
+			     dns_ecs_t *ecs);
+/*%<
+ * Return the current rdataset with ECS information.
+ *
+ * Requires:
+ *\li	'iterator' is a valid iterator.
+ *
+ *\li	'rdataset' is a valid, disassociated rdataset.
+ *
+ *\li	'ecs' is a valid dns_ecs_t object freshly initialized with dns_ecs_init().
  *
  *\li	The rdataset cursor of 'iterator' is at a valid location (i.e. the
  *	result of last call to a cursor movement command was #ISC_R_SUCCESS).

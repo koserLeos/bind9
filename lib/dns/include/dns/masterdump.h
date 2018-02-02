@@ -107,7 +107,7 @@ typedef struct dns_master_style dns_master_style_t;
 /*% Output in YAML style. */
 #define DNS_STYLEFLAG_YAML		0x080000000ULL
 
-/*% Print ECS cache entries as comments (reserved for future use). */
+/*% Print ECS cache entries as comments. */
 #define DNS_STYLEFLAG_ECSCACHE		0x100000000ULL
 
 ISC_LANG_BEGINDECLS
@@ -144,6 +144,14 @@ LIBDNS_EXTERNAL_DATA extern const dns_master_style_t
  * values on each record line and never uses $ORIGIN or relative names.
  */
 LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_cache;
+
+/*%
+ * A master style format designed for ECS caches.  It prints explicit
+ * TTL values on each record line and never uses $ORIGIN or relative
+ * names. It also adds address prefixed ECS RRs as commented entries in
+ * the output.
+ */
+LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_ecscache;
 
 /*%
  * A master style that prints name, ttl, class, type, and value on

@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id$ */
-
 #ifndef DNS_STATS_H
 #define DNS_STATS_H 1
 
@@ -69,7 +67,9 @@ enum {
 	dns_resstatscounter_zonequota = 41,
 	dns_resstatscounter_serverquota = 42,
 	dns_resstatscounter_nextitem = 43,
-	dns_resstatscounter_max = 44,
+	dns_resstatscounter_ecsout = 44,
+	dns_resstatscounter_ecsin = 45,
+	dns_resstatscounter_max = 46,
 
 	/*
 	 * DNSSEC stats.

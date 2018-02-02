@@ -154,6 +154,17 @@ dns_master_style_cache = {
 };
 
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
+dns_master_style_ecscache = {
+	DNS_STYLEFLAG_OMIT_CLASS |
+	DNS_STYLEFLAG_MULTILINE |
+	DNS_STYLEFLAG_RRCOMMENT |
+	DNS_STYLEFLAG_TRUST |
+	DNS_STYLEFLAG_NCACHE |
+	DNS_STYLEFLAG_ECSCACHE,
+	24, 32, 32, 40, 80, 8, UINT_MAX
+};
+
+LIBDNS_EXTERNAL_DATA const dns_master_style_t
 dns_master_style_simple = {
 	0,
 	24, 32, 32, 40, 80, 8, UINT_MAX
@@ -475,6 +486,8 @@ rdataset_totext(dns_rdataset_t *rdataset,
 		dns_name_t *owner_name,
 		dns_totext_ctx_t *ctx,
 		isc_boolean_t omit_final_dot,
+		isc_boolean_t comment,
+		dns_ecs_t *ecs,
 		isc_buffer_t *target)
 {
 	isc_result_t result;
@@ -525,15 +538,17 @@ rdataset_totext(dns_rdataset_t *rdataset,
 		/*
 		 * Comment?
 		 */
-		if ((ctx->style.flags & DNS_STYLEFLAG_COMMENTDATA) != 0)
+		if (comment ||
+		    ((ctx->style.flags & DNS_STYLEFLAG_COMMENTDATA) != 0))
 			RETERR(str_totext(";", target));
 
 		/*
 		 * Owner name.
 		 */
 		if (name != NULL &&
-		    ! ((ctx->style.flags & DNS_STYLEFLAG_OMIT_OWNER) != 0 &&
-		       !first))
+		    ((ecs != NULL && ecs->addr.family != AF_UNSPEC) ||
+		     (!((ctx->style.flags & DNS_STYLEFLAG_OMIT_OWNER) != 0 &&
+		       !first))))
 		{
 			unsigned int name_start = target->used;
 			RETERR(dns_name_totext(name, omit_final_dot, target));
@@ -677,12 +692,24 @@ rdataset_totext(dns_rdataset_t *rdataset,
 						   ctx->style.split_width,
 						   ctx->linebreak,
 						   target));
+			if ((ecs != NULL) && (ecs->addr.family != AF_UNSPEC)) {
+				char ecsbuf[DNS_ECS_FORMATSIZE];
+
+				isc_buffer_availableregion(target, &r);
+				if (r.length < 22 + DNS_ECS_FORMATSIZE)
+					return (ISC_R_NOSPACE);
+
+				dns_ecs_formatfordump(ecs, ecsbuf,
+						      sizeof(ecsbuf));
+				isc_buffer_putstr(target,
+						  " ;; address prefix = ");
+				isc_buffer_putstr(target, ecsbuf);
+			}
 
 			isc_buffer_availableregion(target, &r);
 			if (r.length < 1)
 				return (ISC_R_NOSPACE);
-			r.base[0] = '\n';
-			isc_buffer_add(target, 1);
+			isc_buffer_putstr(target, "\n");
 		}
 
 		first = ISC_FALSE;
@@ -808,7 +835,8 @@ dns_rdataset_totext(dns_rdataset_t *rdataset,
 					omit_final_dot, target));
 	else
 		return (rdataset_totext(rdataset, owner_name, &ctx,
-					omit_final_dot, target));
+					omit_final_dot, ISC_FALSE,
+					NULL, target));
 }
 
 isc_result_t
@@ -827,7 +855,8 @@ dns_master_rdatasettotext(dns_name_t *owner_name,
 	}
 
 	return (rdataset_totext(rdataset, owner_name, &ctx,
-				ISC_FALSE, target));
+				ISC_FALSE, ISC_FALSE,
+				NULL, target));
 }
 
 isc_result_t
@@ -858,8 +887,8 @@ dns_master_questiontotext(dns_name_t *owner_name,
 
 static isc_result_t
 dump_rdataset(isc_mem_t *mctx, dns_name_t *name, dns_rdataset_t *rdataset,
-	      dns_totext_ctx_t *ctx,
-	      isc_buffer_t *buffer, FILE *f)
+	      dns_totext_ctx_t *ctx, isc_buffer_t *buffer,
+	      dns_ecs_t *ecs, FILE *f)
 {
 	isc_region_t r;
 	isc_result_t result;
@@ -874,6 +903,9 @@ dump_rdataset(isc_mem_t *mctx, dns_name_t *name, dns_rdataset_t *rdataset,
 		if (ctx->current_ttl_valid == ISC_FALSE ||
 		    ctx->current_ttl != rdataset->ttl)
 		{
+			if (ecs->addr.family != AF_UNSPEC)
+				fprintf(f, "; ");
+
 			if ((ctx->style.flags & DNS_STYLEFLAG_COMMENT) != 0)
 			{
 				isc_buffer_clear(buffer);
@@ -900,8 +932,11 @@ dump_rdataset(isc_mem_t *mctx, dns_name_t *name, dns_rdataset_t *rdataset,
 	for (;;) {
 		int newlength;
 		void *newmem;
+
 		result = rdataset_totext(rdataset, name, ctx,
-					 ISC_FALSE, buffer);
+					 ISC_FALSE,
+					 ISC_TF(ecs->addr.family != AF_UNSPEC),
+					 ecs, buffer);
 		if (result != ISC_R_NOSPACE)
 			break;
 
@@ -993,6 +1028,7 @@ dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 	dns_rdataset_t rdatasets[MAXSORT];
 	dns_rdataset_t *sorted[MAXSORT];
 	int i, n;
+	dns_ecs_t ecs, previous_ecs;
 
 	itresult = dns_rdatasetiter_first(rdsiter);
 	dumpresult = ISC_R_SUCCESS;
@@ -1006,12 +1042,21 @@ dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 		ctx->neworigin = NULL;
 	}
 
+	dns_ecs_init(&ecs);
  again:
 	for (i = 0;
 	     itresult == ISC_R_SUCCESS && i < MAXSORT;
 	     itresult = dns_rdatasetiter_next(rdsiter), i++) {
 		dns_rdataset_init(&rdatasets[i]);
-		dns_rdatasetiter_current(rdsiter, &rdatasets[i]);
+		previous_ecs = ecs;
+		dns_ecs_init(&ecs);
+		dns_rdatasetiter_current_ecs(rdsiter, &rdatasets[i], &ecs);
+		if ((!dns_ecs_equals(&ecs, &previous_ecs)) ||
+		    (ecs.scope != previous_ecs.scope))
+		{
+			dns_rdataset_disassociate(&rdatasets[i]);
+			break;
+		}
 		sorted[i] = &rdatasets[i];
 	}
 	n = i;
@@ -1035,9 +1080,10 @@ dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 		    (ctx->style.flags & DNS_STYLEFLAG_NCACHE) == 0) {
 			/* Omit negative cache entries */
 		} else {
-			isc_result_t result =
-				dump_rdataset(mctx, name, rds, ctx,
-					       buffer, f);
+			isc_result_t result;
+
+			result = dump_rdataset(mctx, name, rds, ctx,
+					       buffer, &previous_ecs, f);
 			if (result != ISC_R_SUCCESS)
 				dumpresult = result;
 			if ((ctx->style.flags & DNS_STYLEFLAG_OMIT_OWNER) != 0)
@@ -1664,6 +1710,7 @@ dumptostreaminc(dns_dumpctx_t *dctx) {
 	while (result == ISC_R_SUCCESS && (dctx->nodes == 0 || nodes--)) {
 		dns_rdatasetiter_t *rdsiter = NULL;
 		dns_dbnode_t *node = NULL;
+		isc_boolean_t ecs;
 
 		result = dns_dbiterator_current(dctx->dbiter, &node, name);
 		if (result != ISC_R_SUCCESS && result != DNS_R_NEWORIGIN)
@@ -1678,8 +1725,10 @@ dumptostreaminc(dns_dumpctx_t *dctx) {
 				dctx->tctx.origin = origin;
 			dctx->tctx.neworigin = origin;
 		}
-		result = dns_db_allrdatasets(dctx->db, node, dctx->version,
-					     dctx->now, &rdsiter);
+		ecs = ISC_TF((dctx->tctx.style.flags &
+			      DNS_STYLEFLAG_ECSCACHE) != 0);
+		result = dns_db_allrdatasetsext(dctx->db, node, dctx->version,
+						dctx->now, ecs, &rdsiter);
 		if (result != ISC_R_SUCCESS) {
 			dns_db_detachnode(dctx->db, &node);
 			goto cleanup;

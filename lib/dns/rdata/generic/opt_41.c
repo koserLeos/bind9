@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* Reviewed: Thu Mar 16 14:06:44 PST 2000 by gson */
-
 /* RFC2671 */
 
 #ifndef RDATA_GENERIC_OPT_41_C
@@ -133,12 +131,11 @@ fromwire_opt(ARGS_FROMWIRE) {
 			switch (family) {
 			case 0:
 				/*
-				 * XXXMUKS: In queries and replies, if
-				 * FAMILY is set to 0, SOURCE
+				 * If FAMILY is set to 0, then SOURCE
 				 * PREFIX-LENGTH and SCOPE PREFIX-LENGTH
 				 * must be 0 and ADDRESS should not be
-				 * present as the address and prefix
-				 * lengths don't make sense because the
+				 * present, as the address and prefix
+				 * lengths don't make sense if the
 				 * family is unknown.
 				 */
 				if (addrlen != 0U || scope != 0U)

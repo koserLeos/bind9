@@ -103,6 +103,12 @@
 /*% Client presented a COOKIE. */
 #define WANTCOOKIE(c)		(((c)->attributes & \
 				  NS_CLIENTATTR_WANTCOOKIE) != 0)
+/*% Client presented a valid ECS option. */
+#define ECS_RECEIVED(c)		(((c)->attributes & \
+				  NS_CLIENTATTR_ECSRECEIVED) != 0)
+/*% Whether to forward ECS options for this client. */
+#define ECS_FORWARD(c)		(((c)->attributes & \
+				  NS_CLIENTATTR_ECSFORWARD) != 0)
 /*% No authority? */
 #define NOAUTHORITY(c)		(((c)->query.attributes & \
 				  NS_QUERYATTR_NOAUTHORITY) != 0)
@@ -1257,7 +1263,7 @@ query_getdb(ns_client_t *client, dns_name_t *name, dns_rdatatype_t qtype,
 		dns_db_t *tdbp;
 
 		dns_clientinfomethods_init(&cm, ns_client_sourceip);
-		dns_clientinfo_init(&ci, client, NULL);
+		dns_clientinfo_init(&ci, client, &client->ecs, NULL);
 
 		tdbp = NULL;
 		tresult = dns_view_searchdlz(client->view, name,
@@ -1400,7 +1406,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	additionaltype = dns_rdatasetadditional_fromauth;
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	/*
 	 * We treat type A additional section processing as if it
@@ -1608,6 +1614,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 		}
 		if (query_isduplicate(client, fname, dns_rdatatype_a, NULL))
 			goto aaaa_lookup;
+
 		result = dns_db_findrdataset(db, node, version,
 					     dns_rdatatype_a, 0,
 					     client->now,
@@ -1671,6 +1678,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
   aaaa_lookup:
 		if (query_isduplicate(client, fname, dns_rdatatype_aaaa, NULL))
 			goto addname;
+
 		result = dns_db_findrdataset(db, node, version,
 					     dns_rdatatype_aaaa, 0,
 					     client->now,
@@ -1901,7 +1909,7 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	additionaltype = dns_rdatasetadditional_fromauth;
 	dns_name_init(&cfname, NULL);
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	CTRACE(ISC_LOG_DEBUG(3), "query_addadditional2");
 
@@ -2150,6 +2158,7 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	if (additionaltype == dns_rdatasetadditional_fromcache &&
 	    query_isduplicate(client, fname, dns_rdatatype_a, NULL))
 		goto aaaa_lookup;
+
 	/*
 	 * Find A RRset with sig RRset.  Even if we don't find a sig RRset
 	 * for a client using DNSSEC, we'll continue the process to make a
@@ -2199,8 +2208,8 @@ query_addadditional2(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 	    query_isduplicate(client, fname, dns_rdatatype_aaaa, NULL))
 		goto foundcache;
 	/* Find AAAA RRset with sig RRset */
-	result = dns_db_findrdataset(db, node, version, dns_rdatatype_aaaa,
-				     0, client->now, rdataset, sigrdataset);
+	result = dns_db_findrdataset(db, node, version, dns_rdatatype_aaaa, 0,
+				     client->now, rdataset, sigrdataset);
 	/*
 	 * If we can't promote glue/pending from the cache to secure
 	 * then drop it.
@@ -2785,7 +2794,7 @@ query_addsoa(ns_client_t *client, dns_db_t *db, dns_dbversion_t *version,
 	node = NULL;
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	/*
 	 * Don't add the SOA record for test which set "-T nosoa".
@@ -2916,7 +2925,7 @@ query_addns(ns_client_t *client, dns_db_t *db, dns_dbversion_t *version) {
 	dns_fixedname_init(&foundname);
 	fname = dns_fixedname_name(&foundname);
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	/*
 	 * Get resources and make 'name' be the database origin.
@@ -2952,7 +2961,8 @@ query_addns(ns_client_t *client, dns_db_t *db, dns_dbversion_t *version) {
 	result = dns_db_getoriginnode(db, &node);
 	if (result == ISC_R_SUCCESS) {
 		result = dns_db_findrdataset(db, node, version,
-					     dns_rdatatype_ns, 0, client->now,
+					     dns_rdatatype_ns, 0,
+					     client->now,
 					     rdataset, sigrdataset);
 	} else {
 		CTRACE(ISC_LOG_DEBUG(3), "query_addns: calling dns_db_find");
@@ -3086,7 +3096,7 @@ mark_secure(ns_client_t *client, dns_db_t *db, dns_name_t *name,
 	rdataset->trust = dns_trust_secure;
 	sigrdataset->trust = dns_trust_secure;
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, &client->ecs, NULL);
 
 	/*
 	 * Save the updated secure state.  Ignore failures.
@@ -3123,7 +3133,7 @@ get_key(ns_client_t *client, dns_db_t *db, dns_rdata_rrsig_t *rrsig,
 	dns_clientinfo_t ci;
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	if (!dns_rdataset_isassociated(keyrdataset)) {
 		result = dns_db_findnodeext(db, &rrsig->signer, ISC_FALSE,
@@ -3271,7 +3281,7 @@ query_addbestns(ns_client_t *client) {
 	use_zone = ISC_FALSE;
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	/*
 	 * Find the right database.
@@ -3597,7 +3607,7 @@ query_addwildcardproof(ns_client_t *client, dns_db_t *db,
 	node = NULL;
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	/*
 	 * Get the NOQNAME proof then if !ispositive
@@ -4028,16 +4038,30 @@ query_prefetch(ns_client_t *client, dns_name_t *qname,
 	       dns_rdataset_t *rdataset)
 {
 	isc_result_t result;
-	isc_sockaddr_t *peeraddr;
 	dns_rdataset_t *tmprdataset;
 	ns_client_t *dummy = NULL;
 	unsigned int options;
+	dns_ecs_t prefetch_ecs;
+	dns_ecs_t *ecs;
 
 	if (client->query.prefetch != NULL ||
 	    client->view->prefetch_trigger == 0U ||
 	    rdataset->ttl > client->view->prefetch_trigger ||
 	    (rdataset->attributes & DNS_RDATASETATTR_PREFETCH) == 0)
 		return;
+
+	if (client->prefetch_ecs.source > 0) {
+		/*
+		 * Instead of using the cached entry's address
+		 * prefix-length, use the client's source prefix-length
+		 * when prefetching.
+		 */
+		prefetch_ecs = client->prefetch_ecs;
+		prefetch_ecs.scope = 0;
+		ecs = &prefetch_ecs;
+	} else {
+		ecs = NULL;
+	}
 
 	if (client->recursionquota == NULL) {
 		result = isc_quota_attach(&ns_g_server->recursionquota,
@@ -4053,16 +4077,18 @@ query_prefetch(ns_client_t *client, dns_name_t *qname,
 	tmprdataset = query_newrdataset(client);
 	if (tmprdataset == NULL)
 		return;
-	if (!TCP(client))
-		peeraddr = &client->peeraddr;
-	else
-		peeraddr = NULL;
-	ns_client_attach(client, &dummy);
+
 	options = client->query.fetchoptions | DNS_FETCHOPT_PREFETCH;
-	result = dns_resolver_createfetch3(client->view->resolver,
-					   qname, rdataset->type, NULL, NULL,
-					   NULL, peeraddr, client->message->id,
-					   options, 0, NULL, client->task,
+	if (TCP(client))
+		options |= DNS_FETCHOPT_TCPCLIENT;
+
+	ns_client_attach(client, &dummy);
+
+	result = dns_resolver_createfetch4(client->view->resolver,
+					   qname, rdataset->type, NULL,
+					   NULL, ecs, &client->peeraddr,
+					   client->message->id, options,
+					   0, NULL, client->task,
 					   prefetch_done, client,
 					   tmprdataset, NULL,
 					   &client->query.prefetch);
@@ -4080,7 +4106,8 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qname,
 {
 	isc_result_t result;
 	dns_rdataset_t *rdataset, *sigrdataset;
-	isc_sockaddr_t *peeraddr;
+	dns_ecs_t *ecs = NULL;
+	unsigned int options;
 
 	if (!resuming)
 		inc_stats(client, dns_nsstatscounter_recursion);
@@ -4177,14 +4204,19 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qname,
 
 	if (client->query.timerset == ISC_FALSE)
 		ns_client_settimeout(client, 60);
-	if (!TCP(client))
-		peeraddr = &client->peeraddr;
-	else
-		peeraddr = NULL;
-	result = dns_resolver_createfetch3(client->view->resolver,
+
+	options = client->query.fetchoptions;
+	if (TCP(client))
+		options |= DNS_FETCHOPT_TCPCLIENT;
+
+	if (ECS_FORWARD(client))
+		ecs = &client->ecs;
+
+	result = dns_resolver_createfetch4(client->view->resolver,
 					   qname, qtype, qdomain, nameservers,
-					   NULL, peeraddr, client->message->id,
-					   client->query.fetchoptions, 0, NULL,
+					   ecs, &client->peeraddr,
+					   client->message->id,
+					   options, 0, NULL,
 					   client->task, query_resume, client,
 					   rdataset, sigrdataset,
 					   &client->query.fetch);
@@ -4345,7 +4377,6 @@ rpz_get_zbits(ns_client_t *client,
 static void
 query_rpzfetch(ns_client_t *client, dns_name_t *qname, dns_rdatatype_t type) {
 	isc_result_t result;
-	isc_sockaddr_t *peeraddr;
 	dns_rdataset_t *tmprdataset;
 	ns_client_t *dummy = NULL;
 	unsigned int options;
@@ -4367,14 +4398,15 @@ query_rpzfetch(ns_client_t *client, dns_name_t *qname, dns_rdatatype_t type) {
 	tmprdataset = query_newrdataset(client);
 	if (tmprdataset == NULL)
 		return;
-	if (!TCP(client))
-		peeraddr = &client->peeraddr;
-	else
-		peeraddr = NULL;
-	ns_client_attach(client, &dummy);
+
 	options = client->query.fetchoptions;
-	result = dns_resolver_createfetch3(client->view->resolver, qname, type,
-					   NULL, NULL, NULL, peeraddr,
+	if (TCP(client))
+		options |= DNS_FETCHOPT_TCPCLIENT;
+
+	ns_client_attach(client, &dummy);
+
+	result = dns_resolver_createfetch4(client->view->resolver, qname, type,
+					   NULL, NULL, NULL, &client->peeraddr,
 					   client->message->id, options, 0,
 					   NULL, client->task, prefetch_done,
 					   client, tmprdataset, NULL,
@@ -4458,7 +4490,7 @@ rpz_rrset_find(ns_client_t *client, dns_name_t *name, dns_rdatatype_t type,
 	dns_fixedname_init(&fixed);
 	found = dns_fixedname_name(&fixed);
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 	result = dns_db_findext(*dbp, name, version, type, DNS_DBFIND_GLUEOK,
 				client->now, &node, found,
 				&cm, &ci, *rdatasetp, NULL);
@@ -4604,7 +4636,7 @@ rpz_find_p(ns_client_t *client, dns_name_t *self_name, dns_rdatatype_t qtype,
 	CTRACE(ISC_LOG_DEBUG(3), "rpz_find_p");
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	/*
 	 * Try to find either a CNAME or the type of record demanded by the
@@ -6091,7 +6123,7 @@ query_findclosestnsec3(dns_name_t *qname, dns_db_t *db,
 	dns_name_clone(qname, &name);
 	labels = dns_name_countlabels(&name);
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, NULL, NULL);
 
 	/*
 	 * Map unknown algorithm to known value.
@@ -6296,7 +6328,7 @@ redirect(ns_client_t *client, dns_name_t *name, dns_rdataset_t *rdataset,
 	dns_rdataset_init(&trdataset);
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, &client->ecs, NULL);
 
 	if (WANTDNSSEC(client) && dns_db_iszone(*dbp) && dns_db_issecure(*dbp))
 		return (ISC_R_NOTFOUND);
@@ -6417,7 +6449,7 @@ redirect2(ns_client_t *client, dns_name_t *name, dns_rdataset_t *rdataset,
 	dns_rdataset_init(&trdataset);
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client, &client->ecs, NULL);
 
 	if (WANTDNSSEC(client) && dns_db_iszone(*dbp) && dns_db_issecure(*dbp))
 		return (ISC_R_NOTFOUND);
@@ -6549,6 +6581,24 @@ redirect2(ns_client_t *client, dns_name_t *name, dns_rdataset_t *rdataset,
 	return (result);
 }
 
+static isc_boolean_t
+is_v4mapped_address(dns_ecs_t *ecs) {
+	const isc_uint8_t v4mapped_prefix[] = {
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0xff, 0xff
+	};
+
+	if (ecs->addr.family == AF_INET6) {
+		if ((ecs->source >= 96) &&
+		    (memcmp((isc_uint8_t *) &ecs->addr.type.in6,
+			    v4mapped_prefix, 12) == 0))
+			return (ISC_TRUE);
+	}
+
+	return (ISC_FALSE);
+}
+
 /*
  * Do the bulk of query processing for the current query of 'client'.
  * If 'event' is non-NULL, we are returning from recursion and 'qtype'
@@ -6593,6 +6643,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	isc_boolean_t redirected = ISC_FALSE;
 	dns_clientinfomethods_t cm;
 	dns_clientinfo_t ci;
+	isc_boolean_t block_clientinfo;
 	char errmsg[256];
 	isc_boolean_t associated;
 	dns_section_t section;
@@ -6637,7 +6688,9 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	is_staticstub_zone = ISC_FALSE;
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
-	dns_clientinfo_init(&ci, client, NULL);
+	dns_clientinfo_init(&ci, client,
+			    ECS_RECEIVED(client) ? &client->ecs : NULL,
+			    NULL);
 
 #ifdef WANT_QUERYTRACE
 	if (client->query.origqname != NULL)
@@ -6756,6 +6809,20 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			SAVE(node, event->node);
 			SAVE(rdataset, event->rdataset);
 			SAVE(sigrdataset, event->sigrdataset);
+			/*
+			 * If the remote nameserver returned an answer
+			 * with an ECS option, then we update the ECS
+			 * option we send back with the scope we
+			 * received. (We rely on any non-matching ECS
+			 * responses having been caught by the
+			 * resolver.)
+			 */
+			if (ECS_RECEIVED(client) &&
+			    (event->ecs.scope != 0xff) &&
+			    (client->ecs.scope == 0xff))
+			{
+				client->ecs.scope = event->ecs.scope;
+			}
 		}
 		INSIST(rdataset != NULL);
 
@@ -7018,6 +7085,24 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	}
 
  db_find:
+	/*
+	 * If we're not authoritative for this QNAME, and this is a
+	 * recursive query, and it includes an ECS option with a
+	 * non-zero prefix length, and the client is not covered
+	 * by the 'ecs-forward' ACL, then forget we ever saw
+	 * an ECS option.
+	 */
+	if (!authoritative &&
+	    (WANTRECURSION(client) && RECURSIONOK(client) &&
+	     ECS_RECEIVED(client) && !ECS_FORWARD(client) &&
+	     client->ecs.source != 0))
+	{
+		CTRACE(ISC_LOG_DEBUG(3),
+		       "query_find: ECS forwarding denied");
+		QUERY_ERROR(DNS_R_REFUSED);
+		goto cleanup;
+	}
+
 	CTRACE(ISC_LOG_DEBUG(3), "query_find: db_find");
 	/*
 	 * We'll need some resources...
@@ -7048,6 +7133,143 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	}
 
 	/*
+	 * XXXMUKS: &ci fields need to be set. Note that cache's
+	 * findext() expects that ci->ecs.source > 0 only for permitted
+	 * types. If a non-zero source is passed, it will look in the
+	 * ECS cache which may not hold some types of RRs.
+	 */
+
+	block_clientinfo = ISC_FALSE;
+	dns_ecs_init(&client->prefetch_ecs);
+	if (!is_zone) {
+		isc_uint8_t ecsbits4, ecsbits6;
+
+		ecsbits4 = client->view->ecsbits4;
+		ecsbits6 = client->view->ecsbits6;
+
+		if (dns_ecszones_name_allowed(client->view->ecszones,
+					      client->query.qname,
+					      &ecsbits4, &ecsbits6) &&
+		    dns_ecs_type_allowed(client->view->ecstypes, type))
+		{
+
+			if (!ECS_RECEIVED(client)) {
+				isc_netaddr_fromsockaddr(&ci.ecs.addr,
+							 &client->peeraddr);
+
+				switch (ci.ecs.addr.family) {
+				case AF_INET:
+					ci.ecs.source = ecsbits4;
+					break;
+				case AF_INET6:
+					ci.ecs.source = ecsbits6;
+					break;
+				default:
+					/*
+					 * Must not get anything other
+					 * than v4 or v6 from client
+					 * address.
+					 */
+					INSIST(0);
+				}
+			} else {
+				switch (ci.ecs.addr.family) {
+				case 0:
+					/*
+					 * XXXMUKS: This may need some
+					 * tweaking in the calling code?
+					 * Or is it OK to just handle
+					 * FAMILY=0 here?
+					 */
+					ci.ecs.source = 0;
+					break;
+				case AF_INET:
+					if (ci.ecs.source > ecsbits4)
+						ci.ecs.source = ecsbits4;
+					break;
+				case AF_INET6:
+					if (ci.ecs.source > ecsbits6)
+						ci.ecs.source = ecsbits6;
+					break;
+				default:
+					/*
+					 * Must not get anything other
+					 * than v4 or v6 from
+					 * caller. The caller has
+					 * supplied a broken ECS
+					 * (undefined family, nonzero
+					 * prefix length).
+					 */
+					INSIST(0);
+				}
+			}
+
+			/*
+			 * Check if it is a query with IPv6 family and
+			 * address in the V4MAPPED space. If it is,
+			 * refuse the query. This applies to both
+			 * queries from such client addresses and
+			 * queries including addresses in forwarded ECS
+			 * option.
+			 *
+			 * NOTE: This condition cannot normally happen
+			 * as IPv6 address prefixes are clamped at
+			 * /56. But the check is left here as a
+			 * safeguard against programming
+			 * errors. V4MAPPED entries must not enter the
+			 * cache.
+			 */
+			if (is_v4mapped_address(&ci.ecs)) {
+				CTRACE(ISC_LOG_DEBUG(3),
+				       "query_find: ECS forwarding "
+				       "denied for V4MAPPED IPv6 "
+				       "address in option");
+				QUERY_ERROR(DNS_R_REFUSED);
+				goto cleanup;
+			}
+
+			/*
+			 * XXXMUKS: Somehow, ci's scope seems to get set
+			 * to something != 0xff here, perhaps due to
+			 * goto within this function?! This ought to be
+			 * handled, so that ci's scope is set properly
+			 * for return to client.
+			 */
+			ci.ecs.scope = 0xff;
+
+			/*
+			 * Save the effective ECS that's used in cache
+			 * find to be used by prefetch later.
+			 */
+			client->prefetch_ecs = ci.ecs;
+		} else {
+			block_clientinfo = ISC_TRUE;
+		}
+	}
+
+#ifdef WANT_QUERYTRACE
+	if (!is_zone) {
+		char lbuf[2048];
+
+		if (!block_clientinfo) {
+			char ecsbuf[DNS_ECS_FORMATSIZE];
+
+			dns_ecs_format(&ci.ecs, ecsbuf, sizeof(ecsbuf));
+
+			snprintf(lbuf, sizeof(lbuf) - 1,
+				 "db_find: calling dns_db_findext() with "
+				 "ci.ecs=[%s], type=%d",
+				 ecsbuf, type);
+		} else {
+			snprintf(lbuf, sizeof(lbuf) - 1,
+				 "db_find: calling dns_db_findext() with "
+				 "ci=NULL, type=%d", type);
+		}
+		CTRACE(ISC_LOG_DEBUG(3), lbuf);
+	}
+#endif
+
+	/*
 	 * Now look for an answer in the database.  If this is a dns64
 	 * AAAA lookup on a rpz database adjust the qname.
 	 */
@@ -7058,7 +7280,20 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 
 	result = dns_db_findext(db, rpzqname, version, type,
 				client->query.dboptions, client->now,
-				&node, fname, &cm, &ci, rdataset, sigrdataset);
+				&node, fname, &cm,
+				block_clientinfo ? NULL : &ci,
+				rdataset, sigrdataset);
+#ifdef WANT_QUERYTRACE
+	if (!is_zone) {
+		char lbuf[2048];
+
+		snprintf(lbuf, sizeof(lbuf) - 1,
+			 "db_find: dns_db_findext() returned %d (%s)",
+			 result, isc_result_totext(result));
+		CTRACE(ISC_LOG_DEBUG(3), lbuf);
+	}
+#endif
+
 	/*
 	 * Fixup fname and sigrdataset.
 	 */
@@ -7387,8 +7622,16 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	switch (result) {
 	case ISC_R_SUCCESS:
 		/*
-		 * This case is handled in the main line below.
+		 * ISC_R_SUCCESS case is handled in the main line below.
 		 */
+
+		/*
+		 * If we found the answer in the cache, copy the SCOPE
+		 * PREFIX-LENGTH to the client option.
+		 */
+		if (!is_zone && (event == NULL) && ECS_RECEIVED(client) &&
+		    (client->ecs.scope == 0xff))
+			client->ecs.scope = ci.ecs.scope;
 		break;
 	case DNS_R_GLUE:
 	case DNS_R_ZONECUT:
@@ -7657,7 +7900,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 						client->query.attributes |=
 						      NS_QUERYATTR_DNS64EXCLUDE;
 				} else if (result == DNS_R_DUPLICATE ||
-					 result == DNS_R_DROP)
+					   result == DNS_R_DROP ||
+					   result == DNS_R_REFUSED)
 					QUERY_ERROR(result);
 				else
 					RECURSE_ERROR(result);
@@ -8175,6 +8419,14 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 
 	case DNS_R_CNAME:
 		/*
+		 * If we found the answer in the cache, copy the SCOPE
+		 * PREFIX-LENGTH to the client option.
+		 */
+		if (!is_zone && (event == NULL) && ECS_RECEIVED(client) &&
+		    (client->ecs.scope == 0xff))
+			client->ecs.scope = ci.ecs.scope;
+
+		/*
 		 * If we have a zero ttl from the cache refetch it.
 		 */
 		if (!is_zone && !resuming && rdataset->ttl == 0 &&
@@ -8394,6 +8646,10 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		if (!WANTRECURSION(client))
 			options |= DNS_GETDB_NOLOG;
 		goto addauth;
+	case DNS_R_REFUSED:
+		CTRACE(ISC_LOG_DEBUG(1), "resumed with REFUSED");
+		QUERY_ERROR(DNS_R_REFUSED);
+		goto cleanup;
 	default:
 		/*
 		 * Something has gone wrong.
@@ -8703,10 +8959,16 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		{
 			if (qtype == dns_rdatatype_aaaa) {
 				trdataset = query_newrdataset(client);
-				result = dns_db_findrdataset(db, node, version,
-							     dns_rdatatype_a, 0,
-							     client->now,
-							     trdataset, NULL);
+
+				/* Reset ECS scope for this query */
+				ci.ecs.scope = 0xff;
+				result = dns_db_findrdatasetext(db, node,
+								version,
+								dns_rdatatype_a,
+								0, client->now,
+								&cm, &ci,
+								trdataset,
+								NULL);
 				if (dns_rdataset_isassociated(trdataset))
 					dns_rdataset_disassociate(trdataset);
 				query_putrdataset(client, &trdataset);

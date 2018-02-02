@@ -1903,14 +1903,14 @@ dns_tsigkey_find(dns_tsigkey_t **tsigkey, dns_name_t *name,
 }
 
 static void
-free_tsignode(void *node, void *_unused) {
+free_tsignode(dns_rbtnode_t *node, void *arg) {
 	dns_tsigkey_t *key;
+
+	UNUSED(arg);
 
 	REQUIRE(node != NULL);
 
-	UNUSED(_unused);
-
-	key = node;
+	key = node->data;
 	if (key->generated) {
 		if (ISC_LINK_LINKED(key, link))
 			ISC_LIST_UNLINK(key->ring->lru, key, link);

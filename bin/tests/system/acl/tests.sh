@@ -161,6 +161,27 @@ $DIG $DIGOPTS tsigzone. \
 	@10.53.0.2 -b 10.53.0.2 +subnet="10.53.0/24" axfr > dig.out.${t}
 grep "^;" dig.out.${t} > /dev/null 2>&1 && { echo_i "test $t failed" ; status=1; }
 
+echo_i "testing ecs-forward ACL processing"
+# should succeed (because not a recursive query)
+t=`expr $t + 1`
+$DIG example. soa @10.53.0.2 -b 10.53.0.2 +subnet="10.53.0.1/32" -p ${PORT} > dig.out.${t}
+grep "CLIENT-SUBNET.*10.53.0.1/32/0" dig.out.${t} > /dev/null || { echo_i "test $t failed" ; status=1; }
+
+# should succeed (because allowed by acl)
+t=`expr $t + 1`
+$DIG example. soa @10.53.0.2 -b 10.53.0.3 +subnet="10.53.0.1/32" -p ${PORT} > dig.out.${t}
+grep "CLIENT-SUBNET.*10.53.0.1/32/0" dig.out.${t} > /dev/null || { echo_i "test $t failed" ; status=1; }
+
+# should fail (because recursive and not allowed by ecs-forward ACL)
+t=`expr $t + 1`
+$DIG recurse. a @10.53.0.2 -b 10.53.0.2 +subnet="10.53.0.1/32" -p ${PORT} > dig.out.${t}
+grep "status: REFUSED" dig.out.${t} > /dev/null || { echo_i "test $t failed" ; status=1; }
+
+# should succeed (because allowed by acl)
+t=`expr $t + 1`
+$DIG recurse. a @10.53.0.2 -b 10.53.0.3 +subnet="10.53.0.1/32" -p ${PORT} > dig.out.${t}
+grep "CLIENT-SUBNET.*10.53.0.1/32/0" dig.out.${t} > /dev/null || { echo_i "test $t failed" ; status=1; }
+
 echo_i "testing EDNS client-subnet response scope"
 copy_setports ns2/named7.conf.in ns2/named.conf
 $RNDCCMD 10.53.0.2 reload 2>&1 | sed 's/^/ns2 /' | cat_i
