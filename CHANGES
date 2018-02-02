@@ -1,3 +1,6 @@
+4556.	[bug]		Sending an EDNS Padding option using "dig
+			+ednsopt" could cause a crash in dig. [RT #44462]
+
 4549.	[func]		Added support for the EDNS TCP Keepalive option
 			(RFC 7828). [RT #42126]
 
