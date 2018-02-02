@@ -58,7 +58,6 @@
 #include <dns/name.h>
 #include <dns/rdata.h>
 #include <dns/rdataset.h>
-#include <dns/rpz.h>
 #include <dns/types.h>
 
 ISC_LANG_BEGINDECLS
@@ -169,8 +168,8 @@ typedef struct dns_dbmethods {
 					   dns_dbversion_t *version);
 	isc_boolean_t	(*isdnssec)(dns_db_t *db);
 	dns_stats_t	*(*getrrsetstats)(dns_db_t *db);
-	void		(*rpz_attach)(dns_db_t *db, dns_rpz_zones_t *rpzs,
-				      dns_rpz_num_t rpz_num);
+	void		(*rpz_attach)(dns_db_t *db, void *rpzs,
+				      isc_uint8_t rpz_num);
 	isc_result_t	(*rpz_ready)(dns_db_t *db);
 	isc_result_t	(*findnodeext)(dns_db_t *db, dns_name_t *name,
 				     isc_boolean_t create,
@@ -1696,7 +1695,7 @@ dns_db_setcachestats(dns_db_t *db, isc_stats_t *stats);
  */
 
 void
-dns_db_rpz_attach(dns_db_t *db, dns_rpz_zones_t *rpzs, dns_rpz_num_t rpz_num);
+dns_db_rpz_attach(dns_db_t *db, void *rpzs, isc_uint8_t rpz_num);
 /*%<
  * Attach the response policy information for a view to a database for a
  * zone for the view.

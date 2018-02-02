@@ -1,3 +1,7 @@
+4576.	[func]		The RPZ implementation has been substantially
+			refactored for improved performance and reliability.
+			[RT #43449]
+
 4572.	[func]		The "dnstap-output" option can now take "size" and
 			"versions" parameters to indicate the maximum size
 			a dnstap log file can grow before rolling to a new

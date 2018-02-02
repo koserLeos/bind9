@@ -301,6 +301,19 @@
       </listitem>
       <listitem>
 	<para>
+	  The Response Policy Zone (RPZ) implementation has been
+	  substantially refactored: updates to the RPZ summary
+	  database are no longer directly performed by the zone
+	  database but by a separate function that is called when
+	  a policy zone is updated.  This improves both performance
+	  and reliability when policy zones receive frequent updates.
+	  Summary database updates can be rate-limited by using the
+	  <command>min-update-interval</command> option in a
+	  <command>response-policy</command> statement. [RT #43449]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
 	  Previously, <command>update-policy local;</command> accepted
 	  updates from any source so long as they were signed by the
 	  locally-generated session key. This has been further restricted;

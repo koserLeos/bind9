@@ -1411,8 +1411,9 @@ static cfg_type_t cfg_type_dnstapoutput = {
  *	zone &lt;string&gt; [ policy (given|disabled|passthru|drop|tcp-only|
  *					nxdomain|nodata|cname &lt;domain&gt; ) ]
  *		      [ recursive-only yes|no ] [ log yes|no ]
- *		      [ max-policy-ttl number ] ;
+ *		      [ max-policy-ttl number ] [ min-update-interval number ] ;
  *  } [ recursive-only yes|no ] [ max-policy-ttl number ]
+ *	 [ min-update-interval number ]
  *	 [ break-dnssec yes|no ] [ min-ns-dots number ]
  *	 [ qname-wait-recurse yes|no ] ;
  */
@@ -1604,6 +1605,8 @@ static cfg_tuplefielddef_t rpz_zone_fields[] = {
 	{ "max-policy-ttl", &cfg_type_uint32, 0 },
 	{ "policy", &cfg_type_rpz_policy, 0 },
 	{ "recursive-only", &cfg_type_boolean, 0 },
+	{ "max-policy-ttl", &cfg_type_uint32, 0 },
+	{ "min-update-interval", &cfg_type_uint32, 0 },
 	{ NULL, NULL, 0 }
 };
 static cfg_type_t cfg_type_rpz_tuple = {
@@ -1620,6 +1623,7 @@ static cfg_tuplefielddef_t rpz_fields[] = {
 	{ "zone list", &cfg_type_rpz_list, 0 },
 	{ "break-dnssec", &cfg_type_boolean, 0 },
 	{ "max-policy-ttl", &cfg_type_uint32, 0 },
+	{ "min-update-interval", &cfg_type_uint32, 0 },
 	{ "min-ns-dots", &cfg_type_uint32, 0 },
 	{ "nsip-wait-recurse", &cfg_type_boolean, 0 },
 	{ "qname-wait-recurse", &cfg_type_boolean, 0 },

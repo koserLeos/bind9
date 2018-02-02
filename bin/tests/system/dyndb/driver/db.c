@@ -512,7 +512,7 @@ getrrsetstats(dns_db_t *db) {
 }
 
 static void
-rpz_attach(dns_db_t *db, dns_rpz_zones_t *rpzs, dns_rpz_num_t rpz_num) {
+rpz_attach(dns_db_t *db, void *rpzs, isc_uint8_t rpz_num) {
 	sampledb_t *sampledb = (sampledb_t *) db;
 
 	REQUIRE(VALID_SAMPLEDB(sampledb));

@@ -1198,7 +1198,7 @@ dns_db_resigned(dns_db_t *db, dns_rdataset_t *rdataset,
  * it is dealing with a database that understands response policy zones.
  */
 void
-dns_db_rpz_attach(dns_db_t *db, dns_rpz_zones_t *rpzs, dns_rpz_num_t rpz_num) {
+dns_db_rpz_attach(dns_db_t *db, void *rpzs, isc_uint8_t rpz_num) {
 	REQUIRE(db->methods->rpz_attach != NULL);
 	(db->methods->rpz_attach)(db, rpzs, rpz_num);
 }
@@ -1223,6 +1223,10 @@ dns_db_updatenotify_register(dns_db_t *db,
 {
 	dns_dbonupdatelistener_t *listener;
 
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
+		      DNS_LOGMODULE_DB, ISC_LOG_ERROR,
+		      "register %p %p %p", db, fn, fn_arg);
+
 	REQUIRE(db != NULL);
 	REQUIRE(fn != NULL);
 
@@ -1245,6 +1249,10 @@ dns_db_updatenotify_unregister(dns_db_t *db,
 			       void *fn_arg)
 {
 	dns_dbonupdatelistener_t *listener;
+
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
+		      DNS_LOGMODULE_DB, ISC_LOG_ERROR,
+		      "unregister %p %p %p", db, fn, fn_arg);
 
 	REQUIRE(db != NULL);
 

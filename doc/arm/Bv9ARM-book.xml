@@ -10735,6 +10735,15 @@ rate-limit {
 	    Responses that truncated by rate limits are included in
 	    <command>RateSlipped</command> and <command>RespTruncated</command>.
 	  </para>
+
+	  <para>
+	    Updates to RPZ zones are processed asynchronously; if there
+	    is more than one update pending they are bundled together.
+	    If an update to a RPZ zone (for example, via IXFR) happens less
+	    than <option>min-update-interval</option> seconds after the most
+	    recent update, then the changes will not be carried out until this
+	    interval has elapsed.  The default is <literal>5</literal> seconds.
+	  </para>
 	</section>
 
 	<section title="NXDOMAIN Redirection"><info/>
