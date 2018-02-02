@@ -1,3 +1,8 @@
+4650.	[bug]		The "log-only" rate-limiting option was being
+			processed incorrectly, causing rate-limiting to be
+			effective when it should only have been logged.
+			[RT #45404]
+
 4576.	[func]		The RPZ implementation has been substantially
 			refactored for improved performance and reliability.
 			[RT #43449]

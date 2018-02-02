@@ -1255,7 +1255,8 @@ dns_rrl(dns_view_t *view,
 	 * Log occassionally in the rate-limit category.
 	 */
 	if ((!e->logged || e->log_secs >= DNS_RRL_MAX_LOG_SECS) &&
-	    isc_log_wouldlog(dns_lctx, DNS_RRL_LOG_DROP)) {
+	    isc_log_wouldlog(dns_lctx, DNS_RRL_LOG_DROP))
+	{
 		make_log_buf(rrl, e, rrl->log_only ? "would " : NULL,
 			     e->logged ? "continue limiting " : "limit ",
 			     ISC_TRUE, qname, ISC_TRUE,

@@ -81,7 +81,7 @@ burst () {
         eval BURST_DOM="$BURST_DOM_BASE"
         DOMS="$DOMS $BURST_DOM"
     done
-    ARGS="+nocookie +continue +time=1 +tries=1 -p ${PORT} $* @$ns2 $DOMS"
+    ARGS="+continue +time=1 +tries=1 -p ${PORT} $* @$ns2 $DOMS"
     $MDIG $ARGS 2>&1 | tee -a full-$FILENAME | sed -n -e '/^;; AUTHORITY/,/^$/d'			\
 		-e '/^;; ADDITIONAL/,/^$/d'				\
 		-e 's/^[^;].*	\([^	 ]\{1,\}\)$/\1/p'		\
@@ -272,6 +272,14 @@ $DIG $DIGOPTS @$ns4 A a7.tld4 > /dev/null 2>&1
 
 grep "would limit" ns4/named.run >/dev/null 2>&1 ||
 setret "\"would limit\" not found in log file."
+wouldslip=`grep "would rate limit slip" ns4/named.run | wc -l`
+[ "$wouldslip" -eq 3 ] || setret "incorrect number of logged slips"
+
+woulddrop=`grep "would rate limit drop" ns4/named.run | wc -l`
+[ "$woulddrop" -eq 6 ] || setret "incorrect number of logged drops"
+
+drop=`grep "failed: drop" ns4/named.run | wc -l`
+[ "$drop" -eq 0 ] || setret "queries dropped despite log-only"
 
 $NAMED -gc broken.conf > broken.out 2>&1 & 
 sleep 2

@@ -1271,7 +1271,7 @@ client_send(ns_client_t *client) {
 					      DNS_RRL_LOG_DROP,
 					      "%s", log_buf);
 			}
-			if (result == DNS_RRL_RESULT_LOGONLY)
+			if (rrl_result == DNS_RRL_RESULT_LOGONLY)
 				goto log_only;
 
 			if (rrl_result == DNS_RRL_RESULT_DROP) {
@@ -1554,7 +1554,7 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 			}
 
 			/* This should never return SLIP */
-			if (result != DNS_RRL_RESULT_LOGONLY) {
+			if (rrl_result != DNS_RRL_RESULT_LOGONLY) {
 				isc_stats_increment(ns_g_server->nsstats,
 						dns_nsstatscounter_ratedropped);
 				isc_stats_increment(ns_g_server->nsstats,
