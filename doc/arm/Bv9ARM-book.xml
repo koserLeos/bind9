@@ -4681,6 +4681,19 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 		the socket.)
 	      </para>
 	      <para>
+		If the first argument is <literal>file</literal>, then
+		two additional options can be added:
+		<command>size</command> indicates the size to which a
+		<command>dnstap</command> log file can grow before being
+		rolled to a new file, and <command>versions</command>
+		specifies the number of rolled log files to retain. These
+		are similar to the <command>size</command> and
+		<command>versions</command> options in a
+		<command>logging</command> channel.  The default
+		is to allow <command>dnstap</command> log files to grow to
+		any size without rolling.
+	      </para>
+	      <para>
 		<command>dnstap-output</command> can only be set globally
 		in <command>options</command>. Currently, it can only be
 		set once while <command>named</command> is running;

@@ -1,3 +1,8 @@
+4572.	[func]		The "dnstap-output" option can now take "size" and
+			"versions" parameters to indicate the maximum size
+			a dnstap log file can grow before rolling to a new
+			file, and how many old files to retain. [RT #44502]
+
 4566.	[func]		Query logging now includes the ECS option if one
 			was included in the query. [RT #44476]
 
