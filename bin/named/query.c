@@ -21,6 +21,7 @@
 #include <isc/rwlock.h>
 #include <isc/serial.h>
 #include <isc/stats.h>
+#include <isc/string.h>
 #include <isc/thread.h>
 #include <isc/util.h>
 
@@ -9412,6 +9413,7 @@ log_query(ns_client_t *client, unsigned int flags, unsigned int extflags) {
 	char classname[DNS_RDATACLASS_FORMATSIZE];
 	char onbuf[ISC_NETADDR_FORMATSIZE];
 	char ednsbuf[sizeof("E(65535)")] = { 0 };
+	char ecsbuf[ISC_NETADDR_FORMATSIZE + sizeof(" [ECS /255/0]") - 1] = {0};
 	dns_rdataset_t *rdataset;
 	int level = ISC_LOG_INFO;
 
@@ -9429,15 +9431,22 @@ log_query(ns_client_t *client, unsigned int flags, unsigned int extflags) {
 		snprintf(ednsbuf, sizeof(ednsbuf), "E(%hd)",
 			 client->ednsversion);
 
+	if (ECS_RECEIVED(client)) {
+		char tmpbuf[ISC_NETADDR_FORMATSIZE];
+		isc_netaddr_format(&client->ecs.addr, tmpbuf, sizeof(tmpbuf));
+		snprintf(ecsbuf, sizeof(ecsbuf), " [ECS %s/%u/0]", tmpbuf,
+			 client->ecs.source);
+	}
+
 	ns_client_log(client, NS_LOGCATEGORY_QUERIES, NS_LOGMODULE_QUERY,
-		      level, "query: %s %s %s %s%s%s%s%s%s%s (%s)", namebuf,
+		      level, "query: %s %s %s %s%s%s%s%s%s%s (%s)%s", namebuf,
 		      classname, typename, WANTRECURSION(client) ? "+" : "-",
 		      (client->signer != NULL) ? "S" : "", ednsbuf,
 		      TCP_CLIENT(client) ? "T" : "",
 		      ((extflags & DNS_MESSAGEEXTFLAG_DO) != 0) ? "D" : "",
 		      ((flags & DNS_MESSAGEFLAG_CD) != 0) ? "C" : "",
 		      HAVECOOKIE(client) ? "V" : WANTCOOKIE(client) ? "K" : "",
-		      onbuf);
+		      onbuf, ecsbuf);
 }
 
 static inline void

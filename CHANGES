@@ -1,3 +1,6 @@
+4566.	[func]		Query logging now includes the ECS option if one
+			was included in the query. [RT #44476]
+
 4556.	[bug]		Sending an EDNS Padding option using "dig
 			+ednsopt" could cause a crash in dig. [RT #44462]
 

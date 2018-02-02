@@ -151,6 +151,13 @@
 	  completed. [RT #47076]
 	</para>
       </listitem>
+      <listitem>
+	<para>
+	  Query logging now includes the ECS option, if one was
+	  present in the query, in the format
+	  "[ECS <replaceable>address/source/scope</replaceable>]".
+	</para>
+      </listitem>
     </itemizedlist>
   </section>
 
