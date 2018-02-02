@@ -2663,11 +2663,25 @@ configure_catz(dns_view_t *view, const cfg_obj_t *config,
 	} while (0)
 
 static isc_result_t
-configure_rrl(dns_view_t *view, const cfg_obj_t *config, const cfg_obj_t *map) {
+configure_rrl(dns_view_t *view, const cfg_obj_t *config, const cfg_obj_t *map,
+	      const char *rrlname)
+{
+	const cfg_listelt_t *element;
 	const cfg_obj_t *obj;
+	const cfg_obj_t *rpslist;
+	dns_fixedname_t fixed;
+	dns_name_t *name;
 	dns_rrl_t *rrl;
-	isc_result_t result;
+	int band = 0, rpscount = 0;
 	int min_entries, i, j;
+	isc_result_t result;
+
+	if (view->rrldomains == NULL) {
+		result = dns_rbt_create(view->mctx, NULL, NULL,
+					&view->rrldomains);
+		if (result != ISC_R_SUCCESS)
+			return (result);
+	}
 
 	/*
 	 * Most DNS servers have few clients, but intentinally open
@@ -2685,7 +2699,13 @@ configure_rrl(dns_view_t *view, const cfg_obj_t *config, const cfg_obj_t *map) {
 	}
 	result = dns_rrl_init(&rrl, view, min_entries);
 	if (result != ISC_R_SUCCESS)
-		return (result);
+		goto cleanup;
+
+	rrl->name = isc_mem_strdup(rrl->mctx, rrlname);
+	if (rrl->name == NULL) {
+		result = ISC_R_NOMEMORY;
+		goto cleanup;
+	}
 
 	i = ISC_MAX(20000, min_entries);
 	obj = NULL;
@@ -2698,8 +2718,97 @@ configure_rrl(dns_view_t *view, const cfg_obj_t *config, const cfg_obj_t *map) {
 	}
 	rrl->max_entries = i;
 
-	CHECK_RRL_RATE(responses_per_second, 0, DNS_RRL_MAX_RATE,
-		       "responses-per-second");
+	rpslist = NULL;
+	result = cfg_map_get(map, "responses-per-second", &rpslist);
+	if (result == ISC_R_SUCCESS) {
+		for (element = cfg_list_first(rpslist);
+		     element != NULL;
+		     element = cfg_list_next(element))
+		{
+			const cfg_obj_t *rpsobj = cfg_listelt_value(element);
+			isc_boolean_t size_found = ISC_FALSE;
+			isc_boolean_t ratio_found = ISC_FALSE;
+			dns_rrl_rate_t *rps;
+
+			obj = cfg_tuple_get(rpsobj, "size");
+			if (!cfg_obj_isvoid(obj)) {
+				rrl->sizes[band] = cfg_obj_asuint32(obj);
+				size_found = ISC_TRUE;
+			}
+
+			obj = cfg_tuple_get(rpsobj, "ratio");
+			if (!cfg_obj_isvoid(obj)) {
+				rrl->ratios[band] = cfg_obj_asfixedpoint(obj);
+				ratio_found = ISC_TRUE;
+			}
+
+			if (size_found || ratio_found) {
+				rps = &rrl->responses_per_second_band[band];
+				band++;
+				switch (band) {
+				case 1:
+					rps->str =
+					    "responses-per-second (band 1)";
+					break;
+				case 2:
+					rps->str =
+					    "responses-per-second (band 2)";
+					break;
+				case 3:
+					rps->str =
+					    "responses-per-second (band 3)";
+					break;
+				case 4:
+					rps->str =
+					    "responses-per-second (band 4)";
+					break;
+				default:
+					cfg_obj_log(obj, ns_g_lctx,
+						    ISC_LOG_WARNING,
+						    "too many "
+						    "responses-per-second "
+						    "options: maximum 4 "
+						    "size or ratio bands, "
+						    "plus 1 default");
+					result = ISC_R_RANGE;
+					goto cleanup;
+				}
+			} else {
+				rps = &rrl->responses_per_second;
+				/* already been set? */
+				if (rps->r != 0) {
+					cfg_obj_log(obj, ns_g_lctx,
+						    ISC_LOG_WARNING,
+						    "default "
+						    "responses-per-second "
+						    "has already been set");
+					result = ISC_R_FAILURE;
+					goto cleanup;
+				}
+				rps->str = "responses-per-second (default)";
+			}
+
+			obj = cfg_tuple_get(rpsobj, "responses");
+			if (cfg_obj_isuint32(obj)) {
+				rps->r = cfg_obj_asuint32(obj);
+				if (rps->r > DNS_RRL_MAX_RATE) {
+					cfg_obj_log(obj, ns_g_lctx,
+						    ISC_LOG_WARNING,
+						    "responses-per-second "
+						    "(entry %d) %d > %d",
+						    rpscount, rps->r,
+						    DNS_RRL_MAX_RATE);
+					result = ISC_R_RANGE;
+					goto cleanup;
+				}
+			} else
+				rps->r = 0;
+
+			rps->scaled = rps->r;
+			rpscount++;
+		}
+	}
+
 	CHECK_RRL_RATE(referrals_per_second,
 		       rrl->responses_per_second.r, DNS_RRL_MAX_RATE,
 		       "referrals-per-second");
@@ -2716,8 +2825,7 @@ configure_rrl(dns_view_t *view, const cfg_obj_t *config, const cfg_obj_t *map) {
 	CHECK_RRL_RATE(all_per_second, 0, DNS_RRL_MAX_RATE,
 		       "all-per-second");
 
-	CHECK_RRL_RATE(slip, 2, DNS_RRL_MAX_SLIP,
-		       "slip");
+	CHECK_RRL_RATE(slip, 2, DNS_RRL_MAX_SLIP, "slip");
 
 	i = 15;
 	obj = NULL;
@@ -2790,6 +2898,31 @@ configure_rrl(dns_view_t *view, const cfg_obj_t *config, const cfg_obj_t *map) {
 		rrl->log_only = ISC_TRUE;
 	else
 		rrl->log_only = ISC_FALSE;
+
+	obj = NULL;
+	if (cfg_map_get(map, "domain", &obj) != ISC_R_SUCCESS) {
+		result = dns_rbt_addname(view->rrldomains, dns_rootname, rrl);
+		if (result != ISC_R_SUCCESS)
+			goto cleanup;
+	} else {
+		dns_fixedname_init(&fixed);
+		name = dns_fixedname_name(&fixed);
+
+		for (element = cfg_list_first(obj);
+		     element != NULL;
+		     element = cfg_list_next(element))
+		{
+			const char *str;
+
+			obj = cfg_listelt_value(element);
+			str = cfg_obj_asstring(obj);
+			result = dns_name_fromstring(name, str, 0, NULL);
+			RUNTIME_CHECK(result == ISC_R_SUCCESS);
+			result = dns_rbt_addname(view->rrldomains, name, rrl);
+			if (result != ISC_R_SUCCESS)
+				goto cleanup;
+		}
+	}
 
 	return (ISC_R_SUCCESS);
 
@@ -5062,9 +5195,27 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	obj = NULL;
 	result = ns_config_get(maps, "rate-limit", &obj);
 	if (result == ISC_R_SUCCESS) {
-		result = configure_rrl(view, config, obj);
-		if (result != ISC_R_SUCCESS)
-			goto cleanup;
+		char namebuf[64];
+		for (i = 0, element = cfg_list_first(obj);
+		     element != NULL;
+		     i++, element = cfg_list_next(element))
+		{
+			const cfg_obj_t *rrl = cfg_listelt_value(element);
+
+			obj = cfg_tuple_get(rrl, "name");
+			if (cfg_obj_isvoid(obj))
+				snprintf(namebuf, sizeof(namebuf), "%s/rrl-%d",
+					 view->name, i);
+			else
+				snprintf(namebuf, sizeof(namebuf), "%s/%s",
+					 view->name, cfg_obj_asstring(obj));
+			str = namebuf;
+			result = configure_rrl(view, config,
+					       cfg_tuple_get(rrl, "options"),
+					       str);
+			if (result != ISC_R_SUCCESS)
+				goto cleanup;
+		}
 	}
 
 	/*
@@ -5637,6 +5788,7 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 		result = ISC_R_FAILURE;
 		goto cleanup;
 	}
+
 	ztypestr = cfg_obj_asstring(typeobj);
 
 	/*

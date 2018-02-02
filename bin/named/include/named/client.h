@@ -115,6 +115,7 @@ struct ns_client {
 	isc_socketevent_t *	recvevent;
 	unsigned char *		recvbuf;
 	dns_rdataset_t *	opt;
+	isc_uint16_t		requestsize;
 	isc_uint16_t		udpsize;
 	isc_uint16_t		extflags;
 	isc_int16_t		ednsversion;	/* -1 noedns */

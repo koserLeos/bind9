@@ -100,7 +100,7 @@ range () {
 }
 
 #   $1=domain  $2=IP address  $3=# of IP addresses  $4=TC  $5=drop
-#	$6=NXDOMAIN  $7=SERVFAIL or other errors
+#	$6=NXDOMAIN  $7=SERVFAIL $8=NOERROR or other errors
 ck_result() {
     BAD=no
     ADDRS=`egrep "^$2$" mdig.out-$1				2>/dev/null | wc -l`
@@ -146,14 +146,18 @@ ckstats () {
     LABEL="$1"; shift
     TYPE="$1"; shift
     EXPECTED="$1"; shift
+    if test "$#" -gt 0; then
+        FILE="$1"
+    else
+        FILE=ns2/named.stats
+    fi
     C=`sed -n -e "s/[	 ]*\([0-9]*\).responses $TYPE for rate limits.*/\1/p"  \
-	    ns2/named.stats | tail -1`
+	    $FILE | tail -1`
     C=`expr 0$C + 0`
     
     range "$C" $EXPECTED 1 ||
     setret "wrong $LABEL $TYPE statistics of $C instead of $EXPECTED"
 }
-
 
 #########
 sec_start
@@ -211,7 +215,7 @@ ckstats first truncated 21
 sec_start
 
 burst 10 a5.tld2 +tcp
-burst 10 a6.tld2 -b $ns7
+burst 10 a6.tld2 "-b $ns7"
 burst 10 a7.tld4
 burst 2 a8.tld2 -t AAAA
 burst 2 a8.tld2 -t TXT
@@ -277,6 +281,135 @@ if [ -f named.pid ]; then
     $KILL `cat named.pid`
     setret "named should not have started, but did"
 fi
+
+#
+# "xxx" goes to a separate rate limiter, so it should be unaffected
+# by any prior queries.
+#
+burst 60 'a1.xxx'
+ck_result   a1.xxx	192.0.2.1	30	15	15	0	0       45
+
+#
+# check stats specifically for rate-limiter _default/rrl-1
+#
+cat /dev/null > ns2/named.stats
+$RNDCCMD $ns2 stats
+awk '/rate-limit _default.rrl-1/ {getline; print; getline; print}' ns2/named.stats > ns2/xxx.stats
+ckstats alternate dropped 15 ns2/xxx.stats
+ckstats alternate truncated 15 ns2/xxx.stats
+
+# Test rate limiting with "size 2" parameter
+sed 's/PARAMETER/size 2/' ns2/rate-limit-band.conf > ns2/rate-limit.conf
+$RNDCCMD $ns2 reload > /dev/null
+sleep 1
+#########
+sec_start
+
+# basic rate limiting
+burst 3 a1.tld2
+# 1 second delay allows an additional response.
+sleep 1
+burst 10 a1.tld2
+# Request 30 different qnames to try a wildcard.
+burst 30 'x$CNT.a2.tld2'
+# These should be counted and limited but are not.  See RT33138.
+burst 10 'y.x$CNT.a2.tld2'
+
+#					IP      TC      drop  NXDOMAIN SERVFAIL NOERROR
+# check 13 results including 1 second delay that allows an additional response
+ck_result   a1.tld2	192.0.2.1	6	8	12	0	0       14
+
+# Check the wild card answers.
+# The parent name of the 30 requests is counted.
+ck_result 'x*.a2.tld2'	192.0.2.2	4	20	36	0	0       24
+
+# These should be limited but are not.  See RT33138.
+ck_result 'y.x*.a2.tld2' 192.0.2.2	20	0	0	0	0       20
+
+# Test rate limiting with "ratio 2" parameter
+sed 's/PARAMETER/ratio 2.0/' ns2/rate-limit-band.conf > ns2/rate-limit.conf
+$RNDCCMD $ns2 reload > /dev/null
+sleep 1
+#########
+sec_start
+
+# basic rate limiting
+burst 3 a1.tld2
+# 1 second delay allows an additional response.
+sleep 1
+burst 10 a1.tld2
+# Request 30 different qnames to try a wildcard.
+burst 30 'x$CNT.a2.tld2'
+# These should be counted and limited but are not.  See RT33138.
+burst 10 'y.x$CNT.a2.tld2'
+
+#					IP      TC      drop  NXDOMAIN SERVFAIL NOERROR
+# check 13 results including 1 second delay that allows an additional response
+ck_result   a1.tld2	192.0.2.1	9	12	18	0	0       21
+
+# Check the wild card answers.
+# The parent name of the 30 requests is counted.
+ck_result 'x*.a2.tld2'	192.0.2.2	6	30	54	0	0       36
+
+# These should be limited but are not.  See RT33138.
+ck_result 'y.x*.a2.tld2' 192.0.2.2	30	0	0	0	0       30
+
+
+# Test rate limiting with two size bands...
+sed -e 's/PARAM1/size 40/' -e 's/PARAM2/size 100/' ns2/rate-limit-multiband.conf > ns2/rate-limit.conf
+$RNDCCMD $ns2 reload > /dev/null
+sleep 1
+#########
+sec_start
+
+# basic rate limiting
+burst 3 a1.tld2
+# 1 second delay allows an additional response.
+sleep 1
+burst 10 a1.tld2
+# Request 30 different qnames to try a wildcard.
+burst 30 'x$CNT.a2.tld2'
+# These should be counted and limited but are not.  See RT33138.
+burst 10 'y.x$CNT.a2.tld2'
+
+#					IP      TC      drop  NXDOMAIN SERVFAIL NOERROR
+# check 13 results including 1 second delay that allows an additional response
+ck_result   a1.tld2	192.0.2.1	15	15	22	0	0       30
+
+# Check the wild card answers.
+# The parent name of the 30 requests is counted.
+ck_result 'x*.a2.tld2'	192.0.2.2	7	41	72	0	0       48
+
+# These should be limited but are not.  See RT33138.
+ck_result 'y.x*.a2.tld2' 192.0.2.2	40	0	0	0	0       40
+
+# Test rate limiting with two ratio bands...
+sed -e 's/PARAM1/ratio 2.5/' -e 's/PARAM2/ratio 1.0/' ns2/rate-limit-multiband.conf > ns2/rate-limit.conf
+$RNDCCMD $ns2 reload > /dev/null
+sleep 1
+#########
+sec_start
+
+# basic rate limiting
+burst 3 a1.tld2
+# 1 second delay allows an additional response.
+sleep 1
+burst 10 a1.tld2
+# Request 30 different qnames to try a wildcard.
+burst 30 'x$CNT.a2.tld2'
+
+#					IP      TC      drop  NXDOMAIN SERVFAIL NOERROR
+# check 13 results including 1 second delay that allows an additional response
+ck_result   a1.tld2	192.0.2.1	21	18	26	0	0       39
+
+# Check the wild card answers.
+# The parent name of the 30 requests is counted.
+ck_result 'x*.a2.tld2'	192.0.2.2	10	51	89	0	0       61
+
+# Test rate limiting with ambiguous size and ratio bands...
+sed -e 's/PARAM1/size 200 ratio 20/' -e 's/PARAM2/size 1000 ratio 5/' ns2/rate-limit-multiband.conf > ns2/rate-limit.conf
+$RNDCCMD $ns2 reload > /dev/null
+sleep 1
 
 echo_i "exit status: $ret"
 [ $ret -eq 0 ] || exit 1

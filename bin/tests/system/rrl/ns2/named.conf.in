@@ -21,15 +21,15 @@ options {
 	listen-on-v6 { none; };
 	notify no;
 
-	rate-limit {
-	    responses-per-second 2;
-	    all-per-second 50;
-	    slip 3;
-	    exempt-clients { 10.53.0.7; };
+        include "rate-limit.conf";
 
-	    // small enough to force a table expansion
-	    min-table-size 75;
+	rate-limit {
+	    domain "xxx";
+	    responses-per-second 30;
+	    slip 2;
+	    exempt-clients { 10.53.0.7; };
 	};
+
 
 	additional-from-cache no;
 };
@@ -61,3 +61,5 @@ logging {
 zone "." { type hint; file "hints"; };
 
 zone "tld2."{ type master; file "tld2.db"; };
+zone "xxx."{ type master; file "tld2.db"; };
+zone "example" { type master; file "example.db"; };

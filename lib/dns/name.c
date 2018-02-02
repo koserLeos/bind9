@@ -2528,10 +2528,8 @@ dns_name_copy(const dns_name_t *source, dns_name_t *dest, isc_buffer_t *target) 
 	dest->ndata = ndata;
 	dest->labels = source->labels;
 	dest->length = source->length;
-	if ((source->attributes & DNS_NAMEATTR_ABSOLUTE) != 0)
-		dest->attributes = DNS_NAMEATTR_ABSOLUTE;
-	else
-		dest->attributes = 0;
+	dest->attributes = source->attributes &
+			   (DNS_NAMEATTR_ABSOLUTE|DNS_NAMEATTR_WILDCARD);
 
 	if (dest->labels > 0 && dest->offsets != NULL) {
 		if (source->offsets != NULL)

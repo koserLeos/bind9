@@ -88,9 +88,6 @@
 /*% Want Recursion? */
 #define WANTRECURSION(c)	(((c)->query.attributes & \
 				  NS_QUERYATTR_WANTRECURSION) != 0)
-/*% Is TCP? */
-#define TCP(c)			(((c)->attributes & NS_CLIENTATTR_TCP) != 0)
-
 /*% Want DNSSEC? */
 #define WANTDNSSEC(c)		(((c)->attributes & \
 				  NS_CLIENTATTR_WANTDNSSEC) != 0)
@@ -109,6 +106,10 @@
 /*% Whether to forward ECS options for this client. */
 #define ECS_FORWARD(c)		(((c)->attributes & \
 				  NS_CLIENTATTR_ECSFORWARD) != 0)
+
+/*% TCP client? */
+#define TCP_CLIENT(c)		(((c)->attributes & NS_CLIENTATTR_TCP) != 0)
+
 /*% No authority? */
 #define NOAUTHORITY(c)		(((c)->query.attributes & \
 				  NS_QUERYATTR_NOAUTHORITY) != 0)
@@ -223,8 +224,8 @@ rpz_ck_dnssec(ns_client_t *client, isc_result_t qresult,
 /*%
  * Increment query statistics counters.
  */
-static inline void
-inc_stats(ns_client_t *client, isc_statscounter_t counter) {
+void
+ns_query_incstats(ns_client_t *client, isc_statscounter_t counter) {
 	dns_zone_t *zone = client->query.authzone;
 	dns_rdatatype_t qtype;
 	dns_rdataset_t *rdataset;
@@ -264,9 +265,9 @@ query_send(ns_client_t *client) {
 	isc_statscounter_t counter;
 
 	if ((client->message->flags & DNS_MESSAGEFLAG_AA) == 0)
-		inc_stats(client, dns_nsstatscounter_nonauthans);
+		ns_query_incstats(client, dns_nsstatscounter_nonauthans);
 	else
-		inc_stats(client, dns_nsstatscounter_authans);
+		ns_query_incstats(client, dns_nsstatscounter_authans);
 
 	if (client->message->rcode == dns_rcode_noerror) {
 		dns_section_t answer = DNS_SECTION_ANSWER;
@@ -284,7 +285,7 @@ query_send(ns_client_t *client) {
 	else /* We end up here in case of YXDOMAIN, and maybe others */
 		counter = dns_nsstatscounter_failure;
 
-	inc_stats(client, counter);
+	ns_query_incstats(client, counter);
 	ns_client_send(client);
 }
 
@@ -295,13 +296,13 @@ query_error(ns_client_t *client, isc_result_t result, int line) {
 	switch (result) {
 	case DNS_R_SERVFAIL:
 		loglevel = ISC_LOG_DEBUG(1);
-		inc_stats(client, dns_nsstatscounter_servfail);
+		ns_query_incstats(client, dns_nsstatscounter_servfail);
 		break;
 	case DNS_R_FORMERR:
-		inc_stats(client, dns_nsstatscounter_formerr);
+		ns_query_incstats(client, dns_nsstatscounter_formerr);
 		break;
 	default:
-		inc_stats(client, dns_nsstatscounter_failure);
+		ns_query_incstats(client, dns_nsstatscounter_failure);
 		break;
 	}
 
@@ -316,11 +317,11 @@ query_error(ns_client_t *client, isc_result_t result, int line) {
 static void
 query_next(ns_client_t *client, isc_result_t result) {
 	if (result == DNS_R_DUPLICATE)
-		inc_stats(client, dns_nsstatscounter_duplicate);
+		ns_query_incstats(client, dns_nsstatscounter_duplicate);
 	else if (result == DNS_R_DROP)
-		inc_stats(client, dns_nsstatscounter_dropped);
+		ns_query_incstats(client, dns_nsstatscounter_dropped);
 	else
-		inc_stats(client, dns_nsstatscounter_failure);
+		ns_query_incstats(client, dns_nsstatscounter_failure);
 	ns_client_next(client, result);
 }
 
@@ -473,6 +474,8 @@ query_reset(ns_client_t *client, isc_boolean_t everything) {
 	client->query.isreferral = ISC_FALSE;
 	client->query.dns64_options = 0;
 	client->query.dns64_ttl = ISC_UINT32_MAX;
+	client->query.resp_result = DNS_R_UNKNOWN;
+	client->query.qtype = dns_rdatatype_none;
 }
 
 static void
@@ -721,6 +724,8 @@ ns_query_init(ns_client_t *client) {
 	dns_fixedname_init(&client->query.redirect.fixed);
 	client->query.redirect.fname =
 		dns_fixedname_name(&client->query.redirect.fixed);
+	client->query.qtype = dns_rdatatype_none;
+	client->query.resp_result = DNS_R_UNKNOWN;
 	query_reset(client, ISC_FALSE);
 	result = query_newdbversion(client, 3);
 	if (result != ISC_R_SUCCESS) {
@@ -2526,7 +2531,7 @@ query_dns64(ns_client_t *client, dns_name_t **namep, dns_rdataset_t *rdataset,
 	dns64_rdataset = NULL;
 	dns64_rdatalist = NULL;
 	dns_message_takebuffer(client->message, &buffer);
-	inc_stats(client, dns_nsstatscounter_dns64);
+	ns_query_incstats(client, dns_nsstatscounter_dns64);
 	result = ISC_R_SUCCESS;
 
  cleanup:
@@ -4066,10 +4071,14 @@ query_prefetch(ns_client_t *client, dns_name_t *qname,
 	if (client->recursionquota == NULL) {
 		result = isc_quota_attach(&ns_g_server->recursionquota,
 					  &client->recursionquota);
-		if (result == ISC_R_SUCCESS && !client->mortal && !TCP(client))
+		if (result == ISC_R_SUCCESS && !client->mortal &&
+		    !TCP_CLIENT(client))
+		{
 			result = ns_client_replace(client);
-		if (result != ISC_R_SUCCESS)
+		}
+		if (result != ISC_R_SUCCESS) {
 			return;
+		}
 		isc_stats_increment(ns_g_server->nsstats,
 				    dns_nsstatscounter_recursclients);
 	}
@@ -4079,8 +4088,9 @@ query_prefetch(ns_client_t *client, dns_name_t *qname,
 		return;
 
 	options = client->query.fetchoptions | DNS_FETCHOPT_PREFETCH;
-	if (TCP(client))
+	if (TCP_CLIENT(client)) {
 		options |= DNS_FETCHOPT_TCPCLIENT;
+	}
 
 	ns_client_attach(client, &dummy);
 
@@ -4110,7 +4120,7 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qname,
 	unsigned int options;
 
 	if (!resuming)
-		inc_stats(client, dns_nsstatscounter_recursion);
+		ns_query_incstats(client, dns_nsstatscounter_recursion);
 
 	/*
 	 * We are about to recurse, which means that this client will
@@ -4166,7 +4176,8 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qname,
 			ns_client_killoldestquery(client);
 		}
 		if (result == ISC_R_SUCCESS && !client->mortal &&
-		    !TCP(client)) {
+		    !TCP_CLIENT(client))
+		{
 			result = ns_client_replace(client);
 			if (result != ISC_R_SUCCESS) {
 				ns_client_log(client, NS_LOGCATEGORY_CLIENT,
@@ -4206,8 +4217,9 @@ query_recurse(ns_client_t *client, dns_rdatatype_t qtype, dns_name_t *qname,
 		ns_client_settimeout(client, 60);
 
 	options = client->query.fetchoptions;
-	if (TCP(client))
+	if (TCP_CLIENT(client)) {
 		options |= DNS_FETCHOPT_TCPCLIENT;
+	}
 
 	if (ECS_FORWARD(client))
 		ecs = &client->ecs;
@@ -4387,10 +4399,14 @@ query_rpzfetch(ns_client_t *client, dns_name_t *qname, dns_rdatatype_t type) {
 	if (client->recursionquota == NULL) {
 		result = isc_quota_attach(&ns_g_server->recursionquota,
 					  &client->recursionquota);
-		if (result == ISC_R_SUCCESS && !client->mortal && !TCP(client))
+		if (result == ISC_R_SUCCESS && !client->mortal &&
+		    !TCP_CLIENT(client))
+		{
 			result = ns_client_replace(client);
-		if (result != ISC_R_SUCCESS)
+		}
+		if (result != ISC_R_SUCCESS) {
 			return;
+		}
 		isc_stats_increment(ns_g_server->nsstats,
 				    dns_nsstatscounter_recursclients);
 	}
@@ -4400,8 +4416,9 @@ query_rpzfetch(ns_client_t *client, dns_name_t *qname, dns_rdatatype_t type) {
 		return;
 
 	options = client->query.fetchoptions;
-	if (TCP(client))
+	if (TCP_CLIENT(client)) {
 		options |= DNS_FETCHOPT_TCPCLIENT;
+	}
 
 	ns_client_attach(client, &dummy);
 
@@ -7042,10 +7059,11 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	if (result != ISC_R_SUCCESS) {
 		if (result == DNS_R_REFUSED) {
 			if (WANTRECURSION(client)) {
-				inc_stats(client,
+				ns_query_incstats(client,
 					  dns_nsstatscounter_recurserej);
 			} else
-				inc_stats(client, dns_nsstatscounter_authrej);
+				ns_query_incstats(client,
+						  dns_nsstatscounter_authrej);
 			if (!PARTIALANSWER(client))
 				QUERY_ERROR(DNS_R_REFUSED);
 		} else {
@@ -7078,10 +7096,10 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		client->query.authdbset = ISC_TRUE;
 
 		/* Track TCP vs UDP stats per zone */
-		if (TCP(client))
-			inc_stats(client, dns_nsstatscounter_tcp);
+		if (TCP_CLIENT(client))
+			ns_query_incstats(client, dns_nsstatscounter_tcp);
 		else
-			inc_stats(client, dns_nsstatscounter_udp);
+			ns_query_incstats(client, dns_nsstatscounter_udp);
 	}
 
  db_find:
@@ -7323,7 +7341,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	 * Don't mess with responses rewritten by RPZ
 	 * Count each response at most once.
 	 */
-	if (client->view->rrl != NULL && !HAVECOOKIE(client) &&
+	if (client->view->rrls != NULL && !HAVECOOKIE(client) &&
 	    ((fname != NULL && dns_name_isabsolute(fname)) ||
 	     (result == ISC_R_NOTFOUND && !RECURSIONOK(client))) &&
 	    !(result == DNS_R_DELEGATION && !is_zone && RECURSIONOK(client)) &&
@@ -7387,11 +7405,19 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			resp_result = DNS_R_DELEGATION;
 		} else {
 			resp_result = ISC_R_SUCCESS;
+			client->query.qtype = qtype;
+			client->query.resp_result = resp_result;
+			dns_fixedname_init(&client->query.fname);
+			dns_name_copy(tname,
+				      dns_fixedname_name(&client->query.fname),
+				      NULL);
 		}
 		rrl_result = dns_rrl(client->view, &client->peeraddr,
-				     TCP(client), client->message->rdclass,
-				     qtype, tname, resp_result, client->now,
-				     wouldlog, log_buf, sizeof(log_buf));
+				     TCP_CLIENT(client),
+				     client->message->rdclass, qtype, tname,
+				     resp_result, client->now, 0, 0,
+				     wouldlog, ISC_FALSE,
+				     log_buf, sizeof(log_buf));
 		if (rrl_result != DNS_RRL_RESULT_OK) {
 			/*
 			 * Log dropped or slipped responses in the query
@@ -7409,22 +7435,22 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 					      DNS_RRL_LOG_DROP,
 					      "%s", log_buf);
 			}
-			if (!client->view->rrl->log_only) {
+			if (result != DNS_RRL_RESULT_LOGONLY) {
 				if (rrl_result == DNS_RRL_RESULT_DROP) {
 					/*
 					 * These will also be counted in
 					 * dns_nsstatscounter_dropped
 					 */
-					inc_stats(client,
-						dns_nsstatscounter_ratedropped);
+					ns_query_incstats(client,
+					    dns_nsstatscounter_ratedropped);
 					QUERY_ERROR(DNS_R_DROP);
 				} else {
 					/*
 					 * These will also be counted in
 					 * dns_nsstatscounter_truncatedresp
 					 */
-					inc_stats(client,
-						dns_nsstatscounter_rateslipped);
+					ns_query_incstats(client,
+					    dns_nsstatscounter_rateslipped);
 					if (WANTCOOKIE(client)) {
 						client->message->flags &=
 							~DNS_MESSAGEFLAG_AA;
@@ -7444,7 +7470,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				goto cleanup;
 			}
 		}
-	} else if (!TCP(client) && client->view->requireservercookie &&
+	} else if (!TCP_CLIENT(client) && client->view->requireservercookie &&
 		   WANTCOOKIE(client) && !HAVECOOKIE(client)) {
 		client->message->flags &= ~DNS_MESSAGEFLAG_AA;
 		client->message->flags &= ~DNS_MESSAGEFLAG_AD;
@@ -7492,7 +7518,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		if (rpz_st->m.policy != DNS_RPZ_POLICY_MISS &&
 		    rpz_st->m.policy != DNS_RPZ_POLICY_PASSTHRU &&
 		    (rpz_st->m.policy != DNS_RPZ_POLICY_TCP_ONLY ||
-		     !TCP(client)) &&
+		     !TCP_CLIENT(client)) &&
 		    rpz_st->m.policy != DNS_RPZ_POLICY_ERROR)
 		{
 			/*
@@ -8153,8 +8179,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			tresult = redirect(client, fname, rdataset, &node,
 					   &db, &version, type);
 			if (tresult == ISC_R_SUCCESS) {
-				inc_stats(client,
-					dns_nsstatscounter_nxdomainredirect);
+				ns_query_incstats(client,
+					  dns_nsstatscounter_nxdomainredirect);
 				break;
 			}
 			if (tresult == DNS_R_NXRRSET) {
@@ -8169,8 +8195,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			tresult = redirect2(client, fname, rdataset, &node,
 					    &db, &version, type, &is_zone);
 			if (tresult == DNS_R_CONTINUE) {
-				inc_stats(client,
-					  dns_nsstatscounter_nxdomainredirect_rlookup);
+				ns_query_incstats(client,
+				   dns_nsstatscounter_nxdomainredirect_rlookup);
 				client->query.redirect.qtype = qtype;
 				INSIST(rdataset != NULL);
 				SAVE(client->query.redirect.rdataset, rdataset);
@@ -8189,7 +8215,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				goto cleanup;
 			}
 			if (tresult == ISC_R_SUCCESS) {
-				inc_stats(client,
+				ns_query_incstats(client,
 					  dns_nsstatscounter_nxdomainredirect);
 				break;
 			}
@@ -8268,8 +8294,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		tresult = redirect(client, fname, rdataset, &node,
 				   &db, &version, type);
 		if (tresult == ISC_R_SUCCESS) {
-			inc_stats(client,
-				  dns_nsstatscounter_nxdomainredirect);
+			ns_query_incstats(client,
+					  dns_nsstatscounter_nxdomainredirect);
 			break;
 		}
 		if (tresult == DNS_R_NXRRSET) {
@@ -8285,7 +8311,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		tresult = redirect2(client, fname, rdataset, &node,
 				    &db, &version, type, &is_zone);
 		if (tresult == DNS_R_CONTINUE) {
-			inc_stats(client,
+			ns_query_incstats(client,
 				  dns_nsstatscounter_nxdomainredirect_rlookup);
 			SAVE(client->query.redirect.db, db);
 			SAVE(client->query.redirect.node, node);
@@ -8302,8 +8328,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			goto cleanup;
 		}
 		if (tresult == ISC_R_SUCCESS) {
-			inc_stats(client,
-				  dns_nsstatscounter_nxdomainredirect);
+			ns_query_incstats(client,
+					  dns_nsstatscounter_nxdomainredirect);
 			break;
 		}
 		if (tresult == DNS_R_NXRRSET) {
@@ -8774,7 +8800,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				 */
 				dns_rdataset_disassociate(rdataset);
 			} else if (client->view->minimal_any &&
-				   !TCP(client) && !WANTDNSSEC(client) &&
+				   !TCP_CLIENT(client) &&
+				   !WANTDNSSEC(client) &&
 				   qtype == dns_rdatatype_any &&
 				   (rdataset->type == dns_rdatatype_sig ||
 				    rdataset->type == dns_rdatatype_rrsig)) {
@@ -8782,7 +8809,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				       "minimal-any skip signature");
 				dns_rdataset_disassociate(rdataset);
 			} else if (client->view->minimal_any &&
-				   !TCP(client) && onetype != 0 &&
+				   !TCP_CLIENT(client) &&
+				   onetype != 0 &&
 				   rdataset->type != onetype &&
 				   rdataset->covers != onetype) {
 				CTRACE(ISC_LOG_DEBUG(5), "query_find: "
@@ -9405,7 +9433,7 @@ log_query(ns_client_t *client, unsigned int flags, unsigned int extflags) {
 		      level, "query: %s %s %s %s%s%s%s%s%s%s (%s)", namebuf,
 		      classname, typename, WANTRECURSION(client) ? "+" : "-",
 		      (client->signer != NULL) ? "S" : "", ednsbuf,
-		      TCP(client) ? "T" : "",
+		      TCP_CLIENT(client) ? "T" : "",
 		      ((extflags & DNS_MESSAGEEXTFLAG_DO) != 0) ? "D" : "",
 		      ((flags & DNS_MESSAGEFLAG_CD) != 0) ? "C" : "",
 		      HAVECOOKIE(client) ? "V" : WANTCOOKIE(client) ? "K" : "",
@@ -9471,7 +9499,7 @@ ns_query_start(ns_client_t *client) {
 	/*
 	 * Test only.
 	 */
-	if (ns_g_clienttest && !TCP(client)) {
+	if (ns_g_clienttest && !TCP_CLIENT(client)) {
 		result = ns_client_replace(client);
 		if (result == ISC_R_SHUTTINGDOWN) {
 			ns_client_next(client, result);
@@ -9624,16 +9652,19 @@ ns_query_start(ns_client_t *client) {
 	 * Maybe turn on minimal responses for ANY queries.
 	 */
 	if (qtype == dns_rdatatype_any &&
-	    client->view->minimal_any && !TCP(client))
+	    client->view->minimal_any && !TCP_CLIENT(client))
 		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
 					     NS_QUERYATTR_NOADDITIONAL);
 
 	/*
 	 * Turn on minimal responses for EDNS/UDP bufsize 512 queries.
 	 */
-	if (client->ednsversion >= 0 && client->udpsize <= 512U && !TCP(client))
+	if (client->ednsversion >= 0 && client->udpsize <= 512U &&
+	    !TCP_CLIENT(client))
+	{
 		client->query.attributes |= (NS_QUERYATTR_NOAUTHORITY |
 					     NS_QUERYATTR_NOADDITIONAL);
+	}
 
 	/*
 	 * If the client has requested that DNSSEC checking be disabled,

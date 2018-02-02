@@ -209,7 +209,9 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->answeracl_exclude = NULL;
 	view->denyanswernames = NULL;
 	view->answernames_exclude = NULL;
-	view->rrl = NULL;
+	view->rrls = NULL;
+	view->rrlcount = 0;
+	view->rrldomains = NULL;
 	view->provideixfr = ISC_TRUE;
 	view->maxcachettl = 7 * 24 * 3600;
 	view->maxncachettl = 3 * 3600;

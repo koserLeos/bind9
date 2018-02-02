@@ -271,8 +271,9 @@ options {
         queryport-pool-ports <integer>; // obsolete
         queryport-pool-updateinterval <integer>; // obsolete
         random-device <quoted_string>;
-        rate-limit {
+        rate-limit [ <string> ] {
                 all-per-second <integer>;
+                domain <string>;
                 errors-per-second <integer>;
                 exempt-clients { <address_match_element>; ... };
                 ipv4-prefix-length <integer>;
@@ -284,7 +285,8 @@ options {
                 nxdomains-per-second <integer>;
                 qps-scale <integer>;
                 referrals-per-second <integer>;
-                responses-per-second <integer>;
+                responses-per-second [ size <integer> ] [ ratio
+                    <fixedpoint> ] <integer>;
                 slip <integer>;
                 window <integer>;
         };
@@ -575,8 +577,9 @@ view <string> [ <class> ] {
             port ( <integer> | * ) ) ) [ dscp <integer> ];
         queryport-pool-ports <integer>; // obsolete
         queryport-pool-updateinterval <integer>; // obsolete
-        rate-limit {
+        rate-limit [ <string> ] {
                 all-per-second <integer>;
+                domain <string>;
                 errors-per-second <integer>;
                 exempt-clients { <address_match_element>; ... };
                 ipv4-prefix-length <integer>;
@@ -588,7 +591,8 @@ view <string> [ <class> ] {
                 nxdomains-per-second <integer>;
                 qps-scale <integer>;
                 referrals-per-second <integer>;
-                responses-per-second <integer>;
+                responses-per-second [ size <integer> ] [ ratio
+                    <fixedpoint> ] <integer>;
                 slip <integer>;
                 window <integer>;
         };

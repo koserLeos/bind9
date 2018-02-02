@@ -584,11 +584,11 @@ check_dns64(cfg_aclconfctx_t *actx, const cfg_obj_t *voptions,
 		    }							\
 	} while (0)
 
-#define CHECK_RRL_RATE(rate, def, max_rate, name)			\
+#define CHECK_RRL_RATE(rate, max_rate, name)				\
 	do {								\
 		obj = NULL;						\
-		mresult = cfg_map_get(map, name, &obj);			\
-		if (mresult == ISC_R_SUCCESS) {				\
+		tresult = cfg_map_get(rrl, name, &obj);			\
+		if (tresult == ISC_R_SUCCESS) {				\
 			rate = cfg_obj_asuint32(obj);			\
 			CHECK_RRL(rate <= max_rate, name" %d > %d",	\
 				  rate, max_rate);			\
@@ -596,94 +596,174 @@ check_dns64(cfg_aclconfctx_t *actx, const cfg_obj_t *voptions,
 	} while (0)
 
 static isc_result_t
-check_ratelimit(cfg_aclconfctx_t *actx, const cfg_obj_t *voptions,
-		const cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx)
+check_rrl(const cfg_obj_t *rrl, isc_symtab_t *symtab, cfg_aclconfctx_t *actx,
+	  const cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx)
 {
-	isc_result_t result = ISC_R_SUCCESS;
-	isc_result_t mresult;
-	const cfg_obj_t *map = NULL;
-	const cfg_obj_t *options;
-	const cfg_obj_t *obj;
-	int min_entries, i;
+	isc_result_t result = ISC_R_SUCCESS, tresult;
+	const cfg_obj_t *obj = NULL;
+	const cfg_obj_t *rpslist;
+	const cfg_listelt_t *element;
+	int min_entries = 1, max_entries, i;
 	int all_per_second;
 	int errors_per_second;
 	int nodata_per_second;
 	int nxdomains_per_second;
 	int referrals_per_second;
-	int responses_per_second;
 	int slip;
+	char namebuf[DNS_NAME_FORMATSIZE];
+	dns_fixedname_t fixed;
+	dns_name_t *name;
+	const char *str;
 
-	if (voptions != NULL)
-		cfg_map_get(voptions, "rate-limit", &map);
-	if (config != NULL && map == NULL) {
-		options = NULL;
-		cfg_map_get(config, "options", &options);
-		if (options != NULL)
-			cfg_map_get(options, "rate-limit", &map);
+	dns_fixedname_init(&fixed);
+	name = dns_fixedname_name(&fixed);
+
+	/*
+	 * Check listed domains for duplicates.
+	 */
+
+	/* Default is "." */
+	if (cfg_map_get(rrl, "domain", &obj) != ISC_R_SUCCESS) {
+		result = nameexist(rrl, ".", 1, symtab,
+				   "a rate-limit for domain '%s': already "
+				   "exists previous definition: %s:%u",
+				   logctx, mctx);
 	}
-	if (map == NULL)
-		return (ISC_R_SUCCESS);
+
+	for (element = cfg_list_first(obj);
+	     element != NULL;
+	     element = cfg_list_next(element))
+	{
+		obj = cfg_listelt_value(element);
+		str = cfg_obj_asstring(obj);
+		tresult = dns_name_fromstring(name, str, 0, NULL);
+		if (tresult != ISC_R_SUCCESS) {
+			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+				    "bad domain name '%s'", str);
+		} else {
+			dns_name_format(name, namebuf, sizeof(namebuf));
+			tresult = nameexist(obj, namebuf, 1, symtab,
+					    "rate-limit domain '%s': already "
+					    "exists previous definition: %s:%u",
+					    logctx, mctx);
+		}
+		if (tresult != ISC_R_SUCCESS)
+			result = tresult;
+	}
 
 	min_entries = 500;
 	obj = NULL;
-	mresult = cfg_map_get(map, "min-table-size", &obj);
-	if (mresult == ISC_R_SUCCESS) {
+	tresult = cfg_map_get(rrl, "min-table-size", &obj);
+	if (tresult == ISC_R_SUCCESS) {
 		min_entries = cfg_obj_asuint32(obj);
 		if (min_entries < 1)
 			min_entries = 1;
 	}
 
 	obj = NULL;
-	mresult = cfg_map_get(map, "max-table-size", &obj);
-	if (mresult == ISC_R_SUCCESS) {
-		i = cfg_obj_asuint32(obj);
-		CHECK_RRL(i >= min_entries,
-			  "max-table-size %d < min-table-size %d",
-			  i, min_entries);
+	tresult = cfg_map_get(rrl, "max-table-size", &obj);
+	if (tresult == ISC_R_SUCCESS) {
+		max_entries = cfg_obj_asuint32(obj);
+		if (max_entries < min_entries) {
+			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+				    "max-table-size %d < min-table-size %d",
+				     max_entries, min_entries);
+			result = ISC_R_RANGE;
+		}
 	}
 
-	CHECK_RRL_RATE(responses_per_second, 0, DNS_RRL_MAX_RATE,
-		       "responses-per-second");
+	rpslist = NULL;
+	tresult = cfg_map_get(rrl, "responses-per-second", &rpslist);
+	if (tresult == ISC_R_SUCCESS) {
+		int band = 0;
+		int default_band = 0;
 
-	CHECK_RRL_RATE(referrals_per_second, responses_per_second,
-		       DNS_RRL_MAX_RATE, "referrals-per-second");
-	CHECK_RRL_RATE(nodata_per_second, responses_per_second,
-		       DNS_RRL_MAX_RATE, "nodata-per-second");
-	CHECK_RRL_RATE(nxdomains_per_second, responses_per_second,
-		       DNS_RRL_MAX_RATE, "nxdomains-per-second");
-	CHECK_RRL_RATE(errors_per_second, responses_per_second,
-		       DNS_RRL_MAX_RATE, "errors-per-second");
+		for (element = cfg_list_first(rpslist);
+		     element != NULL;
+		     element = cfg_list_next(element)) {
+			const cfg_obj_t *rpsobj = cfg_listelt_value(element);
+			isc_boolean_t size_found = ISC_FALSE;
+			isc_boolean_t ratio_found = ISC_FALSE;
 
-	CHECK_RRL_RATE(all_per_second, 0, DNS_RRL_MAX_RATE, "all-per-second");
+			obj = cfg_tuple_get(rpsobj, "size");
+			if (!cfg_obj_isvoid(obj))
+				size_found = ISC_TRUE;
 
-	CHECK_RRL_RATE(slip, 2, DNS_RRL_MAX_SLIP, "slip");
+			obj = cfg_tuple_get(rpsobj, "ratio");
+			if (!cfg_obj_isvoid(obj))
+				ratio_found = ISC_TRUE;
+
+			if (size_found || ratio_found) {
+				if (++band == (DNS_RRL_BANDS + 1)) {
+					cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+						    "too many "
+						    "responses-per-second "
+						    "options: maximum %d size "
+						    "or ratio  bands, plus 1 "
+						    "default", DNS_RRL_BANDS);
+					result = ISC_R_FAILURE;
+				}
+			} else {
+				if (++default_band == 2) {
+				       cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+						   "default "
+						   "responses-per-second "
+						   "has already been set");
+					result = ISC_R_FAILURE;
+				}
+			}
+
+			obj = cfg_tuple_get(rpsobj, "responses");
+			if (cfg_obj_isuint32(obj) &&
+			    cfg_obj_asuint32(obj) > DNS_RRL_MAX_RATE) {
+			       cfg_obj_log(rpsobj, logctx, ISC_LOG_ERROR,
+					   "responses-per-second %d > %d",
+					   cfg_obj_asuint32(obj),
+					   DNS_RRL_MAX_RATE);
+				result = ISC_R_RANGE;
+			}
+		}
+	}
+
+	CHECK_RRL_RATE(referrals_per_second, DNS_RRL_MAX_RATE,
+		       "referrals-per-second");
+	CHECK_RRL_RATE(nodata_per_second, DNS_RRL_MAX_RATE,
+		       "nodata-per-second");
+	CHECK_RRL_RATE(nxdomains_per_second, DNS_RRL_MAX_RATE,
+		       "nxdomains-per-second");
+	CHECK_RRL_RATE(errors_per_second, DNS_RRL_MAX_RATE,
+		       "errors-per-second");
+
+	CHECK_RRL_RATE(all_per_second, DNS_RRL_MAX_RATE, "all-per-second");
+
+	CHECK_RRL_RATE(slip, DNS_RRL_MAX_SLIP, "slip");
 
 	obj = NULL;
-	mresult = cfg_map_get(map, "window", &obj);
-	if (mresult == ISC_R_SUCCESS) {
+	tresult = cfg_map_get(rrl, "window", &obj);
+	if (tresult == ISC_R_SUCCESS) {
 		i = cfg_obj_asuint32(obj);
 		CHECK_RRL(i >= 1 && i <= DNS_RRL_MAX_WINDOW,
 			  "window %d < 1 or > %d", i, DNS_RRL_MAX_WINDOW);
 	}
 
 	obj = NULL;
-	mresult = cfg_map_get(map, "qps-scale", &obj);
-	if (mresult == ISC_R_SUCCESS) {
+	tresult = cfg_map_get(rrl, "qps-scale", &obj);
+	if (tresult == ISC_R_SUCCESS) {
 		i = cfg_obj_asuint32(obj);
 		CHECK_RRL(i >= 1, "invalid 'qps-scale %d'%s", i, "");
 	}
 
 	obj = NULL;
-	mresult = cfg_map_get(map, "ipv4-prefix-length", &obj);
-	if (mresult == ISC_R_SUCCESS) {
+	tresult = cfg_map_get(rrl, "ipv4-prefix-length", &obj);
+	if (tresult == ISC_R_SUCCESS) {
 		i = cfg_obj_asuint32(obj);
 		CHECK_RRL(i >= 8 && i <= 32,
 			  "invalid 'ipv4-prefix-length %d'%s", i, "");
 	}
 
 	obj = NULL;
-	mresult = cfg_map_get(map, "ipv6-prefix-length", &obj);
-	if (mresult == ISC_R_SUCCESS) {
+	tresult = cfg_map_get(rrl, "ipv6-prefix-length", &obj);
+	if (tresult == ISC_R_SUCCESS) {
 		i = cfg_obj_asuint32(obj);
 		CHECK_RRL(i >= 16 && i <= DNS_RRL_MAX_PREFIX,
 			  "ipv6-prefix-length %d < 16 or > %d",
@@ -691,10 +771,9 @@ check_ratelimit(cfg_aclconfctx_t *actx, const cfg_obj_t *voptions,
 	}
 
 	obj = NULL;
-	(void)cfg_map_get(map, "exempt-clients", &obj);
+	(void)cfg_map_get(rrl, "exempt-clients", &obj);
 	if (obj != NULL) {
 		dns_acl_t *acl = NULL;
-		isc_result_t tresult;
 
 		tresult = cfg_acl_fromconfig(obj, config, logctx, actx,
 					     mctx, 0, &acl);
@@ -3097,6 +3176,7 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 #ifndef HAVE_DLOPEN
 	const cfg_obj_t *dyndb = NULL;
 #endif
+	const cfg_obj_t *rrls = NULL;
 	const cfg_listelt_t *element, *element2;
 	isc_symtab_t *symtab = NULL;
 	isc_result_t result = ISC_R_SUCCESS;
@@ -3394,9 +3474,27 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	if (tresult != ISC_R_SUCCESS)
 		result = tresult;
 
-	tresult = check_ratelimit(actx, voptions, config, logctx, mctx);
+	tresult = isc_symtab_create(mctx, 1000, freekey, mctx,
+				    ISC_FALSE, &symtab);
 	if (tresult != ISC_R_SUCCESS)
-		result = tresult;
+		goto cleanup;
+
+	rrls = NULL;
+	if (voptions != NULL)
+		(void)cfg_map_get(voptions, "rate-limit", &rrls);
+	if (rrls == NULL && options != NULL)
+		(void)cfg_map_get(options, "rate-limit", &rrls);
+	for (element = cfg_list_first(rrls);
+	     element != NULL;
+	     element = cfg_list_next(element))
+	{
+		const cfg_obj_t *rrl = cfg_listelt_value(element);
+		tresult = check_rrl(cfg_tuple_get(rrl, "options"), symtab,
+				    actx, config, logctx, mctx);
+		if (tresult != ISC_R_SUCCESS)
+			result = tresult;
+	}
+	isc_symtab_destroy(&symtab);
 
  cleanup:
 	if (symtab != NULL)

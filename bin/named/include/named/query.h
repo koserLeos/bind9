@@ -75,6 +75,8 @@ struct ns_query {
 		isc_boolean_t		is_zone;
 	} redirect;
 
+	isc_result_t			resp_result;
+	dns_fixedname_t			fname;
 };
 
 #define NS_QUERYATTR_RECURSIONOK	0x0001
@@ -107,5 +109,8 @@ ns_query_start(ns_client_t *client);
 
 void
 ns_query_cancel(ns_client_t *client);
+
+void
+ns_query_incstats(ns_client_t *client, isc_statscounter_t counter);
 
 #endif /* NAMED_QUERY_H */

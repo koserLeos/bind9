@@ -15,3 +15,4 @@ rm -f ns3/bl*.db */*.jnl */*.core */*.pid
 rm -f ns*/named.lock
 rm -f ns*/named.conf
 rm -f broken.out
+rm -f ns2/rate-limit.conf ns2/*.stats

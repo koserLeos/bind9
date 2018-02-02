@@ -23,3 +23,12 @@
 			  and retrieval of data tagged with ECS information.
 
 			See the ARM for more details of these options.
+
+3712.	[func]		Support for multiple response rate limiting
+			bands, allowing a different number of responses
+			per second depending on the response size or
+			the ratio of response size to query size.
+			[RT #34962]
+
+3711.	[func]		Support for multiple response rate limiters,
+			selected according to query name. [RT # 32867]

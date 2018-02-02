@@ -1563,11 +1563,36 @@ static cfg_type_t cfg_type_catz = {
 	cfg_doc_kv_tuple, &cfg_rep_tuple, catz_fields
 };
 
+static keyword_type_t size_kw = { "size", &cfg_type_uint32 };
+static cfg_type_t cfg_type_optional_size = {
+	"optional_size", parse_optional_keyvalue, print_keyvalue,
+	doc_optional_keyvalue, &cfg_rep_uint32, &size_kw
+};
+
+static keyword_type_t ratio_kw = { "ratio", &cfg_type_fixedpoint };
+static cfg_type_t cfg_type_optional_ratio = {
+	"optional_ratio", parse_optional_keyvalue, print_keyvalue,
+	doc_optional_keyvalue, &cfg_rep_fixedpoint, &ratio_kw
+};
+
+static cfg_tuplefielddef_t rrlrps_fields[] = {
+	{ "size", &cfg_type_optional_size, 0 },
+	{ "ratio", &cfg_type_optional_ratio, 0 },
+	{ "responses", &cfg_type_uint32, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_rrlrps = {
+	"nameport", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, rrlrps_fields
+};
+
 /*
  * rate-limit
  */
 static cfg_clausedef_t rrl_clauses[] = {
 	{ "all-per-second", &cfg_type_uint32, 0 },
+	{ "domain", &cfg_type_astring, CFG_CLAUSEFLAG_MULTI },
 	{ "errors-per-second", &cfg_type_uint32, 0 },
 	{ "exempt-clients", &cfg_type_bracketed_aml, 0 },
 	{ "ipv4-prefix-length", &cfg_type_uint32, 0 },
@@ -1579,7 +1604,7 @@ static cfg_clausedef_t rrl_clauses[] = {
 	{ "nxdomains-per-second", &cfg_type_uint32, 0 },
 	{ "qps-scale", &cfg_type_uint32, 0 },
 	{ "referrals-per-second", &cfg_type_uint32, 0 },
-	{ "responses-per-second", &cfg_type_uint32, 0 },
+	{ "responses-per-second", &cfg_type_rrlrps, CFG_CLAUSEFLAG_MULTI },
 	{ "slip", &cfg_type_uint32, 0 },
 	{ "window", &cfg_type_uint32, 0 },
 	{ NULL, NULL, 0 }
@@ -1589,9 +1614,50 @@ static cfg_clausedef_t *rrl_clausesets[] = {
 	rrl_clauses, NULL
 };
 
-static cfg_type_t cfg_type_rrl = {
-	"rate-limit", cfg_parse_map, cfg_print_map, cfg_doc_map,
+static isc_result_t
+parse_optional_astring(cfg_parser_t *pctx, const cfg_type_t *type,
+		       cfg_obj_t **ret)
+{
+	isc_result_t result;
+	UNUSED(type);
+
+	CHECK(cfg_peektoken(pctx, CFG_LEXOPT_QSTRING));
+	if (pctx->token.type == isc_tokentype_string ||
+	    pctx->token.type == isc_tokentype_qstring)
+	{
+		CHECK(cfg_parse_obj(pctx, &cfg_type_astring, ret));
+	} else {
+		CHECK(cfg_parse_obj(pctx, &cfg_type_void, ret));
+	}
+ cleanup:
+	return (result);
+}
+
+static void
+doc_optional_astring(cfg_printer_t *pctx, const cfg_type_t *type) {
+	UNUSED(type);
+	cfg_print_cstr(pctx, "[ <string> ]");
+}
+
+static cfg_type_t cfg_type_optional_astring = {
+	"optional_astring", parse_optional_astring, NULL, doc_optional_astring,
+	&cfg_rep_string, NULL
+};
+
+static cfg_type_t cfg_type_rrlopts = {
+	"rate-limit-options", cfg_parse_map, cfg_print_map, cfg_doc_map,
 	&cfg_rep_map, rrl_clausesets
+};
+
+static cfg_tuplefielddef_t rrl_fields[] = {
+	{ "name", &cfg_type_optional_astring, 0 },
+	{ "options", &cfg_type_rrlopts, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_rrl = {
+	"rate-limit", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
+	&cfg_rep_tuple, rrl_fields
 };
 
 /*%
@@ -1805,7 +1871,7 @@ view_clauses[] = {
 	{ "queryport-pool-ports", &cfg_type_uint32, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "queryport-pool-updateinterval", &cfg_type_uint32,
 	  CFG_CLAUSEFLAG_OBSOLETE },
-	{ "rate-limit", &cfg_type_rrl, 0 },
+	{ "rate-limit", &cfg_type_rrl, CFG_CLAUSEFLAG_MULTI },
 	{ "recursion", &cfg_type_boolean, 0 },
 	{ "request-nsid", &cfg_type_boolean, 0 },
 	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },

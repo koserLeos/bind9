@@ -122,6 +122,14 @@ enum {
 
 	dns_cachestatscounter_max = 7,
 
+	/*
+	 * Rate limit values.
+	 */
+	dns_rrlstats_dropped = 0,
+	dns_rrlstats_slipped = 1,
+
+	dns_rrlstats_max = 2,
+
 	/*%
 	 * Query statistics counters (obsolete).
 	 */

@@ -18,13 +18,14 @@
  */
 
 #include <isc/lang.h>
+#include <isc/stats.h>
 
 #include <dns/fixedname.h>
 #include <dns/rdata.h>
+#include <dns/stats.h>
 #include <dns/types.h>
 
 ISC_LANG_BEGINDECLS
-
 
 /*
  * Memory allocation or other failures.
@@ -72,6 +73,10 @@ typedef enum {
 	DNS_RRL_RTYPE_ERROR,
 	DNS_RRL_RTYPE_ALL,
 	DNS_RRL_RTYPE_TCP,
+	DNS_RRL_RTYPE_BAND1,
+	DNS_RRL_RTYPE_BAND2,
+	DNS_RRL_RTYPE_BAND3,
+	DNS_RRL_RTYPE_BAND4,
 } dns_rrl_rtype_t;
 
 /*
@@ -90,8 +95,8 @@ struct dns__rrl_key {
 	isc_uint32_t	    qname_hash;
 	dns_rdatatype_t	    qtype;
 	isc_uint8_t         qclass;
-	unsigned int	    rtype   :4; /* dns_rrl_rtype_t */
-	unsigned int	    ipv6    :1;
+	dns_rrl_rtype_t	    rtype   :5; /* 4 bits + sign bit */
+	isc_boolean_t	    ipv6    :1;
 };
 union dns_rrl_key {
 	struct dns__rrl_key s;
@@ -194,6 +199,7 @@ struct dns_rrl_rate {
 	const char  *str;
 };
 
+#define DNS_RRL_BANDS 4
 /*
  * Per-view query rate limit parameters and a pointer to database.
  */
@@ -201,15 +207,19 @@ typedef struct dns_rrl dns_rrl_t;
 struct dns_rrl {
 	isc_mutex_t	lock;
 	isc_mem_t	*mctx;
+	char		*name;
 
 	isc_boolean_t	log_only;
 	dns_rrl_rate_t	responses_per_second;
+	dns_rrl_rate_t	responses_per_second_band[DNS_RRL_BANDS];
 	dns_rrl_rate_t	referrals_per_second;
 	dns_rrl_rate_t	nodata_per_second;
 	dns_rrl_rate_t	nxdomains_per_second;
 	dns_rrl_rate_t	errors_per_second;
 	dns_rrl_rate_t	all_per_second;
 	dns_rrl_rate_t	slip;
+	isc_uint16_t	sizes[DNS_RRL_BANDS];
+	isc_uint32_t	ratios[DNS_RRL_BANDS];
 	int		window;
 	double		qps_scale;
 	int		max_entries;
@@ -248,12 +258,14 @@ struct dns_rrl {
 	ISC_LIST(dns_rrl_qname_buf_t) qname_free;
 # define DNS_RRL_QNAMES	    (1<<DNS_RRL_QNAMES_BITS)
 	dns_rrl_qname_buf_t *qnames[DNS_RRL_QNAMES];
+	isc_stats_t	*stats;
 };
 
 typedef enum {
 	DNS_RRL_RESULT_OK,
 	DNS_RRL_RESULT_DROP,
 	DNS_RRL_RESULT_SLIP,
+	DNS_RRL_RESULT_LOGONLY,
 } dns_rrl_result_t;
 
 dns_rrl_result_t
@@ -261,7 +273,8 @@ dns_rrl(dns_view_t *view,
 	const isc_sockaddr_t *client_addr, isc_boolean_t is_tcp,
 	dns_rdataclass_t rdclass, dns_rdatatype_t qtype,
 	dns_name_t *qname, isc_result_t resp_result, isc_stdtime_t now,
-	isc_boolean_t wouldlog, char *log_buf, unsigned int log_buf_len);
+	isc_uint32_t ratio, isc_uint16_t size, isc_boolean_t wouldlog,
+	isc_boolean_t error, char *log_buf, unsigned int log_buf_len);
 
 void
 dns_rrl_view_destroy(dns_view_t *view);
