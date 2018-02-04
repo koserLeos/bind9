@@ -1387,15 +1387,15 @@ free_rbtdb(dns_rbtdb_t *rbtdb, isc_boolean_t log, isc_event_t *event) {
 		isc_file_munmap(rbtdb->mmap_location,
 				(size_t) rbtdb->mmap_size);
 
-        for (listener = ISC_LIST_HEAD(rbtdb->common.update_listeners);
-             listener != NULL;
-             listener = listener_next)
-        {
-                listener_next = ISC_LIST_NEXT(listener, link);
-                ISC_LIST_UNLINK(rbtdb->common.update_listeners, listener, link);
-                isc_mem_put(rbtdb->common.mctx, listener,
-                            sizeof(dns_dbonupdatelistener_t));
-        }
+	for (listener = ISC_LIST_HEAD(rbtdb->common.update_listeners);
+	     listener != NULL;
+	     listener = listener_next)
+	{
+		listener_next = ISC_LIST_NEXT(listener, link);
+		ISC_LIST_UNLINK(rbtdb->common.update_listeners, listener, link);
+		isc_mem_put(rbtdb->common.mctx, listener,
+			    sizeof(dns_dbonupdatelistener_t));
+	}
 
 	isc_mem_putanddetach(&rbtdb->common.mctx, rbtdb, sizeof(*rbtdb));
 	isc_ondestroy_notify(&ondest, rbtdb);
@@ -7338,7 +7338,7 @@ add32(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 							 newheader, link);
 				INSIST(rbtdb->heaps != NULL);
 				result = isc_heap_insert(rbtdb->heaps[idx],
-						         newheader);
+							 newheader);
 				if (result != ISC_R_SUCCESS) {
 					free_rdataset(rbtdb,
 						      rbtdb->common.mctx,
@@ -7381,7 +7381,7 @@ add32(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 			if (IS_CACHE(rbtdb)) {
 				INSIST(rbtdb->heaps != NULL);
 				result = isc_heap_insert(rbtdb->heaps[idx],
-						         newheader);
+							 newheader);
 				if (result != ISC_R_SUCCESS) {
 					free_rdataset(rbtdb,
 						      rbtdb->common.mctx,
@@ -8127,7 +8127,7 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 			init_rdataset(rbtdb, newheader);
 			update_newheader(newheader, header);
 			if (RESIGN(header)) {
-			        newheader->attributes |= RDATASET_ATTR_RESIGN;
+				newheader->attributes |= RDATASET_ATTR_RESIGN;
 				newheader->resign = header->resign;
 				newheader->resign_lsb = header->resign_lsb;
 				result = resign_insert(rbtdb, rbtnode->locknum,
@@ -9266,7 +9266,7 @@ getnsec3parameters(dns_db_t *db, dns_dbversion_t *version, dns_hash_t *hash,
 
 static isc_result_t
 getsize(dns_db_t *db, dns_dbversion_t *version, isc_uint64_t *records,
-        isc_uint64_t *bytes)
+	isc_uint64_t *bytes)
 {
 	dns_rbtdb_t *rbtdb;
 	isc_result_t result = ISC_R_SUCCESS;

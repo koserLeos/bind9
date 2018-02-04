@@ -22,7 +22,7 @@ typedef struct isc_ht isc_ht_t;
 typedef struct isc_ht_iter isc_ht_iter_t;
 
 /*%
- * Initialize hashtable at *htp, using memory context and size of (1<<bits)
+ * Initialize hashtable at *htp, using memory context and size of (<<bits)
  *
  * Requires:
  *\li	htp is not NULL

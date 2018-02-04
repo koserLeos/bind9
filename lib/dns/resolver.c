@@ -5175,7 +5175,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 							       vevent->type, 0,
 							       &cm,
 							       ecs
-							        ? &ci
+								? &ci
 								: NULL);
 			}
 
@@ -5910,7 +5910,7 @@ cache_name(fetchctx_t *fctx, resquery_t *query, dns_section_t section,
 							       options,
 							       &cm,
 							       type_ecs
-							        ? &ci
+								? &ci
 								: NULL,
 							       addedrdataset);
 				if (result == DNS_R_UNCHANGED) {
@@ -5959,7 +5959,7 @@ cache_name(fetchctx_t *fctx, resquery_t *query, dns_section_t section,
 							       options,
 							       &cm,
 							       type_ecs
-							        ? &ci
+								? &ci
 								: NULL,
 							       addedrdataset);
 					if (result == DNS_R_UNCHANGED) {
@@ -6081,7 +6081,7 @@ cache_name(fetchctx_t *fctx, resquery_t *query, dns_section_t section,
 						       options,
 						       &cm,
 						       type_ecs
-						        ? &ci
+							? &ci
 							: NULL,
 						       addedrdataset);
 
