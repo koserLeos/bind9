@@ -1300,8 +1300,7 @@ static dns_dbmethods_t sdb_methods = {
 	NULL,			/* addrdatasetext */
 	NULL,			/* deleterdatasetext */
 	NULL,			/* expirenodeall */
-	NULL,			/* allrdatasetsext */
-	NULL			/* nodename */
+	NULL			/* allrdatasetsext */
 };
 
 static isc_result_t
