@@ -586,6 +586,7 @@ dns_message_resetsig
 dns_message_sectiontotext
 dns_message_setclass
 dns_message_setopt
+dns_message_setpadding
 dns_message_setquerytsig
 dns_message_setsig0key
 dns_message_setsortorder
@@ -708,6 +709,7 @@ dns_peer_getkey
 dns_peer_getmaxudp
 dns_peer_getnotifydscp
 dns_peer_getnotifysource
+dns_peer_getpadding
 dns_peer_getprovideixfr
 dns_peer_getquerydscp
 dns_peer_getquerysource
@@ -717,6 +719,7 @@ dns_peer_getrequestnsid
 dns_peer_getsendcookie
 dns_peer_getsupportecs
 dns_peer_getsupportedns
+dns_peer_gettcpkeepalive
 dns_peer_gettransferdscp
 dns_peer_gettransferformat
 dns_peer_gettransfers
@@ -732,6 +735,7 @@ dns_peer_setkeybycharp
 dns_peer_setmaxudp
 dns_peer_setnotifydscp
 dns_peer_setnotifysource
+dns_peer_setpadding
 dns_peer_setprovideixfr
 dns_peer_setquerydscp
 dns_peer_setquerysource
@@ -741,6 +745,7 @@ dns_peer_setrequestnsid
 dns_peer_setsendcookie
 dns_peer_setsupportecs
 dns_peer_setsupportedns
+dns_peer_settcpkeepalive
 dns_peer_settransferdscp
 dns_peer_settransferformat
 dns_peer_settransfers
