@@ -1,3 +1,12 @@
+Copyright (C) 2018  Internet Systems Consortium, Inc. ("ISC")
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+See the COPYRIGHT file distributed with this work for additional
+information regarding copyright ownership.
+
 "pkcs11-hmacmd5" is here to check for the presence of a known bug in
 the Thales nCipher PKCS#11 provider library.  To test for the bug, use
 pkcs11-hmacmd5 to hash a test vector from RFC 2104, and determine

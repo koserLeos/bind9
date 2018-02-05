@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id: control.h,v 1.38 2012/01/31 23:47:31 tbox Exp $ */
-
 #ifndef NAMED_CONTROL_H
 #define NAMED_CONTROL_H 1
 

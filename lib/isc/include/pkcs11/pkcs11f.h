@@ -1,4 +1,15 @@
 /*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+/*
  * PKCS #11 Cryptographic Token Interface Base Specification Version 2.40 Errata 01
  * Committee Specification Draft 01 / Public Review Draft 01
  * 09 December 2015
@@ -22,9 +33,9 @@ CK_PKCS11_FUNCTION_INFO(C_Initialize)
 #ifdef CK_NEED_ARG_LIST
 (
   CK_VOID_PTR   pInitArgs  /* if this is not NULL_PTR, it gets
-                            * cast to CK_C_INITIALIZE_ARGS_PTR
-                            * and dereferenced
-                            */
+			    * cast to CK_C_INITIALIZE_ARGS_PTR
+			    * and dereferenced
+			    */
 );
 #endif
 
@@ -54,8 +65,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetFunctionList)
 #ifdef CK_NEED_ARG_LIST
 (
   CK_FUNCTION_LIST_PTR_PTR ppFunctionList  /* receives pointer to
-                                            * function list
-                                            */
+					    * function list
+					    */
 );
 #endif
 

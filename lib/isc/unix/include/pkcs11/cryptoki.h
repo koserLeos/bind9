@@ -1,3 +1,14 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
 /* cryptoki.h include file for PKCS #11. */
 /*
  * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
@@ -25,10 +36,10 @@
 
  * License is also granted to make and use derivative works provided that
  * such works are identified as "derived from the RSA Security Inc. PKCS #11
- * Cryptographic Token Interface (Cryptoki)" in all material mentioning or 
+ * Cryptographic Token Interface (Cryptoki)" in all material mentioning or
  * referencing the derived work.
 
- * RSA Security Inc. makes no representations concerning either the 
+ * RSA Security Inc. makes no representations concerning either the
  * merchantability of this software or the suitability of this software for
  * any particular purpose. It is provided "as is" without express or implied
  * warranty of any kind.

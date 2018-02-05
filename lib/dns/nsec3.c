@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id$ */
-
 #include <config.h>
 
 #include <isc/base32.h>

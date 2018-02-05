@@ -9,9 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/*
- * $Id$
- */
 /*! \file */
 #include <config.h>
 #include <stdlib.h>

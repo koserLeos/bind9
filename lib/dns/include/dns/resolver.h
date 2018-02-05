@@ -104,10 +104,10 @@ typedef enum {
 #define DNS_FETCHOPT_NONTA		0x0400	     /*%< Ignore NTA table. */
 
 #define DNS_FETCHOPT_ECSPRIVATE		0x0800	     /*%< ECS privacy
-						          requested. */
+							  requested. */
 #define DNS_FETCHOPT_SENDECS		0x1000	     /*%< Send an ECS option. */
 #define DNS_FETCHOPT_RETURNECS		0x2000	     /*%< Return ECS to
-						          client. */
+							  client. */
 #define DNS_FETCHOPT_TCPCLIENT		0x4000	     /*%< Client uses TCP */
 #define DNS_FETCHOPT_NOCACHED		0x8000	     /*%< Force cache update. */
 

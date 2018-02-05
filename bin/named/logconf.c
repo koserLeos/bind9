@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id: logconf.c,v 1.45 2011/03/05 23:52:29 tbox Exp $ */
-
 /*! \file */
 
 #include <config.h>

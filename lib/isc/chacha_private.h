@@ -1,4 +1,15 @@
 /*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+/*
  * Taken from OpenBSD CVS src/lib/libc/crypt/chacha_private.h on
  * May 12, 2014.
  */
@@ -214,7 +225,7 @@ chacha_encrypt_bytes(chacha_ctx *x,const u8 *m,u8 *c,u32 bytes)
 
     if (bytes <= 64) {
       if (bytes < 64) {
-        for (i = 0;i < bytes;++i) ctarget[i] = c[i];
+	for (i = 0;i < bytes;++i) ctarget[i] = c[i];
       }
       x->input[12] = j12;
       x->input[13] = j13;

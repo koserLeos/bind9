@@ -1,4 +1,15 @@
 /*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+/*
  * PKCS #11 Cryptographic Token Interface Base Specification Version 2.40 Errata 01
  * Committee Specification Draft 01 / Public Review Draft 01
  * 09 December 2015
@@ -1268,11 +1279,11 @@ typedef CK_RSA_PKCS_OAEP_SOURCE_TYPE CK_PTR CK_RSA_PKCS_OAEP_SOURCE_TYPE_PTR;
  * CKM_RSA_PKCS_OAEP mechanism.
  */
 typedef struct CK_RSA_PKCS_OAEP_PARAMS {
-        CK_MECHANISM_TYPE hashAlg;
-        CK_RSA_PKCS_MGF_TYPE mgf;
-        CK_RSA_PKCS_OAEP_SOURCE_TYPE source;
-        CK_VOID_PTR pSourceData;
-        CK_ULONG ulSourceDataLen;
+	CK_MECHANISM_TYPE hashAlg;
+	CK_RSA_PKCS_MGF_TYPE mgf;
+	CK_RSA_PKCS_OAEP_SOURCE_TYPE source;
+	CK_VOID_PTR pSourceData;
+	CK_ULONG ulSourceDataLen;
 } CK_RSA_PKCS_OAEP_PARAMS;
 
 typedef CK_RSA_PKCS_OAEP_PARAMS CK_PTR CK_RSA_PKCS_OAEP_PARAMS_PTR;
@@ -1281,9 +1292,9 @@ typedef CK_RSA_PKCS_OAEP_PARAMS CK_PTR CK_RSA_PKCS_OAEP_PARAMS_PTR;
  * CKM_RSA_PKCS_PSS mechanism(s).
  */
 typedef struct CK_RSA_PKCS_PSS_PARAMS {
-        CK_MECHANISM_TYPE    hashAlg;
-        CK_RSA_PKCS_MGF_TYPE mgf;
-        CK_ULONG             sLen;
+	CK_MECHANISM_TYPE    hashAlg;
+	CK_RSA_PKCS_MGF_TYPE mgf;
+	CK_ULONG             sLen;
 } CK_RSA_PKCS_PSS_PARAMS;
 
 typedef CK_RSA_PKCS_PSS_PARAMS CK_PTR CK_RSA_PKCS_PSS_PARAMS_PTR;
@@ -1718,7 +1729,7 @@ typedef CK_EXTRACT_PARAMS CK_PTR CK_EXTRACT_PARAMS_PTR;
 typedef CK_ULONG CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE;
 
 typedef CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE CK_PTR \
-                        CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE_PTR;
+			CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE_PTR;
 
 #define CKP_PKCS5_PBKD2_HMAC_SHA1          0x00000001UL
 #define CKP_PKCS5_PBKD2_HMAC_GOSTR3411     0x00000002UL
@@ -1736,7 +1747,7 @@ typedef CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE CK_PTR \
 typedef CK_ULONG CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE;
 
 typedef CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE CK_PTR \
-                        CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE_PTR;
+			CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE_PTR;
 
 /* The following salt value sources are defined in PKCS #5 v2.0. */
 #define CKZ_SALT_SPECIFIED        0x00000001UL
@@ -1745,15 +1756,15 @@ typedef CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE CK_PTR \
  * parameters to the CKM_PKCS5_PBKD2 mechanism.
  */
 typedef struct CK_PKCS5_PBKD2_PARAMS {
-        CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE           saltSource;
-        CK_VOID_PTR                                pSaltSourceData;
-        CK_ULONG                                   ulSaltSourceDataLen;
-        CK_ULONG                                   iterations;
-        CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE prf;
-        CK_VOID_PTR                                pPrfData;
-        CK_ULONG                                   ulPrfDataLen;
-        CK_UTF8CHAR_PTR                            pPassword;
-        CK_ULONG_PTR                               ulPasswordLen;
+	CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE           saltSource;
+	CK_VOID_PTR                                pSaltSourceData;
+	CK_ULONG                                   ulSaltSourceDataLen;
+	CK_ULONG                                   iterations;
+	CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE prf;
+	CK_VOID_PTR                                pPrfData;
+	CK_ULONG                                   ulPrfDataLen;
+	CK_UTF8CHAR_PTR                            pPassword;
+	CK_ULONG_PTR                               ulPasswordLen;
 } CK_PKCS5_PBKD2_PARAMS;
 
 typedef CK_PKCS5_PBKD2_PARAMS CK_PTR CK_PKCS5_PBKD2_PARAMS_PTR;
@@ -1763,15 +1774,15 @@ typedef CK_PKCS5_PBKD2_PARAMS CK_PTR CK_PKCS5_PBKD2_PARAMS_PTR;
  * noting that the ulPasswordLen field is a CK_ULONG and not a CK_ULONG_PTR.
  */
 typedef struct CK_PKCS5_PBKD2_PARAMS2 {
-        CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE saltSource;
-        CK_VOID_PTR pSaltSourceData;
-        CK_ULONG ulSaltSourceDataLen;
-        CK_ULONG iterations;
-        CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE prf;
-        CK_VOID_PTR pPrfData;
-        CK_ULONG ulPrfDataLen;
-        CK_UTF8CHAR_PTR pPassword;
-        CK_ULONG ulPasswordLen;
+	CK_PKCS5_PBKDF2_SALT_SOURCE_TYPE saltSource;
+	CK_VOID_PTR pSaltSourceData;
+	CK_ULONG ulSaltSourceDataLen;
+	CK_ULONG iterations;
+	CK_PKCS5_PBKD2_PSEUDO_RANDOM_FUNCTION_TYPE prf;
+	CK_VOID_PTR pPrfData;
+	CK_ULONG ulPrfDataLen;
+	CK_UTF8CHAR_PTR pPassword;
+	CK_ULONG ulPasswordLen;
 } CK_PKCS5_PBKD2_PARAMS2;
 
 typedef CK_PKCS5_PBKD2_PARAMS2 CK_PTR CK_PKCS5_PBKD2_PARAMS2_PTR;
@@ -1893,7 +1904,7 @@ typedef struct CK_CAMELLIA_CBC_ENCRYPT_DATA_PARAMS {
 } CK_CAMELLIA_CBC_ENCRYPT_DATA_PARAMS;
 
 typedef CK_CAMELLIA_CBC_ENCRYPT_DATA_PARAMS CK_PTR \
-                                CK_CAMELLIA_CBC_ENCRYPT_DATA_PARAMS_PTR;
+				CK_CAMELLIA_CBC_ENCRYPT_DATA_PARAMS_PTR;
 
 typedef struct CK_ARIA_CBC_ENCRYPT_DATA_PARAMS {
     CK_BYTE           iv[16];
@@ -1902,7 +1913,7 @@ typedef struct CK_ARIA_CBC_ENCRYPT_DATA_PARAMS {
 } CK_ARIA_CBC_ENCRYPT_DATA_PARAMS;
 
 typedef CK_ARIA_CBC_ENCRYPT_DATA_PARAMS CK_PTR \
-                                CK_ARIA_CBC_ENCRYPT_DATA_PARAMS_PTR;
+				CK_ARIA_CBC_ENCRYPT_DATA_PARAMS_PTR;
 
 typedef struct CK_DSA_PARAMETER_GEN_PARAM {
     CK_MECHANISM_TYPE  hash;
@@ -1940,7 +1951,7 @@ typedef struct CK_TLS12_MASTER_KEY_DERIVE_PARAMS {
 } CK_TLS12_MASTER_KEY_DERIVE_PARAMS;
 
 typedef CK_TLS12_MASTER_KEY_DERIVE_PARAMS CK_PTR \
-                                CK_TLS12_MASTER_KEY_DERIVE_PARAMS_PTR;
+				CK_TLS12_MASTER_KEY_DERIVE_PARAMS_PTR;
 
 typedef struct CK_TLS12_KEY_MAT_PARAMS {
     CK_ULONG                  ulMacSizeInBits;
@@ -2000,7 +2011,7 @@ typedef struct CK_SEED_CBC_ENCRYPT_DATA_PARAMS {
 } CK_SEED_CBC_ENCRYPT_DATA_PARAMS;
 
 typedef CK_SEED_CBC_ENCRYPT_DATA_PARAMS CK_PTR \
-                                        CK_SEED_CBC_ENCRYPT_DATA_PARAMS_PTR;
+					CK_SEED_CBC_ENCRYPT_DATA_PARAMS_PTR;
 
 #endif /* _PKCS11T_H_ */
 

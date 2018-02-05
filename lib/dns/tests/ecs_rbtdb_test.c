@@ -1,17 +1,12 @@
 /*
- * Copyright (C) 2016  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
- * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
- * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
- * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
- * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
- * PERFORMANCE OF THIS SOFTWARE.
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
  */
 
 /*! \file */
@@ -41,52 +36,52 @@
 
     Transaction ID: 0x0371
     Flags: 0x8503 Standard query response, No such name
-        1... .... .... .... = Response: Message is a response
-        .000 0... .... .... = Opcode: Standard query (0)
-        .... .1.. .... .... = Authoritative: Server is an authority for domain
-        .... ..0. .... .... = Truncated: Message is not truncated
-        .... ...1 .... .... = Recursion desired: Do query recursively
-        .... .... 0... .... = Recursion available: Server can't do recursive queries
-        .... .... .0.. .... = Z: reserved (0)
-        .... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
-        .... .... ...0 .... = Non-authenticated data: Unacceptable
-        .... .... .... 0011 = Reply code: No such name (3)
+	1... .... .... .... = Response: Message is a response
+	.000 0... .... .... = Opcode: Standard query (0)
+	.... .1.. .... .... = Authoritative: Server is an authority for domain
+	.... ..0. .... .... = Truncated: Message is not truncated
+	.... ...1 .... .... = Recursion desired: Do query recursively
+	.... .... 0... .... = Recursion available: Server can't do recursive queries
+	.... .... .0.. .... = Z: reserved (0)
+	.... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
+	.... .... ...0 .... = Non-authenticated data: Unacceptable
+	.... .... .... 0011 = Reply code: No such name (3)
     Questions: 1
     Answer RRs: 0
     Authority RRs: 1
     Additional RRs: 1
     Queries
-        nxdomain.example.org: type A, class IN
-            Name: nxdomain.example.org
-            [Name Length: 20]
-            [Label Count: 3]
-            Type: A (Host Address) (1)
-            Class: IN (0x0001)
+	nxdomain.example.org: type A, class IN
+	    Name: nxdomain.example.org
+	    [Name Length: 20]
+	    [Label Count: 3]
+	    Type: A (Host Address) (1)
+	    Class: IN (0x0001)
     Authoritative nameservers
-        example.org: type SOA, class IN, mname sns.dns.icann.org
-            Name: example.org
-            Type: SOA (Start Of a zone of Authority) (6)
-            Class: IN (0x0001)
-            Time to live: 3600
-            Data length: 42
-            Primary name server: sns.dns.icann.org
-            Responsible authority's mailbox: noc.dns.icann.org
-            Serial Number: 2015082600
-            Refresh Interval: 7200 (2 hours)
-            Retry Interval: 3600 (1 hour)
-            Expire limit: 1209600 (14 days)
-            Minimum TTL: 3600 (1 hour)
+	example.org: type SOA, class IN, mname sns.dns.icann.org
+	    Name: example.org
+	    Type: SOA (Start Of a zone of Authority) (6)
+	    Class: IN (0x0001)
+	    Time to live: 3600
+	    Data length: 42
+	    Primary name server: sns.dns.icann.org
+	    Responsible authority's mailbox: noc.dns.icann.org
+	    Serial Number: 2015082600
+	    Refresh Interval: 7200 (2 hours)
+	    Retry Interval: 3600 (1 hour)
+	    Expire limit: 1209600 (14 days)
+	    Minimum TTL: 3600 (1 hour)
     Additional records
-        <Root>: type OPT
-            Name: <Root>
-            Type: OPT (41)
-            UDP payload size: 4096
-            Higher bits in extended RCODE: 0x00
-            EDNS0 version: 0
-            Z: 0x0000
-                0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
-                .000 0000 0000 0000 = Reserved: 0x0000
-            Data length: 0
+	<Root>: type OPT
+	    Name: <Root>
+	    Type: OPT (41)
+	    UDP payload size: 4096
+	    Higher bits in extended RCODE: 0x00
+	    EDNS0 version: 0
+	    Z: 0x0000
+		0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
+		.000 0000 0000 0000 = Reserved: 0x0000
+	    Data length: 0
 */
 static unsigned char nxdomain_message[] = {
 	0x03, 0x71, 0x85, 0x03, 0x00, 0x01, 0x00, 0x00,
@@ -108,52 +103,52 @@ static unsigned char nxdomain_message[] = {
 
     Transaction ID: 0x0371
     Flags: 0x8503 Standard query response, No such name
-        1... .... .... .... = Response: Message is a response
-        .000 0... .... .... = Opcode: Standard query (0)
-        .... .1.. .... .... = Authoritative: Server is an authority for domain
-        .... ..0. .... .... = Truncated: Message is not truncated
-        .... ...1 .... .... = Recursion desired: Do query recursively
-        .... .... 0... .... = Recursion available: Server can't do recursive queries
-        .... .... .0.. .... = Z: reserved (0)
-        .... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
-        .... .... ...0 .... = Non-authenticated data: Unacceptable
-        .... .... .... 0011 = Reply code: No such name (3)
+	1... .... .... .... = Response: Message is a response
+	.000 0... .... .... = Opcode: Standard query (0)
+	.... .1.. .... .... = Authoritative: Server is an authority for domain
+	.... ..0. .... .... = Truncated: Message is not truncated
+	.... ...1 .... .... = Recursion desired: Do query recursively
+	.... .... 0... .... = Recursion available: Server can't do recursive queries
+	.... .... .0.. .... = Z: reserved (0)
+	.... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
+	.... .... ...0 .... = Non-authenticated data: Unacceptable
+	.... .... .... 0011 = Reply code: No such name (3)
     Questions: 1
     Answer RRs: 0
     Authority RRs: 1
     Additional RRs: 1
     Queries
-        nxdomain.example.org: type A, class IN
-            Name: nxdomain.example.org
-            [Name Length: 20]
-            [Label Count: 3]
-            Type: A (Host Address) (1)
-            Class: IN (0x0001)
+	nxdomain.example.org: type A, class IN
+	    Name: nxdomain.example.org
+	    [Name Length: 20]
+	    [Label Count: 3]
+	    Type: A (Host Address) (1)
+	    Class: IN (0x0001)
     Authoritative nameservers
-        example.org: type SOA, class IN, mname sns.dns.icann.org
-            Name: example.org
-            Type: SOA (Start Of a zone of Authority) (6)
-            Class: IN (0x0001)
-            Time to live: 1
-            Data length: 42
-            Primary name server: sns.dns.icann.org
-            Responsible authority's mailbox: noc.dns.icann.org
-            Serial Number: 2015082600
-            Refresh Interval: 7200 (2 hours)
-            Retry Interval: 3600 (1 hour)
-            Expire limit: 1209600 (14 days)
-            Minimum TTL: 1 (1 second)
+	example.org: type SOA, class IN, mname sns.dns.icann.org
+	    Name: example.org
+	    Type: SOA (Start Of a zone of Authority) (6)
+	    Class: IN (0x0001)
+	    Time to live: 1
+	    Data length: 42
+	    Primary name server: sns.dns.icann.org
+	    Responsible authority's mailbox: noc.dns.icann.org
+	    Serial Number: 2015082600
+	    Refresh Interval: 7200 (2 hours)
+	    Retry Interval: 3600 (1 hour)
+	    Expire limit: 1209600 (14 days)
+	    Minimum TTL: 1 (1 second)
     Additional records
-        <Root>: type OPT
-            Name: <Root>
-            Type: OPT (41)
-            UDP payload size: 4096
-            Higher bits in extended RCODE: 0x00
-            EDNS0 version: 0
-            Z: 0x0000
-                0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
-                .000 0000 0000 0000 = Reserved: 0x0000
-            Data length: 0
+	<Root>: type OPT
+	    Name: <Root>
+	    Type: OPT (41)
+	    UDP payload size: 4096
+	    Higher bits in extended RCODE: 0x00
+	    EDNS0 version: 0
+	    Z: 0x0000
+		0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
+		.000 0000 0000 0000 = Reserved: 0x0000
+	    Data length: 0
 */
 static unsigned char nxdomain_message_ttl_1[] = {
 	0x03, 0x71, 0x85, 0x03, 0x00, 0x01, 0x00, 0x00,
@@ -175,52 +170,52 @@ static unsigned char nxdomain_message_ttl_1[] = {
 
     Transaction ID: 0xa29a
     Flags: 0x8500 Standard query response, No error
-        1... .... .... .... = Response: Message is a response
-        .000 0... .... .... = Opcode: Standard query (0)
-        .... .1.. .... .... = Authoritative: Server is an authority for domain
-        .... ..0. .... .... = Truncated: Message is not truncated
-        .... ...1 .... .... = Recursion desired: Do query recursively
-        .... .... 0... .... = Recursion available: Server can't do recursive queries
-        .... .... .0.. .... = Z: reserved (0)
-        .... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
-        .... .... ...0 .... = Non-authenticated data: Unacceptable
-        .... .... .... 0000 = Reply code: No error (0)
+	1... .... .... .... = Response: Message is a response
+	.000 0... .... .... = Opcode: Standard query (0)
+	.... .1.. .... .... = Authoritative: Server is an authority for domain
+	.... ..0. .... .... = Truncated: Message is not truncated
+	.... ...1 .... .... = Recursion desired: Do query recursively
+	.... .... 0... .... = Recursion available: Server can't do recursive queries
+	.... .... .0.. .... = Z: reserved (0)
+	.... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
+	.... .... ...0 .... = Non-authenticated data: Unacceptable
+	.... .... .... 0000 = Reply code: No error (0)
     Questions: 1
     Answer RRs: 0
     Authority RRs: 1
     Additional RRs: 1
     Queries
-        example.org: type APL, class IN
-            Name: example.org
-            [Name Length: 11]
-            [Label Count: 2]
-            Type: APL (42)
-            Class: IN (0x0001)
+	example.org: type APL, class IN
+	    Name: example.org
+	    [Name Length: 11]
+	    [Label Count: 2]
+	    Type: APL (42)
+	    Class: IN (0x0001)
     Authoritative nameservers
-        example.org: type SOA, class IN, mname sns.dns.icann.org
-            Name: example.org
-            Type: SOA (Start Of a zone of Authority) (6)
-            Class: IN (0x0001)
-            Time to live: 3600
-            Data length: 42
-            Primary name server: sns.dns.icann.org
-            Responsible authority's mailbox: noc.dns.icann.org
-            Serial Number: 2015082600
-            Refresh Interval: 7200 (2 hours)
-            Retry Interval: 3600 (1 hour)
-            Expire limit: 1209600 (14 days)
-            Minimum TTL: 3600 (1 hour)
+	example.org: type SOA, class IN, mname sns.dns.icann.org
+	    Name: example.org
+	    Type: SOA (Start Of a zone of Authority) (6)
+	    Class: IN (0x0001)
+	    Time to live: 3600
+	    Data length: 42
+	    Primary name server: sns.dns.icann.org
+	    Responsible authority's mailbox: noc.dns.icann.org
+	    Serial Number: 2015082600
+	    Refresh Interval: 7200 (2 hours)
+	    Retry Interval: 3600 (1 hour)
+	    Expire limit: 1209600 (14 days)
+	    Minimum TTL: 3600 (1 hour)
     Additional records
-        <Root>: type OPT
-            Name: <Root>
-            Type: OPT (41)
-            UDP payload size: 4096
-            Higher bits in extended RCODE: 0x00
-            EDNS0 version: 0
-            Z: 0x0000
-                0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
-                .000 0000 0000 0000 = Reserved: 0x0000
-            Data length: 0
+	<Root>: type OPT
+	    Name: <Root>
+	    Type: OPT (41)
+	    UDP payload size: 4096
+	    Higher bits in extended RCODE: 0x00
+	    EDNS0 version: 0
+	    Z: 0x0000
+		0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
+		.000 0000 0000 0000 = Reserved: 0x0000
+	    Data length: 0
 */
 static unsigned char nxrrset_message[] = {
 	0xa2, 0x9a, 0x85, 0x00, 0x00, 0x01, 0x00, 0x00,
@@ -241,52 +236,52 @@ static unsigned char nxrrset_message[] = {
 
     Transaction ID: 0xa29a
     Flags: 0x8500 Standard query response, No error
-        1... .... .... .... = Response: Message is a response
-        .000 0... .... .... = Opcode: Standard query (0)
-        .... .1.. .... .... = Authoritative: Server is an authority for domain
-        .... ..0. .... .... = Truncated: Message is not truncated
-        .... ...1 .... .... = Recursion desired: Do query recursively
-        .... .... 0... .... = Recursion available: Server can't do recursive queries
-        .... .... .0.. .... = Z: reserved (0)
-        .... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
-        .... .... ...0 .... = Non-authenticated data: Unacceptable
-        .... .... .... 0000 = Reply code: No error (0)
+	1... .... .... .... = Response: Message is a response
+	.000 0... .... .... = Opcode: Standard query (0)
+	.... .1.. .... .... = Authoritative: Server is an authority for domain
+	.... ..0. .... .... = Truncated: Message is not truncated
+	.... ...1 .... .... = Recursion desired: Do query recursively
+	.... .... 0... .... = Recursion available: Server can't do recursive queries
+	.... .... .0.. .... = Z: reserved (0)
+	.... .... ..0. .... = Answer authenticated: Answer/authority portion was not authenticated by the server
+	.... .... ...0 .... = Non-authenticated data: Unacceptable
+	.... .... .... 0000 = Reply code: No error (0)
     Questions: 1
     Answer RRs: 0
     Authority RRs: 1
     Additional RRs: 1
     Queries
-        example.org: type APL, class IN
-            Name: example.org
-            [Name Length: 11]
-            [Label Count: 2]
-            Type: APL (42)
-            Class: IN (0x0001)
+	example.org: type APL, class IN
+	    Name: example.org
+	    [Name Length: 11]
+	    [Label Count: 2]
+	    Type: APL (42)
+	    Class: IN (0x0001)
     Authoritative nameservers
-        example.org: type SOA, class IN, mname sns.dns.icann.org
-            Name: example.org
-            Type: SOA (Start Of a zone of Authority) (6)
-            Class: IN (0x0001)
-            Time to live: 1
-            Data length: 42
-            Primary name server: sns.dns.icann.org
-            Responsible authority's mailbox: noc.dns.icann.org
-            Serial Number: 2015082600
-            Refresh Interval: 7200 (2 hours)
-            Retry Interval: 3600 (1 hour)
-            Expire limit: 1209600 (14 days)
-            Minimum TTL: 1 (1 second)
+	example.org: type SOA, class IN, mname sns.dns.icann.org
+	    Name: example.org
+	    Type: SOA (Start Of a zone of Authority) (6)
+	    Class: IN (0x0001)
+	    Time to live: 1
+	    Data length: 42
+	    Primary name server: sns.dns.icann.org
+	    Responsible authority's mailbox: noc.dns.icann.org
+	    Serial Number: 2015082600
+	    Refresh Interval: 7200 (2 hours)
+	    Retry Interval: 3600 (1 hour)
+	    Expire limit: 1209600 (14 days)
+	    Minimum TTL: 1 (1 second)
     Additional records
-        <Root>: type OPT
-            Name: <Root>
-            Type: OPT (41)
-            UDP payload size: 4096
-            Higher bits in extended RCODE: 0x00
-            EDNS0 version: 0
-            Z: 0x0000
-                0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
-                .000 0000 0000 0000 = Reserved: 0x0000
-            Data length: 0
+	<Root>: type OPT
+	    Name: <Root>
+	    Type: OPT (41)
+	    UDP payload size: 4096
+	    Higher bits in extended RCODE: 0x00
+	    EDNS0 version: 0
+	    Z: 0x0000
+		0... .... .... .... = DO bit: Cannot handle DNSSEC security RRs
+		.000 0000 0000 0000 = Reserved: 0x0000
+	    Data length: 0
 */
 static unsigned char nxrrset_message_ttl_1[] = {
 	0xa2, 0x9a, 0x85, 0x00, 0x00, 0x01, 0x00, 0x00,
