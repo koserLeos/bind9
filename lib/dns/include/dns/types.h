@@ -55,7 +55,6 @@ typedef struct dns_compress			dns_compress_t;
 typedef struct dns_db				dns_db_t;
 typedef struct dns_dbimplementation		dns_dbimplementation_t;
 typedef struct dns_dbiterator			dns_dbiterator_t;
-typedef struct dns_dbonupdatelistener		dns_dbonupdatelistener_t;
 typedef void					dns_dbload_t;
 typedef void					dns_dbnode_t;
 typedef struct dns_dbonupdatelistener		dns_dbonupdatelistener_t;
