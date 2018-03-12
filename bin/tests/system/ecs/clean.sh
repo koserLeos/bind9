@@ -13,7 +13,7 @@ rm -f dig.out.* named*.run ans.out.* run.out.* named*.pid
 rm -f */named.memstats */named.recursing */named.run */named.run.prev
 rm -f */ans.run */ans.run.prev
 rm -f */*.pyc
-rm -f ns5/named.conf
+rm -f */named.conf
 rm -f ns7/named_dump.db
 rm -f dumpdb.output
 rm -rf ans8/__pycache__

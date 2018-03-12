@@ -274,7 +274,7 @@ try: port=int(os.environ['PORT'])
 except: port=5300
 
 try: ctrlport=int(os.environ['EXTRAPORT1'])
-except: ctrlport=5300
+except: ctrlport=5301
 
 query4_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 query4_socket.bind((ip4, port))

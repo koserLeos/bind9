@@ -280,12 +280,17 @@ def sigterm(signum, frame):
 ############################################################################
 ip4 = "10.53.0.8"
 ip6 = "fd92:7065:b8e:ffff::8"
-sock = 5300
+
+try: port=int(os.environ['PORT'])
+except: port=5300
+
+try: ctrlport=int(os.environ['EXTRAPORT1'])
+except: ctrlport=5301
 
 try:
     query4_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        query4_socket.bind((ip4, sock))
+        query4_socket.bind((ip4, port))
     except socket.error as msg:
         query4_socket.close()
         query4_socket = None
@@ -293,13 +298,13 @@ except socket.error as msg:
     query4_socket = None
 
 if query4_socket is None:
-    print('unable to create %s port %d' % (ip4, sock))
+    print('unable to create %s port %d' % (ip4, port))
     sys.exit(1)
 
 try:
     query6_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     try:
-        query6_socket.bind((ip6, sock))
+        query6_socket.bind((ip6, port))
     except socket.error as msg:
         query6_socket.close()
         query6_socket = None
@@ -309,7 +314,7 @@ except socket.error as msg:
 try:
     ctrl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        ctrl_socket.bind((ip4, sock + 1))
+        ctrl_socket.bind((ip4, ctrlport))
         ctrl_socket.listen(5)
     except socket.error as msg:
         ctrl_socket.close()
@@ -318,7 +323,7 @@ except socket.error as msg:
     ctrl_socket = None
 
 if ctrl_socket is None:
-    print('unable to create %s port %d' % (ip4, sock + 1))
+    print('unable to create %s port %d' % (ip4, ctrlport))
     sys.exit(1)
 
 signal.signal(signal.SIGTERM, sigterm)
@@ -330,10 +335,10 @@ f.close()
 
 running = 1
 
-print ("Listening on %s port %d" % (ip4, sock))
+print ("Listening on %s port %d" % (ip4, port))
 if not query6_socket is None:
-     print ("Listening on %s port %d" % (ip6, sock))
-print ("Control channel on %s port %d" % (ip4, sock + 1))
+     print ("Listening on %s port %d" % (ip6, port))
+print ("Control channel on %s port %d" % (ip4, ctrlport))
 print ("Ctrl-c to quit")
 
 if query6_socket is None:

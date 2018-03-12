@@ -80,7 +80,7 @@ KRB5_CONFIG=/dev/null
 #
 # List of tests hard-coded to use ports 5300 and 9953. For this
 # reason, these must be run sequentially.
-SEQUENTIALDIRS="ecs ecdsa eddsa gost lwresd @PKCS11_TEST@ tkey"
+SEQUENTIALDIRS="ecdsa eddsa gost lwresd @PKCS11_TEST@ tkey"
 
 # List of tests that use ports assigned by caller (other than 5300
 # and 9953). Because separate blocks of ports can be used for teach
@@ -93,7 +93,7 @@ PARALLELDIRS="acl additional addzone allow-query autosign \
 	@CHECKDS@ @COVERAGE@ @KEYMGR@ \
 	cookie database digdelv dlv dlz dlzexternal \
 	dns64 dnssec @DNSTAP@ dscp dsdigest dyndb \
-	ednscompliance emptyzones \
+	ecs ednscompliance emptyzones \
 	fetchlimit filter-aaaa formerr forward \
 	geoip glue inline integrity ixfr \
 	legacy limits logfileconfig \
@@ -227,13 +227,13 @@ fi
 SYSTESTDIR="`basename $PWD`"
 
 echo_i() {
-    echo "$@" | while read LINE ; do
+    echo "$@" | while IFS= read -r LINE ; do
        echoinfo "I:$SYSTESTDIR:$LINE"
     done
 }
 
 cat_i() {
-    while read LINE ; do
+    while IFS= read -r LINE ; do
        echoinfo "I:$SYSTESTDIR:$LINE"
     done
 }

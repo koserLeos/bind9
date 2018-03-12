@@ -14,4 +14,8 @@ SYSTEMTESTTOP=..
 
 $SHELL clean.sh
 
-cp ns5/named1.conf ns5/named.conf
+copy_setports ns1/named.conf.in ns1/named.conf
+copy_setports ns4/named.conf.in ns4/named.conf
+copy_setports ns5/named1.conf.in ns5/named.conf
+copy_setports ns6/named.conf.in ns6/named.conf
+copy_setports ns7/named.conf.in ns7/named.conf

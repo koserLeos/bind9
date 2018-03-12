@@ -58,7 +58,7 @@ PARALLEL = rpzrecurse dnssec \
 	   @CHECKDS@ @COVERAGE@ @KEYMGR@ \
 	   cookie database digdelv dlv dlz dlzexternal \
 	   dns64 @DNSTAP@ dscp dsdigest dyndb \
-	   ednscompliance emptyzones \
+	   ecs ednscompliance emptyzones \
 	   fetchlimit filter-aaaa formerr forward \
 	   geoip glue inline integrity ixfr \
 	   legacy limits logfileconfig \
