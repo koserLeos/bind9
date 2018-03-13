@@ -728,6 +728,7 @@
 ./bin/tests/system/checkconf/bad-also-notify.conf	CONF-C	2012,2013,2018
 ./bin/tests/system/checkconf/bad-catz-zone.conf	CONF-C	2018
 ./bin/tests/system/checkconf/bad-dnssec.conf	CONF-C	2012,2013,2018
+./bin/tests/system/checkconf/bad-dnskey-validity.conf	CONF-C	2018
 ./bin/tests/system/checkconf/bad-errors-per-second.conf	CONF-C	2014,2018
 ./bin/tests/system/checkconf/bad-exempt-clients.conf	CONF-C	2014,2018
 ./bin/tests/system/checkconf/bad-hint.conf	CONF-C	2014,2018
@@ -770,6 +771,7 @@
 ./bin/tests/system/checkconf/bad-sharedzone1.conf	CONF-C	2018
 ./bin/tests/system/checkconf/bad-sharedzone2.conf	CONF-C	2018
 ./bin/tests/system/checkconf/bad-sharedzone3.conf	CONF-C	2018
+./bin/tests/system/checkconf/bad-sig-validity.conf	CONF-C	2018
 ./bin/tests/system/checkconf/bad-slip.conf	CONF-C	2014,2018
 ./bin/tests/system/checkconf/bad-table.conf	CONF-C	2014,2018
 ./bin/tests/system/checkconf/bad-to-many-responses.conf	CONF-C	2014,2018
