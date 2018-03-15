@@ -61,10 +61,10 @@ PARALLEL = rpzrecurse dnssec \
 	   ecs ednscompliance emptyzones \
 	   fetchlimit filter-aaaa formerr forward \
 	   geoip glue inline integrity ixfr \
-	   legacy limits logfileconfig \
+	   keepalive legacy limits logfileconfig \
 	   masterfile masterformat metadata mkeys \
 	   names notify nslookup nsupdate nzd2nzf \
-	   pending pipelined \
+	   padding pending pipelined \
 	   reclimit redirect resolver rndc rpz \
 	   rrchecker rrl rrsetorder rsabigexponent runtime \
 	   sfcache smartsign sortlist \
