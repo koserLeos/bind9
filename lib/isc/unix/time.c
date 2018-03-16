@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id$ */
-
 /*! \file */
 
 #include <config.h>
@@ -453,11 +451,18 @@ void
 isc_time_formatISO8601L(const isc_time_t *t, char *buf, unsigned int len) {
 	time_t now;
 	unsigned int flen;
+#ifdef ISC_PLATFORM_USETHREADS
+	struct tm tm;
+#endif
 
 	REQUIRE(len > 0);
 
 	now = (time_t)t->seconds;
+#ifdef ISC_PLATFORM_USETHREADS
+	flen = strftime(buf, len, "%Y-%m-%dT%H:%M:%S", localtime_r(&now, &tm));
+#else
 	flen = strftime(buf, len, "%Y-%m-%dT%H:%M:%S", localtime(&now));
+#endif
 	INSIST(flen < len);
 }
 
@@ -465,11 +470,18 @@ void
 isc_time_formatISO8601Lms(const isc_time_t *t, char *buf, unsigned int len) {
 	time_t now;
 	unsigned int flen;
+#ifdef ISC_PLATFORM_USETHREADS
+	struct tm tm;
+#endif
 
 	REQUIRE(len > 0);
 
 	now = (time_t)t->seconds;
+#ifdef ISC_PLATFORM_USETHREADS
+	flen = strftime(buf, len, "%Y-%m-%dT%H:%M:%S", localtime_r(&now, &tm));
+#else
 	flen = strftime(buf, len, "%Y-%m-%dT%H:%M:%S", localtime(&now));
+#endif
 	INSIST(flen < len);
 	if (flen > 0U && len - flen >= 6) {
 		snprintf(buf + flen, len - flen, ".%03u",

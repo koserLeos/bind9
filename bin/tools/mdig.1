@@ -1,4 +1,4 @@
-.\" Copyright (C) 2015-2017 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2018 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" This Source Code Form is subject to the terms of the Mozilla Public
 .\" License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -358,9 +358,7 @@ Send (don\*(Aqt send) an EDNS Client Subnet option with the specified IP address
 .sp
 \fBmdig +subnet=0\&.0\&.0\&.0/0\fR, or simply
 \fBmdig +subnet=0\fR
-for short, sends an EDNS client\-subnet option with an empty address and a source prefix\-length of zero, which signals a resolver that the client\*(Aqs address information must
-\fInot\fR
-be used when resolving this query\&.
+for short, sends an EDNS CLIENT\-SUBNET option with an empty address and a source prefix\-length of zero, which signals a resolver that the EDNS CLIENT\-SUBNET option should not be used when resolving this query\&.
 .RE
 .PP
 \fB+timeout=T\fR
@@ -404,5 +402,5 @@ RFC1035\&.
 \fBInternet Systems Consortium, Inc\&.\fR
 .SH "COPYRIGHT"
 .br
-Copyright \(co 2015-2017 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2018 Internet Systems Consortium, Inc. ("ISC")
 .br
