@@ -38,7 +38,7 @@ logging {
                 null;
                 print-category <boolean>;
                 print-severity <boolean>;
-                print-time <boolean>;
+                print-time ( local | iso8601 | iso8601-utc | <boolean> );
                 severity <log_severity>;
                 stderr;
                 syslog [ <syslog_facility> ];
@@ -153,7 +153,9 @@ options {
             resolver ) [ ( query | response ) ]; ... }; // not configured
         dnstap-identity ( <quoted_string> | none |
             hostname ); // not configured
-        dnstap-output ( file | unix ) <quoted_string>; // not configured
+        dnstap-output ( file | unix ) <quoted_string> [
+            size ( unlimited | <size> ) ] [ versions (
+            unlimited | <integer> ) ]; // not configured
         dnstap-version ( <quoted_string> | none ); // not configured
         dscp <integer>;
         dual-stack-servers [ port <integer> ] { ( <quoted_string> [ port
@@ -161,6 +163,12 @@ options {
             <integer> ] [ dscp <integer> ] | <ipv6_address> [ port
             <integer> ] [ dscp <integer> ] ); ... };
         dump-file <quoted_string>;
+        ecs-bits <integer> <integer>;
+        ecs-forward { <address_match_element>; ... };
+        ecs-privacy <boolean>;
+        ecs-types <rrtypelist>;
+        ecs-zones { <ecs_domain_name> [ bits-v4 <integer> ] [ bits-v6
+            <integer> ]; ... };
         edns-udp-size <integer>;
         empty-contact <string>;
         empty-server <string>;
@@ -273,7 +281,7 @@ options {
         random-device <quoted_string>;
         rate-limit [ <string> ] {
                 all-per-second <integer>;
-                domain <string>;
+                domain <string>; // may occur multiple times
                 errors-per-second <integer>;
                 exempt-clients { <address_match_element>; ... };
                 ipv4-prefix-length <integer>;
@@ -285,11 +293,12 @@ options {
                 nxdomains-per-second <integer>;
                 qps-scale <integer>;
                 referrals-per-second <integer>;
-                responses-per-second [ size <integer> ] [ ratio
-                    <fixedpoint> ] <integer>;
+                responses-per-second [ size
+                    <integer> ] [ ratio
+                    <fixedpoint> ] <integer>; // may occur multiple times
                 slip <integer>;
                 window <integer>;
-        };
+        }; // may occur multiple times
         recursing-file <quoted_string>;
         recursion <boolean>;
         recursive-clients <integer>;
@@ -300,15 +309,17 @@ options {
         require-server-cookie <boolean>;
         reserved-sockets <integer>;
         resolver-query-timeout <integer>;
-        response-padding { <address_match_element>; ... }
-            block-size <integer>;
+        response-padding { <address_match_element>; ... } block-size
+            <integer>;
         response-policy { zone <quoted_string> [ log <boolean> ] [
             max-policy-ttl <integer> ] [ policy ( cname | disabled | drop |
             given | no-op | nodata | nxdomain | passthru | tcp-only
-            <quoted_string> ) ] [ recursive-only <boolean> ]; ... } [
-            break-dnssec <boolean> ] [ max-policy-ttl <integer> ] [
-            min-ns-dots <integer> ] [ nsip-wait-recurse <boolean> ] [
-            qname-wait-recurse <boolean> ] [ recursive-only <boolean> ];
+            <quoted_string> ) ] [ recursive-only <boolean> ] [
+            max-policy-ttl <integer> ] [ min-update-interval <integer> ];
+            ... } [ break-dnssec <boolean> ] [ max-policy-ttl <integer> ] [
+            min-update-interval <integer> ] [ min-ns-dots <integer> ] [
+            nsip-wait-recurse <boolean> ] [ qname-wait-recurse <boolean> ]
+            [ recursive-only <boolean> ];
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
         rrset-order { [ class <string> ] [ type <string> ] [ name
@@ -335,10 +346,10 @@ options {
         statistics-interval <integer>; // not yet implemented
         suppress-initial-notify <boolean>; // not yet implemented
         tcp-advertised-timeout <integer>;
+        tcp-clients <integer>;
         tcp-idle-timeout <integer>;
         tcp-initial-timeout <integer>;
         tcp-keepalive-timeout <integer>;
-        tcp-clients <integer>;
         tcp-listen-queue <integer>;
         tkey-dhkey <quoted_string> <integer>;
         tkey-domain <quoted_string>;
@@ -373,6 +384,7 @@ options {
 
 server <netprefix> {
         bogus <boolean>;
+        ecs <boolean>;
         edns <boolean>;
         edns-udp-size <integer>;
         edns-version <integer>;
@@ -396,8 +408,9 @@ server <netprefix> {
         request-sit <boolean>; // obsolete
         send-cookie <boolean>;
         support-ixfr <boolean>; // obsolete
-        tcp-only <boolean>;
         tcp-keepalive <boolean>;
+        tcp-only <boolean>;
+        tcp-only <boolean>;
         transfer-format ( many-answers | one-answer );
         transfer-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ] [
             dscp <integer> ];
@@ -503,6 +516,12 @@ view <string> [ <class> ] {
             <integer> ] [ dscp <integer> ] ); ... };
         dyndb <string> <quoted_string> {
             <unspecified-text> }; // may occur multiple times
+        ecs-bits <integer> <integer>;
+        ecs-forward { <address_match_element>; ... };
+        ecs-privacy <boolean>;
+        ecs-types <rrtypelist>;
+        ecs-zones { <ecs_domain_name> [ bits-v4 <integer> ] [ bits-v6
+            <integer> ]; ... };
         edns-udp-size <integer>;
         empty-contact <string>;
         empty-server <string>;
@@ -587,7 +606,7 @@ view <string> [ <class> ] {
         queryport-pool-updateinterval <integer>; // obsolete
         rate-limit [ <string> ] {
                 all-per-second <integer>;
-                domain <string>;
+                domain <string>; // may occur multiple times
                 errors-per-second <integer>;
                 exempt-clients { <address_match_element>; ... };
                 ipv4-prefix-length <integer>;
@@ -599,11 +618,12 @@ view <string> [ <class> ] {
                 nxdomains-per-second <integer>;
                 qps-scale <integer>;
                 referrals-per-second <integer>;
-                responses-per-second [ size <integer> ] [ ratio
-                    <fixedpoint> ] <integer>;
+                responses-per-second [ size
+                    <integer> ] [ ratio
+                    <fixedpoint> ] <integer>; // may occur multiple times
                 slip <integer>;
                 window <integer>;
-        };
+        }; // may occur multiple times
         recursion <boolean>;
         request-expire <boolean>;
         request-ixfr <boolean>;
@@ -611,13 +631,17 @@ view <string> [ <class> ] {
         request-sit <boolean>; // obsolete
         require-server-cookie <boolean>;
         resolver-query-timeout <integer>;
+        response-padding { <address_match_element>; ... } block-size
+            <integer>;
         response-policy { zone <quoted_string> [ log <boolean> ] [
             max-policy-ttl <integer> ] [ policy ( cname | disabled | drop |
             given | no-op | nodata | nxdomain | passthru | tcp-only
-            <quoted_string> ) ] [ recursive-only <boolean> ]; ... } [
-            break-dnssec <boolean> ] [ max-policy-ttl <integer> ] [
-            min-ns-dots <integer> ] [ nsip-wait-recurse <boolean> ] [
-            qname-wait-recurse <boolean> ] [ recursive-only <boolean> ];
+            <quoted_string> ) ] [ recursive-only <boolean> ] [
+            max-policy-ttl <integer> ] [ min-update-interval <integer> ];
+            ... } [ break-dnssec <boolean> ] [ max-policy-ttl <integer> ] [
+            min-update-interval <integer> ] [ min-ns-dots <integer> ] [
+            nsip-wait-recurse <boolean> ] [ qname-wait-recurse <boolean> ]
+            [ recursive-only <boolean> ];
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
         rrset-order { [ class <string> ] [ type <string> ] [ name
@@ -626,6 +650,7 @@ view <string> [ <class> ] {
         serial-update-method ( date | increment | unixtime );
         server <netprefix> {
                 bogus <boolean>;
+                ecs <boolean>;
                 edns <boolean>;
                 edns-udp-size <integer>;
                 edns-version <integer>;
@@ -635,6 +660,7 @@ view <string> [ <class> ] {
                     ) ] [ dscp <integer> ];
                 notify-source-v6 ( <ipv6_address> | * ) [ port ( <integer>
                     | * ) ] [ dscp <integer> ];
+                padding <integer>;
                 provide-ixfr <boolean>;
                 query-source ( ( [ address ] ( <ipv4_address> | * ) [ port
                     ( <integer> | * ) ] ) | ( [ [ address ] (
@@ -650,6 +676,8 @@ view <string> [ <class> ] {
                 request-sit <boolean>; // obsolete
                 send-cookie <boolean>;
                 support-ixfr <boolean>; // obsolete
+                tcp-keepalive <boolean>;
+                tcp-only <boolean>;
                 tcp-only <boolean>;
                 transfer-format ( many-answers | one-answer );
                 transfer-source ( <ipv4_address> | * ) [ port ( <integer> |

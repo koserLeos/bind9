@@ -11,8 +11,12 @@ tp: dh_test
 tp: dispatch_test
 tp: dnstap_test
 tp: dst_test
+tp: ecs_rbtdb_cachelimits_test
+tp: ecs_rbtdb_test
+tp: ecs_test
 tp: geoip_test
 tp: gost_test
+tp: iptree_test
 tp: keytable_test
 tp: master_test
 tp: name_test
