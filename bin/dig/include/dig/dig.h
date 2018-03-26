@@ -134,6 +134,7 @@ struct dig_lookup {
 		ednsneg,
 		mapped,
 		print_unknown_format,
+		idnin,
 		idnout;
 #ifdef DIG_SIGCHASE
 isc_boolean_t	sigchase;
@@ -297,7 +298,7 @@ extern char *progname;
 extern int tries;
 extern int fatalexit;
 extern isc_boolean_t verbose;
-#ifdef WITH_IDN
+#ifdef WITH_IDNKIT
 extern int idnoptions;
 #endif
 
