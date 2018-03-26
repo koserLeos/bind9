@@ -155,6 +155,8 @@
 #define EXCLBUFFERS 4096
 #endif /* TUNE_LARGE */
 
+#define MAX_TCP_TIMEOUT 65535
+
 /*%
  * Check an operation for failure.  Assumes that the function
  * using it has a 'result' variable and a 'cleanup' label.
@@ -8070,11 +8072,11 @@ load_configuration(const char *filename, ns_server_t *server,
 	result = ns_config_get(maps, "tcp-keepalive-timeout", &obj);
 	INSIST(result == ISC_R_SUCCESS);
 	ns_g_keepalivetimo = cfg_obj_asuint32(obj);
-	if (ns_g_keepalivetimo > 1200) {
+	if (ns_g_keepalivetimo > MAX_TCP_TIMEOUT) {
 		cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
 			    "tcp-keepalive-timeout value is out of range: "
-			    "lowering to 1200");
-		ns_g_keepalivetimo = 1200;
+			    "lowering to %u", MAX_TCP_TIMEOUT);
+		ns_g_keepalivetimo = MAX_TCP_TIMEOUT;
 	} else if (ns_g_keepalivetimo < 1) {
 		cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
 			    "tcp-keepalive-timeout value is out of range: "
@@ -8086,11 +8088,11 @@ load_configuration(const char *filename, ns_server_t *server,
 	result = ns_config_get(maps, "tcp-advertised-timeout", &obj);
 	INSIST(result == ISC_R_SUCCESS);
 	ns_g_advertisedtimo = cfg_obj_asuint32(obj);
-	if (ns_g_advertisedtimo > 1200) {
+	if (ns_g_advertisedtimo > MAX_TCP_TIMEOUT) {
 		cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
 			    "tcp-advertized-timeout value is out of range: "
-			    "lowering to 1200");
-		ns_g_advertisedtimo = 1200;
+			    "lowering to %u", MAX_TCP_TIMEOUT);
+		ns_g_advertisedtimo = MAX_TCP_TIMEOUT;
 	}
 
 	/*
@@ -14657,7 +14659,7 @@ ns_server_tcptimeouts(isc_lex_t *lex, isc_buffer_t **text) {
 		if (ptr == NULL)
 			return (ISC_R_UNEXPECTEDEND);
 		CHECK(isc_parse_uint32(&keepalive, ptr, 10));
-		if (keepalive > 1200)
+		if (keepalive > MAX_TCP_TIMEOUT)
 			CHECK(ISC_R_RANGE);
 		if (keepalive < 1)
 			CHECK(ISC_R_RANGE);
@@ -14666,7 +14668,7 @@ ns_server_tcptimeouts(isc_lex_t *lex, isc_buffer_t **text) {
 		if (ptr == NULL)
 			return (ISC_R_UNEXPECTEDEND);
 		CHECK(isc_parse_uint32(&advertised, ptr, 10));
-		if (advertised > 1200)
+		if (advertised > MAX_TCP_TIMEOUT)
 			CHECK(ISC_R_RANGE);
 
 		result = isc_task_beginexclusive(ns_g_server->task);

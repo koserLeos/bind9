@@ -1,3 +1,6 @@
+4796.	[bug]		Increase the maximum configurable TCP keepalive
+			timeout to 65535. [RT #44710]
+
 4650.	[bug]		The "log-only" rate-limiting option was being
 			processed incorrectly, causing rate-limiting to be
 			effective when it should only have been logged.
