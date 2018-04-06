@@ -1511,14 +1511,30 @@ notrace</strong></span>. All debugging messages in the server have a debug
             server's global debug level to determine what messages to print.
           </p>
           <p>
-            If <span class="command"><strong>print-time</strong></span> has been turned on,
-            then
-            the date and time will be logged. <span class="command"><strong>print-time</strong></span> may
+            <span class="command"><strong>print-time</strong></span> can be set to
+            <strong class="userinput"><code>yes</code></strong>, <strong class="userinput"><code>no</code></strong>,
+            or a time format specifier, which may be one of
+            <code class="option">local</code>, <code class="option">iso8601</code> or
+            <code class="option">iso8601-utc</code>.  If set to
+            <strong class="userinput"><code>no</code></strong>, then the date and time will
+            not be logged.  If set to <strong class="userinput"><code>yes</code></strong>
+            or <code class="option">local</code>, the date and time are logged
+            in a human readable format, using the local time zone.
+            If set to <code class="option">iso8601</code> the local time is
+            logged in ISO8601 format.  If set to
+            <code class="option">iso8601-utc</code>, then the date and time
+            are logged in ISO8601 format, with time zone set to
+            UTC. The default is <code class="option">local</code>.
+          </p>
+          <p>
+            <span class="command"><strong>print-time</strong></span> may
             be specified for a <span class="command"><strong>syslog</strong></span> channel,
-            but is usually
+            but it is usually
             pointless since <span class="command"><strong>syslog</strong></span> also logs
-            the date and
-            time. If <span class="command"><strong>print-category</strong></span> is
+            the date and time.
+          </p>
+          <p>
+            If <span class="command"><strong>print-category</strong></span> is
             requested, then the
             category of the message will be logged as well. Finally, if <span class="command"><strong>print-severity</strong></span> is
             on, then the severity level of the message will be logged. The <span class="command"><strong>print-</strong></span> options may
@@ -2978,6 +2994,19 @@ badresp:1,adberr:0,findfail:0,valfail:0]
                 the socket.)
               </p>
               <p>
+                If the first argument is <code class="literal">file</code>, then
+                two additional options can be added:
+                <span class="command"><strong>size</strong></span> indicates the size to which a
+                <span class="command"><strong>dnstap</strong></span> log file can grow before being
+                rolled to a new file, and <span class="command"><strong>versions</strong></span>
+                specifies the number of rolled log files to retain. These
+                are similar to the <span class="command"><strong>size</strong></span> and
+                <span class="command"><strong>versions</strong></span> options in a
+                <span class="command"><strong>logging</strong></span> channel.  The default
+                is to allow <span class="command"><strong>dnstap</strong></span> log files to grow to
+                any size without rolling.
+              </p>
+              <p>
                 <span class="command"><strong>dnstap-output</strong></span> can only be set globally
                 in <span class="command"><strong>options</strong></span>. Currently, it can only be
                 set once while <span class="command"><strong>named</strong></span> is running;
@@ -4083,12 +4112,7 @@ options {
 <dt><span class="term"><span class="command"><strong>geoip-use-ecs</strong></span></span></dt>
 <dd>
                 <p>
-                  When BIND is compiled with GeoIP support and configured
-                  with "geoip" ACL elements, this option indicates whether
-                  the EDNS Client Subnet option, if present in a request,
-                  should be used for matching against the GeoIP database.
-                  The default is
-                  <span class="command"><strong>geoip-use-ecs</strong></span> <strong class="userinput"><code>yes</code></strong>.
+                  See <a class="xref" href="Bv9ARM.ch06.html#ecs" title="EDNS CLIENT-SUBNET (ECS) Support">the section called &#8220;EDNS CLIENT-SUBNET (ECS) Support&#8221;</a>.
                 </p>
               </dd>
 <dt><span class="term"><span class="command"><strong>has-old-clients</strong></span></span></dt>
@@ -4343,6 +4367,45 @@ options {
                   shared secret is encoded as a hex string and needs
                   to be 128 bits for AES128, 160 bits for SHA1 and
                   256 bits for SHA256.
+                </p>
+              </dd>
+<dt><span class="term"><span class="command"><strong>response-padding</strong></span></span></dt>
+<dd>
+                <p>
+                  The EDNS Padding option is intended to improve
+                  confidentiality when DNS queries are sent over an
+                  encrypted channel by reducing the variability in
+                  packet sizes.  If a query:
+                  </p>
+<div class="orderedlist"><ol class="orderedlist" type="1">
+<li class="listitem">
+                      contains an EDNS Padding option,
+                    </li>
+<li class="listitem">
+                      includes a valid server cookie or uses TCP,
+                    </li>
+<li class="listitem">
+                      is <span class="emphasis"><em>not</em></span> signed using TSIG or
+                      SIG(0), and
+                    </li>
+<li class="listitem">
+                      is from a client whose address matches the specified ACL,
+                    </li>
+</ol></div>
+<p>
+                  then the response is padded with an EDNS Padding option
+                  to a multiple of <code class="varname">block-size</code> bytes.
+                  If these conditions are not met, the response is not
+                  padded.
+                </p>
+                <p>
+                  If <code class="varname">block-size</code> is 0 or the ACL is
+                  <span class="command"><strong>none;</strong></span>, then this feature is
+                  disabled and no padding will occur; this is the
+                  default.  If <code class="varname">block-size</code> is greater
+                  than 512, a warning is logged and the value is truncated
+                  to 512.  Block sizes are ordinarily expected to be powers
+                  of two (for instance, 128), but this is not mandatory.
                 </p>
               </dd>
 <dt><span class="term"><span class="command"><strong>rfc2308-type1</strong></span></span></dt>
@@ -6371,6 +6434,72 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   length to a system-defined default value.
                 </p>
               </dd>
+<dt><span class="term"><span class="command"><strong>tcp-initial-timeout</strong></span></span></dt>
+<dd>
+                <p>
+                  The amount of time (in units of 100 milliseconds) the
+                  server waits on a new TCP connection for the first message
+                  from the client. The default is 300 (30 seconds),
+                  the minimum is 25 (2.5 seconds), and the maximum is
+                  1200 (two minutes). Values above the maximum or below
+                  the minimum will be adjusted with a logged warning.
+                  (Note: This value must be greater than the expected
+                  round trip delay time; otherwise no client will ever
+                  have enough time to submit a message.)
+                  This value can be updated at runtime by using
+                  <span class="command"><strong>rndc tcp-timeouts</strong></span>.
+                </p>
+              </dd>
+<dt><span class="term"><span class="command"><strong>tcp-idle-timeout</strong></span></span></dt>
+<dd>
+                <p>
+                  The amount of time (in units of 100 milliseconds) the
+                  server waits on an idle TCP conenction before closing
+                  it when the client is not using the EDNS TCP keepalive
+                  option.  The default is 300 (30 seconds), the maximum
+                  is 1200 (two minutes), and the minimum is 1 (one tenth
+                  of a second). Values above the maximum or below the minimum
+                  will be adjusted with a logged warning.
+                  See <span class="command"><strong>tcp-keepalive-timeout</strong></span>
+                  for clients using the EDNS TCP keepalive option.
+                  This value can be updated at runtime by using
+                  <span class="command"><strong>rndc tcp-timeouts</strong></span>.
+                </p>
+              </dd>
+<dt><span class="term"><span class="command"><strong>tcp-keepalive-timeout</strong></span></span></dt>
+<dd>
+                <p>
+                  The amount of time (in units of 100 milliseconds) the
+                  server waits on an idle TCP conenction before closing
+                  it when the client is using the EDNS TCP keepalive
+                  option.  The default is 300 (30 seconds), the maximum
+                  is 65535 (about 1.8 hours), and the minimum is 1 (one tenth
+                  of a second). Values above the maximum or below the minimum
+                  will be adjusted with a logged warning.
+                  This value may be greater than
+                  <span class="command"><strong>tcp-idle-timeout</strong></span>, because
+                  clients using the EDNS TCP keepalive option are expected
+                  to use TCP connections for more than one message.
+                  This value can be updated at runtime by using
+                  <span class="command"><strong>rndc tcp-timeouts</strong></span>.
+                </p>
+              </dd>
+<dt><span class="term"><span class="command"><strong>tcp-advertised-timeout</strong></span></span></dt>
+<dd>
+                <p>
+                  The timeout value (in units of 100 milliseconds) the
+                  server will send in respones containing the EDNS TCP
+                  keepalive option. This informs a client of the
+                  amount of time it may keep the session open.
+                  The default is 300 (30 seconds), the maximum is
+                  65535 (about 1.8 hours), and the minimum is 0, which
+                  signals that the clients must close TCP connections
+                  immediately.  Ordinarily this should be set to the
+                  same value as <span class="command"><strong>tcp-keepalive-timeout</strong></span>.
+                  This value can be updated at runtime by using
+                  <span class="command"><strong>rndc tcp-timeouts</strong></span>.
+                </p>
+              </dd>
 </dl></div>
 
         </div>
@@ -8093,13 +8222,15 @@ example.com                 CNAME   rpz-tcp-only.
           <p>
             All non-empty responses for a valid domain name (qname)
             and record type (qtype) are identical and have a limit specified
-            with <span class="command"><strong>responses-per-second</strong></span>
-            (default 0 or no limit).
+            by the base <span class="command"><strong>responses-per-second</strong></span> option
+            (that is, <span class="command"><strong>responses-per-second</strong></span> with only a
+            single argument and no additional modifiers).
+            The default is 0, which indicates that there should be no limit.
             All empty (NODATA) responses for a valid domain,
             regardless of query type, are identical.
             Responses in the NODATA class are limited by
             <span class="command"><strong>nodata-per-second</strong></span>
-            (default <span class="command"><strong>responses-per-second</strong></span>).
+            (default base <span class="command"><strong>responses-per-second</strong></span>).
             Requests for any and all undefined subdomains of a given
             valid domain result in NXDOMAIN errors, and are identical
             regardless of query type.
@@ -8112,7 +8243,7 @@ example.com                 CNAME   rpz-tcp-only.
             Referrals or delegations to the server of a given
             domain are identical and are limited by
             <span class="command"><strong>referrals-per-second</strong></span>
-            (default <span class="command"><strong>responses-per-second</strong></span>).
+            (default base <span class="command"><strong>responses-per-second</strong></span>).
           </p>
 
           <p>
@@ -8128,9 +8259,75 @@ example.com                 CNAME   rpz-tcp-only.
             This controls attacks using invalid requests or distant,
             broken authoritative servers.
             By default the limit on errors is the same as the
-            <span class="command"><strong>responses-per-second</strong></span> value,
+            default base <span class="command"><strong>responses-per-second</strong></span> value,
             but it can be set separately with
             <span class="command"><strong>errors-per-second</strong></span>.
+          </p>
+
+          <p>
+            In addition to the base
+            <span class="command"><strong>responses-per-second</strong></span> value,
+            up to four (4) additional
+            <span class="command"><strong>responses-per-second</strong></span> options can be
+            configured, with additional parameters to indicate that
+            they apply to responses larger than a given size,
+            or with an amplification factor larger than a given
+            value.
+            The <span class="command"><strong>size</strong></span> parameter sets the minimum
+            DNS response size that will trigger the use of this
+            <span class="command"><strong>responses-per-second</strong></span> option.
+            The <span class="command"><strong>ratio</strong></span> parameter sets the minimum
+            DNS response-size / request-size ratio that falls into the
+            band, to two decimal places.
+            These selective rate limits are applied after any other
+            rate limits have been applied, and they only apply to
+            positive answers. For example:
+          </p>
+<pre class="programlisting">
+rate-limit {
+  responses-per-second 10;
+  responses-per-second size 1100 5;
+};
+</pre>
+          <p>
+            ...indicates that responses should be limited to ten per second
+            for responses up to 1099 bytes in size, but only five per second
+            for responses larger than that. This configuration:
+          </p>
+<pre class="programlisting">
+rate-limit {
+  responses-per-second 10;
+  responses-per-second ratio 7.25 5;
+  responses-per-second ratio 15.00 2;
+};
+</pre>
+          <p>
+            ...indicates that responses should be limited to ten per
+            second if the amplification factor is below 7.25, five per
+            second if above 7.25 but below 15, and two per second if
+            above 15.
+          </p>
+          <p>
+            Both sizes and ratios can be used together. For example:
+          </p>
+<pre class="programlisting">
+rate-limit {
+  responses-per-second 10;
+  responses-per-second size 1000 ratio 5.00 5;
+  responses-per-second ratio 10.00 2;
+};
+</pre>
+          <p>
+            This configuration will rate-limit to five per second if
+            the ratio is over 5 <span class="emphasis"><em>or</em></span> the size is over
+            1000, and to two per second if the ratio is over 10. In the
+            event that two bands might be chosen (i.e., because the size
+            is over 1000 <span class="emphasis"><em>and</em></span> the ratio is over 10),
+            the one that appears last in the configuration file is the
+            one chosen.  To eliminate any ambiguity, it is recommended
+            that under normal circumstnaces, rate limiting bands should
+            be configured using either <span class="command"><strong>size</strong></span> or
+            <span class="command"><strong>ratio</strong></span> parameters, but not both.
           </p>
 
           <p>
@@ -8221,6 +8418,16 @@ example.com                 CNAME   rpz-tcp-only.
           </p>
 
           <p>
+            It is possible to vary the rate limits applied to
+            different namespaces by specifying multiple
+            <span class="command"><strong>rate-limit</strong></span> blocks with multiple
+            <span class="command"><strong>domain</strong></span> clauses.  If a
+            <span class="command"><strong>rate-limit</strong></span> block does not have a
+            <span class="command"><strong>domain</strong></span> clause then it applies to the
+            root domain.
+          </p>
+
+          <p>
             UDP responses of all kinds can be limited with the
             <span class="command"><strong>all-per-second</strong></span> phrase.  This rate
             limiting is unlike the rate limiting provided by
@@ -8281,6 +8488,15 @@ example.com                 CNAME   rpz-tcp-only.
             Responses that truncated by rate limits are included in
             <span class="command"><strong>RateSlipped</strong></span> and <span class="command"><strong>RespTruncated</strong></span>.
           </p>
+
+          <p>
+            Updates to RPZ zones are processed asynchronously; if there
+            is more than one update pending they are bundled together.
+            If an update to a RPZ zone (for example, via IXFR) happens less
+            than <code class="option">min-update-interval</code> seconds after the most
+            recent update, then the changes will not be carried out until this
+            interval has elapsed.  The default is <code class="literal">5</code> seconds.
+          </p>
         </div>
 
         <div class="section">
@@ -8322,6 +8538,264 @@ example.com                 CNAME   rpz-tcp-only.
             If both a redirect zone and a redirect namespace are configured,
             the redirect zone is tried first.
           </p>
+        </div>
+
+        <div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="ecs"></a>EDNS CLIENT-SUBNET (ECS) Support</h4></div></div></div>
+          <p>
+            The EDNS CLIENT-SUBNET option (ECS) is a mechanism to allow
+            partially anonymized IP address information about the client
+            originating a query to be passed via a recursive resolver or
+            forwarder to the authoritative server which answers the
+            query. This enables an authoritative server to provide
+            different answers depending on the originating client
+            address; for example, this may be used to route users to
+            different resources depending on their geographic location.
+          </p>
+          <p>
+            An ECS-tagged query contains the subnet from which the query
+            originated, but not the specific IP address of the client.
+            BIND is able to reference this information in ACLs that use
+            the "ecs" or "geoip" keywords (see <a class="xref" href="Bv9ARM.ch06.html#acl" title="acl Statement Definition and Usage">the section called &#8220;<span class="command"><strong>acl</strong></span> Statement Definition and
+          Usage&#8221;</a>).
+          </p>
+          <p>
+            An ECS-tagged response also indicates the prefix from which
+            the query originated, and adds a "scope length" value
+            indicating for which address prefix(es) this response is
+            valid.  (For example, an ECS tagged response to a query from
+            subnet 192.0.1/24 may be valid for all addresses in 192/8.)
+            A recursive name server may cache this response, and
+            subsequently re-use it for all queries originating from
+            192/8, but not for queries originating from other addresses.
+          </p>
+          <p>
+            Note: The ECS implementation for authoritative servers is
+            based on an early version of the specification and is known
+            to have some incompatibilities with other implementations.
+            It can be used for testing purposes, but is not recommended
+            for production use.  The ECS implementation for recursive
+            resolvers, however, is fully supported.
+          </p>
+
+          <div class="section">
+<div class="titlepage"><div><div><h5 class="title">
+<a name="auth_ecs"></a>Authoritative ECS Options</h5></div></div></div>
+            <div class="variablelist"><dl class="variablelist">
+<dt><span class="term"><span class="command"><strong>geoip-use-ecs</strong></span></span></dt>
+<dd>
+                  <p>
+                    When BIND is compiled with GeoIP support and configured
+                    with "geoip" ACL elements, this option indicates whether
+                    the EDNS Client Subnet option, if present in a request,
+                    should be used for matching against the GeoIP database.
+                    The default is
+                    <span class="command"><strong>geoip-use-ecs</strong></span> <strong class="userinput"><code>yes</code></strong>.
+                  </p>
+                </dd>
+</dl></div>
+          </div>
+
+          <div class="section">
+<div class="titlepage"><div><div><h5 class="title">
+<a name="recursive_ecs"></a>Recursive ECS Options</h5></div></div></div>
+            <div class="variablelist"><dl class="variablelist">
+<dt><span class="term"><span class="command"><strong>ecs-bits</strong></span></span></dt>
+<dd>
+                  <p>
+                    This option takes exactly two arguments, representing
+                    the default SOURCE prefix-length to use in ECS queries
+                    for IPv4 and IPv6 addresses respectively.  These
+                    values can be overridden on a per-domain basis by
+                    specifying
+                    <code class="literal">bits-v4</code> and <code class="literal">bits-v6</code>
+                    values in <code class="option">ecs-zones</code>.
+                    The default values are 24 and 56, which are also the
+                    maxima. Higher values are not permitted, and will
+                    be capped to 24 and 56 respectively.
+                  </p>
+                </dd>
+<dt><span class="term"><span class="command"><strong>ecs-zones</strong></span></span></dt>
+<dd>
+                  <p>
+                    A domain name filter set, indicating to which zones
+                    ECS-tagged queries may be sent.
+                  </p>
+                  <p>
+                    Each element of <span class="command"><strong>ecs-zones</strong></span>
+                    is a zone name, which may optionally be
+                    negated with a leading exclamation mark (`!'); this
+                    allows certain subdomains to be excluded.
+                    The longest matching element
+                    in <span class="command"><strong>ecs-zones</strong></span> is used to determine
+                    whether or not to send ECS options when resolving a
+                    given query.
+                  </p>
+                  <p>
+                    Elements in <span class="command"><strong>ecs-zones</strong></span> may be followed
+                    with optional <code class="literal">bits-v4</code> and
+                    <code class="literal">bits-v6</code> values, indicating the
+                    source prefix-lengths to be used in ECS options when
+                    sending IPv4 and IPv6 queries, respectively, for names
+                    at or below that subdomain. If <code class="literal">bits-v4</code>
+                    and <code class="literal">bits-v6</code> are not specified,
+                    the default source prefix-lengths are whatever are set
+                    by <code class="option">ecs-bits</code>, which in turn default
+                    to 24 for IPv4 and 56 for IPv6. Higher values than
+                    these are not accepted, and will be clamped.
+                  </p>
+                  <p>
+                    As names in <span class="command"><strong>ecs-zones</strong></span> become more
+                    specific, prefix-lengths cannot increase. If
+                    "example.com" is specified with
+                    <strong class="userinput"><code>bits-v4 20</code></strong>, then no prefix
+                    length higher than 20 can be used for IPv4 queries
+                    for any subdomain of "example.com".
+                  </p>
+                  <p>
+                    In the following example:
+                  </p>
+                  <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
+<li class="listitem">
+                      ECS options are sent when looking up names in the
+                      zone "example.com", with a source prefix-length of 20
+                      bits for IPv4 queries, and the default 56 bits for
+                      IPv6 queries.
+                    </li>
+<li class="listitem">
+                      ECS options are also sent when looking up names
+                      in the zone "example.org", but in this case the
+                      prefix-lengths will be 22 and 48. However, ECS
+                      is not used for names below "excluded.example.org."
+                    </li>
+<li class="listitem">
+                      ECS options are also sent when looking up names in
+                      the zone "example.net", with the default source prefix
+                      lengths of 24 and 56 bits.
+                    </li>
+</ul></div>
+<pre class="programlisting">
+        ecs-zones {
+            example.com bits-v4 20;
+            ! excluded.example.org;
+            example.org bits-v4 22 bits-v6 48;
+            example.net;
+        };
+</pre>
+                  <p>
+                    It is assumed that ECS will be configured at the
+                    zone level, not using individual names within a zone.
+                    Consequently, ECS options are only sent when
+                    the name being queried and the apex of the zone
+                    being queried both match <span class="command"><strong>ecs-zones</strong></span>.
+                    For example, if the zone "example.com" contains the name
+                    "www.example.com", then <span class="command"><strong>ecs-zones</strong></span>
+                    should be configured with "example.com",
+                    <span class="emphasis"><em>not</em></span> with "www.example.com".
+                    The latter configuration would result in no ECS queries
+                    being sent, because the zone apex ("example.com")
+                    would not match.
+                  </p>
+                  <p>
+                    Note that negated entries do not need to be zone apexes
+                    to be effective: If <span class="command"><strong>ecs-zones</strong></span> were
+                    configured with "example.com" and "!www.example.com",
+                    then an ECS option would not be sent for "www.example.com"
+                    even though zone apex was allowed. An ECS option would
+                    also not be sent for "foo.www.example.com", as it is a
+                    subdomain of "www.example.com".
+                  </p>
+                  <p>
+                    The zone apex is defined here as the delegation point.
+                    Sometimes a server is authoritative for both parent and
+                    child zones, so that a query sent to the parent zone
+                    will get an authoritative answer for the child, with
+                    no delegation taking place; in this case,
+                    <span class="command"><strong>ecs-zones</strong></span> must match the
+                    <span class="emphasis"><em>parent</em></span> zone apex to be effective.
+                  </p>
+                </dd>
+<dt><span class="term"><span class="command"><strong>ecs-forward</strong></span></span></dt>
+<dd>
+                  <p>
+                    Specifies an ACL of client addresses from which
+                    ECS-tagged queries may be forwarded. The default is
+                    <strong class="userinput"><code>none</code></strong>.
+                  </p>
+                  <p>
+                    If a client is not allowed in this ACL, then recursive
+                    queries which contain ECS options with non-zero source
+                    prefix-length will be answered with REFUSED.  (This
+                    does not apply to ECS options with zero prefix-lengths;
+                    all clients are permitted to send those.)
+                  </p>
+                  <p>
+                    If the client <span class="emphasis"><em>is</em></span> allowed,
+                    and if the query would normally be processed
+                    using ECS (i.e., because the query name is covered
+                    by <span class="command"><strong>ecs-zones</strong></span>), then the
+                    ECS option that was sent by the client may be
+                    forwarded.
+                  </p>
+                  <p>
+                    When ECS options are forwarded, their source prefix
+                    lengths are clamped to the length that would ordinarily
+                    be sent by the resolver.  For example, if a domain is
+                    configured in <span class="command"><strong>ecs-zones</strong></span> to be
+                    sent a source prefix length of 20 bits, an ECS option
+                    sent by a client with a source prefix length of
+                    24 bits would be truncated to 20 bits and then forwarded.
+                    A query with an ECS source prefix length of 20 or
+                    less would be forwarded as-is.
+                  </p>
+                  <p>
+                    A query with an ECS source prefix length of zero
+                    is a signal from the client that ECS should not be
+                    used in processing this query. Any client may
+                    send such a query, regardless of
+                    <span class="command"><strong>ecs-forward</strong></span> and
+                    <span class="command"><strong>ecs-zones</strong></span> and it will always be
+                    forwarded. A matching ECS option will always be
+                    included in the response sent back to the client.
+                  </p>
+                </dd>
+<dt><span class="term"><span class="command"><strong>ecs-privacy</strong></span></span></dt>
+<dd>
+                  <p>
+                    If set to <strong class="userinput"><code>yes</code></strong>, then when the
+                    query is allowed for ECS processing and no client
+                    ECS option is being forwarded, the resolver will
+                    always include an ECS option with a source prefix
+                    length of zero in all of its upstream queries.  This
+                    is a request to upstream intermediate resolvers to
+                    disable ECS when processing queries sent by this
+                    resolver.  The default is <strong class="userinput"><code>no</code></strong>.
+                  </p>
+                </dd>
+<dt><span class="term"><span class="command"><strong>ecs-types</strong></span></span></dt>
+<dd>
+                  <p>
+                    Specifies a list of RR types for which ECS-tagged
+                    queries may be sent, and for which ECS-tagged
+                    replies may be cached.  The default is "ANY",
+                    which matches all types with the exception of
+                    DNS infrastructure types (NS, SOA), and
+                    DNSSEC-related types (DS, DNSKEY, NSEC).
+                    those types are never ECS-tagged, even if explicitly
+                    included in <span class="command"><strong>ecs-types</strong></span>.
+                  </p>
+                  <p>
+                    Note that, regardless of whether or not CNAME is included
+                    in <span class="command"><strong>ecs-types</strong></span>, if an answer of
+                    type CNAME is found in a reply to an ECS-tagged
+                    query, then the CNAME data may always be cached
+                    with ECS.
+                  </p>
+                </dd>
+</dl></div>
+          </div>
+
         </div>
       </div>
 
@@ -8456,6 +8930,18 @@ example.com                 CNAME   rpz-tcp-only.
           </p>
 
           <p>
+            The <span class="command"><strong>ecs</strong></span> clause determines whether
+            the local server will send the EDNS Client Subnet
+            option when communicating with the remote server.  The default
+            is <span class="command"><strong>yes</strong></span>, but the option is only sent if
+            the name being queried matches a domain listed in the
+            <span class="command"><strong>ecs-zones</strong></span> statement. (See
+            <a class="xref" href="Bv9ARM.ch06.html#recursive_ecs" title="Recursive ECS Options">the section called &#8220;Recursive ECS Options&#8221;</a>.) Changing the value to
+            <span class="command"><strong>no</strong></span> disables the ECS option for the
+            remote server, regardless of query name.
+          </p>
+
+          <p>
             The <span class="command"><strong>edns</strong></span> clause determines whether
             the local server will attempt to use EDNS when communicating
             with the remote server.  The default is <span class="command"><strong>yes</strong></span>.
@@ -8507,10 +8993,29 @@ example.com                 CNAME   rpz-tcp-only.
           </p>
 
           <p>
+            The <span class="command"><strong>padding</strong></span> option adds EDNS Padding
+            options to outgoing messages, increasing the packet size to
+            a multiple of the specified block size. Valid block sizes
+            range from 0 (the default, which disables the use of
+            EDNS Padding) to 512 bytes.  Larger values will be reduced
+            to 512, with a logged warning.
+            Note: This option is not currently compatible with no TSIG
+            or SIG(0), as the EDNS OPT record containing the padding
+            would have to be added to the packet after it had already
+            been signed.
+          </p>
+
+          <p>
             The <span class="command"><strong>tcp-only</strong></span> option sets the transport
             protocol to TCP. The default is to use the UDP transport
             and to fallback on TCP only when a truncated response
             is received.
+          </p>
+
+          <p>
+            The <span class="command"><strong>tcp-keepalive</strong></span> option adds EDNS
+            TCP keepalive to messages sent over TCP. Note currently
+            idle timeouts in responses are ignored.
           </p>
 
           <p>
@@ -14508,6 +15013,6 @@ HOST-127.EXAMPLE. MX 0 .
 </tr>
 </table>
 </div>
-<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.11.3 (Extended Support Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.11.3-S1 (Supported Preview Version)</p>
 </body>
 </html>

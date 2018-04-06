@@ -214,7 +214,7 @@ causes the output file to be rolled automatically, similar to log files; the mos
 is specified, then the number of backup log files is limited to that number\&.
 .RE
 .PP
-\fBdumpdb \fR\fB[\-all|\-cache|\-zones|\-adb|\-bad|\-fail]\fR\fB \fR\fB[\fIview \&.\&.\&.\fR]\fR
+\fBdumpdb \fR\fB[\-all|\-cache|\-ecscache|\-zone|\-adb|\-bad|\-fail]\fR\fB \fR\fB[\fIview \&.\&.\&.\fR]\fR
 .RS 4
 Dump the server\*(Aqs caches (default) and/or zones to the dump file for the specified views\&. If no view is specified, all views are dumped\&. (See the
 \fBdump\-file\fR
@@ -545,6 +545,17 @@ See also
 \fBsync \fR\fB[\-clean]\fR\fB \fR\fB[\fIzone\fR [\fIclass\fR [\fIview\fR]]]\fR
 .RS 4
 Sync changes in the journal file for a dynamic zone to the master file\&. If the "\-clean" option is specified, the journal file is also removed\&. If no zone is specified, then all zones are synced\&.
+.RE
+.PP
+\fBtcp\-timeouts \fR\fB[\fIinitial\fR \fIidle\fR \fIkeepalive\fR \fIadvertised\fR]\fR
+.RS 4
+When called without arguments, display the current values of the
+\fBtcp\-initial\-timeout\fR,
+\fBtcp\-idle\-timeout\fR,
+\fBtcp\-keepalive\-timeout\fR
+and
+\fBtcp\-advertised\-timeout\fR
+options\&. When called with arguments, update these values\&. This allows an administrator to make rapid adjustments when under a denial of service attack\&. See the descriptions of these options in the BIND 9 Administrator Reference Manual for details of their use\&.
 .RE
 .PP
 \fBthaw \fR\fB[\fIzone\fR [\fIclass\fR [\fIview\fR]]]\fR

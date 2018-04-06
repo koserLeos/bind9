@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <!--
- - Copyright (C) 2015-2017 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2018 Internet Systems Consortium, Inc. ("ISC")
  - 
  - This Source Code Form is subject to the terms of the Mozilla Public
  - License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -509,11 +509,10 @@
 	    <p>
               <span class="command"><strong>mdig +subnet=0.0.0.0/0</strong></span>, or simply
               <span class="command"><strong>mdig +subnet=0</strong></span> for short, sends an EDNS
-              client-subnet option with an empty address and a source
-              prefix-length of zero, which signals a resolver that
-              the client's address information must
-              <span class="emphasis"><em>not</em></span> be used when resolving
-              this query.
+              CLIENT-SUBNET option with an empty address and a source
+              prefix-length of zero, which signals a resolver
+              that the EDNS CLIENT-SUBNET option should not be used
+              when resolving this query.
 	    </p>
           </dd>
 <dt><span class="term"><code class="option">+timeout=T</code></span></dt>

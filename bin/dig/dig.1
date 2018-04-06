@@ -533,6 +533,15 @@ Print only one (starting) SOA record when performing an AXFR\&. The default is t
 Set [restore] the DNS message opcode to the specified value\&. The default value is QUERY (0)\&.
 .RE
 .PP
+\fB+padding=value\fR
+.RS 4
+Pad the size of the query packet using the EDNS Padding option to blocks of
+\fIvalue\fR
+bytes\&. For example,
+\fB+padding=32\fR
+would cause a 48\-byte query to be padded to 64 bytes\&. The default block size is 0, which disables padding\&. The maximum is 512\&. Values are ordinarily expected to be powers of two, such as 128; however, this is not mandatory\&. Responses to padded queries may also be padded, but only if the query uses TCP or DNS COOKIE\&.
+.RE
+.PP
 \fB+[no]qr\fR
 .RS 4
 Print [do not print] the query as it is sent\&. By default, the query is not printed\&.
@@ -623,11 +632,11 @@ This query option toggles the printing of statistics: when the query was made, t
 .PP
 \fB+[no]subnet=addr[/prefix\-length]\fR
 .RS 4
-Send (don\*(Aqt send) an EDNS Client Subnet option with the specified IP address or network prefix\&.
+Send (don\*(Aqt send) an EDNS CLIENT\-SUBNET option with the specified IP address or network prefix\&.
 .sp
 \fBdig +subnet=0\&.0\&.0\&.0/0\fR, or simply
 \fBdig +subnet=0\fR
-for short, sends an EDNS CLIENT\-SUBNET option with an empty address and a source prefix\-length of zero, which signals a resolver that the client\*(Aqs address information must
+for short, sends an EDNS CLIENT\-SUBNET option with an empty address and a source prefix\-length of zero, which signals to a resolver that the client\*(Aqs address information must
 \fInot\fR
 be used when resolving this query\&.
 .RE

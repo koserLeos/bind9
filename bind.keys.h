@@ -1,14 +1,3 @@
-/*
- * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/.
- *
- * See the COPYRIGHT file distributed with this work for additional
- * information regarding copyright ownership.
- */
-
 #define TRUSTED_KEYS "\
 # The bind.keys file is used to override the built-in DNSSEC trust anchors\n\
 # which are included as part of BIND 9.  The only trust anchors it contains\n\
@@ -33,32 +22,32 @@
 # for current trust anchor information for the root zone.\n\
 \n\
 trusted-keys {\n\
-	# This key (19036) is to be phased out starting in 2017. It will\n\
-	# remain in the root zone for some time after its successor key\n\
-	# has been added. It will remain this file until it is removed from\n\
-	# the root zone.\n\
-	. 257 3 8 \"AwEAAagAIKlVZrpC6Ia7gEzahOR+9W29euxhJhVVLOyQbSEW0O8gcCjF\n\
-		FVQUTf6v58fLjwBd0YI0EzrAcQqBGCzh/RStIoO8g0NfnfL2MTJRkxoX\n\
-		bfDaUeVPQuYEhg37NZWAJQ9VnMVDxP/VHL496M/QZxkjf5/Efucp2gaD\n\
-		X6RS6CXpoY68LsvPVjR0ZSwzz1apAzvN9dlzEheX7ICJBBtuA6G3LQpz\n\
-		W5hOA2hzCTMjJPJ8LbqF6dsV6DoBQzgul0sGIcGOYl7OyQdXfZ57relS\n\
-		Qageu+ipAdTTJ25AsRTAoub8ONGcLmqrAmRLKBP1dfwhYB4N7knNnulq\n\
-		QxA+Uk1ihz0=\";\n\
+        # This key (19036) is to be phased out starting in 2017. It will\n\
+        # remain in the root zone for some time after its successor key\n\
+        # has been added. It will remain this file until it is removed from\n\
+        # the root zone.\n\
+        . 257 3 8 \"AwEAAagAIKlVZrpC6Ia7gEzahOR+9W29euxhJhVVLOyQbSEW0O8gcCjF\n\
+                FVQUTf6v58fLjwBd0YI0EzrAcQqBGCzh/RStIoO8g0NfnfL2MTJRkxoX\n\
+                bfDaUeVPQuYEhg37NZWAJQ9VnMVDxP/VHL496M/QZxkjf5/Efucp2gaD\n\
+                X6RS6CXpoY68LsvPVjR0ZSwzz1apAzvN9dlzEheX7ICJBBtuA6G3LQpz\n\
+                W5hOA2hzCTMjJPJ8LbqF6dsV6DoBQzgul0sGIcGOYl7OyQdXfZ57relS\n\
+                Qageu+ipAdTTJ25AsRTAoub8ONGcLmqrAmRLKBP1dfwhYB4N7knNnulq\n\
+                QxA+Uk1ihz0=\";\n\
 \n\
-	# This key (20326) was published in the root zone in 2017.\n\
-	# Servers which were already using the old key (19036) should\n\
-	# roll seamlessly to this new one via RFC 5011 rollover. Servers\n\
-	# being set up for the first time can use the contents of this\n\
-	# file as initializing keys; thereafter, the keys in the\n\
-	# managed key database will be trusted and maintained\n\
-	# automatically.\n\
-	. 257 3 8 \"AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3\n\
-		+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kv\n\
-		ArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF\n\
-		0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+e\n\
-		oZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfd\n\
-		RUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwN\n\
-		R1AkUTV74bU=\";\n\
+        # This key (20326) was published in the root zone in 2017.\n\
+        # Servers which were already using the old key (19036) should\n\
+        # roll seamlessly to this new one via RFC 5011 rollover. Servers\n\
+        # being set up for the first time can use the contents of this\n\
+        # file as initializing keys; thereafter, the keys in the\n\
+        # managed key database will be trusted and maintained\n\
+        # automatically.\n\
+        . 257 3 8 \"AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3\n\
+                +/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kv\n\
+                ArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF\n\
+                0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+e\n\
+                oZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfd\n\
+                RUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwN\n\
+                R1AkUTV74bU=\";\n\
 };\n\
 "
 
@@ -86,31 +75,31 @@ trusted-keys {\n\
 # for current trust anchor information for the root zone.\n\
 \n\
 managed-keys {\n\
-	# This key (19036) is to be phased out starting in 2017. It will\n\
-	# remain in the root zone for some time after its successor key\n\
-	# has been added. It will remain this file until it is removed from\n\
-	# the root zone.\n\
-	. initial-key 257 3 8 \"AwEAAagAIKlVZrpC6Ia7gEzahOR+9W29euxhJhVVLOyQbSEW0O8gcCjF\n\
-		FVQUTf6v58fLjwBd0YI0EzrAcQqBGCzh/RStIoO8g0NfnfL2MTJRkxoX\n\
-		bfDaUeVPQuYEhg37NZWAJQ9VnMVDxP/VHL496M/QZxkjf5/Efucp2gaD\n\
-		X6RS6CXpoY68LsvPVjR0ZSwzz1apAzvN9dlzEheX7ICJBBtuA6G3LQpz\n\
-		W5hOA2hzCTMjJPJ8LbqF6dsV6DoBQzgul0sGIcGOYl7OyQdXfZ57relS\n\
-		Qageu+ipAdTTJ25AsRTAoub8ONGcLmqrAmRLKBP1dfwhYB4N7knNnulq\n\
-		QxA+Uk1ihz0=\";\n\
+        # This key (19036) is to be phased out starting in 2017. It will\n\
+        # remain in the root zone for some time after its successor key\n\
+        # has been added. It will remain this file until it is removed from\n\
+        # the root zone.\n\
+        . initial-key 257 3 8 \"AwEAAagAIKlVZrpC6Ia7gEzahOR+9W29euxhJhVVLOyQbSEW0O8gcCjF\n\
+                FVQUTf6v58fLjwBd0YI0EzrAcQqBGCzh/RStIoO8g0NfnfL2MTJRkxoX\n\
+                bfDaUeVPQuYEhg37NZWAJQ9VnMVDxP/VHL496M/QZxkjf5/Efucp2gaD\n\
+                X6RS6CXpoY68LsvPVjR0ZSwzz1apAzvN9dlzEheX7ICJBBtuA6G3LQpz\n\
+                W5hOA2hzCTMjJPJ8LbqF6dsV6DoBQzgul0sGIcGOYl7OyQdXfZ57relS\n\
+                Qageu+ipAdTTJ25AsRTAoub8ONGcLmqrAmRLKBP1dfwhYB4N7knNnulq\n\
+                QxA+Uk1ihz0=\";\n\
 \n\
-	# This key (20326) was published in the root zone in 2017.\n\
-	# Servers which were already using the old key (19036) should\n\
-	# roll seamlessly to this new one via RFC 5011 rollover. Servers\n\
-	# being set up for the first time can use the contents of this\n\
-	# file as initializing keys; thereafter, the keys in the\n\
-	# managed key database will be trusted and maintained\n\
-	# automatically.\n\
-	. initial-key 257 3 8 \"AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3\n\
-		+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kv\n\
-		ArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF\n\
-		0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+e\n\
-		oZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfd\n\
-		RUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwN\n\
-		R1AkUTV74bU=\";\n\
+        # This key (20326) was published in the root zone in 2017.\n\
+        # Servers which were already using the old key (19036) should\n\
+        # roll seamlessly to this new one via RFC 5011 rollover. Servers\n\
+        # being set up for the first time can use the contents of this\n\
+        # file as initializing keys; thereafter, the keys in the\n\
+        # managed key database will be trusted and maintained\n\
+        # automatically.\n\
+        . initial-key 257 3 8 \"AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3\n\
+                +/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kv\n\
+                ArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF\n\
+                0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+e\n\
+                oZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfd\n\
+                RUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwN\n\
+                R1AkUTV74bU=\";\n\
 };\n\
 "

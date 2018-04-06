@@ -208,6 +208,7 @@ typedef isc_uint64_t                    rbtdb_serial_t;
 #define detach detach64
 #define detachnode detachnode64
 #define dump dump64
+#define ecs_nodedata_get ecs_nodedata_get64
 #define endload endload64
 #define expire_header expire_header64
 #define expire_headerlist expire_headerlist64
