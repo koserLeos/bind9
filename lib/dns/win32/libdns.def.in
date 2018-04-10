@@ -406,6 +406,10 @@ dns_ecszones_create
 dns_ecszones_free
 dns_ecszones_name_allowed
 dns_ecszones_setdomain
+dns_fixedname_init
+dns_fixedname_invalidate
+dns_fixedname_name
+dns_fixedname_initname
 dns_fwdtable_add
 dns_fwdtable_addfwd
 dns_fwdtable_create

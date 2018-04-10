@@ -239,8 +239,7 @@ dns_test_makezone(const char *name, dns_zone_t **zonep, dns_view_t *view,
 
 	isc_buffer_constinit(&buffer, name, strlen(name));
 	isc_buffer_add(&buffer, strlen(name));
-	dns_fixedname_init(&fixorigin);
-	origin = dns_fixedname_name(&fixorigin);
+	origin = dns_fixedname_initname(&fixorigin);
 	CHECK(dns_name_fromtext(origin, &buffer, dns_rootname, 0, NULL));
 	CHECK(dns_zone_setorigin(zone, origin));
 	dns_zone_setview(zone, view);
@@ -330,8 +329,7 @@ dns_test_loaddb(dns_db_t **db, dns_dbtype_t dbtype, const char *origin,
 	dns_fixedname_t		fixed;
 	dns_name_t		*name;
 
-	dns_fixedname_init(&fixed);
-	name = dns_fixedname_name(&fixed);
+	name = dns_fixedname_initname(&fixed);
 
 	result = dns_name_fromstring(name, origin, 0, NULL);
 	if (result != ISC_R_SUCCESS)
@@ -505,8 +503,7 @@ dns_test_namefromstring(const char *namestr, dns_fixedname_t *fname) {
 	isc_buffer_constinit(&b, namestr, length);
 	isc_buffer_add(&b, length);
 
-	dns_fixedname_init(fname);
-	name = dns_fixedname_name(fname);
+	name = dns_fixedname_initname(fname);
 	if (name == NULL)
 		return (ISC_R_NOMEMORY);
 

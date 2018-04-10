@@ -231,8 +231,7 @@ ATF_TC_BODY(version, tc) {
 	dns_db_currentversion(db, &ver);
 	dns_test_namefromstring("b.test.test", &fname);
 	name = dns_fixedname_name(&fname);
-	dns_fixedname_init(&ffound);
-	foundname = dns_fixedname_name(&ffound);
+	foundname = dns_fixedname_initname(&ffound);
 	dns_rdataset_init(&rdataset);
 	result = dns_db_find(db, name , ver, dns_rdatatype_a, 0, 0, &node,
 			     foundname, &rdataset, NULL);
@@ -245,8 +244,7 @@ ATF_TC_BODY(version, tc) {
 	dns_db_currentversion(db, &ver);
 	dns_test_namefromstring("b.test.test", &fname);
 	name = dns_fixedname_name(&fname);
-	dns_fixedname_init(&ffound);
-	foundname = dns_fixedname_name(&ffound);
+	foundname = dns_fixedname_initname(&ffound);
 	dns_rdataset_init(&rdataset);
 	result = dns_db_find(db, name , ver, dns_rdatatype_a, 0, 0, &node,
 			     foundname, &rdataset, NULL);
