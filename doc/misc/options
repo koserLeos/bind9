@@ -149,14 +149,12 @@ options {
         dnssec-secure-to-insecure <boolean>;
         dnssec-update-mode ( maintain | no-resign );
         dnssec-validation ( yes | no | auto );
-        dnstap { ( all | auth | client | forwarder |
-            resolver ) [ ( query | response ) ]; ... }; // not configured
-        dnstap-identity ( <quoted_string> | none |
-            hostname ); // not configured
-        dnstap-output ( file | unix ) <quoted_string> [
-            size ( unlimited | <size> ) ] [ versions (
-            unlimited | <integer> ) ]; // not configured
-        dnstap-version ( <quoted_string> | none ); // not configured
+        dnstap { ( all | auth | client | forwarder | resolver ) [ ( query |
+            response ) ]; ... };
+        dnstap-identity ( <quoted_string> | none | hostname );
+        dnstap-output ( file | unix ) <quoted_string> [ size ( unlimited |
+            <size> ) ] [ versions ( unlimited | <integer> ) ];
+        dnstap-version ( <quoted_string> | none );
         dscp <integer>;
         dual-stack-servers [ port <integer> ] { ( <quoted_string> [ port
             <integer> ] [ dscp <integer> ] | <ipv4_address> [ port
@@ -179,22 +177,22 @@ options {
         fetches-per-server <integer> [ ( drop | fail ) ];
         fetches-per-zone <integer> [ ( drop | fail ) ];
         files ( default | unlimited | <sizeval> );
-        filter-aaaa { <address_match_element>; ... }; // not configured
-        filter-aaaa-on-v4 ( break-dnssec | <boolean> ); // not configured
-        filter-aaaa-on-v6 ( break-dnssec | <boolean> ); // not configured
+        filter-aaaa { <address_match_element>; ... };
+        filter-aaaa-on-v4 ( break-dnssec | <boolean> );
+        filter-aaaa-on-v6 ( break-dnssec | <boolean> );
         flush-zones-on-shutdown <boolean>;
         forward ( first | only );
         forwarders [ port <integer> ] [ dscp <integer> ] { ( <ipv4_address>
             | <ipv6_address> ) [ port <integer> ] [ dscp <integer> ]; ... };
-        fstrm-set-buffer-hint <integer>; // not configured
-        fstrm-set-flush-timeout <integer>; // not configured
-        fstrm-set-input-queue-size <integer>; // not configured
-        fstrm-set-output-notify-threshold <integer>; // not configured
-        fstrm-set-output-queue-model ( mpsc | spsc ); // not configured
-        fstrm-set-output-queue-size <integer>; // not configured
-        fstrm-set-reopen-interval <integer>; // not configured
-        geoip-directory ( <quoted_string> | none ); // not configured
-        geoip-use-ecs <boolean>; // not configured
+        fstrm-set-buffer-hint <integer>;
+        fstrm-set-flush-timeout <integer>;
+        fstrm-set-input-queue-size <integer>;
+        fstrm-set-output-notify-threshold <integer>;
+        fstrm-set-output-queue-model ( mpsc | spsc );
+        fstrm-set-output-queue-size <integer>;
+        fstrm-set-reopen-interval <integer>;
+        geoip-directory ( <quoted_string> | none );
+        geoip-use-ecs <boolean>;
         has-old-clients <boolean>; // obsolete
         heartbeat-interval <integer>;
         host-statistics <boolean>; // not implemented
@@ -212,7 +210,7 @@ options {
         listen-on-v6 [ port <integer> ] [ dscp
             <integer> ] {
             <address_match_element>; ... }; // may occur multiple times
-        lmdb-mapsize <sizeval>; // non-operational
+        lmdb-mapsize <sizeval>;
         lock-file ( <quoted_string> | none );
         maintain-ixfr-base <boolean>; // obsolete
         managed-keys-directory <quoted_string>;
@@ -508,8 +506,8 @@ view <string> [ <class> ] {
         dnssec-secure-to-insecure <boolean>;
         dnssec-update-mode ( maintain | no-resign );
         dnssec-validation ( yes | no | auto );
-        dnstap { ( all | auth | client | forwarder |
-            resolver ) [ ( query | response ) ]; ... }; // not configured
+        dnstap { ( all | auth | client | forwarder | resolver ) [ ( query |
+            response ) ]; ... };
         dual-stack-servers [ port <integer> ] { ( <quoted_string> [ port
             <integer> ] [ dscp <integer> ] | <ipv4_address> [ port
             <integer> ] [ dscp <integer> ] | <ipv6_address> [ port
@@ -530,9 +528,9 @@ view <string> [ <class> ] {
         fetch-quota-params <integer> <fixedpoint> <fixedpoint> <fixedpoint>;
         fetches-per-server <integer> [ ( drop | fail ) ];
         fetches-per-zone <integer> [ ( drop | fail ) ];
-        filter-aaaa { <address_match_element>; ... }; // not configured
-        filter-aaaa-on-v4 ( break-dnssec | <boolean> ); // not configured
-        filter-aaaa-on-v6 ( break-dnssec | <boolean> ); // not configured
+        filter-aaaa { <address_match_element>; ... };
+        filter-aaaa-on-v4 ( break-dnssec | <boolean> );
+        filter-aaaa-on-v6 ( break-dnssec | <boolean> );
         forward ( first | only );
         forwarders [ port <integer> ] [ dscp <integer> ] { ( <ipv4_address>
             | <ipv6_address> ) [ port <integer> ] [ dscp <integer> ]; ... };
@@ -544,7 +542,7 @@ view <string> [ <class> ] {
         }; // may occur multiple times
         key-directory <quoted_string>;
         lame-ttl <ttlval>;
-        lmdb-mapsize <sizeval>; // non-operational
+        lmdb-mapsize <sizeval>;
         maintain-ixfr-base <boolean>; // obsolete
         managed-keys { <string> <string>
             <integer> <integer> <integer>
