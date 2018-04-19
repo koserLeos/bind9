@@ -1854,7 +1854,7 @@ iptree_match_cb(void **data, void *match_arg) {
 		/* XXXMUKS: This probably needs more work */
 		if (((header->type == match_ctx->type) ||
 		     (cname_ok && (header->type == dns_rdatatype_cname))) &&
-		    (header->rdh_ttl >= match_ctx->now) &&
+		    ACTIVE(header, match_ctx->now) &&
 		    EXISTS(header) && !STALE(header))
 			return (ISC_TRUE);
 	}
@@ -6393,15 +6393,9 @@ cache_findrdatasetext(dns_db_t *db, dns_dbnode_t *node,
 					mark_stale_header(rbtdb, header);
 				}
 			} else if (EXISTS(header) && !STALE(header)) {
-				if (header->type == matchtype)
+				if (header->type == RBTDB_RDATATYPE_NCACHEANY ||
+				    header->type == negtype)
 					found = header;
-				else if ((header->type ==
-					  RBTDB_RDATATYPE_NCACHEANY ||
-					  header->type == negtype) &&
-					 (source == 0))
-					found = header;
-				else if (header->type == sigmatchtype)
-					foundsig = header;
 			}
 		}
 	}
@@ -6413,7 +6407,7 @@ cache_findrdatasetext(dns_db_t *db, dns_dbnode_t *node,
 		     header = header_next)
 		{
 			header_next = header->next;
-			if (header->rdh_ttl < now) {
+			if (!ACTIVE(header, now)) {
 				if ((header->rdh_ttl < now - RBTDB_VIRTUAL) &&
 				    (locktype == isc_rwlocktype_write ||
 				     NODE_TRYUPGRADE(lock) == ISC_R_SUCCESS)) {
