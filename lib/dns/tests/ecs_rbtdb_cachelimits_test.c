@@ -127,7 +127,7 @@ run(isc_task_t *task, isc_event_t *event) {
 		last = now;
 		isc_stdtime_get(&now);
 		if (now - last > 0) {
-			printf("Current usage: %ld/%u\n",
+			printf("Current usage: %zd/%u\n",
 			       isc_mem_inuse(testctx->cmctx),
 			       SETCACHESIZE_LIMIT_BYTES);
 			printf("Running for another %u seconds\n",
