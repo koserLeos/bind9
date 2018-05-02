@@ -2275,6 +2275,7 @@ process_opt(ns_client_t *client, dns_rdataset_t *opt) {
 		goto cleanup;
 	}
 
+	/* Check for EDNS options */
 	result = dns_rdataset_first(opt);
 	if (result == ISC_R_SUCCESS) {
 		dns_rdata_init(&rdata);
@@ -2605,6 +2606,20 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			      isc_result_totext(result));
 		ns_client_error(client, result);
 		goto cleanup;
+	}
+
+	/*
+	 * Log incoming packet
+	 */
+	if (isc_log_wouldlog(ns_g_lctx, ISC_LOG_DEBUG(11))) {
+		dns_message_logfmtpacket2(client->message,
+					  "received client packet from",
+					  &client->peeraddr,
+					  NS_LOGCATEGORY_CLIENT,
+					  NS_LOGMODULE_CLIENT,
+					  &dns_master_style_comment,
+					  ISC_LOG_DEBUG(11),
+					  client->mctx);
 	}
 
 	/*

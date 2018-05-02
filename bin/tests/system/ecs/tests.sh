@@ -2284,9 +2284,9 @@ $DIG $DIGOPTS +noall +answer @10.53.0.4 -b 10.53.0.1 +subnet=0 test${n}.test.exa
 nextpart ns4/named.run > run.out.$n.4
 nextpart ns7/named.run > run.out.$n.7
 lines4=`grep '^; CLIENT-SUBNET: [0.:]*/0/0' run.out.$n.4 | wc -l`
-[ "$lines4" -eq 2 ] || ret=1
+[ "$lines4" -ge 2 ] || ret=1
 lines7=`grep '^; CLIENT-SUBNET: [0.:]*/0/0' run.out.$n.7 | wc -l`
-[ "$lines7" -eq 2 ] || ret=1
+[ "$lines7" -ge 2 ] || ret=1
 nextpart ans8/ans.run | grep 'ClientSubnetOption([0.:]*, 0,' > /dev/null || ret=1
 if [ $ret -eq 1 ] ; then echo_i "failed"; fi
 status=`expr $status + $ret`
@@ -2313,7 +2313,7 @@ nextpart ns4/named.run > /dev/null
 $DIG $DIGOPTS +noall +answer @10.53.0.4 -b 10.53.0.1 +subnet=0 test${n}.outside.whitelist > dig.out.${n}.1 || ret=1
 nextpart ns4/named.run > run.out.$n
 lines=`grep '^; CLIENT-SUBNET: 0.0.0.0/0/0' run.out.$n | wc -l`
-[ "$lines" -eq 2 ] || ret=1
+[ "$lines" -ge 2 ] || ret=1
 if [ $ret -eq 1 ] ; then echo_i "failed"; fi
 status=`expr $status + $ret`
 
