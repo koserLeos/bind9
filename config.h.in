@@ -201,6 +201,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if clock_gettime is available. */
 #undef HAVE_CLOCK_GETTIME
 
+/* Define to 1 if you have the <compat/endian.h> header file. */
+#undef HAVE_COMPAT_ENDIAN_H
+
 /* Define to 1 if you have the <devpoll.h> header file. */
 #undef HAVE_DEVPOLL_H
 
@@ -236,6 +239,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <edit/readline/readline.h> header file. */
 #undef HAVE_EDIT_READLINE_READLINE_H
+
+/* Define to 1 if you have the <endian.h> header file. */
+#undef HAVE_ENDIAN_H
 
 /* Define to 1 if you have the `EVP_sha256' function. */
 #undef HAVE_EVP_SHA256
@@ -363,6 +369,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <locale.h> header file. */
 #undef HAVE_LOCALE_H
 
+/* Define to 1 if you have the <machine/endian.h> header file. */
+#undef HAVE_MACHINE_ENDIAN_H
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
@@ -474,6 +483,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the <sys/byteorder.h> header file. */
+#undef HAVE_SYS_BYTEORDER_H
+
 /* Define to 1 if you have the <sys/capability.h> header file. */
 #undef HAVE_SYS_CAPABILITY_H
 
@@ -482,6 +494,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <sys/dyntune.h> header file. */
 #undef HAVE_SYS_DYNTUNE_H
+
+/* Define to 1 if you have the <sys/endian.h> header file. */
+#undef HAVE_SYS_ENDIAN_H
 
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H

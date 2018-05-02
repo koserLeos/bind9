@@ -16,6 +16,26 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(HAVE_ENDIAN_H)
+#include <endian.h>
+#elif defined(HAVE_SYS_ENDIAN_H)
+#include <sys/endian.h>
+#elif defined(HAVE_MACHINE_ENDIAN_H)
+#include <machine/endian.h>
+#elif defined(HAVE_COMPAT_ENDIAN_H)
+#include <compat/endian.h>
+#elif defined(HAVE_SYS_BYTEORDER_H)
+#include <sys/byteorder.h>
+#ifndef htobe64
+ #define htobe64(x) BE_64(x)
+#endif
+#ifndef be64toh
+ #define be64toh(x) BE_64(x)
+#endif
+#endif
+
+#include <isc/buffer.h>
+#include <isc/hex.h>
 #include <isc/lex.h>
 #include <isc/mem.h>
 #include <isc/result.h>
@@ -109,6 +129,7 @@ static cfg_type_t cfg_type_dyndb;
 static cfg_type_t cfg_type_ecsbits;
 static cfg_type_t cfg_type_ecszones;
 static cfg_type_t cfg_type_filter_aaaa;
+static cfg_type_t cfg_type_hexuint64;
 static cfg_type_t cfg_type_ixfrdifftype;
 static cfg_type_t cfg_type_key;
 static cfg_type_t cfg_type_logfile;
@@ -1972,6 +1993,9 @@ view_clauses[] = {
 	{ "nxdomain-redirect", &cfg_type_astring, 0 },
 	{ "preferred-glue", &cfg_type_astring, 0 },
 	{ "prefetch", &cfg_type_prefetch, 0 },
+	{ "umbrella-virtual-appliance", &cfg_type_uint32, 0 },
+	{ "umbrella-organization", &cfg_type_uint32, 0 },
+	{ "umbrella-device", &cfg_type_hexuint64, 0 },
 	{ "provide-ixfr", &cfg_type_boolean, 0 },
 	/*
 	 * Note that the query-source option syntax is different
@@ -2461,6 +2485,7 @@ server_clauses[] = {
 	{ "request-nsid", &cfg_type_boolean, 0 },
 	{ "request-sit", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "send-cookie", &cfg_type_boolean, 0 },
+	{ "send-umbrella", &cfg_type_boolean, 0 },
 	{ "support-ixfr", &cfg_type_boolean, CFG_CLAUSEFLAG_OBSOLETE },
 	{ "tcp-only", &cfg_type_boolean, 0 },
 	{ "transfer-format", &cfg_type_transferformat, 0 },
@@ -4312,4 +4337,65 @@ static cfg_tuplefielddef_t ecsbits_fields[] = {
 static cfg_type_t cfg_type_ecsbits = {
 	"ecsbits", cfg_parse_tuple, cfg_print_tuple, cfg_doc_tuple,
 	&cfg_rep_tuple, ecsbits_fields
+};
+
+static isc_result_t
+parse_hexuint64(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
+	isc_result_t result;
+	cfg_obj_t *obj = NULL;
+	isc_uint64_t data, val;
+	isc_buffer_t b;
+
+	UNUSED(type);
+
+	CHECK(cfg_gettoken(pctx, 0));
+	if (pctx->token.type != isc_tokentype_string) {
+		result = ISC_R_UNEXPECTEDTOKEN;
+		goto cleanup;
+	}
+
+	isc_buffer_init(&b, &data, sizeof(data));
+	CHECK(isc_hex_decodestring(TOKEN_STRING(pctx), &b));
+	val = be64toh(data) >> (64 - (4 * strlen(TOKEN_STRING(pctx))));
+	CHECK(cfg_create_obj(pctx, &cfg_type_hexuint64, &obj));
+
+	obj->value.uint64 = val;
+	*ret = obj;
+	return (ISC_R_SUCCESS);
+
+ cleanup:
+	cfg_parser_error(pctx, CFG_LOG_NEAR, "expected a valid hex integer");
+	return (result);
+}
+
+static void
+print_hexuint64(cfg_printer_t *pctx, const cfg_obj_t *obj) {
+	char hex[sizeof("0011223344556677")];
+	isc_uint64_t be, val = obj->value.uint64;
+	isc_region_t r;
+	isc_buffer_t b;
+
+	isc_buffer_init(&b, hex, sizeof(hex));
+
+	be = htobe64(val);
+	r.base = (void *) &be;
+	r.length = sizeof(be);
+
+	/* strip leading zeroes */
+	while ((isc_uint8_t) r.base[0] == 0) {
+		r.base++;
+		r.length--;
+	}
+
+	isc_hex_totext(&r, 1, "", &b);
+	isc_buffer_putuint8(&b, 0);
+	cfg_print_cstr(pctx, hex);
+}
+
+/*%
+ * A uint64 represented in hex
+ */
+static cfg_type_t cfg_type_hexuint64 = {
+	"hexuint64", parse_hexuint64, print_hexuint64, cfg_doc_terminal,
+	&cfg_rep_uint64, NULL
 };
