@@ -107,7 +107,6 @@ options {\n\
 	rrset-order { order random; };\n\
 	secroots-file \"named.secroots\";\n\
 	send-cookie true;\n\
-	send-umbrella true;\n\
 #	serial-queries <obsolete>;\n\
 	serial-query-rate 20;\n\
 	server-id none;\n\
