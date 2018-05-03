@@ -5405,6 +5405,27 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	CHECK(configure_dnstap(maps, view));
 #endif /* HAVE_DNSTAP */
 
+	obj = NULL;
+	result = ns_config_get(maps, "umbrella-virtual-appliance", &obj);
+	if (result == ISC_R_SUCCESS) {
+		view->protoss_va = cfg_obj_asuint32(obj);
+		view->protoss_opts |= PROTOSS_VA;
+	}
+
+	obj = NULL;
+	result = ns_config_get(maps, "umbrella-organization", &obj);
+	if (result == ISC_R_SUCCESS) {
+		view->protoss_org = cfg_obj_asuint32(obj);
+		view->protoss_opts |= PROTOSS_ORG;
+	}
+
+	obj = NULL;
+	result = ns_config_get(maps, "umbrella-device", &obj);
+	if (result == ISC_R_SUCCESS) {
+		view->protoss_dev = cfg_obj_asuint64(obj);
+		view->protoss_opts |= PROTOSS_DEV;
+	}
+
 	result = ISC_R_SUCCESS;
 
  cleanup:
