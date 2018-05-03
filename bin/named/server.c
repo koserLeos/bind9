@@ -1490,6 +1490,12 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 	if (obj != NULL)
 		CHECK(dns_peer_setsupportecs(peer, cfg_obj_asboolean(obj)));
 
+	obj = NULL;
+	(void)cfg_map_get(cpeer, "send-umbrella", &obj);
+	if (obj != NULL) {
+		CHECK(dns_peer_setsendprotoss(peer, cfg_obj_asboolean(obj)));
+	}
+
 	*peerp = peer;
 	return (ISC_R_SUCCESS);
 

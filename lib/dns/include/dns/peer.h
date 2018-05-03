@@ -68,6 +68,7 @@ struct dns_peer {
 	isc_boolean_t		support_ecs;
 	isc_boolean_t		request_nsid;
 	isc_boolean_t		send_cookie;
+	isc_boolean_t		send_protoss;
 	isc_boolean_t		request_expire;
 	isc_boolean_t		force_tcp;
 	isc_boolean_t		tcp_keepalive;
@@ -275,6 +276,13 @@ dns_peer_setsupportecs(dns_peer_t *peer, isc_boolean_t newval);
 
 isc_result_t
 dns_peer_getsupportecs(dns_peer_t *peer, isc_boolean_t *retval);
+
+isc_result_t
+dns_peer_setsendprotoss(dns_peer_t *peer, isc_boolean_t newval);
+
+isc_result_t
+dns_peer_getsendprotoss(dns_peer_t *peer, isc_boolean_t *retval);
+
 ISC_LANG_ENDDECLS
 
 #endif /* DNS_PEER_H */
