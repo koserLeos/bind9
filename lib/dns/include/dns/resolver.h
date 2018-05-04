@@ -90,26 +90,27 @@ typedef enum {
 /*
  * Options that modify how a 'fetch' is done.
  */
-#define DNS_FETCHOPT_TCP		0x0001	     /*%< Use TCP. */
-#define DNS_FETCHOPT_UNSHARED		0x0002	     /*%< See below. */
-#define DNS_FETCHOPT_RECURSIVE		0x0004	     /*%< Set RD? */
-#define DNS_FETCHOPT_NOEDNS0		0x0008	     /*%< Do not use EDNS. */
-#define DNS_FETCHOPT_FORWARDONLY	0x0010	     /*%< Only use forwarders. */
-#define DNS_FETCHOPT_NOVALIDATE		0x0020	     /*%< Disable validation. */
-#define DNS_FETCHOPT_EDNS512		0x0040	     /*%< Advertise a 512 byte
+#define DNS_FETCHOPT_TCP		0x00001	     /*%< Use TCP. */
+#define DNS_FETCHOPT_UNSHARED		0x00002	     /*%< See below. */
+#define DNS_FETCHOPT_RECURSIVE		0x00004	     /*%< Set RD? */
+#define DNS_FETCHOPT_NOEDNS0		0x00008	     /*%< Do not use EDNS. */
+#define DNS_FETCHOPT_FORWARDONLY	0x00010	     /*%< Only use forwarders. */
+#define DNS_FETCHOPT_NOVALIDATE		0x00020	     /*%< Disable validation. */
+#define DNS_FETCHOPT_EDNS512		0x00040	     /*%< Advertise a 512 byte
 							  UDP buffer. */
-#define DNS_FETCHOPT_WANTNSID		0x0080	     /*%< Request NSID */
-#define DNS_FETCHOPT_PREFETCH		0x0100	     /*%< Do prefetch */
-#define DNS_FETCHOPT_NOCDFLAG		0x0200	     /*%< Don't set CD flag. */
-#define DNS_FETCHOPT_NONTA		0x0400	     /*%< Ignore NTA table. */
+#define DNS_FETCHOPT_WANTNSID		0x00080	     /*%< Request NSID */
+#define DNS_FETCHOPT_PREFETCH		0x00100	     /*%< Do prefetch */
+#define DNS_FETCHOPT_NOCDFLAG		0x00200	     /*%< Don't set CD flag. */
+#define DNS_FETCHOPT_NONTA		0x00400	     /*%< Ignore NTA table. */
 
-#define DNS_FETCHOPT_ECSPRIVATE		0x0800	     /*%< ECS privacy
+#define DNS_FETCHOPT_ECSPRIVATE		0x00800	     /*%< ECS privacy
 							  requested. */
-#define DNS_FETCHOPT_SENDECS		0x1000	     /*%< Send an ECS option. */
-#define DNS_FETCHOPT_RETURNECS		0x2000	     /*%< Return ECS to
+#define DNS_FETCHOPT_SENDECS		0x01000	     /*%< Send an ECS option. */
+#define DNS_FETCHOPT_RETURNECS		0x02000	     /*%< Return ECS to
 							  client. */
-#define DNS_FETCHOPT_TCPCLIENT		0x4000	     /*%< Client uses TCP */
-#define DNS_FETCHOPT_NOCACHED		0x8000	     /*%< Force cache update. */
+#define DNS_FETCHOPT_TCPCLIENT		0x04000	     /*%< Client uses TCP */
+#define DNS_FETCHOPT_NOCACHED		0x08000	     /*%< Force cache update. */
+#define DNS_FETCHOPT_PROTOSS		0x10000	     /*%< PROTOSS option. */
 
 /* Reserved in use by adb.c		0x00400000 */
 #define	DNS_FETCHOPT_EDNSVERSIONSET	0x00800000
