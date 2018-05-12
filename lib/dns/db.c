@@ -1226,10 +1226,6 @@ dns_db_updatenotify_register(dns_db_t *db,
 {
 	dns_dbonupdatelistener_t *listener;
 
-	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
-		      DNS_LOGMODULE_DB, ISC_LOG_ERROR,
-		      "register %p %p %p", db, fn, fn_arg);
-
 	REQUIRE(db != NULL);
 	REQUIRE(fn != NULL);
 
@@ -1252,10 +1248,6 @@ dns_db_updatenotify_unregister(dns_db_t *db,
 			       void *fn_arg)
 {
 	dns_dbonupdatelistener_t *listener;
-
-	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
-		      DNS_LOGMODULE_DB, ISC_LOG_ERROR,
-		      "unregister %p %p %p", db, fn, fn_arg);
 
 	REQUIRE(db != NULL);
 
