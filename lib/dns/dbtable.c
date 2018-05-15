@@ -9,11 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/*! \file
- * \author
- * Principal Author: DCL
- */
-
 #include <config.h>
 
 #include <isc/mem.h>
