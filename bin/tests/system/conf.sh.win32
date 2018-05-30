@@ -111,7 +111,7 @@ PARALLELDIRS="acl additional addzone allow-query autosign \
         padding pending pipelined \
         reclimit redirect resolver rndc rpz rootkeysentinel rpzrecurse \
         rrchecker rrl rrsetorder rsabigexponent runtime \
-        sfcache smartsign sortlist \
+        serve-stale sfcache smartsign sortlist \
         spf staticstub statistics statschannel stub \
         tcp tsig tsiggss \
         unknown upforwd verify views wildcard \

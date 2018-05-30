@@ -1,5 +1,11 @@
 4927.	[bug]		Fixed an ECS-related database lookup error.
 
+4700.	[func]		Serving of stale answers is now supported. This
+			allows named to provide stale cached answers when
+			the authoritative server is under attack.
+			See max-stale-ttl, stale-answer-enable,
+			stale-answer-ttl. [RT #44790]
+
 	--- 9.11.3-S1 released ---
 
 4796.	[bug]		Increase the maximum configurable TCP keepalive

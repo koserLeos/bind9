@@ -22,6 +22,7 @@ options {
 	listen-on-v6 { fd92:7065:b8e:ffff::7; };
 	recursion yes;
 	allow-recursion { any; };
+	max-stale-ttl 0;
 
 	/*
 	 * - ECS is enabled for the zone test.example using default

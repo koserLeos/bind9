@@ -189,6 +189,7 @@ options {\n\
 	max-ncache-ttl 10800; /* 3 hours */\n\
 	max-recursion-depth 7;\n\
 	max-recursion-queries 75;\n\
+	max-stale-ttl 604800; /* 1 week */\n\
 	message-compression yes;\n\
 #	min-roots <obsolete>;\n\
 	minimal-any false;\n\
@@ -203,10 +204,14 @@ options {\n\
 	request-expire true;\n\
 	request-ixfr true;\n\
 	require-server-cookie no;\n\
+	resolver-nonbackoff-tries 3;\n\
+	resolver-retry-interval 800; /* in milliseconds */\n\
 #	rfc2308-type1 <obsolete>;\n\
 	root-key-sentinel yes;\n\
 	servfail-ttl 1;\n\
 #	sortlist <none>\n\
+	stale-answer-enable false;\n\
+	stale-answer-ttl 1; /* 1 second */\n\
 #	topology <none>\n\
 	transfer-format many-answers;\n\
 	v6-bias 50;\n\

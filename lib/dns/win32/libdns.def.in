@@ -40,8 +40,8 @@ dns_aclelement_matchx
 dns_aclenv_copy
 dns_aclenv_destroy
 dns_aclenv_init
-dns_adb_agesrtt
 dns_adb_adjustsrtt
+dns_adb_agesrtt
 dns_adb_attach
 dns_adb_beginudpfetch
 dns_adb_cancelfind
@@ -103,6 +103,7 @@ dns_cache_flushnode
 dns_cache_getcachesize
 dns_cache_getcleaninginterval
 dns_cache_getname
+dns_cache_getservestalettl
 dns_cache_getstats
 dns_cache_load
 @IF NOTYET
@@ -114,6 +115,7 @@ dns_cache_renderxml
 dns_cache_setcachesize
 dns_cache_setcleaninginterval
 dns_cache_setfilename
+dns_cache_setservestalettl
 dns_cache_updatestats
 dns_catz_add_zone
 dns_catz_catzs_attach
@@ -213,7 +215,6 @@ dns_db_dump2
 dns_db_endload
 dns_db_expirenode
 dns_db_expirenodeall
-dns_db_getsize
 dns_db_find
 dns_db_findext
 dns_db_findnode
@@ -225,7 +226,9 @@ dns_db_findzonecut
 dns_db_getnsec3parameters
 dns_db_getoriginnode
 dns_db_getrrsetstats
+dns_db_getservestalettl
 dns_db_getsigningtime
+dns_db_getsize
 dns_db_getsoaserial
 dns_db_hashsize
 dns_db_iscache
@@ -250,6 +253,7 @@ dns_db_rpz_attach
 dns_db_rpz_ready
 dns_db_serialize
 dns_db_setcachestats
+dns_db_setservestalettl
 dns_db_setsigningtime
 dns_db_settask
 dns_db_subtractrdataset
@@ -367,8 +371,8 @@ dns_dnssec_verifymessage
 dns_dnsseckey_create
 dns_dnsseckey_destroy
 dns_ds_buildrdata
-dns_dsdigest_fromtext
 dns_dsdigest_format
+dns_dsdigest_fromtext
 dns_dsdigest_totext
 @IF NOTYET
 dns_dt_attach
@@ -967,10 +971,12 @@ dns_resolver_getlamettl
 dns_resolver_getmaxdepth
 dns_resolver_getmaxqueries
 dns_resolver_getmustbesecure
+dns_resolver_getnonbackofftries
 dns_resolver_getoptions
 dns_resolver_getquerydscp4
 dns_resolver_getquerydscp6
 dns_resolver_getquotaresponse
+dns_resolver_getretryinterval
 dns_resolver_gettimeout
 dns_resolver_getudpsize
 dns_resolver_getzeronosoattl
@@ -987,9 +993,11 @@ dns_resolver_setlamettl
 dns_resolver_setmaxdepth
 dns_resolver_setmaxqueries
 dns_resolver_setmustbesecure
+dns_resolver_setnonbackofftries
 dns_resolver_setquerydscp4
 dns_resolver_setquerydscp6
 dns_resolver_setquotaresponse
+dns_resolver_setretryinterval
 dns_resolver_settimeout
 dns_resolver_setudpsize
 dns_resolver_setzeronosoattl

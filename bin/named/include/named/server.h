@@ -218,7 +218,10 @@ enum {
 	dns_nsstatscounter_badcookie = 57,
 	dns_nsstatscounter_keytagopt = 58,
 
-	dns_nsstatscounter_max = 59
+	dns_nsstatscounter_trystale = 59,
+	dns_nsstatscounter_usedstale = 60,
+
+	dns_nsstatscounter_max = 61
 };
 
 /*%
@@ -762,5 +765,13 @@ ns_server_dnstap(ns_server_t *server, isc_lex_t *lex, isc_buffer_t **text);
  */
 isc_result_t
 ns_server_tcptimeouts(isc_lex_t *lex, isc_buffer_t **text);
+
+/*%
+ * Control whether stale answers are served or not when configured in
+ * named.conf.
+ */
+isc_result_t
+ns_server_servestale(ns_server_t *server, isc_lex_t *lex,
+		     isc_buffer_t **text);
 
 #endif /* NAMED_SERVER_H */

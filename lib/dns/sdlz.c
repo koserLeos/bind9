@@ -1331,7 +1331,9 @@ static dns_dbmethods_t sdlzdb_methods = {
 	NULL,			/* addrdatasetext */
 	NULL,			/* deleterdatasetext */
 	NULL,			/* expirenodeall */
-	NULL 			/* allrdatasetsext */
+	NULL, 			/* allrdatasetsext */
+	NULL,			/* setservestalettl */
+	NULL			/* getservestalettl */
 };
 
 /*

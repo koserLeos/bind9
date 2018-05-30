@@ -300,6 +300,12 @@ init_desc(void) {
 		"QryNXRedirRLookup");
 	SET_NSSTATDESC(badcookie, "sent badcookie response", "QryBADCOOKIE");
 	SET_NSSTATDESC(keytagopt, "Keytag option received", "KeyTagOpt");
+	SET_NSSTATDESC(trystale,
+		       "attempts to use stale cache data after lookup failure",
+		       "QryTryStale");
+	SET_NSSTATDESC(usedstale,
+		       "successful uses of stale cache data after lookup failure",
+		       "QryUsedStale");
 	INSIST(i == dns_nsstatscounter_max);
 
 	/* Initialize resolver statistics */

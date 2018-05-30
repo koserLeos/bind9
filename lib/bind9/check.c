@@ -94,7 +94,8 @@ check_orderent(const cfg_obj_t *ent, isc_log_t *logctx) {
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "rrset-order: invalid class '%s'",
 				    r.base);
-			result = ISC_R_FAILURE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_FAILURE;
 		}
 	}
 
@@ -107,7 +108,8 @@ check_orderent(const cfg_obj_t *ent, isc_log_t *logctx) {
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "rrset-order: invalid type '%s'",
 				    r.base);
-			result = ISC_R_FAILURE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_FAILURE;
 		}
 	}
 
@@ -121,7 +123,8 @@ check_orderent(const cfg_obj_t *ent, isc_log_t *logctx) {
 		if (tresult != ISC_R_SUCCESS) {
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "rrset-order: invalid name '%s'", str);
-			result = ISC_R_FAILURE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_FAILURE;
 		}
 	}
 
@@ -130,14 +133,16 @@ check_orderent(const cfg_obj_t *ent, isc_log_t *logctx) {
 	    strcasecmp("order", cfg_obj_asstring(obj)) != 0) {
 		cfg_obj_log(ent, logctx, ISC_LOG_ERROR,
 			    "rrset-order: keyword 'order' missing");
-		result = ISC_R_FAILURE;
+		if (result == ISC_R_SUCCESS)
+			result = ISC_R_FAILURE;
 	}
 
 	obj = cfg_tuple_get(ent, "ordering");
 	if (!cfg_obj_isstring(obj)) {
 	    cfg_obj_log(ent, logctx, ISC_LOG_ERROR,
 			"rrset-order: missing ordering");
-		result = ISC_R_FAILURE;
+		if (result == ISC_R_SUCCESS)
+			result = ISC_R_FAILURE;
 	} else if (strcasecmp(cfg_obj_asstring(obj), "fixed") == 0) {
 #if !DNS_RDATASET_FIXED
 		cfg_obj_log(obj, logctx, ISC_LOG_WARNING,
@@ -149,7 +154,8 @@ check_orderent(const cfg_obj_t *ent, isc_log_t *logctx) {
 		cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 			    "rrset-order: invalid order '%s'",
 			    cfg_obj_asstring(obj));
-		result = ISC_R_FAILURE;
+		if (result == ISC_R_SUCCESS)
+			result = ISC_R_FAILURE;
 	}
 	return (result);
 }
@@ -169,7 +175,7 @@ check_order(const cfg_obj_t *options, isc_log_t *logctx) {
 	     element = cfg_list_next(element))
 	{
 		tresult = check_orderent(cfg_listelt_value(element), logctx);
-		if (tresult != ISC_R_SUCCESS)
+		if (result == ISC_R_SUCCESS && tresult != ISC_R_SUCCESS)
 			result = tresult;
 	}
 	return (result);
@@ -199,7 +205,8 @@ check_dual_stack(const cfg_obj_t *options, isc_log_t *logctx) {
 		if (val > ISC_UINT16_MAX) {
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "port '%u' out of range", val);
-			result = ISC_R_FAILURE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_RANGE;
 		}
 	}
 	obj = cfg_tuple_get(alternates, "addresses");
@@ -219,7 +226,8 @@ check_dual_stack(const cfg_obj_t *options, isc_log_t *logctx) {
 		if (tresult != ISC_R_SUCCESS) {
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "bad name '%s'", str);
-			result = ISC_R_FAILURE;
+			if (result == ISC_R_SUCCESS)
+				result = tresult;
 		}
 		obj = cfg_tuple_get(value, "port");
 		if (cfg_obj_isuint32(obj)) {
@@ -227,7 +235,8 @@ check_dual_stack(const cfg_obj_t *options, isc_log_t *logctx) {
 			if (val > ISC_UINT16_MAX) {
 				cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 					    "port '%u' out of range", val);
-				result = ISC_R_FAILURE;
+				if (result == ISC_R_SUCCESS)
+					result = ISC_R_RANGE;
 			}
 		}
 	}
@@ -1334,7 +1343,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "auto-dnssec may only be activated at the "
 				    "zone level");
-			result = ISC_R_FAILURE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_FAILURE;
 		}
 	}
 
@@ -1354,7 +1364,7 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 		{
 			obj = cfg_listelt_value(element);
 			tresult = mustbesecure(obj, symtab, logctx, mctx);
-			if (tresult != ISC_R_SUCCESS)
+			if (result == ISC_R_SUCCESS && tresult != ISC_R_SUCCESS)
 				result = tresult;
 		}
 		if (symtab != NULL)
@@ -1373,7 +1383,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 				cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 					    "%s: invalid name '%s'",
 					    server_contact[i], str);
-				result = ISC_R_FAILURE;
+				if (result == ISC_R_SUCCESS)
+					result = ISC_R_FAILURE;
 			}
 		}
 	}
@@ -1393,7 +1404,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "disable-empty-zone: invalid name '%s'",
 				    str);
-			result = ISC_R_FAILURE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_FAILURE;
 		}
 	}
 
@@ -1407,11 +1419,12 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 	    strlen(cfg_obj_asstring(obj)) > 1024U) {
 		cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 			    "'server-id' too big (>1024 bytes)");
-		result = ISC_R_FAILURE;
+		if (result == ISC_R_SUCCESS)
+			result = ISC_R_FAILURE;
 	}
 
 	tresult = check_dscp(options, logctx);
-	if (tresult != ISC_R_SUCCESS)
+	if (result == ISC_R_SUCCESS && tresult != ISC_R_SUCCESS)
 		result = tresult;
 
 	obj = NULL;
@@ -1421,11 +1434,13 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 		if (lifetime > 604800) {	/* 7 days */
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "'nta-lifetime' cannot exceed one week");
-			result = ISC_R_RANGE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_RANGE;
 		} else if (lifetime == 0) {
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "'nta-lifetime' may not be zero");
-			result = ISC_R_RANGE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_RANGE;
 		}
 	}
 
@@ -1436,7 +1451,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 		if (recheck > 604800) {		/* 7 days */
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "'nta-recheck' cannot exceed one week");
-			result = ISC_R_RANGE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_RANGE;
 		}
 
 		if (recheck > lifetime)
@@ -1454,7 +1470,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 	if (strcasecmp(ccalg, "aes") == 0) {
 		cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 			    "cookie-algorithm: '%s' not supported", ccalg);
-		result = ISC_R_NOTIMPLEMENTED;
+		if (result == ISC_R_SUCCESS)
+			result = ISC_R_NOTIMPLEMENTED;
 	}
 #endif
 
@@ -1537,7 +1554,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 				cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 					    "%s out of range (%u < %u)",
 					    fstrm[i].name, value, fstrm[i].min);
-			result = ISC_R_RANGE;
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_RANGE;
 		}
 
 		if (strcmp(fstrm[i].name, "fstrm-set-input-queue-size") == 0) {
@@ -1551,7 +1569,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 					    "%s '%u' not a power-of-2",
 					    fstrm[i].name,
 					    cfg_obj_asuint32(obj));
-				result = ISC_R_RANGE;
+				if (result == ISC_R_SUCCESS)
+					result = ISC_R_RANGE;
 			}
 		}
 	}
@@ -1567,23 +1586,24 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 		if (obj2 == NULL) {
 			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 				    "dnstap-output mode not found");
-			return (ISC_R_FAILURE);
-		}
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_FAILURE;
+		} else {
+			if (strcasecmp(cfg_obj_asstring(obj2), "file") == 0)
+				dmode = dns_dtmode_file;
+			else
+				dmode = dns_dtmode_unix;
 
-		if (strcasecmp(cfg_obj_asstring(obj2), "file") == 0)
-			dmode = dns_dtmode_file;
-		else
-			dmode = dns_dtmode_unix;
-
-		obj2 = cfg_tuple_get(obj, "size");
-		if (obj2 != NULL && !cfg_obj_isvoid(obj2) &&
-		    dmode == dns_dtmode_unix)
-		{
-			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
-				    "dnstap-output size "
-				    "cannot be set with mode unix");
-			return (ISC_R_FAILURE);
-		}
+			obj2 = cfg_tuple_get(obj, "size");
+			if (obj2 != NULL && !cfg_obj_isvoid(obj2) &&
+			    dmode == dns_dtmode_unix)
+			{
+				cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+					    "dnstap-output size "
+					    "cannot be set with mode unix");
+				if (result == ISC_R_SUCCESS)
+					result = ISC_R_FAILURE;
+			}
 
 		obj2 = cfg_tuple_get(obj, "versions");
 		if (obj2 != NULL && !cfg_obj_isvoid(obj2) &&
@@ -1609,7 +1629,8 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 				    "%" ISC_PRINT_QUADFORMAT "d' "
 				    "is too small",
 				    mapsize);
-			return (ISC_R_RANGE);
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_RANGE;
 		} else if (mapsize > (1ULL << 40)) { /* 1 terabyte */
 			cfg_obj_log(obj, logctx,
 				    ISC_LOG_ERROR,
@@ -1617,8 +1638,18 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 				    "%" ISC_PRINT_QUADFORMAT "d' "
 				    "is too large",
 				    mapsize);
-			return (ISC_R_RANGE);
+			if (result == ISC_R_SUCCESS)
+				result = ISC_R_RANGE;
 		}
+	}
+
+	obj = NULL;
+	(void)cfg_map_get(options, "resolver-nonbackoff-tries", &obj);
+	if (obj != NULL && cfg_obj_asuint32(obj) == 0U) {
+		cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+			    "'resolver-nonbackoff-tries' must be >= 1");
+		if (result == ISC_R_SUCCESS)
+			result = ISC_R_RANGE;
 	}
 
 	return (result);

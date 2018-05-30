@@ -92,6 +92,7 @@ typedef struct dns_totext_ctx {
 	dns_fixedname_t		origin_fixname;
 	isc_uint32_t 		current_ttl;
 	isc_boolean_t 		current_ttl_valid;
+	dns_ttl_t		serve_stale_ttl;
 } dns_totext_ctx_t;
 
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
@@ -395,6 +396,7 @@ totext_ctx_init(const dns_master_style_t *style, dns_totext_ctx_t *ctx) {
 	ctx->neworigin = NULL;
 	ctx->current_ttl = 0;
 	ctx->current_ttl_valid = ISC_FALSE;
+	ctx->serve_stale_ttl = 0;
 
 	return (ISC_R_SUCCESS);
 }
@@ -1080,13 +1082,18 @@ dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 			/* Omit negative cache entries */
 		} else {
 			isc_result_t result;
-
+			if (rds->ttl < ctx->serve_stale_ttl) {
+				fprintf(f, "; stale\n");
+			}
 			result = dump_rdataset(mctx, name, rds, ctx,
 					       buffer, &previous_ecs, f);
-			if (result != ISC_R_SUCCESS)
+			if (result != ISC_R_SUCCESS) {
 				dumpresult = result;
+			}
 			if ((ctx->style.flags & DNS_STYLEFLAG_OMIT_OWNER) != 0)
+			{
 				name = NULL;
+			}
 		}
 		if (ctx->style.flags & DNS_STYLEFLAG_RESIGN &&
 		    rds->attributes & DNS_RDATASETATTR_RESIGN) {
@@ -1542,6 +1549,15 @@ dumpctx_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 	dns_db_attach(db, &dctx->db);
 
 	dctx->do_date = dns_db_iscache(dctx->db);
+	if (dctx->do_date) {
+	    /*
+	     * Adjust the date backwards by the serve-stale TTL, if any.
+	     * This is so the TTL will be loaded correctly when next started.
+	     */
+	    (void)dns_db_getservestalettl(dctx->db,
+					  &dctx->tctx.serve_stale_ttl);
+	    dctx->now -= dctx->tctx.serve_stale_ttl;
+	}
 
 	if (dctx->format == dns_masterformat_text &&
 	    (dctx->tctx.style.flags & DNS_STYLEFLAG_REL_OWNER) != 0) {
@@ -1601,6 +1617,9 @@ writeheader(dns_dumpctx_t *dctx) {
 		 * it in the zone case.
 		 */
 		if (dctx->do_date) {
+			fprintf(dctx->f,
+				"; using a %d second stale ttl\n",
+				dctx->tctx.serve_stale_ttl);
 			result = dns_time32_totext(dctx->now, &buffer);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
 			isc_buffer_usedregion(&buffer, &r);

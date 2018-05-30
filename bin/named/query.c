@@ -135,6 +135,10 @@
 #define NOQNAME(r)		(((r)->attributes & \
 				  DNS_RDATASETATTR_NOQNAME) != 0)
 
+/*% Does the rdataset 'r' contain a stale answer? */
+#define STALE(r)		(((r)->attributes & \
+				  DNS_RDATASETATTR_STALE) != 0)
+
 #ifdef WANT_QUERYTRACE
 static inline void
 client_trace(ns_client_t *client, int level, const char *message) {
@@ -1507,6 +1511,35 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 				rdataset, sigrdataset);
 
 	dns_cache_updatestats(client->view->cache, result);
+
+	if ((client->query.dboptions & DNS_DBFIND_STALEOK) != 0) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		isc_boolean_t success;
+
+		client->query.dboptions &= ~DNS_DBFIND_STALEOK;
+		if (dns_rdataset_isassociated(rdataset) &&
+		    dns_rdataset_count(rdataset) > 0 &&
+		    STALE(rdataset))
+		{
+			rdataset->ttl = client->view->staleanswerttl;
+			success = ISC_TRUE;
+		} else {
+			success = ISC_FALSE;
+		}
+
+		dns_name_format(client->query.qname,
+				namebuf, sizeof(namebuf));
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_QUERY, ISC_LOG_INFO,
+			      "%s resolver failure, stale answer %s",
+			      namebuf, success ? "used" : "unavailable");
+
+		if (!success) {
+			eresult = DNS_R_SERVFAIL;
+			goto cleanup;
+		}
+	}
+
 	if (!WANTDNSSEC(client))
 		query_putrdataset(client, &sigrdataset);
 	if (result == ISC_R_SUCCESS)
@@ -6777,6 +6810,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	isc_buffer_t b;
 	isc_result_t result, eresult, tresult;
 	dns_fixedname_t fixed;
+	isc_boolean_t want_stale;
 	dns_fixedname_t wildcardname;
 	dns_dbversion_t *version, *zversion;
 	dns_zone_t *zone;
@@ -6836,6 +6870,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	resuming = ISC_FALSE;
 	is_zone = ISC_FALSE;
 	is_staticstub_zone = ISC_FALSE;
+	want_stale = ISC_FALSE;
 
 	dns_clientinfomethods_init(&cm, ns_client_sourceip);
 	dns_clientinfo_init(&ci, client,
@@ -8612,7 +8647,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		 * If we have a zero ttl from the cache refetch it.
 		 */
 		if (!is_zone && !resuming && rdataset->ttl == 0 &&
-		    RECURSIONOK(client))
+		    RECURSIONOK(client) && !STALE(rdataset))
 		{
 			if (dns_rdataset_isassociated(rdataset))
 				dns_rdataset_disassociate(rdataset);
@@ -8839,7 +8874,11 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			 "query_find: unexpected error after resuming: %s",
 			 isc_result_totext(result));
 		CTRACE(ISC_LOG_ERROR, errmsg);
-		QUERY_ERROR(DNS_R_SERVFAIL);
+		if (resuming) {
+			want_stale = ISC_TRUE;
+		} else {
+			QUERY_ERROR(DNS_R_SERVFAIL);
+		}
 		goto cleanup;
 	}
 
@@ -9098,7 +9137,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		 * If we have a zero ttl from the cache refetch it.
 		 */
 		if (!is_zone && !resuming && rdataset->ttl == 0 &&
-		    RECURSIONOK(client))
+		    RECURSIONOK(client) && !STALE(rdataset))
 		{
 			if (dns_rdataset_isassociated(rdataset))
 				dns_rdataset_disassociate(rdataset);
@@ -9436,6 +9475,53 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	if (want_restart && client->query.restarts < MAX_RESTARTS) {
 		client->query.restarts++;
 		goto restart;
+	}
+
+	/*
+	 * Handle stale answers?
+	 */
+	if (want_stale) {
+		dns_ttl_t stale_ttl = 0;
+		isc_boolean_t staleanswersok = ISC_FALSE;
+
+		/*
+		 * Stale answers only make sense if stale_ttl > 0 but
+		 * we want rndc to be able to control returning stale
+		 * answers if they are configured.
+		 */
+		dns_db_attach(client->view->cachedb, &db);
+		result = dns_db_getservestalettl(db, &stale_ttl);
+		if (result == ISC_R_SUCCESS && stale_ttl > 0)  {
+			switch (client->view->staleanswersok) {
+			case dns_stale_answer_yes:
+				staleanswersok = ISC_TRUE;
+				break;
+			case dns_stale_answer_conf:
+				staleanswersok =
+					client->view->staleanswersenable;
+				break;
+			case dns_stale_answer_no:
+				staleanswersok = ISC_FALSE;
+				break;
+			}
+		} else {
+			staleanswersok = ISC_FALSE;
+		}
+
+		if (staleanswersok) {
+			client->query.dboptions |= DNS_DBFIND_STALEOK;
+			isc_stats_increment(ns_g_server->nsstats,
+					    dns_nsstatscounter_trystale);
+			if (client->query.fetch != NULL) {
+				dns_resolver_destroyfetch(&client->query.fetch);
+			}
+			goto db_find;
+		}
+		dns_db_detach(&db);
+		client->query.dboptions &= ~DNS_DBFIND_STALEOK;
+		want_stale = ISC_FALSE;
+		QUERY_ERROR(DNS_R_SERVFAIL);
+		goto cleanup;
 	}
 
 	if (eresult != ISC_R_SUCCESS &&
