@@ -77,6 +77,11 @@
 	  <filename>named.conf</filename>.
 	</para>
       </listitem>
+    </itemizedlist>
+  </section>
+
+  <section xml:id="relnotes_changes"><info><title>Feature Changes</title></info>
+    <itemizedlist>
       <listitem>
 	<para>
 	  Added the ability not to return a DNS COOKIE option when one
