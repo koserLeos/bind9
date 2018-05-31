@@ -13,7 +13,7 @@
 
 <refentry xmlns:db="http://docbook.org/ns/docbook" version="5.0" xml:id="man.named.conf">
   <info>
-    <date>2018-03-16</date>
+    <date>2018-05-30</date>
   </info>
   <refentryinfo>
     <corpname>ISC</corpname>
@@ -270,11 +270,13 @@ options {
 	dnssec-secure-to-insecure <replaceable>boolean</replaceable>;
 	dnssec-update-mode ( maintain | no-resign );
 	dnssec-validation ( yes | no | auto );
-	dnstap { ( all | auth | client | forwarder | resolver ) [ ( query |
-	    response ) ]; ... };
-	dnstap-identity ( <replaceable>quoted_string</replaceable> | none | hostname );
-	dnstap-output ( file | unix ) <replaceable>quoted_string</replaceable> [ size ( unlimited |
-	    <replaceable>size</replaceable> ) ] [ versions ( unlimited | <replaceable>integer</replaceable> ) ];
+	dnstap { ( all | auth | client | forwarder |
+	    resolver ) [ ( query | response ) ]; ... };
+	dnstap-identity ( <replaceable>quoted_string</replaceable> | none |
+	    hostname );
+	dnstap-output ( file | unix ) <replaceable>quoted_string</replaceable> [
+	    size ( unlimited | <replaceable>size</replaceable> ) ] [ versions (
+	    unlimited | <replaceable>integer</replaceable> ) ];
 	dnstap-version ( <replaceable>quoted_string</replaceable> | none );
 	dscp <replaceable>integer</replaceable>;
 	dual-stack-servers [ port <replaceable>integer</replaceable> ] { ( <replaceable>quoted_string</replaceable> [ port
@@ -344,6 +346,7 @@ options {
 	max-refresh-time <replaceable>integer</replaceable>;
 	max-retry-time <replaceable>integer</replaceable>;
 	max-rsa-exponent-size <replaceable>integer</replaceable>;
+	max-stale-ttl <replaceable>ttlval</replaceable>;
 	max-transfer-idle-in <replaceable>integer</replaceable>;
 	max-transfer-idle-out <replaceable>integer</replaceable>;
 	max-transfer-time-in <replaceable>integer</replaceable>;
@@ -412,7 +415,9 @@ options {
 	request-nsid <replaceable>boolean</replaceable>;
 	require-server-cookie <replaceable>boolean</replaceable>;
 	reserved-sockets <replaceable>integer</replaceable>;
+	resolver-nonbackoff-tries <replaceable>integer</replaceable>;
 	resolver-query-timeout <replaceable>integer</replaceable>;
+	resolver-retry-interval <replaceable>integer</replaceable>;
 	response-padding { <replaceable>address_match_element</replaceable>; ... } block-size
 	    <replaceable>integer</replaceable>;
 	response-policy { zone <replaceable>quoted_string</replaceable> [ log <replaceable>boolean</replaceable> ] [
@@ -442,6 +447,8 @@ options {
 	sig-validity-interval <replaceable>integer</replaceable> [ <replaceable>integer</replaceable> ];
 	sortlist { <replaceable>address_match_element</replaceable>; ... };
 	stacksize ( default | unlimited | <replaceable>sizeval</replaceable> );
+	stale-answer-enable <replaceable>boolean</replaceable>;
+	stale-answer-ttl <replaceable>ttlval</replaceable>;
 	startup-notify-rate <replaceable>integer</replaceable>;
 	statistics-file <replaceable>quoted_string</replaceable>;
 	tcp-advertised-timeout <replaceable>integer</replaceable>;
@@ -619,8 +626,8 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	dnssec-secure-to-insecure <replaceable>boolean</replaceable>;
 	dnssec-update-mode ( maintain | no-resign );
 	dnssec-validation ( yes | no | auto );
-	dnstap { ( all | auth | client | forwarder | resolver ) [ ( query |
-	    response ) ]; ... };
+	dnstap { ( all | auth | client | forwarder |
+	    resolver ) [ ( query | response ) ]; ... };
 	dual-stack-servers [ port <replaceable>integer</replaceable> ] { ( <replaceable>quoted_string</replaceable> [ port
 	    <replaceable>integer</replaceable> ] [ dscp <replaceable>integer</replaceable> ] | <replaceable>ipv4_address</replaceable> [ port
 	    <replaceable>integer</replaceable> ] [ dscp <replaceable>integer</replaceable> ] | <replaceable>ipv6_address</replaceable> [ port
@@ -674,6 +681,7 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	max-recursion-queries <replaceable>integer</replaceable>;
 	max-refresh-time <replaceable>integer</replaceable>;
 	max-retry-time <replaceable>integer</replaceable>;
+	max-stale-ttl <replaceable>ttlval</replaceable>;
 	max-transfer-idle-in <replaceable>integer</replaceable>;
 	max-transfer-idle-out <replaceable>integer</replaceable>;
 	max-transfer-time-in <replaceable>integer</replaceable>;
@@ -732,7 +740,9 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	request-ixfr <replaceable>boolean</replaceable>;
 	request-nsid <replaceable>boolean</replaceable>;
 	require-server-cookie <replaceable>boolean</replaceable>;
+	resolver-nonbackoff-tries <replaceable>integer</replaceable>;
 	resolver-query-timeout <replaceable>integer</replaceable>;
+	resolver-retry-interval <replaceable>integer</replaceable>;
 	response-padding { <replaceable>address_match_element</replaceable>; ... } block-size
 	    <replaceable>integer</replaceable>;
 	response-policy { zone <replaceable>quoted_string</replaceable> [ log <replaceable>boolean</replaceable> ] [
@@ -791,6 +801,8 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	sig-signing-type <replaceable>integer</replaceable>;
 	sig-validity-interval <replaceable>integer</replaceable> [ <replaceable>integer</replaceable> ];
 	sortlist { <replaceable>address_match_element</replaceable>; ... };
+	stale-answer-enable <replaceable>boolean</replaceable>;
+	stale-answer-ttl <replaceable>ttlval</replaceable>;
 	transfer-format ( many-answers | one-answer );
 	transfer-source ( <replaceable>ipv4_address</replaceable> | * ) [ port ( <replaceable>integer</replaceable> | * ) ] [
 	    dscp <replaceable>integer</replaceable> ];

@@ -96,11 +96,13 @@
 	<command>dnssec-secure-to-insecure</command> <replaceable>boolean</replaceable>;
 	<command>dnssec-update-mode</command> ( maintain | no-resign );
 	<command>dnssec-validation</command> ( yes | no | auto );
-	<command>dnstap</command> { ( all | auth | client | forwarder | resolver ) [ ( query |
-	    <command>response</command> ) ]; ... };
-	<command>dnstap-identity</command> ( <replaceable>quoted_string</replaceable> | none | hostname );
-	<command>dnstap-output</command> ( file | unix ) <replaceable>quoted_string</replaceable> [ size ( unlimited |
-	    <replaceable>size</replaceable> ) ] [ versions ( unlimited | <replaceable>integer</replaceable> ) ];
+	<command>dnstap</command> { ( all | auth | client | forwarder |
+	    <command>resolver</command> ) [ ( query | response ) ]; ... };
+	<command>dnstap-identity</command> ( <replaceable>quoted_string</replaceable> | none |
+	    <command>hostname</command> );
+	<command>dnstap-output</command> ( file | unix ) <replaceable>quoted_string</replaceable> [
+	    <command>size</command> ( unlimited | <replaceable>size</replaceable> ) ] [ versions (
+	    <command>unlimited</command> | <replaceable>integer</replaceable> ) ];
 	<command>dnstap-version</command> ( <replaceable>quoted_string</replaceable> | none );
 	<command>dscp</command> <replaceable>integer</replaceable>;
 	<command>dual-stack-servers</command> [ port <replaceable>integer</replaceable> ] { ( <replaceable>quoted_string</replaceable> [ port
@@ -170,6 +172,7 @@
 	<command>max-refresh-time</command> <replaceable>integer</replaceable>;
 	<command>max-retry-time</command> <replaceable>integer</replaceable>;
 	<command>max-rsa-exponent-size</command> <replaceable>integer</replaceable>;
+	<command>max-stale-ttl</command> <replaceable>ttlval</replaceable>;
 	<command>max-transfer-idle-in</command> <replaceable>integer</replaceable>;
 	<command>max-transfer-idle-out</command> <replaceable>integer</replaceable>;
 	<command>max-transfer-time-in</command> <replaceable>integer</replaceable>;
@@ -238,7 +241,9 @@
 	<command>request-nsid</command> <replaceable>boolean</replaceable>;
 	<command>require-server-cookie</command> <replaceable>boolean</replaceable>;
 	<command>reserved-sockets</command> <replaceable>integer</replaceable>;
+	<command>resolver-nonbackoff-tries</command> <replaceable>integer</replaceable>;
 	<command>resolver-query-timeout</command> <replaceable>integer</replaceable>;
+	<command>resolver-retry-interval</command> <replaceable>integer</replaceable>;
 	<command>response-padding</command> { <replaceable>address_match_element</replaceable>; ... } block-size
 	    <replaceable>integer</replaceable>;
 	<command>response-policy</command> { zone <replaceable>quoted_string</replaceable> [ log <replaceable>boolean</replaceable> ] [
@@ -268,6 +273,8 @@
 	<command>sig-validity-interval</command> <replaceable>integer</replaceable> [ <replaceable>integer</replaceable> ];
 	<command>sortlist</command> { <replaceable>address_match_element</replaceable>; ... };
 	<command>stacksize</command> ( default | unlimited | <replaceable>sizeval</replaceable> );
+	<command>stale-answer-enable</command> <replaceable>boolean</replaceable>;
+	<command>stale-answer-ttl</command> <replaceable>ttlval</replaceable>;
 	<command>startup-notify-rate</command> <replaceable>integer</replaceable>;
 	<command>statistics-file</command> <replaceable>quoted_string</replaceable>;
 	<command>tcp-advertised-timeout</command> <replaceable>integer</replaceable>;
