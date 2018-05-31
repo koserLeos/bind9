@@ -51,7 +51,7 @@ feature-test@EXEEXT@: feature-test.@O@
 # the definition of PARALLELDIRS in conf.sh. Note: longer-running tests
 # such as serve-stale and rpzrecurse are scheduled first to get more
 # benefit from parallelism.
-PARALLEL = rpzrecurse dnssec \
+PARALLEL = serve-stale rpzrecurse dnssec \
 	   acl additional addzone allow-query autosign \
 	   builtin cacheclean case catz chain \
 	   checkconf checknames checkzone \
