@@ -14887,13 +14887,15 @@ ns_server_servestale(ns_server_t *server, isc_lex_t *lex,
 	if (ptr == NULL)
 		return (ISC_R_UNEXPECTEDEND);
 
-	if (strcasecmp(ptr, "on") == 0 || strcasecmp(ptr, "yes") == 0) {
+	if (!strcasecmp(ptr, "on") || !strcasecmp(ptr, "yes") ||
+	    !strcasecmp(ptr, "enable") || !strcasecmp(ptr, "true")) {
 		staleanswersok = dns_stale_answer_yes;
-	} else if (strcasecmp(ptr, "off") == 0 || strcasecmp(ptr, "no") == 0) {
+	} else if (!strcasecmp(ptr, "off") || !strcasecmp(ptr, "no") ||
+		   !strcasecmp(ptr, "disable") || !strcasecmp(ptr, "false")) {
 		staleanswersok = dns_stale_answer_no;
 	} else if (strcasecmp(ptr, "reset") == 0) {
 		staleanswersok = dns_stale_answer_conf;
-	} else if (strcasecmp(ptr, "status") == 0) {
+	} else if (!strcasecmp(ptr, "check") || !strcasecmp(ptr, "status")) {
 		wantstatus = ISC_TRUE;
 	} else
 		return (DNS_R_SYNTAX);

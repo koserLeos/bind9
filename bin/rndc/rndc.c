@@ -157,7 +157,7 @@ command is one of the following:\n\
   scan		Scan available network interfaces for changes.\n\
   secroots [view ...]\n\
 		Write security roots to the secroots file.\n\
-  serve-stale	( yes | no | reset ) [class [view]]\n\
+  serve-stale [ yes | no | reset | status ] [class [view]]\n\
 		Control whether stale answers are returned\n\
   showzone zone [class [view]]\n\
 		Print a zone's configuration.\n\
