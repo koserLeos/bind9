@@ -425,24 +425,6 @@ const char *empty_zones[] = {
 	NULL
 };
 
-#define NS_NAME_INIT(A,B) \
-	 { \
-		DNS_NAME_MAGIC, \
-		A, sizeof(A), sizeof(B), \
-		DNS_NAMEATTR_READONLY | DNS_NAMEATTR_ABSOLUTE, \
-		B, NULL, { (void *)-1, (void *)-1}, \
-		{NULL, NULL} \
-	}
-
-static unsigned char arpa_inaddr_offsets[] = { 0, 8, 13 };
-static unsigned char arpa_ip6_offsets[] = { 0, 4, 9 };
-static unsigned char arpa_inaddr_data[] = "\007in-addr\004arpa";
-static unsigned char arpa_ip6_data[] = "\003ip6\004arpa";
-static dns_name_t arpa_inaddr = NS_NAME_INIT(arpa_inaddr_data,
-					     arpa_inaddr_offsets);
-static dns_name_t arpa_ip6 = NS_NAME_INIT(arpa_ip6_data,
-					  arpa_ip6_offsets);
-
 ISC_PLATFORM_NORETURN_PRE static void
 fatal(const char *msg, isc_result_t result) ISC_PLATFORM_NORETURN_POST;
 
@@ -2924,8 +2906,7 @@ configure_rrl(dns_view_t *view, const cfg_obj_t *config, const cfg_obj_t *map,
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
 	} else {
-		dns_fixedname_init(&fixed);
-		name = dns_fixedname_name(&fixed);
+		name = dns_fixedname_initname(&fixed);
 
 		for (element = cfg_list_first(obj);
 		     element != NULL;
@@ -3529,8 +3510,7 @@ configure_ecszones(dns_view_t *view, const cfg_obj_t *domains) {
 		const cfg_obj_t *obj;
 		isc_boolean_t negated = ISC_FALSE;
 
-		dns_fixedname_init(&fn);
-		name = dns_fixedname_name(&fn);
+		name = dns_fixedname_initname(&fn);
 
 		bits4 = view->ecsbits4;
 		bits6 = view->ecsbits6;
@@ -3555,10 +3535,7 @@ configure_ecszones(dns_view_t *view, const cfg_obj_t *domains) {
 		 * in-addr.arpa and ip6.arpa but this could be
 		 * expanded)
 		 */
-		if (dns_name_countlabels(name) <= 2 ||
-		    dns_name_equal(name, &arpa_inaddr) ||
-		    dns_name_equal(name, &arpa_ip6))
-		{
+		if (dns_name_countlabels(name) <= 2) {
 			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
 				    "WARNING: '%s' is a public suffix "
 				    "and should not be used in 'ecs-zones'",
@@ -3568,9 +3545,7 @@ configure_ecszones(dns_view_t *view, const cfg_obj_t *domains) {
 		/*
 		 * Also warn if ecs-zones is configured for any reverse zone.
 		 */
-		if (dns_name_issubdomain(name, &arpa_inaddr) ||
-		    dns_name_issubdomain(name, &arpa_ip6))
-		{
+		if (dns_name_isreverse(name)) {
 			cfg_obj_log(obj, ns_g_lctx, ISC_LOG_WARNING,
 				    "WARNING: '%s' is a reverse zone "
 				    "and should not be used in 'ecs-zones'",

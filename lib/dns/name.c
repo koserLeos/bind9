@@ -455,7 +455,7 @@ dns_name_internalwildcard(const dns_name_t *name) {
 }
 
 unsigned int
-dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
+dns_name_hash(const dns_name_t *name, isc_boolean_t case_sensitive) {
 	unsigned int length;
 
 	/*
@@ -475,7 +475,7 @@ dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
 }
 
 unsigned int
-dns_name_fullhash(dns_name_t *name, isc_boolean_t case_sensitive) {
+dns_name_fullhash(const dns_name_t *name, isc_boolean_t case_sensitive) {
 	/*
 	 * Provide a hash value for 'name'.
 	 */
@@ -499,7 +499,7 @@ dns_fullname_hash(dns_name_t *name, isc_boolean_t case_sensitive) {
 }
 
 unsigned int
-dns_name_hashbylabel(dns_name_t *name, isc_boolean_t case_sensitive) {
+dns_name_hashbylabel(const dns_name_t *name, isc_boolean_t case_sensitive) {
 	unsigned char *offsets;
 	dns_offsets_t odata;
 	dns_name_t tname;
@@ -2666,6 +2666,28 @@ dns_name_isula(const dns_name_t *name) {
 
 	for (i = 0; i < (sizeof(ulanames)/sizeof(*ulanames)); i++)
 		if (dns_name_issubdomain(name, &ulanames[i]))
+			return (ISC_TRUE);
+	return (ISC_FALSE);
+}
+
+static unsigned char arpa_inaddr_offsets[] = { 0, 8, 13 };
+static unsigned char arpa_ip6_offsets[] = { 0, 4, 9 };
+static unsigned char arpa_inaddr_data[] = "\007in-addr\004arpa";
+static unsigned char arpa_ip6_data[] = "\003ip6\004arpa";
+
+static dns_name_t const reversenames[] = {
+	DNS_NAME_INITABSOLUTE(arpa_inaddr_data,
+			      arpa_inaddr_offsets),
+	DNS_NAME_INITABSOLUTE(arpa_ip6_data,
+			      arpa_ip6_offsets)
+};
+
+isc_boolean_t
+dns_name_isreverse(const dns_name_t *name) {
+	size_t i;
+
+	for (i = 0; i < (sizeof(reversenames)/sizeof(*reversenames)); i++)
+		if (dns_name_issubdomain(name, &reversenames[i]))
 			return (ISC_TRUE);
 	return (ISC_FALSE);
 }

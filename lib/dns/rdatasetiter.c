@@ -68,7 +68,11 @@ dns_rdatasetiter_current(dns_rdatasetiter_t *iterator,
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
 	REQUIRE(! dns_rdataset_isassociated(rdataset));
 
-	iterator->methods->current(iterator, rdataset);
+	if (iterator->methods->current) {
+		iterator->methods->current(iterator, rdataset);
+	} else {
+		iterator->methods->current_ecs(iterator, rdataset, NULL);
+	}
 }
 
 void
@@ -85,8 +89,9 @@ dns_rdatasetiter_current_ecs(dns_rdatasetiter_t *iterator,
 	REQUIRE(! dns_rdataset_isassociated(rdataset));
 	REQUIRE(ecs != NULL);
 
-	if (iterator->methods->current_ecs)
+	if (iterator->methods->current_ecs) {
 		iterator->methods->current_ecs(iterator, rdataset, ecs);
-	else
+	} else {
 		iterator->methods->current(iterator, rdataset);
+	}
 }

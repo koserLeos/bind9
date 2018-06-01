@@ -90,9 +90,7 @@ ret=0
 $NAMED -c named3.conf -d 99 -g > named3.run 2>&1 &
 sleep 2
 grep "WARNING: 'org' is a public suffix" named3.run > /dev/null 2>&1 || ret=1
-grep "WARNING: 'ip6.arpa' is a public suffix" named3.run > /dev/null 2>&1 || ret=1
 grep "WARNING: 'ip6.arpa' is a reverse zone" named3.run > /dev/null 2>&1 || ret=1
-grep "WARNING: 'in-addr.arpa' is a public suffix" named3.run > /dev/null 2>&1 || ret=1
 grep "WARNING: 'in-addr.arpa' is a reverse zone" named3.run > /dev/null 2>&1 || ret=1
 grep "WARNING: '10.ip6.arpa' is a public suffix" named3.run > /dev/null 2>&1 && ret=1
 grep "WARNING: '10.ip6.arpa' is a reverse zone" named3.run > /dev/null 2>&1 || ret=1
@@ -2434,6 +2432,19 @@ grep -E "^;test\.short\-ttl\.test\.example. 10 A 10\.53\.0\.8 ;; address prefix 
     { ret=1 ; echo_i "grep step 4 failed"; }
 grep -E "^;test\.short\-ttl\.test\.example. 10 TXT \"Some text here\" ;; address prefix \= 10\.53\.0\.0\/16$" dumpdb.output > /dev/null || \
     { ret=1 ; echo_i "grep step 5 failed"; }
+if [ $ret -eq 1 ] ; then echo_i "failed"; fi
+status=`expr $status + $ret`
+
+echo_i "         Check that responses with invalid ECS options are dropped. ($n)"
+ret=0
+$DIG $DIGOPTS @10.53.0.7 -b 10.53.0.1 +subnet=192.168.1.0/24 scope32.test.example > dig.out.${n}.1 || ret=1
+grep SERVFAIL dig.out.${n}.1 > /dev/null && { ret=1; echo "step 1 failed"; }
+$DIG $DIGOPTS @10.53.0.7 -b 10.53.0.1 +subnet=192.168.1.0/24 scope33.test.example > dig.out.${n}.2 || ret=1
+grep SERVFAIL dig.out.${n}.2 > /dev/null || { ret=1; echo "step 2 failed"; }
+$DIG $DIGOPTS @10.53.0.7 -b 10.53.0.1 +subnet=fd92:7065:b8e:ffff::/48 scope49.test.example > dig.out.${n}.3 || ret=1
+grep SERVFAIL dig.out.${n}.3 > /dev/null && { ret=1; echo "step 3 failed"; }
+$DIG $DIGOPTS @10.53.0.7 -b 10.53.0.1 +subnet=fd92:7065:b8e:ffff::/48 scope129.test.example > dig.out.${n}.4 || ret=1
+grep SERVFAIL dig.out.${n}.4 > /dev/null || { ret=1; echo "step 4 failed"; }
 if [ $ret -eq 1 ] ; then echo_i "failed"; fi
 status=`expr $status + $ret`
 

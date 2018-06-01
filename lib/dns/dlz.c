@@ -436,12 +436,10 @@ dns_dlz_writeablezone(dns_view_t *view, dns_dlzdb_t *dlzdb,
 
 	isc_buffer_constinit(&buffer, zone_name, strlen(zone_name));
 	isc_buffer_add(&buffer, strlen(zone_name));
-	dns_fixedname_init(&fixorigin);
-	result = dns_name_fromtext(dns_fixedname_name(&fixorigin),
-				   &buffer, dns_rootname, 0, NULL);
+	origin = dns_fixedname_initname(&fixorigin);
+	result = dns_name_fromtext(origin, &buffer, dns_rootname, 0, NULL);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
-	origin = dns_fixedname_name(&fixorigin);
 
 	if (!dlzdb->search) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,

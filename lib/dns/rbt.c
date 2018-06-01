@@ -427,7 +427,7 @@ create_node(isc_mem_t *mctx, dns_name_t *name, dns_rbtnode_t **nodep);
 
 #ifdef DNS_RBT_USEHASH
 static inline void
-hash_node(dns_rbt_t *rbt, dns_rbtnode_t *node, dns_name_t *name);
+hash_node(dns_rbt_t *rbt, dns_rbtnode_t *node, const dns_name_t *name);
 static inline void
 unhash_node(dns_rbt_t *rbt, dns_rbtnode_t *node);
 static void
@@ -1144,7 +1144,8 @@ move_chain_to_last(dns_rbtnodechain_t *chain, dns_rbtnode_t *node) {
  */
 
 isc_result_t
-dns_rbt_addnode(dns_rbt_t *rbt, dns_name_t *name, dns_rbtnode_t **nodep) {
+dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep)
+{
 	/*
 	 * Does this thing have too many variables or what?
 	 */
@@ -1458,7 +1459,7 @@ dns_rbt_addnode(dns_rbt_t *rbt, dns_name_t *name, dns_rbtnode_t **nodep) {
  * Add a name to the tree of trees, associating it with some data.
  */
 isc_result_t
-dns_rbt_addname(dns_rbt_t *rbt, dns_name_t *name, void *data) {
+dns_rbt_addname(dns_rbt_t *rbt, const dns_name_t *name, void *data) {
 	isc_result_t result;
 	dns_rbtnode_t *node;
 
@@ -2314,7 +2315,7 @@ create_node(isc_mem_t *mctx, dns_name_t *name, dns_rbtnode_t **nodep) {
 
 #ifdef DNS_RBT_USEHASH
 static inline void
-hash_add_node(dns_rbt_t *rbt, dns_rbtnode_t *node, dns_name_t *name) {
+hash_add_node(dns_rbt_t *rbt, dns_rbtnode_t *node, const dns_name_t *name) {
 	unsigned int hash;
 
 	REQUIRE(name != NULL);
@@ -2382,7 +2383,7 @@ rehash(dns_rbt_t *rbt, unsigned int newcount) {
 }
 
 static inline void
-hash_node(dns_rbt_t *rbt, dns_rbtnode_t *node, dns_name_t *name) {
+hash_node(dns_rbt_t *rbt, dns_rbtnode_t *node, const dns_name_t *name) {
 	REQUIRE(DNS_RBTNODE_VALID(node));
 
 	if (rbt->nodecount >= (rbt->hashsize * 3))

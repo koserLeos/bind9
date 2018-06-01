@@ -982,6 +982,8 @@ ATF_TC_BODY(hip, tc) {
 				    0, &target);
 	dns_decompress_invalidate(&dctx);
 	ATF_REQUIRE_EQ(result, DNS_R_FORMERR);
+
+	dns_test_end();
 }
 
 /*

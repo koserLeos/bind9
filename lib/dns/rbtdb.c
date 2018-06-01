@@ -285,7 +285,6 @@ typedef isc_uint64_t                    rbtdb_serial_t;
 #define rdataset_setadditional rdataset_setadditional64
 #define rdataset_setownercase rdataset_setownercase64
 #define rdataset_settrust rdataset_settrust64
-#define rdatasetiter_current rdatasetiter_current64
 #define rdatasetiter_current_ecs rdatasetiter_current_ecs64
 #define rdatasetiter_destroy rdatasetiter_destroy64
 #define rdatasetiter_first rdatasetiter_first64
@@ -877,8 +876,6 @@ static dns_rdatasetmethods_t slab_methods = {
 static void rdatasetiter_destroy(dns_rdatasetiter_t **iteratorp);
 static isc_result_t rdatasetiter_first(dns_rdatasetiter_t *iterator);
 static isc_result_t rdatasetiter_next(dns_rdatasetiter_t *iterator);
-static void rdatasetiter_current(dns_rdatasetiter_t *iterator,
-				 dns_rdataset_t *rdataset);
 static void rdatasetiter_current_ecs(dns_rdatasetiter_t *iterator,
 				     dns_rdataset_t *rdataset,
 				     dns_ecs_t *ecs);
@@ -887,7 +884,7 @@ static dns_rdatasetitermethods_t rdatasetiter_methods = {
 	rdatasetiter_destroy,
 	rdatasetiter_first,
 	rdatasetiter_next,
-	rdatasetiter_current,
+	NULL,
 	rdatasetiter_current_ecs
 };
 
@@ -6296,8 +6293,7 @@ cache_findrdatasetext(dns_db_t *db, dns_dbnode_t *node,
 		char lognamebuf[DNS_NAME_FORMATSIZE];
 		char typebuf[DNS_RDATATYPE_FORMATSIZE];
 
-		dns_fixedname_init(&logfname);
-		logname = dns_fixedname_name(&logfname);
+		logname = dns_fixedname_initname(&logfname);
 		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
 		dns_rbt_fullnamefromnode(node, logname);
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
@@ -7779,8 +7775,7 @@ addrdatasetext(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		logmodule = IS_CACHE(rbtdb) ?
 			DNS_LOGMODULE_CACHE : DNS_LOGMODULE_ZONE;
 
-		dns_fixedname_init(&logfname);
-		logname = dns_fixedname_name(&logfname);
+		logname = dns_fixedname_initname(&logfname);
 		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
 		dns_rbt_fullnamefromnode(node, logname);
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
@@ -8243,8 +8238,7 @@ deleterdatasetext(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		logmodule = IS_CACHE(rbtdb) ?
 			DNS_LOGMODULE_CACHE : DNS_LOGMODULE_ZONE;
 
-		dns_fixedname_init(&logfname);
-		logname = dns_fixedname_name(&logfname);
+		logname = dns_fixedname_initname(&logfname);
 		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
 		dns_rbt_fullnamefromnode(node, logname);
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
@@ -9785,6 +9779,7 @@ dns_rbtdb_create
 		 * return partial matches when there is only a single NSEC3
 		 * record in the tree.
 		 */
+		rbtdb->nsec3_origin_node = NULL;
 		result = rbt_addnode_withdata(rbtdb, rbtdb->nsec3,
 					      &rbtdb->common.origin,
 					      &rbtdb->nsec3_origin_node);
@@ -10401,26 +10396,6 @@ rdatasetiter_next(dns_rdatasetiter_t *iterator) {
 }
 
 static void
-rdatasetiter_current(dns_rdatasetiter_t *iterator, dns_rdataset_t *rdataset) {
-	rbtdb_rdatasetiter_t *rbtiterator = (rbtdb_rdatasetiter_t *)iterator;
-	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)(rbtiterator->common.db);
-	dns_rbtnode_t *rbtnode = rbtiterator->common.node;
-	rdatasetheader_t *header;
-
-	header = rbtiterator->current;
-	REQUIRE(header != NULL);
-
-	NODE_LOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
-		  isc_rwlocktype_read);
-
-	bind_rdataset(rbtdb, rbtnode, header, rbtiterator->common.now,
-		      rdataset);
-
-	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
-		    isc_rwlocktype_read);
-}
-
-static void
 rdatasetiter_current_ecs(dns_rdatasetiter_t *iterator,
 			 dns_rdataset_t *rdataset,
 			 dns_ecs_t *ecs)
@@ -10430,7 +10405,7 @@ rdatasetiter_current_ecs(dns_rdatasetiter_t *iterator,
 	dns_rbtnode_t *rbtnode = rbtiterator->common.node;
 	rdatasetheader_t *header;
 
-	REQUIRE(ecs != NULL && ecs->addr.family == AF_UNSPEC);
+	REQUIRE(ecs == NULL || ecs->addr.family == AF_UNSPEC);
 
 	header = rbtiterator->current;
 	REQUIRE(header != NULL);
@@ -10441,7 +10416,7 @@ rdatasetiter_current_ecs(dns_rdatasetiter_t *iterator,
 	bind_rdataset(rbtdb, rbtnode, header, rbtiterator->common.now,
 		      rdataset);
 
-	if (rbtiterator->nonecs_done)
+	if (ecs != NULL && rbtiterator->nonecs_done)
 		*ecs = rbtiterator->ecs;
 
 	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,

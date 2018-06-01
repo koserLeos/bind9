@@ -185,6 +185,12 @@ isc_netaddr_isloopback(const isc_netaddr_t *na);
  * Test whether the netaddr 'na' is a loopback IPv4 or IPv6 address (in
  * 127.0.0.0/8 or ::1).
  */
+
+isc_boolean_t
+isc_netaddr_isv4mapped(const isc_netaddr_t *na);
+/*
+ * Test whether the netaddr 'na' is a V4 mapped IPv6 address.
+ */
 ISC_LANG_ENDDECLS
 
 #endif /* ISC_NETADDR_H */

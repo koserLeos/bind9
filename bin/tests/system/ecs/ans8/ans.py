@@ -182,11 +182,19 @@ def create_response(msg):
             else:
                 custom_scope = 48
 
-    # if the query has "scope20" as its third label from the right, send
-    # a response with scope=20.
-    if (len(labels) >= 4 and labels[-4].lower() == 'scope20') or (len(labels2) >= 4 and labels2[-4].lower() == 'scope20'):
-        if query_ecs:
-            custom_scope = 20
+    # if the query has "scopeN" as its third label from the right, send
+    # a response with scope=N (regardless of whether this is a legal value).
+    if query_ecs:
+        if (len(labels) >= 4 and labels[-4].lower().find('scope') == 0):
+            try:
+                custom_scope = int(labels[-4][5:])
+                print("CUSTOM SCOPE: %d" % custom_scope)
+            except: pass
+        if (len(labels2) >= 4 and labels2[-4].lower().find('scope') == 0):
+            try:
+                custom_scope = int(labels2[-4][5:])
+                print("CUSTOM SCOPE 2: %d" % custom_scope)
+            except: pass
 
     r = dns.message.make_response(m)
 

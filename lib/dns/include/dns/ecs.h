@@ -62,7 +62,7 @@ dns_ecszones_free(dns_ecszones_t **ecszonesp);
  */
 
 isc_result_t
-dns_ecszones_setdomain(dns_ecszones_t *ecszones, dns_name_t *name,
+dns_ecszones_setdomain(dns_ecszones_t *ecszones, const dns_name_t *name,
 		       isc_boolean_t negated,
 		       isc_uint8_t bits4, isc_uint8_t bits6);
 /*%<
@@ -76,7 +76,7 @@ dns_ecszones_setdomain(dns_ecszones_t *ecszones, dns_name_t *name,
  */
 
 isc_boolean_t
-dns_ecszones_name_allowed(dns_ecszones_t *ecszones, dns_name_t *name,
+dns_ecszones_name_allowed(dns_ecszones_t *ecszones, const dns_name_t *name,
 			  isc_uint8_t *bits4, isc_uint8_t *bits6);
 /*%<
  * Find out whether 'name' is in a zone which is marked as supporting
@@ -88,7 +88,7 @@ dns_ecszones_name_allowed(dns_ecszones_t *ecszones, dns_name_t *name,
  */
 
 isc_boolean_t
-dns_ecs_equals(dns_ecs_t *ecs1, dns_ecs_t *ecs2);
+dns_ecs_equals(const dns_ecs_t *ecs1, const dns_ecs_t *ecs2);
 /*%<
  * Determine whether two ECS address prefixes are equal (except the
  * scope prefix-length field).
@@ -99,7 +99,7 @@ dns_ecs_equals(dns_ecs_t *ecs1, dns_ecs_t *ecs2);
  */
 
 void
-dns_ecs_format(dns_ecs_t *ecs, char *buf, size_t size);
+dns_ecs_format(const dns_ecs_t *ecs, char *buf, size_t size);
 /*%<
  * Format an ECS record as text. Result is guaranteed to be null-terminated.
  *
@@ -110,7 +110,7 @@ dns_ecs_format(dns_ecs_t *ecs, char *buf, size_t size);
  */
 
 void
-dns_ecs_formatfordump(dns_ecs_t *ecs, char *buf, size_t size);
+dns_ecs_formatfordump(const dns_ecs_t *ecs, char *buf, size_t size);
 /*%<
  * Format an ECS record as text for dumping cache entries to a
  * file. Result is guaranteed to be null-terminated.
@@ -119,6 +119,17 @@ dns_ecs_formatfordump(dns_ecs_t *ecs, char *buf, size_t size);
  * \li  'ecs' is not NULL.
  * \li  'buf' is not NULL.
  * \li  'size' is at least DNS_ECS_FORMATSIZE
+ */
+
+isc_boolean_t
+dns_ecs_isv4mappedprefix(const dns_ecs_t *ecs);
+/*%<
+ * Returns if the address prefix upto source bits long is a v4mapped
+ * IPv6 address prefix. This normally cannot be true as IPv6 address
+ * prefixes are capped to /56 by the RFC.
+ *
+ * Requires:
+ * \li  'ecs' is not NULL.
  */
 ISC_LANG_ENDDECLS
 #endif /* DNS_ECS_H */

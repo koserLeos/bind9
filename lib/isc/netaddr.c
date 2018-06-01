@@ -459,3 +459,22 @@ isc_netaddr_isloopback(const isc_netaddr_t *na) {
 		return (ISC_FALSE);
 	}
 }
+
+isc_boolean_t
+isc_netaddr_isv4mapped(const isc_netaddr_t *na) {
+	const isc_uint8_t v4mapped_prefix[] = {
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0xff, 0xff
+	};
+
+	if (na->family == AF_INET6) {
+		if (memcmp((const isc_uint8_t *) &na->type.in6,
+			   v4mapped_prefix, 12) == 0)
+		{
+			return (ISC_TRUE);
+		}
+	}
+
+	return (ISC_FALSE);
+}

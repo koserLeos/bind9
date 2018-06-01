@@ -6582,24 +6582,6 @@ redirect2(ns_client_t *client, dns_name_t *name, dns_rdataset_t *rdataset,
 	return (result);
 }
 
-static isc_boolean_t
-is_v4mapped_address(dns_ecs_t *ecs) {
-	const isc_uint8_t v4mapped_prefix[] = {
-		0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0xff, 0xff
-	};
-
-	if (ecs->addr.family == AF_INET6) {
-		if ((ecs->source >= 96) &&
-		    (memcmp((isc_uint8_t *) &ecs->addr.type.in6,
-			    v4mapped_prefix, 12) == 0))
-			return (ISC_TRUE);
-	}
-
-	return (ISC_FALSE);
-}
-
 /*
  * Do the bulk of query processing for the current query of 'client'.
  * If 'event' is non-NULL, we are returning from recursion and 'qtype'
@@ -6818,9 +6800,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			 * responses having been caught by the
 			 * resolver.)
 			 */
-			if (ECS_RECEIVED(client) &&
-			    (event->ecs.scope != 0xff) &&
-			    (client->ecs.scope == 0xff))
+			if (ECS_RECEIVED(client) && client->ecs.scope == 0xff)
 			{
 				client->ecs.scope = event->ecs.scope;
 			}
@@ -7091,8 +7071,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	 * If we're not authoritative for this QNAME, and this is a
 	 * recursive query, and it includes an ECS option with a
 	 * non-zero prefix length, and the client is not covered
-	 * by the 'ecs-forward' ACL, then forget we ever saw
-	 * an ECS option.
+	 * by the 'ecs-forward' ACL, then refuse the query.
 	 */
 	if (!authoritative &&
 	    (WANTRECURSION(client) && RECURSIONOK(client) &&
@@ -7221,7 +7200,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			 * errors. V4MAPPED entries must not enter the
 			 * cache.
 			 */
-			if (is_v4mapped_address(&ci.ecs)) {
+			if (dns_ecs_isv4mappedprefix(&ci.ecs)) {
 				CTRACE(ISC_LOG_DEBUG(3),
 				       "query_find: ECS forwarding "
 				       "denied for V4MAPPED IPv6 "

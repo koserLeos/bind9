@@ -1760,8 +1760,7 @@ finish_update(dns_rpz_zone_t *rpz) {
 		goto cleanup;
 	}
 
-	dns_fixedname_init(&fname);
-	name = dns_fixedname_name(&fname);
+	name = dns_fixedname_initname(&fname);
 
 	for (result = isc_ht_iter_first(iter);
 	     result == ISC_R_SUCCESS;
@@ -1830,8 +1829,7 @@ update_quantum(isc_task_t *task, isc_event_t *event) {
 	REQUIRE(rpz->updbit != NULL);
 	REQUIRE(rpz->newnodes != NULL);
 
-	dns_fixedname_init(&fixname);
-	name = dns_fixedname_name(&fixname);
+	name = dns_fixedname_initname(&fixname);
 
 	dns_name_format(&rpz->origin, domain, DNS_NAME_FORMATSIZE);
 

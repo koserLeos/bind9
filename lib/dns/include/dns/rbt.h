@@ -321,7 +321,7 @@ dns_rbt_create(isc_mem_t *mctx, dns_rbtdeleter_t deleter,
  */
 
 isc_result_t
-dns_rbt_addname(dns_rbt_t *rbt, dns_name_t *name, void *data);
+dns_rbt_addname(dns_rbt_t *rbt, const dns_name_t *name, void *data);
 /*%<
  * Add 'name' to the tree of trees, associated with 'data'.
  *
@@ -361,7 +361,7 @@ dns_rbt_addname(dns_rbt_t *rbt, dns_name_t *name, void *data);
  */
 
 isc_result_t
-dns_rbt_addnode(dns_rbt_t *rbt, dns_name_t *name, dns_rbtnode_t **nodep);
+dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep);
 
 /*%<
  * Just like dns_rbt_addname, but returns the address of the node.

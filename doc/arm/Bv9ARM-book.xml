@@ -10846,14 +10846,15 @@ rate-limit {
 		<listitem>
 		  <para>
 		    This option takes exactly two arguments, representing
-		    the default SOURCE prefix-length to use in ECS queries
+		    the default SOURCE PREFIX-LENGTH to use in ECS queries
 		    for IPv4 and IPv6 addresses respectively.  These
 		    values can be overridden on a per-domain basis by
 		    specifying
 		    <literal>bits-v4</literal> and <literal>bits-v6</literal>
 		    values in <option>ecs-zones</option>.
-		    The default values are 24 and 56, which are also the
-		    maxima. Higher values are not permitted, and will
+		    The default values are 24 and 56 respectively for
+		    IPv4 and IPv6 addresses, which are also the maximum
+		    allowed. Higher values are not permitted, and will
 		    be capped to 24 and 56 respectively.
 		  </para>
 		</listitem>
@@ -10877,17 +10878,19 @@ rate-limit {
 		    given query.
 		  </para>
 		  <para>
-		    Elements in <command>ecs-zones</command> may be followed
-		    with optional <literal>bits-v4</literal> and
-		    <literal>bits-v6</literal> values, indicating the
-		    source prefix-lengths to be used in ECS options when
-		    sending IPv4 and IPv6 queries, respectively, for names
-		    at or below that subdomain. If <literal>bits-v4</literal>
-		    and <literal>bits-v6</literal> are not specified,
-		    the default source prefix-lengths are whatever are set
-		    by <option>ecs-bits</option>, which in turn default
-		    to 24 for IPv4 and 56 for IPv6. Higher values than
-		    these are not accepted, and will be clamped.
+		    Elements in <command>ecs-zones</command> may be
+		    followed with optional <literal>bits-v4</literal>
+		    and <literal>bits-v6</literal> values, indicating
+		    the SOURCE PREFIX-LENGTHs to be used in ECS options
+		    when sending IPv4 and IPv6 queries respectively, for
+		    names at or below that subdomain. If
+		    <literal>bits-v4</literal> and
+		    <literal>bits-v6</literal> are not specified, the
+		    default SOURCE PREFIX-LENGTHs are as set by
+		    <option>ecs-bits</option>, which in turn default to
+		    24 for IPv4 and 56 for IPv6. Higher values than
+		    these are not accepted, and will be clamped to 24
+		    and 56 for IPv4 and IPv6 respectively.
 		  </para>
 		  <para>
 		    As names in <command>ecs-zones</command> become more
@@ -10903,20 +10906,22 @@ rate-limit {
 		  <itemizedlist>
 		    <listitem>
 		      ECS options are sent when looking up names in the
-		      zone "example.com", with a source prefix-length of 20
+		      zone "example.com", with a SOURCE PREFIX-LENGTH of 20
 		      bits for IPv4 queries, and the default 56 bits for
 		      IPv6 queries.
 		    </listitem>
 		    <listitem>
 		      ECS options are also sent when looking up names
 		      in the zone "example.org", but in this case the
-		      prefix-lengths will be 22 and 48. However, ECS
-		      is not used for names below "excluded.example.org."
+		      SOURCE PREFIX-LENGTHs will be 22 and 48 for IPv4
+		      and IPv6 respectively. However, ECS is not used
+		      for names below "excluded.example.org."
 		    </listitem>
 		    <listitem>
 		      ECS options are also sent when looking up names in
-		      the zone "example.net", with the default source prefix
-		      lengths of 24 and 56 bits.
+		      the zone "example.net", with the default SOURCE
+		      PREFIX-LENGTHs of 24 and 56 bits for IPv4 and IPv6
+		      respectively.
 		    </listitem>
 		  </itemizedlist>
 <programlisting>
@@ -10929,8 +10934,8 @@ rate-limit {
 </programlisting>
 		  <para>
 		    It is assumed that ECS will be configured at the
-		    zone level, not using individual names within a zone.
-		    Consequently, ECS options are only sent when
+		    zone level, not using individual domain names within
+		    a zone. Consequently, ECS options are only sent when
 		    the name being queried and the apex of the zone
 		    being queried both match <command>ecs-zones</command>.
 		    For example, if the zone "example.com" contains the name
@@ -10954,8 +10959,8 @@ rate-limit {
 		    The zone apex is defined here as the delegation point.
 		    Sometimes a server is authoritative for both parent and
 		    child zones, so that a query sent to the parent zone
-		    will get an authoritative answer for the child, with
-		    no delegation taking place; in this case,
+		    will get an authoritative answer for the child,
+		    with no delegation taking place; in this case,
 		    <command>ecs-zones</command> must match the
 		    <emphasis>parent</emphasis> zone apex to be effective.
 		  </para>
@@ -10972,10 +10977,10 @@ rate-limit {
 		  </para>
 		  <para>
 		    If a client is not allowed in this ACL, then recursive
-		    queries which contain ECS options with non-zero source
+		    queries which contain the ECS option with non-zero source
 		    prefix-length will be answered with REFUSED.  (This
-		    does not apply to ECS options with zero prefix-lengths;
-		    all clients are permitted to send those.)
+		    does not apply to ECS options with zero source
+		    prefix-lengths; all clients are permitted to send those.)
 		  </para>
 		  <para>
 		    If the client <emphasis>is</emphasis> allowed,
@@ -11035,7 +11040,7 @@ rate-limit {
 		    which matches all types with the exception of
 		    DNS infrastructure types (NS, SOA), and
 		    DNSSEC-related types (DS, DNSKEY, NSEC).
-		    those types are never ECS-tagged, even if explicitly
+		    Those types are never ECS-tagged, even if explicitly
 		    included in <command>ecs-types</command>.
 		  </para>
 		  <para>

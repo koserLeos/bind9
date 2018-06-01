@@ -341,7 +341,7 @@ dns_name_iswildcard(const dns_name_t *name);
  */
 
 unsigned int
-dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive);
+dns_name_hash(const dns_name_t *name, isc_boolean_t case_sensitive);
 /*%<
  * Provide a hash value for 'name'.
  *
@@ -356,7 +356,7 @@ dns_name_hash(dns_name_t *name, isc_boolean_t case_sensitive);
  */
 
 unsigned int
-dns_name_fullhash(dns_name_t *name, isc_boolean_t case_sensitive);
+dns_name_fullhash(const dns_name_t *name, isc_boolean_t case_sensitive);
 /*%<
  * Provide a hash value for 'name'.  Unlike dns_name_hash(), this function
  * always takes into account of the entire name to calculate the hash value.
@@ -372,7 +372,7 @@ dns_name_fullhash(dns_name_t *name, isc_boolean_t case_sensitive);
  */
 
 unsigned int
-dns_name_hashbylabel(dns_name_t *name, isc_boolean_t case_sensitive);
+dns_name_hashbylabel(const dns_name_t *name, isc_boolean_t case_sensitive);
 /*%<
  * Provide a hash value for 'name', where the hash value is the sum
  * of the hash values of each label.  This function should only be used
@@ -1333,6 +1333,13 @@ isc_boolean_t
 dns_name_isula(const dns_name_t *owner);
 /*%<
  * Determine if the 'name' is in the ULA reverse namespace.
+ */
+
+isc_boolean_t
+dns_name_isreverse(const dns_name_t *name);
+/*%<
+ * Determine if the 'name' is in the in-addr.arpa or ip6.arpa
+ * namespaces.
  */
 
 isc_boolean_t

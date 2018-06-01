@@ -132,7 +132,7 @@ dns_ecszones_free(dns_ecszones_t **ecszonesp) {
 }
 
 isc_result_t
-dns_ecszones_setdomain(dns_ecszones_t *ecszones, dns_name_t *name,
+dns_ecszones_setdomain(dns_ecszones_t *ecszones, const dns_name_t *name,
 		       isc_boolean_t negated,
 		       isc_uint8_t bits4, isc_uint8_t bits6)
 {
@@ -179,7 +179,7 @@ dns_ecszones_setdomain(dns_ecszones_t *ecszones, dns_name_t *name,
 }
 
 isc_boolean_t
-dns_ecszones_name_allowed(dns_ecszones_t *ecszones, dns_name_t *name,
+dns_ecszones_name_allowed(dns_ecszones_t *ecszones, const dns_name_t *name,
 			  isc_uint8_t *bits4, isc_uint8_t *bits6)
 {
 	isc_result_t result;
@@ -205,8 +205,8 @@ dns_ecszones_name_allowed(dns_ecszones_t *ecszones, dns_name_t *name,
 }
 
 isc_boolean_t
-dns_ecs_equals(dns_ecs_t *ecs1, dns_ecs_t *ecs2) {
-	unsigned char *addr1, *addr2;
+dns_ecs_equals(const dns_ecs_t *ecs1, const dns_ecs_t *ecs2) {
+	const unsigned char *addr1, *addr2;
 	isc_uint8_t mask;
 	size_t alen;
 
@@ -222,24 +222,30 @@ dns_ecs_equals(dns_ecs_t *ecs1, dns_ecs_t *ecs2) {
 
 	switch (ecs1->addr.family) {
 	case AF_INET:
-		addr1 = (unsigned char *) &ecs1->addr.type.in;
-		addr2 = (unsigned char *) &ecs2->addr.type.in;
+		INSIST(alen <= 4);
+		addr1 = (const unsigned char *) &ecs1->addr.type.in;
+		addr2 = (const unsigned char *) &ecs2->addr.type.in;
 		break;
 	case AF_INET6:
-		addr1 = (unsigned char *) &ecs1->addr.type.in6;
-		addr2 = (unsigned char *) &ecs2->addr.type.in6;
+		INSIST(alen <= 16);
+		addr1 = (const unsigned char *) &ecs1->addr.type.in6;
+		addr2 = (const unsigned char *) &ecs2->addr.type.in6;
 		break;
 	default:
 		INSIST(0);
 	}
 
+	/*
+	 * Compare all octets except the final octet of the address
+	 * prefix.
+	 */
 	if (alen > 1 && memcmp(addr1, addr2, alen - 1) != 0)
 		return (ISC_FALSE);
 
 	/*
-	 * It should not be necessary to mask the final byte; all
+	 * It should not be necessary to mask the final octet; all
 	 * bits past the source prefix length are supposed to be 0.
-	 * However, it seems prudent to omit them from the
+	 * However, it seems prudent not to omit them from the
 	 * comparison anyway.
 	 */
 	mask = (~0U << (8 - (ecs1->source % 8))) & 0xff;
@@ -252,7 +258,7 @@ dns_ecs_equals(dns_ecs_t *ecs1, dns_ecs_t *ecs2) {
 }
 
 void
-dns_ecs_format(dns_ecs_t *ecs, char *buf, size_t size) {
+dns_ecs_format(const dns_ecs_t *ecs, char *buf, size_t size) {
 	size_t len;
 	char *p;
 
@@ -267,7 +273,7 @@ dns_ecs_format(dns_ecs_t *ecs, char *buf, size_t size) {
 }
 
 void
-dns_ecs_formatfordump(dns_ecs_t *ecs, char *buf, size_t size) {
+dns_ecs_formatfordump(const dns_ecs_t *ecs, char *buf, size_t size) {
 	size_t len;
 	char *p;
 
@@ -283,4 +289,13 @@ dns_ecs_formatfordump(dns_ecs_t *ecs, char *buf, size_t size) {
 		snprintf(p, size - len, "/%d/%d", ecs->source, ecs->scope);
 	else
 		snprintf(p, size - len, "/%d", ecs->source);
+}
+
+isc_boolean_t
+dns_ecs_isv4mappedprefix(const dns_ecs_t *ecs) {
+	if ((ecs->source >= 96) && isc_netaddr_isv4mapped(&ecs->addr)) {
+		return (ISC_TRUE);
+	}
+
+	return (ISC_FALSE);
 }

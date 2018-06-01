@@ -611,8 +611,7 @@ check_rrl(const cfg_obj_t *rrl, isc_symtab_t *symtab, cfg_aclconfctx_t *actx,
 	dns_name_t *name;
 	const char *str;
 
-	dns_fixedname_init(&fixed);
-	name = dns_fixedname_name(&fixed);
+	name = dns_fixedname_initname(&fixed);
 
 	/*
 	 * Check listed domains for duplicates.

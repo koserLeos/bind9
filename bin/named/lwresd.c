@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id: lwresd.c,v 1.60 2009/09/02 23:48:01 tbox Exp $ */
-
 /*! \file
  * \brief
  * Main program for the Lightweight Resolver Daemon.
@@ -356,8 +354,7 @@ ns_lwdmanager_create(isc_mem_t *mctx, const cfg_obj_t *lwres,
 			search = cfg_listelt_value(element);
 			searchstr = cfg_obj_asstring(search);
 
-			dns_fixedname_init(&fname);
-			name = dns_fixedname_name(&fname);
+			name = dns_fixedname_initname(&fname);
 			isc_buffer_constinit(&namebuf, searchstr,
 					strlen(searchstr));
 			isc_buffer_add(&namebuf, strlen(searchstr));

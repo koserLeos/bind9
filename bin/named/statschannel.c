@@ -289,7 +289,8 @@ init_desc(void) {
 	SET_NSSTATDESC(cookiebadtime, "COOKIE - bad time", "CookieBadTime");
 	SET_NSSTATDESC(cookienomatch, "COOKIE - no match", "CookieNoMatch");
 	SET_NSSTATDESC(cookiematch, "COOKIE - match", "CookieMatch");
-	SET_NSSTATDESC(ecsopt, "EDNS CLIENT-SUBNET option recieved", "ECSOpt");
+	SET_NSSTATDESC(ecsopt, "EDNS CLIENT-SUBNET options recieved from "
+		       "clients by this nameserver", "ECSOpt");
 	SET_NSSTATDESC(nxdomainredirect,
 		"queries resulted in NXDOMAIN that were redirected",
 		"QryNXRedir");
@@ -386,13 +387,10 @@ init_desc(void) {
 	SET_RESSTATDESC(serverquota, "spilled due to server quota",
 			"ServerQuota");
 	SET_RESSTATDESC(nextitem, "waited for next item", "NextItem");
-	SET_RESSTATDESC(ecsout, "EDNS CLIENT-SUBNET options sent", "ECSOut");
-	/*
-	 * XXXMUKS: The description of the stat counter should perhaps
-	 * be modified in view of another counter being very similar
-	 * (ecsopt above).
-	 */
-	SET_RESSTATDESC(ecsin, "EDNS CLIENT-SUBNET options received", "ECSIn");
+	SET_RESSTATDESC(ecsout, "EDNS CLIENT-SUBNET options sent by this "
+			"resolver to upstream namserver", "ECSOut");
+	SET_RESSTATDESC(ecsin, "EDNS CLIENT-SUBNET options received by this "
+			"resolver from upstream namserver", "ECSIn");
 
 	INSIST(i == dns_resstatscounter_max);
 

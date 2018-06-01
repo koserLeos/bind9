@@ -442,10 +442,6 @@ dns_aclelement_matchx(const isc_netaddr_t *reqaddr,
 	dns_acl_t *inner = NULL;
 	int indirectmatch;
 	isc_result_t result;
-#ifdef HAVE_GEOIP
-	const isc_netaddr_t *addr = NULL;
-	isc_uint8_t *scope = NULL;
-#endif
 
 	switch (e->type) {
 	case dns_aclelementtype_keyname:
@@ -474,7 +470,10 @@ dns_aclelement_matchx(const isc_netaddr_t *reqaddr,
 		break;
 
 #ifdef HAVE_GEOIP
-	case dns_aclelementtype_geoip:
+	case dns_aclelementtype_geoip: {
+		const isc_netaddr_t *addr;
+		isc_uint8_t *scope;
+
 		if (env == NULL || env->geoip == NULL)
 			return (ISC_FALSE);
 		if (env->geoip_use_ecs && ecs != NULL) {
@@ -482,9 +481,11 @@ dns_aclelement_matchx(const isc_netaddr_t *reqaddr,
 			scope = &ecs->scope;
 		} else {
 			addr = reqaddr;
+			scope = NULL;
 		}
 		return (dns_geoip_match(addr, scope, env->geoip,
 					&e->geoip_elem));
+	}
 #endif
 	default:
 		/* Should be impossible. */

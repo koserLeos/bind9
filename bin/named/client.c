@@ -247,9 +247,9 @@ static isc_result_t get_client(ns_clientmgr_t *manager, ns_interface_t *ifp,
 			       dns_dispatch_t *disp, isc_boolean_t tcp);
 static isc_result_t get_worker(ns_clientmgr_t *manager, ns_interface_t *ifp,
 			       isc_socket_t *sock);
-static inline isc_boolean_t
-allowed(isc_netaddr_t *addr, dns_name_t *signer,
-	dns_ecs_t *ecs, dns_acl_t *acl);
+static isc_boolean_t
+allowed(const isc_netaddr_t *addr, const dns_name_t *signer,
+	dns_ecs_t *ecs, const dns_acl_t *acl);
 static void compute_cookie(ns_client_t *client, isc_uint32_t when,
 			   isc_uint32_t nonce, isc_buffer_t *buf);
 
@@ -1840,9 +1840,9 @@ ns_client_addopt(ns_client_t *client, dns_message_t *message,
 	return (result);
 }
 
-static inline isc_boolean_t
-allowed(isc_netaddr_t *addr, dns_name_t *signer,
-	dns_ecs_t *ecs, dns_acl_t *acl)
+static isc_boolean_t
+allowed(const isc_netaddr_t *addr, const dns_name_t *signer,
+	dns_ecs_t *ecs, const dns_acl_t *acl)
 {
 	int match;
 	isc_result_t result;

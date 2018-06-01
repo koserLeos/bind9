@@ -403,6 +403,7 @@ dns_ecs_equals
 dns_ecs_format
 dns_ecs_formatfordump
 dns_ecs_init
+dns_ecs_isv4mappedprefix
 dns_ecs_type_allowed
 dns_ecszones_create
 dns_ecszones_free
@@ -635,6 +636,7 @@ dns_name_isabsolute
 dns_name_isdnssd
 dns_name_ishostname
 dns_name_ismailbox
+dns_name_isreverse
 dns_name_isrfc1918
 dns_name_issubdomain
 dns_name_istat

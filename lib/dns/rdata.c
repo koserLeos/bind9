@@ -578,6 +578,8 @@ dns_rdata_settypebit(unsigned char *array, unsigned int type,
 {
 	unsigned int shift, mask;
 
+	REQUIRE(array != NULL);
+
 	shift = 7 - (type % 8);
 	mask = 1 << shift;
 
@@ -590,6 +592,8 @@ dns_rdata_settypebit(unsigned char *array, unsigned int type,
 isc_boolean_t
 dns_rdata_issettypebit(const unsigned char *array, unsigned int type) {
 	unsigned int byte, shift, mask;
+
+	REQUIRE(array != NULL);
 
 	byte = array[type / 8];
 	shift = 7 - (type % 8);

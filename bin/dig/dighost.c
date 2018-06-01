@@ -2661,11 +2661,11 @@ setup_lookup(dig_lookup_t *lookup) {
 		if (lookup->ecs_addr != NULL) {
 			isc_uint8_t addr[16];
 			isc_uint16_t family;
-			isc_uint32_t plen;
+			unsigned int plen;
 			struct sockaddr *sa;
 			struct sockaddr_in *sin;
 			struct sockaddr_in6 *sin6;
-			size_t addrl;
+			unsigned int addrl;
 
 			sa = &lookup->ecs_addr->type.sa;
 			plen = lookup->ecs_addr->length;
@@ -2732,8 +2732,7 @@ setup_lookup(dig_lookup_t *lookup) {
 				if ((plen % 8) != 0)
 					addr[addrl - 1] &=
 						~0U << (8 - (plen % 8));
-				isc_buffer_putmem(&b, addr,
-						  (unsigned int) addrl);
+				isc_buffer_putmem(&b, addr, addrl);
 			}
 
 			opts[i].value = (isc_uint8_t *) ecsbuf;
