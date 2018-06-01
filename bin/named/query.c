@@ -8874,7 +8874,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			 "query_find: unexpected error after resuming: %s",
 			 isc_result_totext(result));
 		CTRACE(ISC_LOG_ERROR, errmsg);
-		if (resuming) {
+		if (resuming && !want_stale) {
 			want_stale = ISC_TRUE;
 		} else {
 			QUERY_ERROR(DNS_R_SERVFAIL);
@@ -9287,6 +9287,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			noqname = rdataset;
 		else
 			noqname = NULL;
+
 		/*
 		 * Special case NS handling
 		 */
@@ -9508,6 +9509,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			staleanswersok = ISC_FALSE;
 		}
 
+		want_stale = ISC_FALSE;
+
 		if (staleanswersok) {
 			client->query.dboptions |= DNS_DBFIND_STALEOK;
 			isc_stats_increment(ns_g_server->nsstats,
@@ -9517,9 +9520,9 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			}
 			goto db_find;
 		}
+
 		dns_db_detach(&db);
 		client->query.dboptions &= ~DNS_DBFIND_STALEOK;
-		want_stale = ISC_FALSE;
 		QUERY_ERROR(DNS_R_SERVFAIL);
 		goto cleanup;
 	}
