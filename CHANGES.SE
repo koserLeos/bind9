@@ -1,9 +1,5 @@
 4927.	[bug]		Fixed an ECS-related database lookup error.
 
-4699.	[func]		Multiple cookie-secret clauses can now be specified.
-			The first one specified is used to generate new
-			server cookies.  [RT #45672]
-
 	--- 9.11.3-S1 released ---
 
 4796.	[bug]		Increase the maximum configurable TCP keepalive

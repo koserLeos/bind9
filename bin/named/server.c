@@ -8852,8 +8852,8 @@ load_configuration(const char *filename, ns_server_t *server,
 		unsigned int usedlength;
 
 		for (element = cfg_list_first(obj);
-                     element != NULL;
-                     element = cfg_list_next(element))
+		     element != NULL;
+		     element = cfg_list_next(element))
 		{
 			obj = cfg_listelt_value(element);
 			str = cfg_obj_asstring(obj);
@@ -8891,22 +8891,25 @@ load_configuration(const char *filename, ns_server_t *server,
 			usedlength = isc_buffer_usedlength(&b);
 			switch (server->cookiealg) {
 			case ns_cookiealg_aes:
-				if (usedlength != ISC_AES128_KEYLENGTH)
+				if (usedlength != ISC_AES128_KEYLENGTH) {
 					CHECKM(ISC_R_RANGE,
 					       "AES cookie-secret must be "
 					       "128 bits");
+				}
 				break;
 			case ns_cookiealg_sha1:
-				if (usedlength != ISC_SHA1_DIGESTLENGTH)
+				if (usedlength != ISC_SHA1_DIGESTLENGTH) {
 					CHECKM(ISC_R_RANGE,
 					       "SHA1 cookie-secret must be "
 					       "160 bits");
+				}
 				break;
 			case ns_cookiealg_sha256:
-				if (usedlength != ISC_SHA256_DIGESTLENGTH)
+				if (usedlength != ISC_SHA256_DIGESTLENGTH) {
 					CHECKM(ISC_R_RANGE,
 					       "SHA256 cookie-secret must be "
 					       "256 bits");
+				}
 				break;
 			}
 		}
