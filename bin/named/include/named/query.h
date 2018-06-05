@@ -77,6 +77,10 @@ struct ns_query {
 
 	isc_result_t			resp_result;
 	dns_fixedname_t			fname;
+
+	dns_keytag_t root_key_sentinel_keyid;
+	isc_boolean_t root_key_sentinel_is_ta;
+	isc_boolean_t root_key_sentinel_not_ta;
 };
 
 #define NS_QUERYATTR_RECURSIONOK	0x0001

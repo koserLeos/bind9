@@ -33,6 +33,9 @@
 
 4927.	[bug]		Fixed an ECS-related database lookup error.
 
+4926.	[func]		Add root key sentinel support.  To disable, add
+			'root-key-sentinel no;' to named.conf. [GL #37]
+
 4922.	[bug]		dnstap: Log the destination address of client
 			packets rather than the interface address.
 			[GL #197]
