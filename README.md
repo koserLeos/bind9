@@ -262,6 +262,13 @@ store data related to zones added via `rndc addzone` or catalog zones.
 BIND 9.11.3 is a maintenance release, and addresses the security flaw
 disclosed in CVE-2017-3145.
 
+#### BIND 9.11.4
+
+BIND 9.11.3 is a maintenance release, and addresses the security flaw
+disclosed in CVE-2018-5738. It also introduces "root key sentinel" support,
+enabling validating resolvers to indicate via a special query which trust
+anchors are configured for the root zone.
+
 ### <a name="sp"/> BIND 9.11 (Supported Preview Edition)
 
 The BIND Supported Preview Edition is a special release of BIND featuring
@@ -283,6 +290,10 @@ branched from BIND 9.11.3, and includes the following additional features:
 * Support for multiple response rate limiting bands based on response size
   or query/response size ratio
 * Support for multiple response rate limiters based on query name
+
+#### BIND (Supported Preview Edition) 9.11.4-S1 (2018)
+
+This version is branched from BIND 9.11.4.
 
 ### <a name="build"/> Building BIND
 
