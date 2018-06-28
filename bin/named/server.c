@@ -1490,11 +1490,13 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 	if (obj != NULL)
 		CHECK(dns_peer_setsupportecs(peer, cfg_obj_asboolean(obj)));
 
+#ifdef ENABLE_UMBRELLA
 	obj = NULL;
 	(void)cfg_map_get(cpeer, "send-umbrella", &obj);
 	if (obj != NULL) {
 		CHECK(dns_peer_setsendprotoss(peer, cfg_obj_asboolean(obj)));
 	}
+#endif /* ENABLE_UMBRELLA */
 
 	*peerp = peer;
 	return (ISC_R_SUCCESS);
@@ -5411,6 +5413,7 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	CHECK(configure_dnstap(maps, view));
 #endif /* HAVE_DNSTAP */
 
+#ifdef ENABLE_UMBRELLA
 	obj = NULL;
 	result = ns_config_get(maps, "umbrella-virtual-appliance", &obj);
 	if (result == ISC_R_SUCCESS) {
@@ -5431,6 +5434,7 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 		view->protoss_dev = cfg_obj_asuint64(obj);
 		view->protoss_opts |= PROTOSS_DEV;
 	}
+#endif /* ENABLE_UMBRELLA */
 
 	result = ISC_R_SUCCESS;
 

@@ -969,6 +969,7 @@ dns_peer_getsupportecs(dns_peer_t *peer, isc_boolean_t *retval) {
 
 isc_result_t
 dns_peer_setsendprotoss(dns_peer_t *peer, isc_boolean_t newval) {
+#ifdef ENABLE_UMBRELLA
 	isc_boolean_t existed;
 
 	REQUIRE(DNS_PEER_VALID(peer));
@@ -979,10 +980,17 @@ dns_peer_setsendprotoss(dns_peer_t *peer, isc_boolean_t newval) {
 	DNS_BIT_SET(SEND_PROTOSS_BIT, &peer->bitflags);
 
 	return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);
+#else
+	UNUSED(peer);
+	UNUSED(newval);
+
+	return (ISC_R_NOTIMPLEMENTED);
+#endif /* ENABLE_UMBRELLA */
 }
 
 isc_result_t
 dns_peer_getsendprotoss(dns_peer_t *peer, isc_boolean_t *retval) {
+#ifdef ENABLE_UMBRELLA
 	REQUIRE(DNS_PEER_VALID(peer));
 	REQUIRE(retval != NULL);
 
@@ -991,4 +999,10 @@ dns_peer_getsendprotoss(dns_peer_t *peer, isc_boolean_t *retval) {
 		return (ISC_R_SUCCESS);
 	} else
 		return (ISC_R_NOTFOUND);
+#else
+	UNUSED(peer);
+	UNUSED(retval);
+
+	return (ISC_R_NOTIMPLEMENTED);
+#endif /* ENABLE_UMBRELLA */
 }

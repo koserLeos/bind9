@@ -775,10 +775,6 @@
 ./bin/tests/system/checkconf/bad-to-many-responses.conf	CONF-C	2014,2018
 ./bin/tests/system/checkconf/bad-too-many-default.conf	CONF-C	2014,2018
 ./bin/tests/system/checkconf/bad-tsig.conf	CONF-C	2012,2013,2018
-./bin/tests/system/checkconf/bad-umbrella-device.conf	CONF-C	2018
-./bin/tests/system/checkconf/bad-umbrella-device2.conf	CONF-C	2018
-./bin/tests/system/checkconf/bad-umbrella-org.conf	CONF-C	2018
-./bin/tests/system/checkconf/bad-umbrella-virtapp.conf	CONF-C	2018
 ./bin/tests/system/checkconf/bad-update-policy1.conf	CONF-C	2018
 ./bin/tests/system/checkconf/bad-update-policy2.conf	CONF-C	2018
 ./bin/tests/system/checkconf/bad-update-policy3.conf	CONF-C	2018
@@ -2353,7 +2349,12 @@
 ./bin/tests/system/tsiggss/setup.sh		SH	2010,2011,2012,2014,2018
 ./bin/tests/system/tsiggss/tests.sh		X	2010,2011,2014,2016,2017,2018
 ./bin/tests/system/umbrella/README		TXT.BRIEF	2018
+./bin/tests/system/umbrella/bad-umbrella-device.conf	CONF-C	2018
+./bin/tests/system/umbrella/bad-umbrella-device2.conf	CONF-C	2018
+./bin/tests/system/umbrella/bad-umbrella-org.conf	CONF-C	2018
+./bin/tests/system/umbrella/bad-umbrella-virtapp.conf	CONF-C	2018
 ./bin/tests/system/umbrella/clean.sh		SH	2018
+./bin/tests/system/umbrella/good-umbrella.conf	CONF-C	2018
 ./bin/tests/system/umbrella/ns1/named.conf.in	CONF-C	2018
 ./bin/tests/system/umbrella/ns1/root.db		ZONE	2018
 ./bin/tests/system/umbrella/ns2/example.db	ZONE	2018
