@@ -100,6 +100,19 @@
     </itemizedlist>
   </section>
 
+  <section xml:id="relnotes_bugs"><info><title>Bug Fixes</title></info>
+    <itemizedlist>
+      <listitem>
+	<para>
+	  <command>named</command> now rejects excessively large
+	  incremental (IXFR) zone transfers in order to prevent
+	  possible corruption of journal files which could cause
+	  <command>named</command> to abort when loading zones. [GL #339]
+	</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+
   <section xml:id="end_of_life"><info><title>End of Life</title></info>
     <para>
       BIND 9.11 (Extended Support Version) will be supported until at
