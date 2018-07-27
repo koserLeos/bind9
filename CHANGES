@@ -1,3 +1,6 @@
+4990.	[bug]		Prevent a possible NULL reference in pkcs11-keygen.
+			[GL #401]
+
 4984.	[bug]		Improve handling of very large incremental
 			zone transfers to prevent journal corruption. [GL #339]
 
@@ -32,8 +35,6 @@
 			below a DNAME as out-of-zone data. [GL #298]
 
 4969.	[cleanup]	Refactor zone logging functions. [GL #269]
-
-	--- 9.11.4rc1 released ---
 
 4968.	[bug]		If glue records are signed, attempt to validate them.
 			[GL #209]
