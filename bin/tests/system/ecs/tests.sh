@@ -29,7 +29,7 @@ group () {
 # perform rndc dumpdb -ecscache, waiting for the dump to complete.
 dumpdb() {
     rm -f ns7/named_dump.db
-    $RNDCCMD 10.53.0.7 dumpdb -ecscache
+    $RNDCCMD 10.53.0.7 dumpdb -ecscache default
     for try in 1 2 3 4 5 6 7 8 9 0; do
 	tmp=0
 	grep "Dump complete" ns7/named_dump.db > /dev/null || tmp=1
@@ -2416,7 +2416,12 @@ $DIG $DIGOPTS +noall +answer @10.53.0.7 -b 10.53.0.1 +subnet=192.168.1.0/24 scop
 $DIG $DIGOPTS +noall +answer @10.53.0.7 -b 10.53.0.1 +subnet=192.168.1.0/24 scope20.test.example aaaa > dig.out.${n}.1 || ret=1
 dumpdb || ret=1
 grep "^; ECS cache dump of view 'default' (cache default)" ns7/named_dump.db > /dev/null || ret=1
-cat ns7/named_dump.db | sed -e '/$DATE/,/Address database/!d' | grep -v "DATE" | \
+# adjust the TTLs in the cache dump, to account for max-stale-ttl
+# and the possibility of testing delay on a slow machine
+cat ns7/named_dump.db | \
+    awk '/; using a/ { stalettl = $4; }
+         /^[a-z]/ || /^;[a-z]/ { $2 -= stalettl; print }
+         /Address database/ { exit 0 }' |
     sed -e 's/[ 	]/ /g' -e 's/  */ /g' | \
     sed -e 's/ 29[0-9] / 300 /g' | \
     sed -e 's/ 359[0-9] / 3600 /g' | \

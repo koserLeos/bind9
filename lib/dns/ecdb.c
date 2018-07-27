@@ -592,7 +592,9 @@ static dns_dbmethods_t ecdb_methods = {
 	NULL,			/* addrdatasetext */
 	NULL,			/* deleterdatasetext */
 	NULL,			/* expirenodeall */
-	NULL			/* allrdatasetsext */
+	NULL,			/* allrdatasetsext */
+	NULL,			/* setservestalettl */
+	NULL			/* getservestalettl */
 };
 
 static isc_result_t

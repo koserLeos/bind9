@@ -4484,6 +4484,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 		  <command>dnssec-validation</command>,
 		  <command>max-cache-ttl</command>,
 		  <command>max-ncache-ttl</command>,
+		  <command>max-stale-ttl</command>,
 		  <command>max-cache-size</command>, and
 		  <command>zero-no-soa-ttl</command>.
 		</para>
@@ -5472,7 +5473,6 @@ options {
 	    </listitem>
 	  </varlistentry>
 
-
 	  <varlistentry>
 	    <term><command>max-zone-ttl</command></term>
 	    <listitem>
@@ -5504,6 +5504,24 @@ options {
 		The default value is <constant>unlimited</constant>.
 		A <option>max-zone-ttl</option> of zero is treated as
 		<constant>unlimited</constant>.
+	      </para>
+	    </listitem>
+	  </varlistentry>
+
+	  <varlistentry>
+	    <term><command>stale-answer-ttl</command></term>
+	    <listitem>
+	      <para>
+		Specifies the TTL to be returned on stale answers.
+		The default is 1 second. The minimal allowed is
+		also 1 second; a value of 0 will be updated silently
+		to 1 second.
+	      </para>
+	      <para>
+		For stale answers to be returned, they must be enabled,
+		either in the configuration file using
+		<command>stale-answer-enable</command> or via
+		<command>rndc serve-stale on</command>.
 	      </para>
 	    </listitem>
 	  </varlistentry>
@@ -6240,6 +6258,36 @@ options {
 		  do not send a correct COOKIE option may be limited
 		  to receiving smaller responses via the
 		  <command>nocookie-udp-size</command> option.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term><command>serve-stale-enable</command></term>
+	      <listitem>
+		<para>
+		  Enable the returning of "stale" cached answers when
+		  the nameservers for a zone are not answering.  The
+		  default is not to return stale answers.
+		</para>
+		<para>
+		  Stale answers can also be enabled or disabled at
+		  runtime via <command>rndc serve-stale on</command> or
+		  <command>rndc serve-stale off</command>; these
+		  override the configured setting.
+		  <command>rndc serve-stale reset</command>
+		  restores the setting to the one specified in
+		  <filename>named.conf</filename>.  Note that if
+		  stale answers have been disabled by <command>rndc</command>,
+		  then they cannot be re-enabled by reloading or
+		  reconfiguring <command>named</command>;
+		  they must be re-enabled with
+		  <command>rndc serve-stale on</command>,
+		  or the server must be restarted.
+		</para>
+		<para>
+		  Information about stale answers is logged under
+		  the <command>serve-stale</command> log category.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -7487,13 +7535,19 @@ options {
 	      <term><command>resolver-query-timeout</command></term>
 	      <listitem>
 		<para>
-		  The amount of time in seconds that the resolver
+		  The amount of time in milliseconds that the resolver
 		  will spend attempting to resolve a recursive
 		  query before failing.  The default and minimum
-		  is <literal>10</literal> and the maximum is
-		  <literal>30</literal>.  Setting it to
+		  is <literal>10000</literal> and the maximum is
+		  <literal>30000</literal>.  Setting it to
 		  <literal>0</literal> will result in the default
 		  being used.
+		</para>
+		<para>
+		  This value was originally specified in seconds.
+		  Values less than or equal to 300 will be be treated
+		  as seconds and converted to milliseconds before
+		  applying the above limits.
 		</para>
 	      </listitem>
 	    </varlistentry>
@@ -9051,6 +9105,29 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 		  SERVFAIL, because of lost caches of intermediate
 		  RRsets (such as NS and glue AAAA/A records) in the
 		  resolution process.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
+	      <term><command>max-stale-ttl</command></term>
+	      <listitem>
+		<para>
+		  If stale answers are enabled,
+		  <command>max-stale-ttl</command>
+		  sets the maximum time for which the server will
+		  retain records past their normal expiry to
+		  return them as stale records when the servers
+		  for those records are not reachable.
+		  The default is 1 week. The minimum allowed is
+		  1 second; a value of 0 will be updated silently
+		  to 1 second.
+		</para>
+		<para>
+		  For stale answers to be returned, they must be enabled,
+		  either in the configuration file using
+		  <command>stale-answer-enable</command> or via
+		  <command>rndc serve-stale on</command>.
 		</para>
 	      </listitem>
 	    </varlistentry>
