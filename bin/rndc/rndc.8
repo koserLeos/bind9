@@ -445,6 +445,27 @@ See also
 \fBrndc managed\-keys\fR\&.
 .RE
 .PP
+\fBserve\-stale ( on | off | reset | status ) \fR\fB[\fIclass\fR [\fIview\fR]]\fR
+.RS 4
+Enable, disable, reset, or report the current status of the serving of stale answers as configured in
+named\&.conf\&.
+.sp
+If serving of stale answers is disabled by
+\fBrndc\-serve\-stale off\fR, then it will remain disabled even if
+\fBnamed\fR
+is reloaded or reconfigured\&.
+\fBrndc serve\-stale reset\fR
+restores the setting as configured in
+named\&.conf\&.
+.sp
+\fBrndc serve\-stale status\fR
+will report whether serving of stale answers is currently enabled, disabled by the configuration, or disabled by
+\fBrndc\fR\&. It will also report the values of
+\fBstale\-answer\-ttl\fR
+and
+\fBmax\-stale\-ttl\fR\&.
+.RE
+.PP
 \fBshowzone \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR\fB \fR
 .RS 4
 Print the configuration of a running zone\&.

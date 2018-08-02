@@ -10,12 +10,12 @@
 .\"     Title: named.conf
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 2017-08-15
+.\"      Date: 2018-05-30
 .\"    Manual: BIND9
 .\"    Source: ISC
 .\"  Language: English
 .\"
-.TH "NAMED\&.CONF" "5" "2017\-08\-15" "ISC" "BIND9"
+.TH "NAMED\&.CONF" "5" "2018\-05\-30" "ISC" "BIND9"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -138,7 +138,7 @@ logging {
 		null;
 		print\-category \fIboolean\fR;
 		print\-severity \fIboolean\fR;
-		print\-time \fIboolean\fR;
+		print\-time ( local | iso8601 | iso8601\-utc | \fIboolean\fR );
 		severity \fIlog_severity\fR;
 		stderr;
 		syslog [ \fIsyslog_facility\fR ];
@@ -287,7 +287,9 @@ options {
 	    resolver ) [ ( query | response ) ]; \&.\&.\&. };
 	dnstap\-identity ( \fIquoted_string\fR | none |
 	    hostname );
-	dnstap\-output ( file | unix ) \fIquoted_string\fR;
+	dnstap\-output ( file | unix ) \fIquoted_string\fR [
+	    size ( unlimited | \fIsize\fR ) ] [ versions (
+	    unlimited | \fIinteger\fR ) ];
 	dnstap\-version ( \fIquoted_string\fR | none );
 	dscp \fIinteger\fR;
 	dual\-stack\-servers [ port \fIinteger\fR ] { ( \fIquoted_string\fR [ port
@@ -295,6 +297,12 @@ options {
 	    \fIinteger\fR ] [ dscp \fIinteger\fR ] | \fIipv6_address\fR [ port
 	    \fIinteger\fR ] [ dscp \fIinteger\fR ] ); \&.\&.\&. };
 	dump\-file \fIquoted_string\fR;
+	ecs\-bits \fIinteger\fR \fIinteger\fR;
+	ecs\-forward { \fIaddress_match_element\fR; \&.\&.\&. };
+	ecs\-privacy \fIboolean\fR;
+	ecs\-types \fIrrtypelist\fR;
+	ecs\-zones { \fIecs_domain_name\fR [ bits\-v4 \fIinteger\fR ] [ bits\-v6
+	    \fIinteger\fR ]; \&.\&.\&. };
 	edns\-udp\-size \fIinteger\fR;
 	empty\-contact \fIstring\fR;
 	empty\-server \fIstring\fR;
@@ -351,6 +359,7 @@ options {
 	max\-refresh\-time \fIinteger\fR;
 	max\-retry\-time \fIinteger\fR;
 	max\-rsa\-exponent\-size \fIinteger\fR;
+	max\-stale\-ttl \fIttlval\fR;
 	max\-transfer\-idle\-in \fIinteger\fR;
 	max\-transfer\-idle\-out \fIinteger\fR;
 	max\-transfer\-time\-in \fIinteger\fR;
@@ -391,8 +400,9 @@ options {
 	    port ( \fIinteger\fR | * ) ) ) [ dscp \fIinteger\fR ];
 	querylog \fIboolean\fR;
 	random\-device \fIquoted_string\fR;
-	rate\-limit {
+	rate\-limit [ \fIstring\fR ] {
 		all\-per\-second \fIinteger\fR;
+		domain \fIstring\fR;
 		errors\-per\-second \fIinteger\fR;
 		exempt\-clients { \fIaddress_match_element\fR; \&.\&.\&. };
 		ipv4\-prefix\-length \fIinteger\fR;
@@ -404,7 +414,9 @@ options {
 		nxdomains\-per\-second \fIinteger\fR;
 		qps\-scale \fIinteger\fR;
 		referrals\-per\-second \fIinteger\fR;
-		responses\-per\-second \fIinteger\fR;
+		responses\-per\-second [ size
+		    \fIinteger\fR ] [ ratio
+		    \fIfixedpoint\fR ] \fIinteger\fR;
 		slip \fIinteger\fR;
 		window \fIinteger\fR;
 	};
@@ -416,14 +428,20 @@ options {
 	request\-nsid \fIboolean\fR;
 	require\-server\-cookie \fIboolean\fR;
 	reserved\-sockets \fIinteger\fR;
+	resolver\-nonbackoff\-tries \fIinteger\fR;
 	resolver\-query\-timeout \fIinteger\fR;
+	resolver\-retry\-interval \fIinteger\fR;
+	response\-padding { \fIaddress_match_element\fR; \&.\&.\&. } block\-size
+	    \fIinteger\fR;
 	response\-policy { zone \fIquoted_string\fR [ log \fIboolean\fR ] [
 	    max\-policy\-ttl \fIinteger\fR ] [ policy ( cname | disabled | drop |
 	    given | no\-op | nodata | nxdomain | passthru | tcp\-only
-	    \fIquoted_string\fR ) ] [ recursive\-only \fIboolean\fR ]; \&.\&.\&. } [
-	    break\-dnssec \fIboolean\fR ] [ max\-policy\-ttl \fIinteger\fR ] [
-	    min\-ns\-dots \fIinteger\fR ] [ nsip\-wait\-recurse \fIboolean\fR ] [
-	    qname\-wait\-recurse \fIboolean\fR ] [ recursive\-only \fIboolean\fR ];
+	    \fIquoted_string\fR ) ] [ recursive\-only \fIboolean\fR ] [
+	    max\-policy\-ttl \fIinteger\fR ] [ min\-update\-interval \fIinteger\fR ];
+	    \&.\&.\&. } [ break\-dnssec \fIboolean\fR ] [ max\-policy\-ttl \fIinteger\fR ] [
+	    min\-update\-interval \fIinteger\fR ] [ min\-ns\-dots \fIinteger\fR ] [
+	    nsip\-wait\-recurse \fIboolean\fR ] [ qname\-wait\-recurse \fIboolean\fR ]
+	    [ recursive\-only \fIboolean\fR ];
 	root\-delegation\-only [ exclude { \fIquoted_string\fR; \&.\&.\&. } ];
 	rrset\-order { [ class \fIstring\fR ] [ type \fIstring\fR ] [ name
 	    \fIquoted_string\fR ] \fIstring\fR \fIstring\fR; \&.\&.\&. };
@@ -442,9 +460,15 @@ options {
 	sig\-validity\-interval \fIinteger\fR [ \fIinteger\fR ];
 	sortlist { \fIaddress_match_element\fR; \&.\&.\&. };
 	stacksize ( default | unlimited | \fIsizeval\fR );
+	stale\-answer\-enable \fIboolean\fR;
+	stale\-answer\-ttl \fIttlval\fR;
 	startup\-notify\-rate \fIinteger\fR;
 	statistics\-file \fIquoted_string\fR;
+	tcp\-advertised\-timeout \fIinteger\fR;
 	tcp\-clients \fIinteger\fR;
+	tcp\-idle\-timeout \fIinteger\fR;
+	tcp\-initial\-timeout \fIinteger\fR;
+	tcp\-keepalive\-timeout \fIinteger\fR;
 	tcp\-listen\-queue \fIinteger\fR;
 	tkey\-dhkey \fIquoted_string\fR \fIinteger\fR;
 	tkey\-domain \fIquoted_string\fR;
@@ -483,6 +507,7 @@ options {
 .nf
 server \fInetprefix\fR {
 	bogus \fIboolean\fR;
+	ecs \fIboolean\fR;
 	edns \fIboolean\fR;
 	edns\-udp\-size \fIinteger\fR;
 	edns\-version \fIinteger\fR;
@@ -492,6 +517,7 @@ server \fInetprefix\fR {
 	    dscp \fIinteger\fR ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ]
 	    [ dscp \fIinteger\fR ];
+	padding \fIinteger\fR;
 	provide\-ixfr \fIboolean\fR;
 	query\-source ( ( [ address ] ( \fIipv4_address\fR | * ) [ port (
 	    \fIinteger\fR | * ) ] ) | ( [ [ address ] ( \fIipv4_address\fR | * ) ]
@@ -503,6 +529,8 @@ server \fInetprefix\fR {
 	request\-ixfr \fIboolean\fR;
 	request\-nsid \fIboolean\fR;
 	send\-cookie \fIboolean\fR;
+	tcp\-keepalive \fIboolean\fR;
+	tcp\-only \fIboolean\fR;
 	tcp\-only \fIboolean\fR;
 	transfer\-format ( many\-answers | one\-answer );
 	transfer\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ] [
@@ -635,6 +663,12 @@ view \fIstring\fR [ \fIclass\fR ] {
 	    \fIinteger\fR ] [ dscp \fIinteger\fR ] ); \&.\&.\&. };
 	dyndb \fIstring\fR \fIquoted_string\fR {
 	    \fIunspecified\-text\fR };
+	ecs\-bits \fIinteger\fR \fIinteger\fR;
+	ecs\-forward { \fIaddress_match_element\fR; \&.\&.\&. };
+	ecs\-privacy \fIboolean\fR;
+	ecs\-types \fIrrtypelist\fR;
+	ecs\-zones { \fIecs_domain_name\fR [ bits\-v4 \fIinteger\fR ] [ bits\-v6
+	    \fIinteger\fR ]; \&.\&.\&. };
 	edns\-udp\-size \fIinteger\fR;
 	empty\-contact \fIstring\fR;
 	empty\-server \fIstring\fR;
@@ -676,6 +710,7 @@ view \fIstring\fR [ \fIclass\fR ] {
 	max\-recursion\-queries \fIinteger\fR;
 	max\-refresh\-time \fIinteger\fR;
 	max\-retry\-time \fIinteger\fR;
+	max\-stale\-ttl \fIttlval\fR;
 	max\-transfer\-idle\-in \fIinteger\fR;
 	max\-transfer\-idle\-out \fIinteger\fR;
 	max\-transfer\-time\-in \fIinteger\fR;
@@ -709,8 +744,9 @@ view \fIstring\fR [ \fIclass\fR ] {
 	query\-source\-v6 ( ( [ address ] ( \fIipv6_address\fR | * ) [ port (
 	    \fIinteger\fR | * ) ] ) | ( [ [ address ] ( \fIipv6_address\fR | * ) ]
 	    port ( \fIinteger\fR | * ) ) ) [ dscp \fIinteger\fR ];
-	rate\-limit {
+	rate\-limit [ \fIstring\fR ] {
 		all\-per\-second \fIinteger\fR;
+		domain \fIstring\fR;
 		errors\-per\-second \fIinteger\fR;
 		exempt\-clients { \fIaddress_match_element\fR; \&.\&.\&. };
 		ipv4\-prefix\-length \fIinteger\fR;
@@ -722,7 +758,9 @@ view \fIstring\fR [ \fIclass\fR ] {
 		nxdomains\-per\-second \fIinteger\fR;
 		qps\-scale \fIinteger\fR;
 		referrals\-per\-second \fIinteger\fR;
-		responses\-per\-second \fIinteger\fR;
+		responses\-per\-second [ size
+		    \fIinteger\fR ] [ ratio
+		    \fIfixedpoint\fR ] \fIinteger\fR;
 		slip \fIinteger\fR;
 		window \fIinteger\fR;
 	};
@@ -731,14 +769,20 @@ view \fIstring\fR [ \fIclass\fR ] {
 	request\-ixfr \fIboolean\fR;
 	request\-nsid \fIboolean\fR;
 	require\-server\-cookie \fIboolean\fR;
+	resolver\-nonbackoff\-tries \fIinteger\fR;
 	resolver\-query\-timeout \fIinteger\fR;
+	resolver\-retry\-interval \fIinteger\fR;
+	response\-padding { \fIaddress_match_element\fR; \&.\&.\&. } block\-size
+	    \fIinteger\fR;
 	response\-policy { zone \fIquoted_string\fR [ log \fIboolean\fR ] [
 	    max\-policy\-ttl \fIinteger\fR ] [ policy ( cname | disabled | drop |
 	    given | no\-op | nodata | nxdomain | passthru | tcp\-only
-	    \fIquoted_string\fR ) ] [ recursive\-only \fIboolean\fR ]; \&.\&.\&. } [
-	    break\-dnssec \fIboolean\fR ] [ max\-policy\-ttl \fIinteger\fR ] [
-	    min\-ns\-dots \fIinteger\fR ] [ nsip\-wait\-recurse \fIboolean\fR ] [
-	    qname\-wait\-recurse \fIboolean\fR ] [ recursive\-only \fIboolean\fR ];
+	    \fIquoted_string\fR ) ] [ recursive\-only \fIboolean\fR ] [
+	    max\-policy\-ttl \fIinteger\fR ] [ min\-update\-interval \fIinteger\fR ];
+	    \&.\&.\&. } [ break\-dnssec \fIboolean\fR ] [ max\-policy\-ttl \fIinteger\fR ] [
+	    min\-update\-interval \fIinteger\fR ] [ min\-ns\-dots \fIinteger\fR ] [
+	    nsip\-wait\-recurse \fIboolean\fR ] [ qname\-wait\-recurse \fIboolean\fR ]
+	    [ recursive\-only \fIboolean\fR ];
 	root\-delegation\-only [ exclude { \fIquoted_string\fR; \&.\&.\&. } ];
 	rrset\-order { [ class \fIstring\fR ] [ type \fIstring\fR ] [ name
 	    \fIquoted_string\fR ] \fIstring\fR \fIstring\fR; \&.\&.\&. };
@@ -746,6 +790,7 @@ view \fIstring\fR [ \fIclass\fR ] {
 	serial\-update\-method ( date | increment | unixtime );
 	server \fInetprefix\fR {
 		bogus \fIboolean\fR;
+		ecs \fIboolean\fR;
 		edns \fIboolean\fR;
 		edns\-udp\-size \fIinteger\fR;
 		edns\-version \fIinteger\fR;
@@ -755,6 +800,7 @@ view \fIstring\fR [ \fIclass\fR ] {
 		    ) ] [ dscp \fIinteger\fR ];
 		notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR
 		    | * ) ] [ dscp \fIinteger\fR ];
+		padding \fIinteger\fR;
 		provide\-ixfr \fIboolean\fR;
 		query\-source ( ( [ address ] ( \fIipv4_address\fR | * ) [ port
 		    ( \fIinteger\fR | * ) ] ) | ( [ [ address ] (
@@ -768,6 +814,8 @@ view \fIstring\fR [ \fIclass\fR ] {
 		request\-ixfr \fIboolean\fR;
 		request\-nsid \fIboolean\fR;
 		send\-cookie \fIboolean\fR;
+		tcp\-keepalive \fIboolean\fR;
+		tcp\-only \fIboolean\fR;
 		tcp\-only \fIboolean\fR;
 		transfer\-format ( many\-answers | one\-answer );
 		transfer\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR |
@@ -782,6 +830,8 @@ view \fIstring\fR [ \fIclass\fR ] {
 	sig\-signing\-type \fIinteger\fR;
 	sig\-validity\-interval \fIinteger\fR [ \fIinteger\fR ];
 	sortlist { \fIaddress_match_element\fR; \&.\&.\&. };
+	stale\-answer\-enable \fIboolean\fR;
+	stale\-answer\-ttl \fIttlval\fR;
 	transfer\-format ( many\-answers | one\-answer );
 	transfer\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ] [
 	    dscp \fIinteger\fR ];

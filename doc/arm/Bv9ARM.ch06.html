@@ -1277,7 +1277,7 @@
 		<span class="command"><strong>null</strong></span>;
 		<span class="command"><strong>print-category</strong></span> <em class="replaceable"><code>boolean</code></em>;
 		<span class="command"><strong>print-severity</strong></span> <em class="replaceable"><code>boolean</code></em>;
-		<span class="command"><strong>print-time</strong></span> <em class="replaceable"><code>boolean</code></em>;
+		<span class="command"><strong>print-time</strong></span> ( local | iso8601 | iso8601-utc | <em class="replaceable"><code>boolean</code></em> );
 		<span class="command"><strong>severity</strong></span> <em class="replaceable"><code>log_severity</code></em>;
 		<span class="command"><strong>stderr</strong></span>;
 		<span class="command"><strong>syslog</strong></span> [ <em class="replaceable"><code>syslog_facility</code></em> ];
@@ -1570,6 +1570,7 @@ notrace</strong></span>. All debugging messages in the server have a debug
     syslog daemon;
     // only send priority info and higher
     severity info;
+};
 
 channel default_debug {
     // write to named.run in the working directory
@@ -2526,7 +2527,9 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	    <span class="command"><strong>resolver</strong></span> ) [ ( query | response ) ]; ... };
 	<span class="command"><strong>dnstap-identity</strong></span> ( <em class="replaceable"><code>quoted_string</code></em> | none |
 	    <span class="command"><strong>hostname</strong></span> );
-	<span class="command"><strong>dnstap-output</strong></span> ( file | unix ) <em class="replaceable"><code>quoted_string</code></em>;
+	<span class="command"><strong>dnstap-output</strong></span> ( file | unix ) <em class="replaceable"><code>quoted_string</code></em> [
+	    <span class="command"><strong>size</strong></span> ( unlimited | <em class="replaceable"><code>size</code></em> ) ] [ versions (
+	    <span class="command"><strong>unlimited</strong></span> | <em class="replaceable"><code>integer</code></em> ) ];
 	<span class="command"><strong>dnstap-version</strong></span> ( <em class="replaceable"><code>quoted_string</code></em> | none );
 	<span class="command"><strong>dscp</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>dual-stack-servers</strong></span> [ port <em class="replaceable"><code>integer</code></em> ] { ( <em class="replaceable"><code>quoted_string</code></em> [ port
@@ -2534,6 +2537,12 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	    <em class="replaceable"><code>integer</code></em> ] [ dscp <em class="replaceable"><code>integer</code></em> ] | <em class="replaceable"><code>ipv6_address</code></em> [ port
 	    <em class="replaceable"><code>integer</code></em> ] [ dscp <em class="replaceable"><code>integer</code></em> ] ); ... };
 	<span class="command"><strong>dump-file</strong></span> <em class="replaceable"><code>quoted_string</code></em>;
+	<span class="command"><strong>ecs-bits</strong></span> <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>ecs-forward</strong></span> { <em class="replaceable"><code>address_match_element</code></em>; ... };
+	<span class="command"><strong>ecs-privacy</strong></span> <em class="replaceable"><code>boolean</code></em>;
+	<span class="command"><strong>ecs-types</strong></span> <em class="replaceable"><code>rrtypelist</code></em>;
+	<span class="command"><strong>ecs-zones</strong></span> { <em class="replaceable"><code>ecs_domain_name</code></em> [ bits-v4 <em class="replaceable"><code>integer</code></em> ] [ bits-v6
+	    <em class="replaceable"><code>integer</code></em> ]; ... };
 	<span class="command"><strong>edns-udp-size</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>empty-contact</strong></span> <em class="replaceable"><code>string</code></em>;
 	<span class="command"><strong>empty-server</strong></span> <em class="replaceable"><code>string</code></em>;
@@ -2590,6 +2599,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<span class="command"><strong>max-refresh-time</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>max-retry-time</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>max-rsa-exponent-size</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>max-stale-ttl</strong></span> <em class="replaceable"><code>ttlval</code></em>;
 	<span class="command"><strong>max-transfer-idle-in</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>max-transfer-idle-out</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>max-transfer-time-in</strong></span> <em class="replaceable"><code>integer</code></em>;
@@ -2630,8 +2640,9 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	    <span class="command"><strong>port</strong></span> ( <em class="replaceable"><code>integer</code></em> | * ) ) ) [ dscp <em class="replaceable"><code>integer</code></em> ];
 	<span class="command"><strong>querylog</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>random-device</strong></span> <em class="replaceable"><code>quoted_string</code></em>;
-	<span class="command"><strong>rate-limit</strong></span> {
+	<span class="command"><strong>rate-limit</strong></span> [ <em class="replaceable"><code>string</code></em> ] {
 		<span class="command"><strong>all-per-second</strong></span> <em class="replaceable"><code>integer</code></em>;
+		<span class="command"><strong>domain</strong></span> <em class="replaceable"><code>string</code></em>;
 		<span class="command"><strong>errors-per-second</strong></span> <em class="replaceable"><code>integer</code></em>;
 		<span class="command"><strong>exempt-clients</strong></span> { <em class="replaceable"><code>address_match_element</code></em>; ... };
 		<span class="command"><strong>ipv4-prefix-length</strong></span> <em class="replaceable"><code>integer</code></em>;
@@ -2643,7 +2654,9 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 		<span class="command"><strong>nxdomains-per-second</strong></span> <em class="replaceable"><code>integer</code></em>;
 		<span class="command"><strong>qps-scale</strong></span> <em class="replaceable"><code>integer</code></em>;
 		<span class="command"><strong>referrals-per-second</strong></span> <em class="replaceable"><code>integer</code></em>;
-		<span class="command"><strong>responses-per-second</strong></span> <em class="replaceable"><code>integer</code></em>;
+		<span class="command"><strong>responses-per-second</strong></span> [ size
+		    <em class="replaceable"><code>integer</code></em> ] [ ratio
+		    <em class="replaceable"><code>fixedpoint</code></em> ] <em class="replaceable"><code>integer</code></em>;
 		<span class="command"><strong>slip</strong></span> <em class="replaceable"><code>integer</code></em>;
 		<span class="command"><strong>window</strong></span> <em class="replaceable"><code>integer</code></em>;
 	};
@@ -2655,14 +2668,20 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<span class="command"><strong>request-nsid</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>require-server-cookie</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>reserved-sockets</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>resolver-nonbackoff-tries</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>resolver-query-timeout</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>resolver-retry-interval</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>response-padding</strong></span> { <em class="replaceable"><code>address_match_element</code></em>; ... } block-size
+	    <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>response-policy</strong></span> { zone <em class="replaceable"><code>quoted_string</code></em> [ log <em class="replaceable"><code>boolean</code></em> ] [
 	    <span class="command"><strong>max-policy-ttl</strong></span> <em class="replaceable"><code>integer</code></em> ] [ policy ( cname | disabled | drop |
 	    <span class="command"><strong>given</strong></span> | no-op | nodata | nxdomain | passthru | tcp-only
-	    <em class="replaceable"><code>quoted_string</code></em> ) ] [ recursive-only <em class="replaceable"><code>boolean</code></em> ]; ... } [
-	    <span class="command"><strong>break-dnssec</strong></span> <em class="replaceable"><code>boolean</code></em> ] [ max-policy-ttl <em class="replaceable"><code>integer</code></em> ] [
-	    <span class="command"><strong>min-ns-dots</strong></span> <em class="replaceable"><code>integer</code></em> ] [ nsip-wait-recurse <em class="replaceable"><code>boolean</code></em> ] [
-	    <span class="command"><strong>qname-wait-recurse</strong></span> <em class="replaceable"><code>boolean</code></em> ] [ recursive-only <em class="replaceable"><code>boolean</code></em> ];
+	    <em class="replaceable"><code>quoted_string</code></em> ) ] [ recursive-only <em class="replaceable"><code>boolean</code></em> ] [
+	    <span class="command"><strong>max-policy-ttl</strong></span> <em class="replaceable"><code>integer</code></em> ] [ min-update-interval <em class="replaceable"><code>integer</code></em> ];
+	    ... } [ break-dnssec <em class="replaceable"><code>boolean</code></em> ] [ max-policy-ttl <em class="replaceable"><code>integer</code></em> ] [
+	    <span class="command"><strong>min-update-interval</strong></span> <em class="replaceable"><code>integer</code></em> ] [ min-ns-dots <em class="replaceable"><code>integer</code></em> ] [
+	    <span class="command"><strong>nsip-wait-recurse</strong></span> <em class="replaceable"><code>boolean</code></em> ] [ qname-wait-recurse <em class="replaceable"><code>boolean</code></em> ]
+	    [ recursive-only <em class="replaceable"><code>boolean</code></em> ];
 	<span class="command"><strong>root-delegation-only</strong></span> [ exclude { <em class="replaceable"><code>quoted_string</code></em>; ... } ];
 	<span class="command"><strong>rrset-order</strong></span> { [ class <em class="replaceable"><code>string</code></em> ] [ type <em class="replaceable"><code>string</code></em> ] [ name
 	    <em class="replaceable"><code>quoted_string</code></em> ] <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>string</code></em>; ... };
@@ -2681,9 +2700,15 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<span class="command"><strong>sig-validity-interval</strong></span> <em class="replaceable"><code>integer</code></em> [ <em class="replaceable"><code>integer</code></em> ];
 	<span class="command"><strong>sortlist</strong></span> { <em class="replaceable"><code>address_match_element</code></em>; ... };
 	<span class="command"><strong>stacksize</strong></span> ( default | unlimited | <em class="replaceable"><code>sizeval</code></em> );
+	<span class="command"><strong>stale-answer-enable</strong></span> <em class="replaceable"><code>boolean</code></em>;
+	<span class="command"><strong>stale-answer-ttl</strong></span> <em class="replaceable"><code>ttlval</code></em>;
 	<span class="command"><strong>startup-notify-rate</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>statistics-file</strong></span> <em class="replaceable"><code>quoted_string</code></em>;
+	<span class="command"><strong>tcp-advertised-timeout</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>tcp-clients</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>tcp-idle-timeout</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>tcp-initial-timeout</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>tcp-keepalive-timeout</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>tcp-listen-queue</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>tkey-dhkey</strong></span> <em class="replaceable"><code>quoted_string</code></em> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>tkey-domain</strong></span> <em class="replaceable"><code>quoted_string</code></em>;
@@ -2804,6 +2829,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
                   <span class="command"><strong>dnssec-validation</strong></span>,
                   <span class="command"><strong>max-cache-ttl</strong></span>,
                   <span class="command"><strong>max-ncache-ttl</strong></span>,
+                  <span class="command"><strong>max-stale-ttl</strong></span>,
                   <span class="command"><strong>max-cache-size</strong></span>, and
                   <span class="command"><strong>zero-no-soa-ttl</strong></span>.
                 </p>
@@ -3706,6 +3732,21 @@ options {
                 <code class="constant">unlimited</code>.
               </p>
             </dd>
+<dt><span class="term"><span class="command"><strong>stale-answer-ttl</strong></span></span></dt>
+<dd>
+              <p>
+                Specifies the TTL to be returned on stale answers.
+                The default is 1 second. The minimal allowed is
+                also 1 second; a value of 0 will be updated silently
+                to 1 second.
+              </p>
+              <p>
+                For stale answers to be returned, they must be enabled,
+                either in the configuration file using
+                <span class="command"><strong>stale-answer-enable</strong></span> or via
+                <span class="command"><strong>rndc serve-stale on</strong></span>.
+              </p>
+            </dd>
 <dt><span class="term"><span class="command"><strong>serial-update-method</strong></span></span></dt>
 <dd>
               <p>
@@ -4136,6 +4177,14 @@ options {
                   Not implemented in BIND 9.
                 </p>
               </dd>
+<dt><span class="term"><span class="command"><strong>root-key-sentinel</strong></span></span></dt>
+<dd>
+                <p>
+                  Respond to root key sentinel probes as described in
+                  draft-ietf-dnsop-kskroll-sentinel-08. The default is
+                  <strong class="userinput"><code>yes</code></strong>.
+                </p>
+              </dd>
 <dt><span class="term"><span class="command"><strong>maintain-ixfr-base</strong></span></span></dt>
 <dd>
                 <p>
@@ -4312,6 +4361,29 @@ options {
                   server cookie.
                 </p>
               </dd>
+<dt><span class="term"><span class="command"><strong>answer-cookie</strong></span></span></dt>
+<dd>
+                <p>
+                  When set to the default value of <strong class="userinput"><code>yes</code></strong>,
+                  COOKIE EDNS options will be sent when applicable in
+                  replies to client queries. If set to
+                  <strong class="userinput"><code>no</code></strong>, COOKIE EDNS options will not
+                  be sent in replies.  This can only be set at the global
+                  options level, not per-view.
+                </p>
+                <p>
+                  <span class="command"><strong>answer-cookie no</strong></span> is only intended as a
+                  temporary measure, for use when <span class="command"><strong>named</strong></span>
+                  shares an IP address with other servers that do not yet
+                  support DNS COOKIE.  A mismatch between servers on the
+                  same address is not expected to cause operational
+                  problems, but the option to disable COOKIE responses so
+                  that all servers have the same behavior is provided out
+                  of an abundance of caution. DNS COOKIE is an important
+                  security mechanism, and should not be disabled unless
+                  absolutely necessary.
+                </p>
+              </dd>
 <dt><span class="term"><span class="command"><strong>send-cookie</strong></span></span></dt>
 <dd>
                 <p>
@@ -4330,6 +4402,33 @@ options {
                   do not send a correct COOKIE option may be limited
                   to receiving smaller responses via the
                   <span class="command"><strong>nocookie-udp-size</strong></span> option.
+                </p>
+              </dd>
+<dt><span class="term"><span class="command"><strong>serve-stale-enable</strong></span></span></dt>
+<dd>
+                <p>
+                  Enable the returning of "stale" cached answers when
+                  the nameservers for a zone are not answering.  The
+                  default is not to return stale answers.
+                </p>
+                <p>
+                  Stale answers can also be enabled or disabled at
+                  runtime via <span class="command"><strong>rndc serve-stale on</strong></span> or
+                  <span class="command"><strong>rndc serve-stale off</strong></span>; these
+                  override the configured setting.
+                  <span class="command"><strong>rndc serve-stale reset</strong></span>
+                  restores the setting to the one specified in
+                  <code class="filename">named.conf</code>.  Note that if
+                  stale answers have been disabled by <span class="command"><strong>rndc</strong></span>,
+                  then they cannot be re-enabled by reloading or
+                  reconfiguring <span class="command"><strong>named</strong></span>;
+                  they must be re-enabled with
+                  <span class="command"><strong>rndc serve-stale on</strong></span>,
+                  or the server must be restarted.
+                </p>
+                <p>
+                  Information about stale answers is logged under
+                  the <span class="command"><strong>serve-stale</strong></span> log category.
                 </p>
               </dd>
 <dt><span class="term"><span class="command"><strong>nocookie-udp-size</strong></span></span></dt>
@@ -4367,6 +4466,12 @@ options {
                   shared secret is encoded as a hex string and needs
                   to be 128 bits for AES128, 160 bits for SHA1 and
                   256 bits for SHA256.
+                </p>
+                <p>
+                  If there are multiple secrets specified, the first
+                  one listed in <code class="filename">named.conf</code> is
+                  used to generate new server cookies.  The others
+                  will only be used to verify returned cookies.
                 </p>
               </dd>
 <dt><span class="term"><span class="command"><strong>response-padding</strong></span></span></dt>
@@ -5416,13 +5521,19 @@ options {
 <dt><span class="term"><span class="command"><strong>resolver-query-timeout</strong></span></span></dt>
 <dd>
                 <p>
-                  The amount of time in seconds that the resolver
+                  The amount of time in milliseconds that the resolver
                   will spend attempting to resolve a recursive
                   query before failing.  The default and minimum
-                  is <code class="literal">10</code> and the maximum is
-                  <code class="literal">30</code>.  Setting it to
+                  is <code class="literal">10000</code> and the maximum is
+                  <code class="literal">30000</code>.  Setting it to
                   <code class="literal">0</code> will result in the default
                   being used.
+                </p>
+                <p>
+                  This value was originally specified in seconds.
+                  Values less than or equal to 300 will be be treated
+                  as seconds and converted to milliseconds before
+                  applying the above limits.
                 </p>
               </dd>
 </dl></div>
@@ -6856,6 +6967,26 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   resolution process.
                 </p>
               </dd>
+<dt><span class="term"><span class="command"><strong>max-stale-ttl</strong></span></span></dt>
+<dd>
+                <p>
+                  If stale answers are enabled,
+                  <span class="command"><strong>max-stale-ttl</strong></span>
+                  sets the maximum time for which the server will
+                  retain records past their normal expiry to
+                  return them as stale records when the servers
+                  for those records are not reachable.
+                  The default is 1 week. The minimum allowed is
+                  1 second; a value of 0 will be updated silently
+                  to 1 second.
+                </p>
+                <p>
+                  For stale answers to be returned, they must be enabled,
+                  either in the configuration file using
+                  <span class="command"><strong>stale-answer-enable</strong></span> or via
+                  <span class="command"><strong>rndc serve-stale on</strong></span>.
+                </p>
+              </dd>
 <dt><span class="term"><span class="command"><strong>min-roots</strong></span></span></dt>
 <dd>
                 <p>
@@ -7191,6 +7322,47 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   The default eligibility TTL is <code class="literal">9</code>.
                 </p>
               </dd>
+<dt><span class="term"><span class="command"><strong>umbrella-virtual-appliance</strong></span></span></dt>
+<dd>
+                <p>
+                  If Umbrella is enabled at compile time, this option
+                  sets the Virtual Appliance ID to be sent by
+                  <span class="command"><strong>named</strong></span> when forwarding a query to
+                  a Cisco Umbrella server. This can cause leakage of private
+                  information, and therefore should only be set by
+                  Cisco Umbrella customers; see
+                  <a class="xref" href="Bv9ARM.ch06.html#umbrella" title="Cisco Umbrella support">the section called &#8220;Cisco Umbrella support&#8221;</a> for details.
+                  This field is represented as an integer.
+                </p>
+              </dd>
+<dt><span class="term"><span class="command"><strong>umbrella-organization</strong></span></span></dt>
+<dd>
+                <p>
+                  If Umbrella is enabled at compile time, this option
+                  sets the Organization ID to be sent by
+                  <span class="command"><strong>named</strong></span> when forwarding a query to
+                  a Cisco Umbrella server. This can cause leakage of private
+                  information, and therefore should only be set by
+                  Cisco Umbrella customers; see
+                  <a class="xref" href="Bv9ARM.ch06.html#umbrella" title="Cisco Umbrella support">the section called &#8220;Cisco Umbrella support&#8221;</a> for details.
+                  This field is represented as an integer.
+                </p>
+              </dd>
+<dt><span class="term"><span class="command"><strong>umbrella-device</strong></span></span></dt>
+<dd>
+                <p>
+                  If Umbrella is enabled at compile time, this option
+                  sets the Device ID to be sent by
+                  <span class="command"><strong>named</strong></span> when forwarding a query to
+                  a Cisco Umbrella server. This can cause leakage of private
+                  information, and therefore should only be set by
+                  Cisco Umbrella customers; see
+                  <a class="xref" href="Bv9ARM.ch06.html#umbrella" title="Cisco Umbrella support">the section called &#8220;Cisco Umbrella support&#8221;</a> for details.
+                  This field is represented as a hexadecimal value
+                  2 to 16 digits in length, representing 1 to 8
+                  bytes. There must be an even number of digits.
+                </p>
+              </dd>
 <dt><span class="term"><span class="command"><strong>v6-bias</strong></span></span></dt>
 <dd>
                 <p>
@@ -7405,6 +7577,8 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 <li class="listitem">9.E.F.IP6.ARPA</li>
 <li class="listitem">A.E.F.IP6.ARPA</li>
 <li class="listitem">B.E.F.IP6.ARPA</li>
+<li class="listitem">EMPTY.AS112.ARPA</li>
+<li class="listitem">HOME.ARPA</li>
 </ul></div>
 <p>
           </p>
@@ -8605,14 +8779,15 @@ rate-limit {
 <dd>
                   <p>
                     This option takes exactly two arguments, representing
-                    the default SOURCE prefix-length to use in ECS queries
+                    the default SOURCE PREFIX-LENGTH to use in ECS queries
                     for IPv4 and IPv6 addresses respectively.  These
                     values can be overridden on a per-domain basis by
                     specifying
                     <code class="literal">bits-v4</code> and <code class="literal">bits-v6</code>
                     values in <code class="option">ecs-zones</code>.
-                    The default values are 24 and 56, which are also the
-                    maxima. Higher values are not permitted, and will
+                    The default values are 24 and 56 respectively for
+                    IPv4 and IPv6 addresses, which are also the maximum
+                    allowed. Higher values are not permitted, and will
                     be capped to 24 and 56 respectively.
                   </p>
                 </dd>
@@ -8633,17 +8808,19 @@ rate-limit {
                     given query.
                   </p>
                   <p>
-                    Elements in <span class="command"><strong>ecs-zones</strong></span> may be followed
-                    with optional <code class="literal">bits-v4</code> and
-                    <code class="literal">bits-v6</code> values, indicating the
-                    source prefix-lengths to be used in ECS options when
-                    sending IPv4 and IPv6 queries, respectively, for names
-                    at or below that subdomain. If <code class="literal">bits-v4</code>
-                    and <code class="literal">bits-v6</code> are not specified,
-                    the default source prefix-lengths are whatever are set
-                    by <code class="option">ecs-bits</code>, which in turn default
-                    to 24 for IPv4 and 56 for IPv6. Higher values than
-                    these are not accepted, and will be clamped.
+                    Elements in <span class="command"><strong>ecs-zones</strong></span> may be
+                    followed with optional <code class="literal">bits-v4</code>
+                    and <code class="literal">bits-v6</code> values, indicating
+                    the SOURCE PREFIX-LENGTHs to be used in ECS options
+                    when sending IPv4 and IPv6 queries respectively, for
+                    names at or below that subdomain. If
+                    <code class="literal">bits-v4</code> and
+                    <code class="literal">bits-v6</code> are not specified, the
+                    default SOURCE PREFIX-LENGTHs are as set by
+                    <code class="option">ecs-bits</code>, which in turn default to
+                    24 for IPv4 and 56 for IPv6. Higher values than
+                    these are not accepted, and will be clamped to 24
+                    and 56 for IPv4 and IPv6 respectively.
                   </p>
                   <p>
                     As names in <span class="command"><strong>ecs-zones</strong></span> become more
@@ -8659,20 +8836,22 @@ rate-limit {
                   <div class="itemizedlist"><ul class="itemizedlist" style="list-style-type: disc; ">
 <li class="listitem">
                       ECS options are sent when looking up names in the
-                      zone "example.com", with a source prefix-length of 20
+                      zone "example.com", with a SOURCE PREFIX-LENGTH of 20
                       bits for IPv4 queries, and the default 56 bits for
                       IPv6 queries.
                     </li>
 <li class="listitem">
                       ECS options are also sent when looking up names
                       in the zone "example.org", but in this case the
-                      prefix-lengths will be 22 and 48. However, ECS
-                      is not used for names below "excluded.example.org."
+                      SOURCE PREFIX-LENGTHs will be 22 and 48 for IPv4
+                      and IPv6 respectively. However, ECS is not used
+                      for names below "excluded.example.org."
                     </li>
 <li class="listitem">
                       ECS options are also sent when looking up names in
-                      the zone "example.net", with the default source prefix
-                      lengths of 24 and 56 bits.
+                      the zone "example.net", with the default SOURCE
+                      PREFIX-LENGTHs of 24 and 56 bits for IPv4 and IPv6
+                      respectively.
                     </li>
 </ul></div>
 <pre class="programlisting">
@@ -8685,8 +8864,8 @@ rate-limit {
 </pre>
                   <p>
                     It is assumed that ECS will be configured at the
-                    zone level, not using individual names within a zone.
-                    Consequently, ECS options are only sent when
+                    zone level, not using individual domain names within
+                    a zone. Consequently, ECS options are only sent when
                     the name being queried and the apex of the zone
                     being queried both match <span class="command"><strong>ecs-zones</strong></span>.
                     For example, if the zone "example.com" contains the name
@@ -8710,8 +8889,8 @@ rate-limit {
                     The zone apex is defined here as the delegation point.
                     Sometimes a server is authoritative for both parent and
                     child zones, so that a query sent to the parent zone
-                    will get an authoritative answer for the child, with
-                    no delegation taking place; in this case,
+                    will get an authoritative answer for the child,
+                    with no delegation taking place; in this case,
                     <span class="command"><strong>ecs-zones</strong></span> must match the
                     <span class="emphasis"><em>parent</em></span> zone apex to be effective.
                   </p>
@@ -8725,10 +8904,10 @@ rate-limit {
                   </p>
                   <p>
                     If a client is not allowed in this ACL, then recursive
-                    queries which contain ECS options with non-zero source
+                    queries which contain the ECS option with non-zero source
                     prefix-length will be answered with REFUSED.  (This
-                    does not apply to ECS options with zero prefix-lengths;
-                    all clients are permitted to send those.)
+                    does not apply to ECS options with zero source
+                    prefix-lengths; all clients are permitted to send those.)
                   </p>
                   <p>
                     If the client <span class="emphasis"><em>is</em></span> allowed,
@@ -8782,7 +8961,7 @@ rate-limit {
                     which matches all types with the exception of
                     DNS infrastructure types (NS, SOA), and
                     DNSSEC-related types (DS, DNSKEY, NSEC).
-                    those types are never ECS-tagged, even if explicitly
+                    Those types are never ECS-tagged, even if explicitly
                     included in <span class="command"><strong>ecs-types</strong></span>.
                   </p>
                   <p>
@@ -8795,7 +8974,51 @@ rate-limit {
                 </dd>
 </dl></div>
           </div>
+        </div>
 
+        <div class="section">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="umbrella"></a>Cisco Umbrella support</h4></div></div></div>
+          <p>
+            In this release of BIND, <span class="command"><strong>named</strong></span> supports
+            forwarding of queries to Cisco Umbrella servers, if compiled
+            with <span class="command"><strong>configure --enable-umbrella</strong></span>. Cisco
+            Umbrella identifies customer queries via a custom
+            "Protoss" EDNS option that is included with each query.
+          </p>
+          <p>
+            Protoss options may include any combination of three
+            identification codes: a Virtual Appliance ID, an
+            Organization ID, or a Device ID. These are configured in
+            <code class="filename">named.conf</code> by setting the
+            <span class="command"><strong>umbrella-virtual-appliance</strong></span>,
+            <span class="command"><strong>umbrella-organization</strong></span>, and
+            <span class="command"><strong>umbrella-device</strong></span> options. If any of
+            these options is set, then when <span class="command"><strong>named</strong></span>
+            is forwarding a message to Cisco Umbrella server, it
+            can include a Protoss option in the query.
+          </p>
+          <p>
+            Cisco Umbrella server addresses must be explicitly
+            configured in a <span class="command"><strong>server</strong></span> statement with
+            the <span class="command"><strong>send-umbrella</strong></span> option set to
+            <code class="literal">yes</code>. Protoss options will not be sent
+            to any server that has not been explicitly configured
+            to receive them.
+          </p>
+          <p>
+            Responses from Cisco Umbrella servers are specifically
+            tailored to the client, and are therefore not cached by
+            <span class="command"><strong>named</strong></span>, so that other clients can get
+            other answers. The TTLs of these responses are automatically
+            lowered to zero.
+          </p>
+          <p>
+            Note that, in order to identify the client, the Protoss option
+            includes a copy of the client's IP address. This has serious
+            implications for client privacy. The Protoss option must be
+            configured cautiously and only by Cisco Umbrella customers.
+          </p>
         </div>
       </div>
 
@@ -8805,6 +9028,7 @@ rate-limit {
         <pre class="programlisting">
 <span class="command"><strong>server</strong></span> <em class="replaceable"><code>netprefix</code></em> {
 	<span class="command"><strong>bogus</strong></span> <em class="replaceable"><code>boolean</code></em>;
+	<span class="command"><strong>ecs</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>edns</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>edns-udp-size</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>edns-version</strong></span> <em class="replaceable"><code>integer</code></em>;
@@ -8814,6 +9038,7 @@ rate-limit {
 	    <span class="command"><strong>dscp</strong></span> <em class="replaceable"><code>integer</code></em> ];
 	<span class="command"><strong>notify-source-v6</strong></span> ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [ port ( <em class="replaceable"><code>integer</code></em> | * ) ]
 	    [ dscp <em class="replaceable"><code>integer</code></em> ];
+	<span class="command"><strong>padding</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>provide-ixfr</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>query-source</strong></span> ( ( [ address ] ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [ port (
 	    <em class="replaceable"><code>integer</code></em> | * ) ] ) | ( [ [ address ] ( <em class="replaceable"><code>ipv4_address</code></em> | * ) ]
@@ -8825,6 +9050,8 @@ rate-limit {
 	<span class="command"><strong>request-ixfr</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>request-nsid</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>send-cookie</strong></span> <em class="replaceable"><code>boolean</code></em>;
+	<span class="command"><strong>tcp-keepalive</strong></span> <em class="replaceable"><code>boolean</code></em>;
+	<span class="command"><strong>tcp-only</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>tcp-only</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>transfer-format</strong></span> ( many-answers | one-answer );
 	<span class="command"><strong>transfer-source</strong></span> ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [ port ( <em class="replaceable"><code>integer</code></em> | * ) ] [
@@ -9110,6 +9337,18 @@ rate-limit {
             option level.  The <span class="command"><strong>named</strong></span> server may
             determine that COOKIE is not supported by the remote server
             and not add a COOKIE EDNS option to requests.
+          </p>
+
+          <p>
+            The <span class="command"><strong>send-umbrella</strong></span> option determines
+            whether to treat the server as a Cisco Umbrella server.
+            If set to <code class="literal">yes</code>, and if Cisco Umbrella
+            has been enabled and compile time and configured via the
+            <span class="command"><strong>umbrella-virtual-appliance</strong></span>,
+            <span class="command"><strong>umbrella-organization</strong></span>, or
+            <span class="command"><strong>umbrella-device</strong></span> options,
+            then <span class="command"><strong>named</strong></span> will send an EDNS Protoss
+            option when forwarding queries to the server.
           </p>
         </div>
 
@@ -10753,69 +10992,68 @@ example.com. NS ns2.example.net.
               <span class="command"><strong>update-policy</strong></span> option, respectively.
             </p>
             <p>
-              The <span class="command"><strong>allow-update</strong></span> clause works the
-              same way as in previous versions of <acronym class="acronym">BIND</acronym>.
-              It grants given clients the permission to update any
-              record of any name in the zone.
+              The <span class="command"><strong>allow-update</strong></span> clause is a simple
+              access control list.  Any client that matches
+              the ACL is granted permission to update any record
+              in the zone.
             </p>
             <p>
               The <span class="command"><strong>update-policy</strong></span> clause
               allows more fine-grained control over what updates are
-              allowed.  A set of rules is specified, where each rule
-              either grants or denies permissions for one or more
-              names to be updated by one or more identities.  If
-              the dynamic update request message is signed (that is,
-              it includes either a TSIG or SIG(0) record), the
-              identity of the signer can be determined.
+              allowed.  It specifies a set of rules, in which each rule
+              either grants or denies permission for one or more
+              names in the zone to be updated by one or more
+              identities. Identity is determined by the key that
+              signed the update request using either TSIG or SIG(0).
+              In most cases, <span class="command"><strong>update-policy</strong></span> rules
+              only apply to key-based identities.  There is no way
+              to specify update permissions based on client source
+              address.
             </p>
             <p>
-              Rules are specified in the <span class="command"><strong>update-policy</strong></span>
-              zone option, and are only meaningful for master zones.
-              When the <span class="command"><strong>update-policy</strong></span> statement
-              is present, it is a configuration error for the
-              <span class="command"><strong>allow-update</strong></span> statement to be
-              present.  The <span class="command"><strong>update-policy</strong></span> statement
-              (except when set to <code class="literal">local</code>) only
-              examines the signer of a message; the source
-              address is not relevant.
+              <span class="command"><strong>update-policy</strong></span> rules are only meaningful
+              for zones of type <span class="command"><strong>master</strong></span>, and are
+              not allowed in any other zone type.
+              It is a configuration error to specify both
+              <span class="command"><strong>allow-update</strong></span> and
+              <span class="command"><strong>update-policy</strong></span> at the same time.
             </p>
             <p>
               A pre-defined <span class="command"><strong>update-policy</strong></span> rule can be
               switched on with the command
               <span class="command"><strong>update-policy local;</strong></span>.
-              Switching on this rule in a zone causes
-              <span class="command"><strong>named</strong></span> to generate a TSIG session key and
-              place it in a file. That key will then be allowed to update
-              the zone, if the update request is sent from localhost.
+              Using this in a zone causes
+              <span class="command"><strong>named</strong></span> to generate a TSIG session key
+              when starting up and store it in a file; this key can then
+              be used by local clients to update the zone while
+              <span class="command"><strong>named</strong></span> is running.
               By default, the session key is stored in the file
-              <code class="filename">/var/run/named/session.key</code>; the key name
-              is "local-ddns" and the key algorithm is HMAC-SHA256.
+              <code class="filename">/var/run/named/session.key</code>, the key name
+              is "local-ddns", and the key algorithm is HMAC-SHA256.
               These values are configurable with the
               <span class="command"><strong>session-keyfile</strong></span>,
               <span class="command"><strong>session-keyname</strong></span> and
-              <span class="command"><strong>session-keyalg</strong></span> options, respectively).
-            </p>
-            <p>
-              A client on the local system, if it is run with appropriate
+              <span class="command"><strong>session-keyalg</strong></span> options, respectively.
+              A client running on the local system, if run with appropriate
               permissions, may read the session key from the key file and
-              use the key to sign update requests.  The zone's update
+              use it to sign update requests.  The zone's update
               policy will be set to allow that key to change any record
               within the zone.  Assuming the key name is "local-ddns",
-              this policy is:
+              this policy is equivalent to:
             </p>
 
             <pre class="programlisting">update-policy { grant local-ddns zonesub any; };
             </pre>
 
             <p>
-              ...with an additional restriction that only clients
+              ...with the additional restriction that only clients
               connecting from the local system will be permitted to send
               updates.
             </p>
             <p>
-              Note that only one session key is generated; all zones
-              configured to use <span class="command"><strong>update-policy local</strong></span>
-              will accept the same key.
+              Note that only one session key is generated by
+              <span class="command"><strong>named</strong></span>; all zones configured to use
+              <span class="command"><strong>update-policy local</strong></span> will accept the same key.
             </p>
             <p>
               The command <span class="command"><strong>nsupdate -l</strong></span> implements this
@@ -10828,50 +11066,60 @@ example.com. NS ns2.example.net.
             </p>
 
 <pre class="programlisting">
-( <span class="command"><strong>grant</strong></span> | <span class="command"><strong>deny</strong></span> ) <em class="replaceable"><code>identity</code></em> <em class="replaceable"><code>nametype</code></em> [<span class="optional"> <em class="replaceable"><code>name</code></em> </span>] [<span class="optional"> <em class="replaceable"><code>types</code></em> </span>]
+( <span class="command"><strong>grant</strong></span> | <span class="command"><strong>deny</strong></span> ) <em class="replaceable"><code>identity</code></em> <em class="replaceable"><code>ruletype</code></em> [<span class="optional"> <em class="replaceable"><code>name</code></em> </span>] [<span class="optional"> <em class="replaceable"><code>types</code></em> </span>]
 </pre>
 
             <p>
-              Each rule grants or denies privileges.  Once a message has
-              successfully matched a rule, the operation is immediately
-              granted or denied and no further rules are examined.  A rule
-              is matched when the signer matches the identity field, the
-              name matches the name field in accordance with the nametype
-              field, and the type matches the types specified in the type
-              field.
+              Each rule grants or denies privileges.  Rules are checked
+              in the order in which they are specified in the
+              <span class="command"><strong>update-policy</strong></span> statement. Once a message
+              has successfully matched a rule, the operation is immediately
+              granted or denied, and no further rules are examined.  There
+              are 13 types of rules; the rule type is specified by the
+              <span class="command"><strong>ruletype</strong></span> field, and the interpretation
+              of other fields varies depending on the rule type.
             </p>
             <p>
-              No signer is required for <em class="replaceable"><code>tcp-self</code></em>
-              or <em class="replaceable"><code>6to4-self</code></em> however the standard
-              reverse mapping / prefix conversion must match the identity
-              field.
+              In general, a rule is matched when the
+              key that signed an update request matches the
+              <span class="command"><strong>identity</strong></span> field, the name of the record
+              to be updated matches the <span class="command"><strong>name</strong></span> field
+              (in the manner specified by the <span class="command"><strong>ruletype</strong></span>
+              field), and the type of the record to be updated matches the
+              <span class="command"><strong>types</strong></span> field. Details for each rule type
+              are described below.
             </p>
             <p>
-              The identity field specifies a name or a wildcard
-              name.  Normally, this is the name of the TSIG or
-              SIG(0) key used to sign the update request.  When a
-              TKEY exchange has been used to create a shared secret,
-              the identity of the shared secret is the same as the
-              identity of the key used to authenticate the TKEY
-              exchange.  TKEY is also the negotiation method used
-              by GSS-TSIG, which establishes an identity that is
-              the Kerberos principal of the client, such as
-              <strong class="userinput"><code>"user@host.domain"</code></strong>.  When the
-              <em class="replaceable"><code>identity</code></em> field specifies
-              a wildcard name, it is subject to DNS wildcard
-              expansion, so the rule will apply to multiple identities.
-              The <em class="replaceable"><code>identity</code></em> field must
-              contain a fully-qualified domain name.
+              The <span class="command"><strong>identity</strong></span> field must be set to
+              a fully-qualified domain name.  In most cases, this
+              represensts the name of the TSIG or SIG(0) key that must be
+              used to sign the update request.  If the specified name is a
+              wildcard, it is subject to DNS wildcard expansion, and the
+              rule may apply to multiple identities.  When a TKEY exchange
+              has been used to create a shared secret, the identity of
+              the key used to authenticate the TKEY exchange will be
+              used as the identity of the shared secret.  Some rule types
+              use indentities matching the client's Kerberos principal
+              (e.g, <strong class="userinput"><code>"host/machine@REALM"</code></strong>) or
+              Windows realm (<strong class="userinput"><code>machine$@REALM</code></strong>).
             </p>
             <p>
-              For nametypes <code class="varname">krb5-self</code>,
-              <code class="varname">ms-self</code>, <code class="varname">krb5-subdomain</code>,
-              and <code class="varname">ms-subdomain</code> the
-              <em class="replaceable"><code>identity</code></em> field specifies
-              the Windows or Kerberos realm of the machine belongs to.
+              The <em class="replaceable"><code>name</code></em> field also specifies
+              a fully-qualified domain name. This often
+              represents the name of the record to be updated.
+              Interpretation of this field is dependent on rule type.
             </p>
             <p>
-              The <em class="replaceable"><code>nametype</code></em> field has 13
+              If no <span class="command"><strong>types</strong></span> are explicitly specified,
+              then a rule matches all types except RRSIG, NS, SOA, NSEC
+              and NSEC3. Types may be specified by name, including
+              "ANY" (ANY matches all types except NSEC and NSEC3,
+              which can never be updated).  Note that when an attempt
+              is made to delete all records associated with a name,
+              the rules are checked for each existing record type.
+            </p>
+            <p>
+              The <em class="replaceable"><code>ruletype</code></em> field has 13
               values:
               <code class="varname">name</code>, <code class="varname">subdomain</code>,
               <code class="varname">wildcard</code>, <code class="varname">self</code>,
@@ -10965,20 +11213,23 @@ example.com. NS ns2.example.net.
                     </td>
 <td>
                       <p>
-                        This rule matches when the name being updated
-                        matches the contents of the
+                        This rule matches when the name of the record
+                        being updated matches the contents of the
                         <em class="replaceable"><code>identity</code></em> field.
                         The <em class="replaceable"><code>name</code></em> field
-                        is ignored, but should be the same as the
-                        <em class="replaceable"><code>identity</code></em> field or
+                        is ignored. To avoid confusion, it is recommended
+                        that this field be set to the same value as the
+                        <em class="replaceable"><code>identity</code></em> field or to
                         "."
-                        The <code class="varname">self</code> nametype is
-                        most useful when allowing using one key per
+                      </p>
+                      <p>
+                        The <code class="varname">self</code> rule type is
+                        most useful when allowing one key per
                         name to update, where the key has the same
-                        name as the name to be updated.  The
-                        <em class="replaceable"><code>identity</code></em> would
-                        be specified as <code class="constant">*</code> (an asterisk) in
-                        this case.
+                        name as the record to be updated.  In this case,
+                        the <em class="replaceable"><code>identity</code></em> field
+                        can be specified as <code class="constant">*</code>
+                        (an asterisk).
                       </p>
                     </td>
 </tr>
@@ -11087,11 +11338,18 @@ example.com. NS ns2.example.net.
                     </td>
 <td>
                       <p>
-                        Allow updates that have been sent via TCP and
-                        for which the standard mapping from the initiating
-                        IP address into the IN-ADDR.ARPA and IP6.ARPA
-                        namespaces match the name to be updated.  The
-                        name field should be set to "."
+                        This rule allows updates that have been sent via
+                        TCP and for which the standard mapping from the
+                        client's IP address into the
+                        <code class="literal">in-addr.arpa</code> and
+                        <code class="literal">ip6.arpa</code>
+                        namespaces match the name to be updated.
+                        The <span class="command"><strong>identity</strong></span> field must match
+                        that name.  The <span class="command"><strong>name</strong></span> field
+                        should be set to ".".
+                        Note that, since identity is based on the client's
+                        IP address, it is not necessary for update request
+                        messages to be signed.
                       </p>
                       <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>
@@ -11108,11 +11366,30 @@ example.com. NS ns2.example.net.
                     </td>
 <td>
                       <p>
-                        Allow the 6to4 prefix to be update by any TCP
-                        connection from the 6to4 network or from the
-                        corresponding IPv4 address.  This is intended
-                        to allow NS or DNAME RRsets to be added to the
-                        reverse tree.
+                        This allows the name matching a 6to4 IPv6 prefix,
+                        as specified in RFC 3056, to be updated by any
+                        TCP connection from either the 6to4 network or
+                        from the corresponding IPv4 address.  This is
+                        intended to allow NS or DNAME RRsets to be added
+                        to the <code class="literal">ip6.arpa</code> reverse tree.
+                      </p>
+                      <p>
+                        The <span class="command"><strong>identity</strong></span> field must match
+                        the 6to4 prefix in <code class="literal">ip6.arpa</code>.
+                        The <span class="command"><strong>name</strong></span> field should
+                        be set to ".".
+                        Note that, since identity is based on the client's
+                        IP address, it is not necessary for update request
+                        messages to be signed.
+                      </p>
+                      <p>
+                        In addition, if specified for an
+                        <code class="literal">ip6.arpa</code> name outside of the
+                        <code class="literal">2.0.0.2.ip6.arpa</code> namespace,
+                        the corresponding /48 reverse name can be updated.
+                        For example, TCP/IPv6 connections
+                        from 2001:DB8:ED0C::/48 can update records at
+                        <code class="literal">C.0.D.E.8.B.D.0.1.0.0.2.ip6.arpa</code>.
                       </p>
                       <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>
@@ -11168,21 +11445,6 @@ example.com. NS ns2.example.net.
 </tbody>
 </table>
             </div>
-
-            <p>
-              In all cases, the <em class="replaceable"><code>name</code></em>
-              field must specify a fully-qualified domain name.
-            </p>
-
-            <p>
-              If no types are explicitly specified, this rule matches
-              all types except RRSIG, NS, SOA, NSEC and NSEC3. Types
-              may be specified by name, including "ANY" (ANY matches
-              all types except NSEC and NSEC3, which can never be
-              updated).  Note that when an attempt is made to delete
-              all records associated with a name, the rules are
-              checked for each existing record type.
-            </p>
           </div>
 
           <div class="section">
@@ -15013,6 +15275,6 @@ HOST-127.EXAMPLE. MX 0 .
 </tr>
 </table>
 </div>
-<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.11.3-S1 (Supported Preview Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.11.4-S1 (Supported Preview Version)</p>
 </body>
 </html>
