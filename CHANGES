@@ -14,10 +14,6 @@
 5000.	[bug]		ns_server_servestale() could leave the server in
 			exclusive mode if an error occured. [GL #441]
 
-4997.	[security]	named could crash during recursive processing
-			of DNAME records when "deny-answer-aliases" was
-			in use. (CVE-2018-5740) [GL #387]
-
 4996.	[bug]		dig: Handle malformed ednsopt options. [GL #403]
 
 4995.	[test]		Add tests for "tcp-self" update policy. [GL !282]
@@ -131,8 +127,6 @@
 4930.	[bug]		Remove a bogus check in nslookup command line
 			argument processing. [GL #206]
 
-4927.	[bug]		Fixed an ECS-related database lookup error.
-
 4926.	[func]		Add root key sentinel support.  To disable, add
 			'root-key-sentinel no;' to named.conf. [GL #37]
 
@@ -158,6 +152,16 @@
 4699.	[func]		Multiple cookie-secret clauses can now be specified.
 			The first one specified is used to generate new
 			server cookies.  [RT #45672]
+
+	--- 9.11.3-S3 released ---
+
+4997.	[security]	named could crash during recursive processing
+			of DNAME records when "deny-answer-aliases" was
+			in use. (CVE-2018-5740) [GL #387]
+
+	--- 9.11.3-S2 released ---
+
+4927.	[bug]		Fixed an ECS-related database lookup error.
 
 	--- 9.11.3-S1 released ---
 
