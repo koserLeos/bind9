@@ -729,6 +729,7 @@ dns_peer_getrequestexpire
 dns_peer_getrequestixfr
 dns_peer_getrequestnsid
 dns_peer_getsendcookie
+dns_peer_getsendprotoss
 dns_peer_getsupportecs
 dns_peer_getsupportedns
 dns_peer_gettcpkeepalive
@@ -755,6 +756,7 @@ dns_peer_setrequestexpire
 dns_peer_setrequestixfr
 dns_peer_setrequestnsid
 dns_peer_setsendcookie
+dns_peer_setsendprotoss
 dns_peer_setsupportecs
 dns_peer_setsupportedns
 dns_peer_settcpkeepalive

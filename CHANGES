@@ -108,6 +108,10 @@
 
 4939.	[test]		Add basic unit tests for update_sigs(). [GL #135]
 
+4938.	[func]		Added support for forwarding queries to Cisco Umbrella
+			servers, when built with "configure --enable-umbrella".
+			[GL #229]
+
 4935.	[func]		Add support for LibreSSL >= 2.7.0 (some OpenSSL 1.1.0
 			call were added). [GL #191]
 

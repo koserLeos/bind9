@@ -13,6 +13,7 @@
 
 #include <config.h>
 #include <ctype.h>
+#include <endian.h>
 
 #include <isc/counter.h>
 #include <isc/log.h>
@@ -2157,6 +2158,53 @@ wouldvalidate(fetchctx_t *fctx) {
 	return (secure_domain);
 }
 
+#ifdef ENABLE_UMBRELLA
+/*
+ * Build a PROTOSS option and add to buffer 'b'
+ */
+static void
+build_protoss(resquery_t *query, isc_buffer_t *b) {
+	const dns_view_t *view = query->fctx->res->view;
+	const isc_sockaddr_t *client = query->fctx->client;
+
+	isc_buffer_putuint32(b, PROTOSS_MAGIC);
+	isc_buffer_putuint8(b, 1);	/* version */
+	isc_buffer_putuint8(b, 0);	/* flags */
+
+	if ((view->protoss_opts & PROTOSS_VA) != 0) {
+		isc_buffer_putuint16(b, PROTOSS_VA);
+		isc_buffer_putuint32(b, view->protoss_va);
+	}
+
+	if ((view->protoss_opts & PROTOSS_ORG) != 0) {
+		isc_buffer_putuint16(b, PROTOSS_ORG);
+		isc_buffer_putuint32(b, view->protoss_org);
+	}
+
+	switch (client->type.sa.sa_family) {
+	case AF_INET:
+		isc_buffer_putuint16(b, PROTOSS_V4);
+		isc_buffer_putmem(b, &client->type.sin.sin_addr, 4);
+		break;
+	case AF_INET6:
+		isc_buffer_putuint16(b, PROTOSS_V6);
+		isc_buffer_putmem(b, &client->type.sin6.sin6_addr, 16);
+		break;
+	default:
+		/* skip */
+		;
+	}
+
+	if ((view->protoss_opts & PROTOSS_DEV) != 0) {
+		isc_uint64_t dev;
+		dev = view->protoss_dev;
+		isc_buffer_putuint16(b, PROTOSS_DEV);
+		isc_buffer_putuint32(b, dev >> 32);
+		isc_buffer_putuint32(b, dev & 0xffffffff);
+	}
+}
+#endif /* ENABLE_UMBRELLA */
+
 static isc_result_t
 resquery_send(resquery_t *query) {
 	fetchctx_t *fctx;
@@ -2179,6 +2227,7 @@ resquery_send(resquery_t *query) {
 	isc_boolean_t secure_domain;
 	isc_boolean_t connecting = ISC_FALSE;
 	isc_boolean_t tcp = ISC_TF((query->options & DNS_FETCHOPT_TCP) != 0);
+	isc_boolean_t rd = ISC_FALSE;
 	dns_ednsopt_t ednsopts[DNS_EDNSOPTIONS];
 	unsigned ednsopt = 0;
 	isc_uint16_t hint = 0, udpsize = 0;	/* No EDNS */
@@ -2189,6 +2238,10 @@ resquery_send(resquery_t *query) {
 	isc_region_t zr;
 	isc_buffer_t zb;
 #endif /* HAVE_DNSTAP */
+
+#ifndef ENABLE_UMBRELLA
+	UNUSED(rd);
+#endif /* !ENABLE_UMBRELLA */
 
 	fctx = query->fctx;
 	QTRACE("send");
@@ -2251,19 +2304,22 @@ resquery_send(resquery_t *query) {
 	 */
 	if ((query->options & DNS_FETCHOPT_RECURSIVE) != 0 ||
 	    ISFORWARDER(query->addrinfo))
+	{
 		fctx->qmessage->flags |= DNS_MESSAGEFLAG_RD;
+		rd = ISC_TRUE;
+	}
 
 	/*
 	 * Set CD if the client says not to validate, or if the
 	 * question is under a secure entry point and this is a
 	 * recursive/forward query -- unless the client said not to.
 	 */
-	if ((query->options & DNS_FETCHOPT_NOCDFLAG) != 0)
+	if ((query->options & DNS_FETCHOPT_NOCDFLAG) != 0) {
 		/* Do nothing */
 		;
-	else if ((query->options & DNS_FETCHOPT_NOVALIDATE) != 0)
+	} else if ((query->options & DNS_FETCHOPT_NOVALIDATE) != 0) {
 		fctx->qmessage->flags |= DNS_MESSAGEFLAG_CD;
-	else if (res->view->enablevalidation &&
+	} else if (res->view->enablevalidation &&
 		 ((fctx->qmessage->flags & DNS_MESSAGEFLAG_RD) != 0))
 	{
 		isc_boolean_t checknta =
@@ -2370,6 +2426,10 @@ resquery_send(resquery_t *query) {
 			unsigned char cookie[64], ecsbuf[20];
 			isc_boolean_t tcpkeepalive = ISC_FALSE;
 			isc_uint16_t padding = 0;
+#ifdef ENABLE_UMBRELLA
+			unsigned char posbuf[64];
+			isc_boolean_t sendprotoss = ISC_FALSE;
+#endif /* ENABLE_UMBRELLA */
 
 			if ((flags & FCTX_ADDRINFO_EDNSOK) != 0 &&
 			    (query->options & DNS_FETCHOPT_EDNS512) == 0) {
@@ -2548,6 +2608,39 @@ resquery_send(resquery_t *query) {
 					  dns_resstatscounter_ecsout);
 			}
 
+#ifdef ENABLE_UMBRELLA
+			/*
+			 * Conditions are right to send a PROTOSS option,
+			 * but only if it's explicitly allowed in a server
+			 * statement.
+			 */
+			if (rd && res->view->protoss_opts != 0 &&
+			    peer != NULL)
+			{
+				(void) dns_peer_getsendprotoss(peer,
+							       &sendprotoss);
+			}
+			if (sendprotoss) {
+				isc_buffer_t b;
+
+				INSIST(ednsopt < DNS_EDNSOPTIONS);
+
+				query->options |= DNS_FETCHOPT_PROTOSS;
+
+				isc_buffer_init(&b, posbuf, sizeof(posbuf));
+
+				build_protoss(query, &b);
+
+
+				ednsopts[ednsopt].code = DNS_OPT_PROTOSS;
+				ednsopts[ednsopt].length =
+					isc_buffer_usedlength(&b);
+				ednsopts[ednsopt].value =
+					(isc_uint8_t *) posbuf;
+				ednsopt++;
+			}
+#endif /* ENABLE_UMBRELLA */
+
 			/* Add TCP keepalive option if appropriate */
 			if ((peer != NULL) &&
 			    (query->options & DNS_FETCHOPT_TCP) != 0)
@@ -2598,8 +2691,9 @@ resquery_send(resquery_t *query) {
 			query->options |= DNS_FETCHOPT_NOEDNS0;
 			query->ednsversion = -1;
 		}
-	} else
+	} else {
 		query->ednsversion = -1;
+	}
 
 	/*
 	 * Record the UDP EDNS size choosen.
@@ -2887,7 +2981,8 @@ resquery_connected(isc_task_t *task, isc_event_t *event) {
 				FCTXTRACE("query canceled: "
 					  "resquery_send() failed; responding");
 
-				fctx_cancelquery(&query, NULL, NULL, ISC_FALSE, ISC_FALSE);
+				fctx_cancelquery(&query, NULL, NULL,
+						 ISC_FALSE, ISC_FALSE);
 				fctx_done(fctx, result, __LINE__);
 			}
 			break;
@@ -5620,7 +5715,7 @@ findnoqname(fetchctx_t *fctx, dns_name_t *name, dns_rdatatype_t type,
 
 static inline isc_result_t
 cache_name(fetchctx_t *fctx, resquery_t *query, dns_section_t section,
-	   dns_name_t *name, isc_stdtime_t now)
+	   dns_name_t *name, isc_boolean_t zerottl, isc_stdtime_t now)
 {
 	dns_rdataset_t *rdataset = NULL, *sigrdataset = NULL;
 	dns_rdataset_t *addedrdataset = NULL;
@@ -5779,7 +5874,9 @@ cache_name(fetchctx_t *fctx, resquery_t *query, dns_section_t section,
 		/*
 		 * Enforce the configure maximum cache TTL.
 		 */
-		if (rdataset->ttl > res->view->maxcachettl) {
+		if (zerottl) {
+			rdataset->ttl = 0;
+		} else if (rdataset->ttl > res->view->maxcachettl) {
 			rdataset->ttl = res->view->maxcachettl;
 		}
 
@@ -6147,7 +6244,9 @@ cache_name(fetchctx_t *fctx, resquery_t *query, dns_section_t section,
 }
 
 static inline isc_result_t
-cache_message(fetchctx_t *fctx, resquery_t *query, isc_stdtime_t now) {
+cache_message(fetchctx_t *fctx, resquery_t *query,
+	      isc_boolean_t zerottl, isc_stdtime_t now)
+{
 	isc_result_t result;
 	dns_section_t section;
 	dns_name_t *name;
@@ -6168,7 +6267,7 @@ cache_message(fetchctx_t *fctx, resquery_t *query, isc_stdtime_t now) {
 						&name);
 			if ((name->attributes & DNS_NAMEATTR_CACHE) != 0) {
 				result = cache_name(fctx, query, section,
-						    name, now);
+						    name, zerottl, now);
 				if (result != ISC_R_SUCCESS)
 					break;
 			}
@@ -8962,7 +9061,9 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 	 * work to be queued to the DNSSEC validator.
 	 */
 	if (WANTCACHE(fctx)) {
-		result = cache_message(fctx, query, now);
+		isc_boolean_t zerottl = ISC_TF((query->options &
+						DNS_FETCHOPT_PROTOSS) != 0);
+		result = cache_message(fctx, query, zerottl, now);
 		if (result != ISC_R_SUCCESS) {
 			FCTXTRACE3("cache_message complete", result);
 			goto done;
