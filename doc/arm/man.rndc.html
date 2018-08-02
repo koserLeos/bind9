@@ -609,6 +609,30 @@
 	    See also <span class="command"><strong>rndc managed-keys</strong></span>.
 	  </p>
 	</dd>
+<dt><span class="term"><strong class="userinput"><code>serve-stale ( on | off | reset | status ) [<span class="optional"><em class="replaceable"><code>class</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</code></strong></span></dt>
+<dd>
+	  <p>
+	    Enable, disable, reset, or report the current status
+            of the serving of stale answers as configured in
+            <code class="filename">named.conf</code>.
+	  </p>
+	  <p>
+            If serving of stale answers is disabled by
+            <span class="command"><strong>rndc-serve-stale off</strong></span>, then it
+	    will remain disabled even if <span class="command"><strong>named</strong></span>
+            is reloaded or reconfigured.
+            <span class="command"><strong>rndc serve-stale reset</strong></span> restores
+            the setting as configured in <code class="filename">named.conf</code>.
+	  </p>
+	  <p>
+	    <span class="command"><strong>rndc serve-stale status</strong></span> will report
+            whether serving of stale answers is currently enabled,
+            disabled by the configuration, or disabled by
+            <span class="command"><strong>rndc</strong></span>.  It will also report the
+	    values of <span class="command"><strong>stale-answer-ttl</strong></span> and
+	    <span class="command"><strong>max-stale-ttl</strong></span>.
+	  </p>
+	</dd>
 <dt><span class="term"><strong class="userinput"><code>showzone <em class="replaceable"><code>zone</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>] </code></strong></span></dt>
 <dd>
 	  <p>
@@ -904,6 +928,6 @@
 </tr>
 </table>
 </div>
-<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.11.3-S1 (Supported Preview Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.11.4-S1 (Supported Preview Version)</p>
 </body>
 </html>

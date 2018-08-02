@@ -291,9 +291,25 @@ branched from BIND 9.11.3, and includes the following additional features:
   or query/response size ratio
 * Support for multiple response rate limiters based on query name
 
+#### BIND (Supported Preview Edition) 9.11.3-S2 (2018)
+
+This version fixes a bug in the cache which could affect correctness
+of cached data when EDNS CLIENT-SUBNET was in use.  
+
+#### BIND (Supported Preview Edition) 9.11.3-S3 (2018)
+
+This version addresses the security flaw disclosed in CVE-2018-5740.
+
 #### BIND (Supported Preview Edition) 9.11.4-S1 (2018)
 
-This version is branched from BIND 9.11.4.
+This version is branched from BIND 9.11.4. It also addresses the security
+flaw disclosed in CVE-2018-5738, and includes the following new features:
+
+* Stale cached answers can now continue to be returned to clients,
+  if the authoritative servers for those answers are nonresponsive due to
+  an ongoing attack.
+* `named` can be configured to forward queries to Cisco Umbrella servers
+  if built with `--enable-umbrella`.
 
 ### <a name="build"/> Building BIND
 
