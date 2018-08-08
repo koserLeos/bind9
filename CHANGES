@@ -29,6 +29,28 @@
 4990.	[bug]		Prevent a possible NULL reference in pkcs11-keygen.
 			[GL #401]
 
+4954.	[func]		Messages about serving of stale answers are now
+			directed to the "serve-stale" logging category.
+			[GL !323]
+
+4938.	[func]		Added support for forwarding queries to Cisco Umbrella
+			servers, when built with "configure --enable-umbrella".
+			[GL #229]
+
+4928.	[func]		The "dnskey-sig-validity" option allows
+			"sig-validity-interval" to be overriden for signatures
+			covering DNSKEY RRsets. [GL #145]
+
+4700.	[func]		Serving of stale answers is now supported. This
+			allows named to provide stale cached answers when
+			the authoritative server is under attack.
+			See max-stale-ttl, stale-answer-enable,
+			stale-answer-ttl. [RT #44790]
+
+	--- 9.11.4 released ---
+
+	--- 9.11.4rc2 released ---
+
 4984.	[bug]		Improve handling of very large incremental
 			zone transfers to prevent journal corruption. [GL #339]
 
@@ -97,10 +119,6 @@
 4955.	[cleanup]	Silence cppcheck warnings in lib/dns/master.c.
 			[GL #286]
 
-4954.	[func]		Messages about serving of stale answers are now
-			directed to the "serve-stale" logging category.
-			[GL !323]
-
 4951.	[protocol]	Add "HOME.ARPA" to list of built in empty zones as
 			per RFC 8375. [GL #273]
 
@@ -113,10 +131,6 @@
 			for unsigned zones since change 4596. [GL #209]
 
 4939.	[test]		Add basic unit tests for update_sigs(). [GL #135]
-
-4938.	[func]		Added support for forwarding queries to Cisco Umbrella
-			servers, when built with "configure --enable-umbrella".
-			[GL #229]
 
 4935.	[func]		Add support for LibreSSL >= 2.7.0 (some OpenSSL 1.1.0
 			call were added). [GL #191]
@@ -148,12 +162,6 @@
 4918.	[bug]		Fix double free after keygen error in dnssec-keygen
 			when OpenSSL >= 1.1.0 is used and RSA_generate_key_ex
 			fails. [GL #109]
-
-4700.	[func]		Serving of stale answers is now supported. This
-			allows named to provide stale cached answers when
-			the authoritative server is under attack.
-			See max-stale-ttl, stale-answer-enable,
-			stale-answer-ttl. [RT #44790]
 
 4699.	[func]		Multiple cookie-secret clauses can now be specified.
 			The first one specified is used to generate new

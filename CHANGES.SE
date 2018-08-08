@@ -3,6 +3,14 @@
 5000.	[bug]		ns_server_servestale() could leave the server in
 			exclusive mode if an error occured. [GL #441]
 
+4954.	[func]		Messages about serving of stale answers are now
+			directed to the "serve-stale" logging category.
+			[GL !323]
+
+4928.	[func]		The "dnskey-sig-validity" option allows
+			"sig-validity-interval" to be overriden for signatures
+			covering DNSKEY RRsets. [GL #145]
+
 4938.	[func]		Added support for forwarding queries to Cisco Umbrella
 			servers, when built with "configure --enable-umbrella".
 			[GL #229]
