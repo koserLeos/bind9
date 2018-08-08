@@ -1529,7 +1529,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 
 		dns_name_format(client->query.qname,
 				namebuf, sizeof(namebuf));
-		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_SERVE_STALE,
 			      NS_LOGMODULE_QUERY, ISC_LOG_INFO,
 			      "%s resolver failure, stale answer %s",
 			      namebuf, success ? "used" : "unavailable");

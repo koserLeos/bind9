@@ -9,8 +9,6 @@
  * information regarding copyright ownership.
  */
 
-/* $Id: log.h,v 1.27 2009/01/07 23:47:46 tbox Exp $ */
-
 #ifndef NAMED_LOG_H
 #define NAMED_LOG_H 1
 
@@ -32,6 +30,7 @@
 #define NS_LOGCATEGORY_UPDATE_SECURITY	(&ns_g_categories[6])
 #define NS_LOGCATEGORY_QUERY_ERRORS	(&ns_g_categories[7])
 #define NS_LOGCATEGORY_TAT		(&ns_g_categories[8])
+#define NS_LOGCATEGORY_SERVE_STALE	(&ns_g_categories[9])
 
 /*
  * Backwards compatibility.
