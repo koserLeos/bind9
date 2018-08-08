@@ -75,6 +75,16 @@
     <itemizedlist>
       <listitem>
 	<para>
+	  When acting as a recursive resolver, <command>named</command> can
+	  now continue returning answers whose TTLs have expired when the
+	  authoritative server is under attack and unable to respond. This
+	  is controlled by the <command>stale-answer-enable</command>,
+	  <command>stale-answer-ttl</command> and
+	  <command>max-stale-ttl</command> options. [RT #44790]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
 	  <command>named</command> now supports the "root key sentinel"
 	  mechanism. This enables validating resolvers to indicate
 	  which trust anchors are configured for the root, so that
