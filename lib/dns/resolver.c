@@ -13,7 +13,6 @@
 
 #include <config.h>
 #include <ctype.h>
-#include <endian.h>
 
 #include <isc/counter.h>
 #include <isc/log.h>
