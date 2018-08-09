@@ -1991,6 +1991,17 @@ category notify { null; };
 </tr>
 <tr>
 <td>
+	  <p><span class="command"><strong>serve-stale</strong></span></p>
+	</td>
+<td>
+	  <p>
+	    Whether or not a stale answer is used
+	    following a resolver failure.
+	  </p>
+	</td>
+</tr>
+<tr>
+<td>
 	  <p><span class="command"><strong>spill</strong></span></p>
 	</td>
 <td>
@@ -7024,10 +7035,30 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   for a limited amount of clock skew.
                 </p>
                 <p>
+                  The <span class="command"><strong>sig-validity-interval</strong></span> can be
+                  overridden for DNSKEY records by setting
+                  <span class="command"><strong>dnskey-sig-validity</strong></span>.
+                </p>
+                <p>
                   The <span class="command"><strong>sig-validity-interval</strong></span>
                   should be, at least, several multiples of the SOA
                   expire interval to allow for reasonable interaction
                   between the various timer and expiry dates.
+                </p>
+              </dd>
+<dt><span class="term"><span class="command"><strong>dnskey-sig-validity</strong></span></span></dt>
+<dd>
+                <p>
+                  Specifies the number of days into the future when
+                  DNSSEC signatures that are automatically generated
+                  for DNSKEY RRsets as a result of dynamic updates
+                  (<a class="xref" href="Bv9ARM.ch04.html#dynamic_update" title="Dynamic Update">the section called &#8220;Dynamic Update&#8221;</a>) will expire.
+                  If set to a non-zero value, this overrides the
+                  value set by <span class="command"><strong>sig-validity-interval</strong></span>.
+                  The default is zero, meaning
+                  <span class="command"><strong>sig-validity-interval</strong></span> is used.
+                  The maximum value is 3660 days (10 years), and
+                  higher values will be rejected.
                 </p>
               </dd>
 <dt><span class="term"><span class="command"><strong>sig-signing-nodes</strong></span></span></dt>

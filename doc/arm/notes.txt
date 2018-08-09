@@ -38,6 +38,12 @@ Security Fixes
 
 New Features
 
+  * When acting as a recursive resolver, named can now continue returning
+    answers whose TTLs have expired when the authoritative server is under
+    attack and unable to respond. This is controlled by the
+    stale-answer-enable, stale-answer-ttl and max-stale-ttl options. [RT #
+    44790]
+
   * named now supports the "root key sentinel" mechanism. This enables
     validating resolvers to indicate which trust anchors are configured
     for the root, so that information about root key rollover status can
@@ -61,6 +67,9 @@ Feature Changes
     provided out of an abundance of caution. DNS COOKIE is an important
     security mechanism, and should not be disabled unless absolutely
     necessary.
+
+  * The dnskey-sig-validity option allows the sig-validity-interval to be
+    overriden for signatures covering DNSKEY RRsets. [GL #145]
 
 Bug Fixes
 
