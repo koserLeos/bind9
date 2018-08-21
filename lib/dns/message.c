@@ -3596,7 +3596,7 @@ render_protoss(isc_buffer_t *pbuf, isc_buffer_t *target) {
 			value = isc_buffer_getuint32(pbuf);
 			value <<= 32;
 			value |= isc_buffer_getuint32(pbuf);
-			snprintf(ptext, sizeof(ptext), "dev:%02llx", value);
+			snprintf(ptext, sizeof(ptext), "dev:%02" PRIx64, value);
 			break;
 		default:
 			result = DNS_R_OPTERR;

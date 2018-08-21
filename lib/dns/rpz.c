@@ -1608,7 +1608,7 @@ dns_rpz_dbupdate_callback(dns_db_t *db, void *fn_arg) {
 				      DNS_LOGMODULE_MASTER, ISC_LOG_INFO,
 				      "rpz: %s: new zone version came "
 				      "too soon, deferring update for "
-				      "%lu seconds", dname, defer);
+				      "%" PRIu64 " seconds", dname, defer);
 			isc_interval_set(&interval, defer, 0);
 			dns_db_currentversion(zone->db, &zone->dbversion);
 			result = isc_timer_reset(zone->updatetimer,
@@ -1798,7 +1798,7 @@ finish_update(dns_rpz_zone_t *rpz) {
 			      DNS_LOGMODULE_MASTER, ISC_LOG_INFO,
 			      "rpz: %s: new zone version came "
 			      "too soon, deferring update for "
-			      "%lu seconds", dname, defer);
+			      "%" PRIu64 " seconds", dname, defer);
 		isc_interval_set(&interval, defer, 0);
 		result = isc_timer_reset(rpz->updatetimer,
 					 isc_timertype_once,
