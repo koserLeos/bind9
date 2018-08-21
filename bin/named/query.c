@@ -1683,8 +1683,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 			{
 				/* validate() may change rdataset->trust */
 				invalid = !validate(client, db, fname,
-						    rdataset,
-						    sigrdataset);
+						    rdataset, sigrdataset);
 			}
 			if (invalid && DNS_TRUST_PENDING(rdataset->trust)) {
 				dns_rdataset_disassociate(rdataset);
@@ -1761,8 +1760,7 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 			{
 				/* validate() may change rdataset->trust */
 				invalid = !validate(client, db, fname,
-						    rdataset,
-						    sigrdataset);
+						    rdataset, sigrdataset);
 			}
 			if (invalid && DNS_TRUST_PENDING(rdataset->trust)) {
 				dns_rdataset_disassociate(rdataset);
