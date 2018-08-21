@@ -330,7 +330,7 @@ ATF_TC_BODY(iscache, tc) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
-	isc_boolean_t iscache;
+	bool iscache;
 
 	result = isc_mem_create(0, 0, &mctx);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
@@ -340,7 +340,7 @@ ATF_TC_BODY(iscache, tc) {
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	iscache = dns_db_iscache(db);
-	ATF_REQUIRE_EQ(iscache, ISC_TRUE);
+	ATF_REQUIRE_EQ(iscache, true);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
@@ -369,17 +369,17 @@ ATF_TC_BODY(findnode, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_FALSE, &node);
+	result = dns_db_findnode(db, name, false, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
 	ATF_REQUIRE(node == NULL);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_FALSE, &node);
+	result = dns_db_findnode(db, name, false, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -421,7 +421,7 @@ ATF_TC_BODY(addrdataset, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -572,7 +572,7 @@ ATF_TC_BODY(findrdatasetext, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -606,7 +606,7 @@ ATF_TC_BODY(findrdatasetext, tc) {
 	dns_rdataset_init(&rdataset);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_FALSE, &node);
+	result = dns_db_findnode(db, name, false, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -637,7 +637,7 @@ ATF_TC_BODY(findrdatasetext, tc) {
 	dns_rdataset_init(&rdataset);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_FALSE, &node);
+	result = dns_db_findnode(db, name, false, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -663,7 +663,7 @@ ATF_TC_BODY(findrdatasetext, tc) {
 	dns_rdataset_init(&rdataset);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_FALSE, &node);
+	result = dns_db_findnode(db, name, false, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -742,7 +742,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -857,7 +857,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -970,7 +970,7 @@ ATF_TC_BODY(addrdatasetext_positive_noclientinfo, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -1124,7 +1124,7 @@ ATF_TC_BODY(addrdatasetext_positive_globaldata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -1286,7 +1286,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -1827,7 +1827,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -2064,7 +2064,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -2467,7 +2467,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -2870,7 +2870,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -3335,7 +3335,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -3489,7 +3489,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, 
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -3654,7 +3654,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc)
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -3819,7 +3819,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noc
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -3974,7 +3974,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_glo
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -4139,7 +4139,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecs
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -4302,7 +4302,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -4469,7 +4469,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -4649,7 +4649,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -4827,7 +4827,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, 
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -5029,7 +5029,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -5250,7 +5250,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -5472,7 +5472,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_nocli
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -5677,7 +5677,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -5898,7 +5898,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -6118,7 +6118,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -6325,7 +6325,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -6559,7 +6559,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -6792,7 +6792,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -6991,7 +6991,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -7194,7 +7194,7 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_noclientinfo, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -7354,7 +7354,7 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -7541,7 +7541,7 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -7728,7 +7728,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_noclientinfo, t
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -7875,7 +7875,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_noclientinfo, tc
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -8022,7 +8022,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_noclientinfo,
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -8169,7 +8169,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo, 
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -8317,7 +8317,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_globaldata, tc)
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -8485,7 +8485,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) 
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -8653,7 +8653,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_globaldata, t
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -8820,7 +8820,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -8987,7 +8987,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -9155,7 +9155,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -9323,7 +9323,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) 
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -9491,7 +9491,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -9659,7 +9659,7 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -10182,7 +10182,7 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -10711,7 +10711,7 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -11241,7 +11241,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 

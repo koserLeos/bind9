@@ -186,7 +186,7 @@ ATF_TC_BODY(dns_dbfind_staleok, tc) {
 		result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
 		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
-		result = dns_db_findnode(db, example, ISC_TRUE, &node);
+		result = dns_db_findnode(db, example, true, &node);
 		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 		result = dns_db_addrdataset(db, node, NULL, 0, &rdataset, 0,
@@ -283,7 +283,7 @@ ATF_TC_BODY(nodefullname, tc) {
 	isc_result_t result;
 	dns_fixedname_t fname, retfname;
 	dns_name_t *name, *retname;
-	isc_boolean_t equals;
+	bool equals;
 	dns_dbiterator_t *iterator;
 
 	mymctx = NULL;
@@ -302,7 +302,7 @@ ATF_TC_BODY(nodefullname, tc) {
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -313,7 +313,7 @@ ATF_TC_BODY(nodefullname, tc) {
 	/* Split "org." out */
 
 	node = NULL;
-	result = dns_db_findnode(db, name, ISC_TRUE, &node);
+	result = dns_db_findnode(db, name, true, &node);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	ATF_REQUIRE(node != NULL);
 
@@ -342,7 +342,7 @@ ATF_TC_BODY(nodefullname, tc) {
 	name = dns_fixedname_name(&fname);
 
 	equals = dns_name_equal(name, retname);
-	ATF_REQUIRE_EQ(equals, ISC_TRUE);
+	ATF_REQUIRE_EQ(equals, true);
 
 	dns_db_detachnode(db, &node);
 	dns_dbiterator_destroy(&iterator);
@@ -359,7 +359,7 @@ ATF_TC_BODY(class, tc) {
 	isc_result_t result;
 	dns_db_t *db = NULL;
 
-	result = dns_test_begin(NULL, ISC_FALSE);
+	result = dns_test_begin(NULL, false);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_zone,
@@ -382,7 +382,7 @@ ATF_TC_BODY(dbtype, tc) {
 	isc_result_t result;
 	dns_db_t *db = NULL;
 
-	result = dns_test_begin(NULL, ISC_FALSE);
+	result = dns_test_begin(NULL, false);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	/* DB has zone semantics */
@@ -421,7 +421,7 @@ ATF_TC_BODY(version, tc) {
 	dns_dbnode_t *node = NULL;
 	dns_rdataset_t rdataset;
 
-	result = dns_test_begin(NULL, ISC_FALSE);
+	result = dns_test_begin(NULL, false);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	result = dns_test_loaddb(&db, dns_dbtype_zone, "test.test",
@@ -439,7 +439,7 @@ ATF_TC_BODY(version, tc) {
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	dns_rdataset_disassociate(&rdataset);
 	dns_db_detachnode(db, &node);
-	dns_db_closeversion(db, &ver, ISC_FALSE);
+	dns_db_closeversion(db, &ver, false);
 
 	/* Open new version for writing */
 	dns_db_currentversion(db, &ver);
@@ -466,7 +466,7 @@ ATF_TC_BODY(version, tc) {
 			     foundname, &rdataset, NULL);
 	ATF_REQUIRE_EQ(result, DNS_R_NXDOMAIN);
 
-	dns_db_closeversion(db, &new, ISC_TRUE);
+	dns_db_closeversion(db, &new, true);
 
 	/* But this should still succeed */
 	result = dns_db_find(db, name, ver, dns_rdatatype_a, 0, 0, &node,
@@ -474,7 +474,7 @@ ATF_TC_BODY(version, tc) {
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 	dns_rdataset_disassociate(&rdataset);
 	dns_db_detachnode(db, &node);
-	dns_db_closeversion(db, &ver, ISC_FALSE);
+	dns_db_closeversion(db, &ver, false);
 
 	dns_db_detach(&db);
 	dns_test_end();

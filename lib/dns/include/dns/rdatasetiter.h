@@ -96,7 +96,7 @@ struct dns_rdatasetiter {
 	dns_dbnode_t *			node;
 	dns_dbversion_t *		version;
 	isc_stdtime_t			now;
-	isc_boolean_t                   ecs;
+	bool				ecs;
 };
 
 void

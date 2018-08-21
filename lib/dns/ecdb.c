@@ -11,6 +11,8 @@
 
 #include "config.h"
 
+#include <stdbool.h>
+
 #include <isc/result.h>
 #include <isc/util.h>
 #include <isc/mutex.h>
@@ -187,7 +189,7 @@ destroy_ecdb(dns_ecdb_t **ecdbp) {
 static void
 detach(dns_db_t **dbp) {
 	dns_ecdb_t *ecdb;
-	isc_boolean_t need_destroy = ISC_FALSE;
+	bool need_destroy = false;
 
 	REQUIRE(dbp != NULL);
 	ecdb = (dns_ecdb_t *)*dbp;
@@ -196,7 +198,7 @@ detach(dns_db_t **dbp) {
 	LOCK(&ecdb->lock);
 	ecdb->references--;
 	if (ecdb->references == 0 && ISC_LIST_EMPTY(ecdb->nodes))
-		need_destroy = ISC_TRUE;
+		need_destroy = true;
 	UNLOCK(&ecdb->lock);
 
 	if (need_destroy)
@@ -227,7 +229,7 @@ static void
 destroynode(dns_ecdbnode_t *node) {
 	isc_mem_t *mctx;
 	dns_ecdb_t *ecdb = node->ecdb;
-	isc_boolean_t need_destroydb = ISC_FALSE;
+	bool need_destroydb = false;
 	rdatasetheader_t *header;
 
 	mctx = ecdb->common.mctx;
@@ -235,7 +237,7 @@ destroynode(dns_ecdbnode_t *node) {
 	LOCK(&ecdb->lock);
 	ISC_LIST_UNLINK(ecdb->nodes, node, link);
 	if (ecdb->references == 0 && ISC_LIST_EMPTY(ecdb->nodes))
-		need_destroydb = ISC_TRUE;
+		need_destroydb = true;
 	UNLOCK(&ecdb->lock);
 
 	dns_name_free(&node->name, mctx);
@@ -263,7 +265,7 @@ static void
 detachnode(dns_db_t *db, dns_dbnode_t **nodep) {
 	dns_ecdb_t *ecdb = (dns_ecdb_t *)db;
 	dns_ecdbnode_t *node;
-	isc_boolean_t need_destroy = ISC_FALSE;
+	bool need_destroy = false;
 
 	REQUIRE(VALID_ECDB(ecdb));
 	REQUIRE(nodep != NULL);
@@ -276,7 +278,7 @@ detachnode(dns_db_t *db, dns_dbnode_t **nodep) {
 	INSIST(node->references > 0);
 	node->references--;
 	if (node->references == 0)
-		need_destroy = ISC_TRUE;
+		need_destroy = true;
 	UNLOCK(&node->lock);
 
 	if (need_destroy)
@@ -330,7 +332,7 @@ findzonecut(dns_db_t *db, dns_name_t *name,
 }
 
 static isc_result_t
-findnode(dns_db_t *db, dns_name_t *name, isc_boolean_t create,
+findnode(dns_db_t *db, dns_name_t *name, bool create,
 	 dns_dbnode_t **nodep)
 {
 	dns_ecdb_t *ecdb = (dns_ecdb_t *)db;
@@ -343,7 +345,7 @@ findnode(dns_db_t *db, dns_name_t *name, isc_boolean_t create,
 
 	UNUSED(name);
 
-	if (create != ISC_TRUE)	{
+	if (create != true)	{
 		/* an 'ephemeral' node is never reused. */
 		return (ISC_R_NOTFOUND);
 	}

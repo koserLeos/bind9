@@ -30,9 +30,9 @@
 #include <dns/types.h>
 
 typedef struct {
-	isc_boolean_t active;
-	isc_uint8_t bits4;
-	isc_uint8_t bits6;
+	bool active;
+	uint8_t bits4;
+	uint8_t bits6;
 } ecsset_t;
 
 struct dns_ecszones {
@@ -47,7 +47,7 @@ dns_ecs_init(dns_ecs_t *ecs) {
 	ecs->scope = 0xff;
 }
 
-isc_boolean_t
+bool
 dns_ecs_type_allowed(isc_buffer_t *ecstypes, dns_rdatatype_t type) {
 	unsigned int buflen;
 	unsigned char *typebits;
@@ -57,14 +57,14 @@ dns_ecs_type_allowed(isc_buffer_t *ecstypes, dns_rdatatype_t type) {
 	switch (type) {
 	/* These types should never be sent ECS-tagged queries. */
 	case dns_rdatatype_ns:
-		return (ISC_FALSE);
+		return (false);
 
 	/*
 	 * Always allow CNAME, since it may be returned along with other
 	 * types which are allowed.
 	 */
 	case dns_rdatatype_cname:
-		return (ISC_TRUE);
+		return (true);
 
 	/* These types should never be sent ECS-tagged queries. */
 	case dns_rdatatype_soa:
@@ -73,7 +73,7 @@ dns_ecs_type_allowed(isc_buffer_t *ecstypes, dns_rdatatype_t type) {
 	case dns_rdatatype_dnskey:
 	case dns_rdatatype_nsec3:
 	case dns_rdatatype_nsec3param:
-		return (ISC_FALSE);
+		return (false);
 
 	default:
 		break;
@@ -82,7 +82,7 @@ dns_ecs_type_allowed(isc_buffer_t *ecstypes, dns_rdatatype_t type) {
 	typebits = isc_buffer_base(ecstypes);
 	buflen = isc_buffer_usedlength(ecstypes);
 
-	return (dns_rdata_typepresent(typebits, buflen, type, ISC_TRUE));
+	return (dns_rdata_typepresent(typebits, buflen, type, true));
 }
 
 static void
@@ -133,8 +133,7 @@ dns_ecszones_free(dns_ecszones_t **ecszonesp) {
 
 isc_result_t
 dns_ecszones_setdomain(dns_ecszones_t *ecszones, const dns_name_t *name,
-		       isc_boolean_t negated,
-		       isc_uint8_t bits4, isc_uint8_t bits6)
+		       bool negated, uint8_t bits4, uint8_t bits6)
 {
 	isc_result_t result;
 	void *data = NULL;
@@ -166,7 +165,7 @@ dns_ecszones_setdomain(dns_ecszones_t *ecszones, const dns_name_t *name,
 
 	ecsset = isc_mem_get(ecszones->mctx, sizeof(ecsset_t));
 	if (ecsset == NULL) {
-		dns_rbt_deletenode(ecszones->rbt, node, ISC_FALSE);
+		dns_rbt_deletenode(ecszones->rbt, node, false);
 		return (ISC_R_NOMEMORY);
 	}
 
@@ -178,20 +177,20 @@ dns_ecszones_setdomain(dns_ecszones_t *ecszones, const dns_name_t *name,
 	return (ISC_R_SUCCESS);
 }
 
-isc_boolean_t
+bool
 dns_ecszones_name_allowed(dns_ecszones_t *ecszones, const dns_name_t *name,
-			  isc_uint8_t *bits4, isc_uint8_t *bits6)
+			  uint8_t *bits4, uint8_t *bits6)
 {
 	isc_result_t result;
 	void *data = NULL;
 	ecsset_t *ecsset;
 
 	if (ecszones == NULL)
-		return (ISC_FALSE);
+		return (false);
 
 	result = dns_rbt_findname(ecszones->rbt, name, 0, NULL, &data);
 	if (result != ISC_R_SUCCESS && result != DNS_R_PARTIALMATCH)
-		return (ISC_FALSE);
+		return (false);
 
 	ecsset = (ecsset_t *) data;
 	if (ecsset->active) {
@@ -204,21 +203,21 @@ dns_ecszones_name_allowed(dns_ecszones_t *ecszones, const dns_name_t *name,
 	return (ecsset->active);
 }
 
-isc_boolean_t
+bool
 dns_ecs_equals(const dns_ecs_t *ecs1, const dns_ecs_t *ecs2) {
 	const unsigned char *addr1, *addr2;
-	isc_uint8_t mask;
+	uint8_t mask;
 	size_t alen;
 
 	REQUIRE(ecs1 != NULL && ecs2 != NULL);
 
 	if (ecs1->source != ecs2->source ||
 	    ecs1->addr.family != ecs2->addr.family)
-		return (ISC_FALSE);
+		return (false);
 
 	alen = (ecs1->source + 7) / 8;
 	if (alen == 0)
-		return (ISC_TRUE);
+		return (true);
 
 	switch (ecs1->addr.family) {
 	case AF_INET:
@@ -240,7 +239,7 @@ dns_ecs_equals(const dns_ecs_t *ecs1, const dns_ecs_t *ecs2) {
 	 * prefix.
 	 */
 	if (alen > 1 && memcmp(addr1, addr2, alen - 1) != 0)
-		return (ISC_FALSE);
+		return (false);
 
 	/*
 	 * It should not be necessary to mask the final octet; all
@@ -252,9 +251,9 @@ dns_ecs_equals(const dns_ecs_t *ecs1, const dns_ecs_t *ecs2) {
 	if (mask == 0)
 		mask = 0xff;
 	if ((addr1[alen - 1] & mask) != (addr2[alen - 1] & mask))
-		return (ISC_FALSE);
+		return (false);
 
-	return (ISC_TRUE);
+	return (true);
 }
 
 void
@@ -291,11 +290,11 @@ dns_ecs_formatfordump(const dns_ecs_t *ecs, char *buf, size_t size) {
 		snprintf(p, size - len, "/%d", ecs->source);
 }
 
-isc_boolean_t
+bool
 dns_ecs_isv4mappedprefix(const dns_ecs_t *ecs) {
 	if ((ecs->source >= 96) && isc_netaddr_isv4mapped(&ecs->addr)) {
-		return (ISC_TRUE);
+		return (true);
 	}
 
-	return (ISC_FALSE);
+	return (false);
 }

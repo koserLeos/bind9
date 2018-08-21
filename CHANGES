@@ -1,3 +1,6 @@
+5007.	[cleanup]	Replace custom ISC boolean and integer data types
+			with C99 stdint.h and stdbool.h types. [GL #9]
+
 	--- 9.11.4-S1 released ---
 
 5005.	[bug]		dnssec-verify, and dnssec-signzone at the verification

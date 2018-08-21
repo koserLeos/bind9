@@ -36,6 +36,8 @@
  ***** Imports
  *****/
 
+#include <inttypes.h>
+
 #include <isc/sockaddr.h>
 #include <isc/types.h>
 
@@ -49,7 +51,7 @@ ISC_LANG_BEGINDECLS
 
 #define DNS_CLIENTINFO_VERSION 3
 typedef struct dns_clientinfo {
-	isc_uint16_t version;
+	uint16_t version;
 	void *data;
 	void *dbversion;
 	dns_ecs_t ecs;
@@ -62,8 +64,8 @@ typedef isc_result_t (*dns_clientinfo_sourceip_t)(dns_clientinfo_t *client,
 #define DNS_CLIENTINFOMETHODS_AGE 0
 
 typedef struct dns_clientinfomethods {
-	isc_uint16_t version;
-	isc_uint16_t age;
+	uint16_t version;
+	uint16_t age;
 	dns_clientinfo_sourceip_t sourceip;
 } dns_clientinfomethods_t;
 

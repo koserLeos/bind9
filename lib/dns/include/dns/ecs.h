@@ -20,8 +20,8 @@
 
 struct dns_ecs {
 	isc_netaddr_t addr;
-	isc_uint8_t source;
-	isc_uint8_t scope;
+	uint8_t source;
+	uint8_t scope;
 };
 
 #define DNS_ECS_FORMATSIZE (ISC_NETADDR_FORMATSIZE + 9) /* <address>/NNN/NNN */
@@ -37,12 +37,12 @@ dns_ecs_init(dns_ecs_t *ecs);
  * \li 'ecs' is not NULL and points to a valid dns_ecs structure.
  */
 
-isc_boolean_t
+bool
 dns_ecs_type_allowed(isc_buffer_t *ecstypes, dns_rdatatype_t type);
 /*%<
- * Returns ISC_TRUE if a given rdatatype is set in the
+ * Returns true if a given rdatatype is set in the
  * type bitmap referenced in the buffer 'ecstypes', otherwise
- * returns ISC_FALSE.
+ * returns false.
  *
  * Note: regardless of 'ecstypes', CNAME is *always* allowed,
  * and DNS infrastructure types such as SOA, NS, DS, and DNSKEY
@@ -63,8 +63,7 @@ dns_ecszones_free(dns_ecszones_t **ecszonesp);
 
 isc_result_t
 dns_ecszones_setdomain(dns_ecszones_t *ecszones, const dns_name_t *name,
-		       isc_boolean_t negated,
-		       isc_uint8_t bits4, isc_uint8_t bits6);
+		       bool negated, uint8_t bits4, uint8_t bits6);
 /*%<
  * Mark domains under 'name' as supporting (or, if 'negated' is true,
  * not supporting) the ECS option.  If supporting, then the prefix length
@@ -75,9 +74,9 @@ dns_ecszones_setdomain(dns_ecszones_t *ecszones, const dns_name_t *name,
  * \li  'name' is not NULL.
  */
 
-isc_boolean_t
+bool
 dns_ecszones_name_allowed(dns_ecszones_t *ecszones, const dns_name_t *name,
-			  isc_uint8_t *bits4, isc_uint8_t *bits6);
+			  uint8_t *bits4, uint8_t *bits6);
 /*%<
  * Find out whether 'name' is in a zone which is marked as supporting
  * the ECS option. If so, update '*bits4' and '*bits6' with the
@@ -87,7 +86,7 @@ dns_ecszones_name_allowed(dns_ecszones_t *ecszones, const dns_name_t *name,
  * \li  'name' is not NULL.
  */
 
-isc_boolean_t
+bool
 dns_ecs_equals(const dns_ecs_t *ecs1, const dns_ecs_t *ecs2);
 /*%<
  * Determine whether two ECS address prefixes are equal (except the
@@ -121,7 +120,7 @@ dns_ecs_formatfordump(const dns_ecs_t *ecs, char *buf, size_t size);
  * \li  'size' is at least DNS_ECS_FORMATSIZE
  */
 
-isc_boolean_t
+bool
 dns_ecs_isv4mappedprefix(const dns_ecs_t *ecs);
 /*%<
  * Returns if the address prefix upto source bits long is a v4mapped

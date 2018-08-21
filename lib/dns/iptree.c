@@ -22,8 +22,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#define WORD_MASK(b) ((b) == 0 ? (isc_uint32_t) (-1) \
-		      : ((isc_uint32_t) (-1) << (32 - (b))))
+#define WORD_MASK(b) ((b) == 0 ? (uint32_t) (-1) \
+		      : ((uint32_t) (-1) << (32 - (b))))
 #define IP_BIT(ip, n) (1 & ((ip)[(n)/32] >> (31 - ((n) % 32))))
 /*
  * In the struct below, IPv4 and IPv4 addresses use a common address
@@ -42,13 +42,13 @@ struct dns_iptree_node {
 	void *data;
 
 	/** Address prefix bits */
-	isc_uint32_t address_prefix[4];
+	uint32_t address_prefix[4];
 
 	/** Address prefix length */
-	isc_uint8_t address_prefix_length;
+	uint8_t address_prefix_length;
 
 	/** Scope prefix length (always >= address_prefix_length) */
-	isc_uint8_t scope_prefix_length;
+	uint8_t scope_prefix_length;
 };
 
 /**
@@ -56,7 +56,7 @@ struct dns_iptree_node {
  */
 static unsigned int
 get_address_family(const dns_iptree_node_t *node) {
-	const isc_uint32_t *address_prefix;
+	const uint32_t *address_prefix;
 
 	address_prefix = node->address_prefix;
 
@@ -70,9 +70,9 @@ get_address_family(const dns_iptree_node_t *node) {
  */
 static dns_iptree_node_t *
 new_node(isc_mem_t *mctx,
-	 const isc_uint32_t *address_prefix,
-	 isc_uint8_t address_prefix_length,
-	 isc_uint8_t scope_prefix_length)
+	 const uint32_t *address_prefix,
+	 uint8_t address_prefix_length,
+	 uint8_t scope_prefix_length)
 {
 	dns_iptree_node_t *node;
 	int i, words, wlen;
@@ -110,7 +110,7 @@ new_node(isc_mem_t *mctx,
  * bit in an address prefix.
  */
 static inline unsigned int
-clz(isc_uint32_t w) {
+clz(uint32_t w) {
 	unsigned int bit;
 
 	bit = 31;
@@ -145,13 +145,13 @@ clz(isc_uint32_t w) {
 /**
  * \brief Find the first differing bit in two address prefixes.
  */
-isc_uint8_t
-dns_iptree_common_prefix(const isc_uint32_t *key1, isc_uint8_t prefix1,
-			 const isc_uint32_t *key2, isc_uint8_t prefix2)
+uint8_t
+dns_iptree_common_prefix(const uint32_t *key1, uint8_t prefix1,
+			 const uint32_t *key2, uint8_t prefix2)
 {
-	isc_uint32_t delta;
-	isc_uint8_t maxbit, bit;
-	isc_uint8_t i;
+	uint32_t delta;
+	uint8_t maxbit, bit;
+	uint8_t i;
 
 	REQUIRE(key1 != NULL);
 	REQUIRE(key2 != NULL);
@@ -178,7 +178,7 @@ dns_iptree_common_prefix(const isc_uint32_t *key1, isc_uint8_t prefix1,
 
 static void
 netaddr_to_array(const isc_netaddr_t *search_addr,
-		 isc_uint32_t *search_prefix)
+		 uint32_t *search_prefix)
 {
 	const unsigned char *addr6;
 	uint32_t word;
@@ -226,7 +226,7 @@ netaddr_to_array(const isc_netaddr_t *search_addr,
 }
 
 static void
-array_to_netaddr(const isc_uint32_t *search_prefix,
+array_to_netaddr(const uint32_t *search_prefix,
 		 isc_netaddr_t *search_addr)
 {
 	memset(search_addr, 0, sizeof(isc_netaddr_t));
@@ -276,21 +276,21 @@ isc_result_t
 dns_iptree_search(dns_iptree_node_t **root,
 		  isc_mem_t *mctx,
 		  const isc_netaddr_t *search_addr,
-		  isc_uint8_t source_prefix_length,
-		  isc_uint8_t scope_prefix_length,
-		  isc_boolean_t create,
+		  uint8_t source_prefix_length,
+		  uint8_t scope_prefix_length,
+		  bool create,
 		  dns_iptree_callbackfunc_t match_fn,
 		  void *match_arg,
 		  dns_iptree_node_t **found_node)
 {
 	isc_result_t result;
-	isc_uint32_t search_prefix[4];
+	uint32_t search_prefix[4];
 	dns_iptree_node_t *cur, *child, *new_parent, *sibling;
-	isc_uint8_t diff_bit;
+	uint8_t diff_bit;
 	int child_num, cur_num;
 	unsigned int family;
 	dns_iptree_node_t *target_node;
-	isc_uint8_t search_prefix_length;
+	uint8_t search_prefix_length;
 
 	REQUIRE(root != NULL);
 	REQUIRE(mctx != NULL || !create);
@@ -372,7 +372,7 @@ dns_iptree_search(dns_iptree_node_t **root,
 				 * such nodes.
 				 */
 				if (!create) {
-					isc_boolean_t use_as_match = ISC_TRUE;
+					bool use_as_match = true;
 
 					if (match_fn != NULL)
 						use_as_match =
@@ -435,7 +435,7 @@ dns_iptree_search(dns_iptree_node_t **root,
 			    (family == AF_INET6 ||
 			     cur->address_prefix_length >= 96))
 			{
-				isc_boolean_t use_as_match = ISC_TRUE;
+				bool use_as_match = true;
 
 				if (match_fn != NULL)
 					use_as_match = match_fn(&cur->data,
@@ -495,8 +495,8 @@ dns_iptree_search(dns_iptree_node_t **root,
 void
 dns_iptree_get_data(dns_iptree_node_t *found_node,
 		    void **found_data,
-		    isc_uint8_t *found_address_prefix_length,
-		    isc_uint8_t *found_scope_prefix_length)
+		    uint8_t *found_address_prefix_length,
+		    uint8_t *found_scope_prefix_length)
 {
 	unsigned int family;
 
@@ -528,9 +528,7 @@ dns_iptree_set_data(dns_iptree_node_t *node, void *data) {
 }
 
 void
-dns_iptree_set_scope(dns_iptree_node_t *node,
-		     isc_uint8_t scope_prefix_length)
-{
+dns_iptree_set_scope(dns_iptree_node_t *node, uint8_t scope_prefix_length) {
 	unsigned int family;
 
 	REQUIRE(node != NULL);
@@ -619,8 +617,8 @@ static void
 print_address_prefix(const dns_iptree_node_t *node, FILE *f) {
 	isc_netaddr_t netaddr;
 	char buf[ISC_NETADDR_FORMATSIZE];
-	isc_uint8_t source;
-	isc_uint8_t scope;
+	uint8_t source;
+	uint8_t scope;
 
 	array_to_netaddr(node->address_prefix, &netaddr);
 	isc_netaddr_format(&netaddr, buf, sizeof(buf));
@@ -637,7 +635,7 @@ print_address_prefix(const dns_iptree_node_t *node, FILE *f) {
 
 static int
 print_dot_helper(const dns_iptree_node_t *node, unsigned int *nodecount,
-		 isc_boolean_t show_pointers, FILE *f)
+		 bool show_pointers, FILE *f)
 {
 	unsigned int l, r;
 
@@ -676,7 +674,7 @@ print_dot_helper(const dns_iptree_node_t *node, unsigned int *nodecount,
 
 void
 dns_iptree_print_dot(const dns_iptree_node_t *root,
-		     isc_boolean_t show_pointers, FILE *f)
+		     bool show_pointers, FILE *f)
 {
 	unsigned int nodecount = 0;
 

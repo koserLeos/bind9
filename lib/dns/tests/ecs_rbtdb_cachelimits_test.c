@@ -66,13 +66,13 @@ run(isc_task_t *task, isc_event_t *event) {
 		dns_rdataset_t rdataset;
 		dns_clientinfo_t ci;
 		struct in_addr in_addr;
-		isc_uint8_t a_data[4];
+		uint8_t a_data[4];
 		isc_stdtime_t last;
 		long r;
 
 		node = NULL;
 		result = dns_db_findnode(testctx->db, testctx->names[i],
-					 ISC_TRUE, &node);
+					 true, &node);
 		ATF_REQUIRE(result == ISC_R_SUCCESS || result == ISC_R_EXISTS);
 		ATF_REQUIRE(node != NULL);
 
@@ -152,9 +152,9 @@ ATF_TC_BODY(setcachesize, tc) {
 	unsigned int i;
 	testctx_t testctx;
 
-	debug_mem_record = ISC_FALSE;
+	debug_mem_record = false;
 
-	result = dns_test_begin(NULL, ISC_TRUE);
+	result = dns_test_begin(NULL, true);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	testctx.fnames = isc_mem_get(mctx,

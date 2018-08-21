@@ -54,13 +54,13 @@ ATF_TC_BODY(dns_ecs_type_allowed, tc) {
 
 	UNUSED(tc);
 
-	result = dns_test_begin(NULL, ISC_FALSE);
+	result = dns_test_begin(NULL, false);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	isc_buffer_init(&buf, testmap, sizeof(testmap));
 	isc_buffer_add(&buf, 2 + testmap[1]);
 	for (i = 0; i < 256; i++)
-		ATF_CHECK_EQ_MSG(ISC_TF(answers[i]),
+		ATF_CHECK_EQ_MSG(answers[i] ? true : false,
 				 dns_ecs_type_allowed(&buf, i),
 				 "type %d should be %s", i,
 				 answers[i] ? "set" : "clear");
@@ -73,35 +73,35 @@ ATF_TC_BODY(dns_ecs_type_allowed, tc) {
  */
 typedef struct {
 	const char *name;
-	isc_boolean_t active;
-	isc_uint8_t bits4;
-	isc_uint8_t bits6;
+	bool active;
+	uint8_t bits4;
+	uint8_t bits6;
 } domain_testdata_t;
 
 domain_testdata_t domain_testdata[] = {
-	{ "example.com.", ISC_TRUE, 22, 48 },
-	{ "subdomain.example.com.", ISC_FALSE, 0, 0 }, /* negated */
-	{ "deeper.subdomain.example.com.", ISC_TRUE, 24, 56 },
-	{ "example.org.", ISC_TRUE, 20, 52 },
-	{ "subdomain.example.org.", ISC_TRUE, 24, 56 },
-	{ "example.net.", ISC_TRUE, 24, 56 },
-	{ NULL, ISC_FALSE, 0, 0 }
+	{ "example.com.", true, 22, 48 },
+	{ "subdomain.example.com.", false, 0, 0 }, /* negated */
+	{ "deeper.subdomain.example.com.", true, 24, 56 },
+	{ "example.org.", true, 20, 52 },
+	{ "subdomain.example.org.", true, 24, 56 },
+	{ "example.net.", true, 24, 56 },
+	{ NULL, false, 0, 0 }
 };
 
 domain_testdata_t domain_testcases[] = {
-	{ "example.com.", ISC_TRUE, 22, 48 },
-	{ "www.example.com.", ISC_TRUE, 22, 48 },
-	{ "subdomain.example.com.", ISC_FALSE, 0, 0 },
-	{ "www.subdomain.example.com.", ISC_FALSE, 0, 0 },
-	{ "deeper.subdomain.example.com.", ISC_TRUE, 22, 48 },
-	{ "even.deeper.subdomain.example.com.", ISC_TRUE, 22, 48 },
-	{ "example.org.", ISC_TRUE, 20, 52 },
-	{ "subdomain.example.org.", ISC_TRUE, 20, 52 },
-	{ "deeper.subdomain.example.org.", ISC_TRUE, 20, 52 },
-	{ "www.example.org.", ISC_TRUE, 20, 52 },
-	{ "example.net.", ISC_TRUE, 24, 56 },
-	{ "www.example.net.", ISC_TRUE, 24, 56 },
-	{ NULL, ISC_FALSE, 0, 0 }
+	{ "example.com.", true, 22, 48 },
+	{ "www.example.com.", true, 22, 48 },
+	{ "subdomain.example.com.", false, 0, 0 },
+	{ "www.subdomain.example.com.", false, 0, 0 },
+	{ "deeper.subdomain.example.com.", true, 22, 48 },
+	{ "even.deeper.subdomain.example.com.", true, 22, 48 },
+	{ "example.org.", true, 20, 52 },
+	{ "subdomain.example.org.", true, 20, 52 },
+	{ "deeper.subdomain.example.org.", true, 20, 52 },
+	{ "www.example.org.", true, 20, 52 },
+	{ "example.net.", true, 24, 56 },
+	{ "www.example.net.", true, 24, 56 },
+	{ NULL, false, 0, 0 }
 };
 
 ATF_TC(dns_ecszones_name_allowed);
@@ -117,7 +117,7 @@ ATF_TC_BODY(dns_ecszones_name_allowed, tc) {
 
 	UNUSED(tc);
 
-	result = dns_test_begin(NULL, ISC_FALSE);
+	result = dns_test_begin(NULL, false);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	result = dns_ecszones_create(mctx, &ecszones);
@@ -143,8 +143,8 @@ ATF_TC_BODY(dns_ecszones_name_allowed, tc) {
 	}
 
 	for (i = 0; domain_testcases[i].name != NULL; i++) {
-		isc_uint8_t bits4, bits6;
-		isc_boolean_t active;
+		uint8_t bits4, bits6;
+		bool active;
 
 		if (domain_testcases[i].name[0] == 0) {
 			dns_fixedname_init(&fn);
@@ -181,36 +181,36 @@ ATF_TC_BODY(dns_ecszones_name_allowed, tc) {
 typedef struct {
 	int family;
 	const char *addr1;
-	isc_uint8_t bits1;
+	uint8_t bits1;
 	const char *addr2;
-	isc_uint8_t bits2;
-	isc_boolean_t match;
+	uint8_t bits2;
+	bool match;
 } match_test_t;
 
 match_test_t match_testcases[] = {
-	{ AF_INET, "1.2.3.4", 8, "1.2.3.4", 8, ISC_TRUE},		/* 0 */
-	{ AF_INET, "1.2.3.4", 8, "1.2.3.4", 9, ISC_FALSE},
-	{ AF_INET, "1.2.3.4", 0, "1.2.3.4", 0, ISC_TRUE},
-	{ AF_INET, "170.0.0.0", 1, "85.0.0.0", 1, ISC_FALSE},
-	{ AF_INET, "170.0.0.0", 2, "85.0.0.0", 2, ISC_FALSE},
-	{ AF_INET, "170.0.0.0", 3, "85.0.0.0", 3, ISC_FALSE},
-	{ AF_INET, "170.0.0.0", 4, "85.0.0.0", 4, ISC_FALSE},
-	{ AF_INET, "170.0.0.0", 5, "85.0.0.0", 5, ISC_FALSE},
-	{ AF_INET, "170.0.0.0", 6, "85.0.0.0", 6, ISC_FALSE},
-	{ AF_INET, "170.0.0.0", 7, "85.0.0.0", 7, ISC_FALSE},
-	{ AF_INET, "170.0.0.0", 8, "85.0.0.0", 8, ISC_FALSE},   	/* 10 */
-	{ AF_INET, "10.29.44.5", 8, "10.9.8.7", 8, ISC_TRUE},
-	{ AF_INET, "10.29.31.100", 9, "10.29.31.44", 9, ISC_TRUE},
-	{ AF_INET, "10.170.31.6", 9, "10.85.0.7", 9, ISC_FALSE},
-	{ AF_INET, "10.170.31.6", 9, "10.129.0.7", 9, ISC_TRUE},
-	{ AF_INET, "10.170.31.6", 10, "10.150.0.7", 10, ISC_TRUE},
-	{ AF_INET, "10.170.31.6", 10, "10.244.0.7", 10, ISC_FALSE},
-	{ AF_INET, "10.170.31.6", 15, "10.171.31.44", 15, ISC_TRUE},
-	{ AF_INET, "10.170.31.6", 16, "10.29.31.44", 16, ISC_FALSE},
-	{ AF_INET, "10.170.31.6", 16, "10.170.31.44", 16, ISC_TRUE},
-	{ AF_INET, "10.170.31.6", 19, "10.29.31.44", 19, ISC_FALSE},	/* 20 */
-	{ AF_INET, "10.170.31.6", 23, "10.29.31.44", 23, ISC_FALSE},
-	{ AF_INET, "10.140.72.0", 9, "10.29.31.44", 9, ISC_FALSE},
+	{ AF_INET, "1.2.3.4", 8, "1.2.3.4", 8, true},		/* 0 */
+	{ AF_INET, "1.2.3.4", 8, "1.2.3.4", 9, false},
+	{ AF_INET, "1.2.3.4", 0, "1.2.3.4", 0, true},
+	{ AF_INET, "170.0.0.0", 1, "85.0.0.0", 1, false},
+	{ AF_INET, "170.0.0.0", 2, "85.0.0.0", 2, false},
+	{ AF_INET, "170.0.0.0", 3, "85.0.0.0", 3, false},
+	{ AF_INET, "170.0.0.0", 4, "85.0.0.0", 4, false},
+	{ AF_INET, "170.0.0.0", 5, "85.0.0.0", 5, false},
+	{ AF_INET, "170.0.0.0", 6, "85.0.0.0", 6, false},
+	{ AF_INET, "170.0.0.0", 7, "85.0.0.0", 7, false},
+	{ AF_INET, "170.0.0.0", 8, "85.0.0.0", 8, false},   	/* 10 */
+	{ AF_INET, "10.29.44.5", 8, "10.9.8.7", 8, true},
+	{ AF_INET, "10.29.31.100", 9, "10.29.31.44", 9, true},
+	{ AF_INET, "10.170.31.6", 9, "10.85.0.7", 9, false},
+	{ AF_INET, "10.170.31.6", 9, "10.129.0.7", 9, true},
+	{ AF_INET, "10.170.31.6", 10, "10.150.0.7", 10, true},
+	{ AF_INET, "10.170.31.6", 10, "10.244.0.7", 10, false},
+	{ AF_INET, "10.170.31.6", 15, "10.171.31.44", 15, true},
+	{ AF_INET, "10.170.31.6", 16, "10.29.31.44", 16, false},
+	{ AF_INET, "10.170.31.6", 16, "10.170.31.44", 16, true},
+	{ AF_INET, "10.170.31.6", 19, "10.29.31.44", 19, false},	/* 20 */
+	{ AF_INET, "10.170.31.6", 23, "10.29.31.44", 23, false},
+	{ AF_INET, "10.140.72.0", 9, "10.29.31.44", 9, false},
 	{ 0, NULL, 0, NULL, 0, 0 }
 };
 ATF_TC(dns_ecs_equals);
@@ -227,11 +227,11 @@ ATF_TC_BODY(dns_ecs_equals, tc) {
 
 	UNUSED(tc);
 
-	result = dns_test_begin(NULL, ISC_FALSE);
+	result = dns_test_begin(NULL, false);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
 	for (i = 0; match_testcases[i].addr1 != NULL; i++) {
-		isc_boolean_t match;
+		bool match;
 
 		if (match_testcases[i].family == AF_INET) {
 			inet_pton(AF_INET, match_testcases[i].addr1, &in4a);

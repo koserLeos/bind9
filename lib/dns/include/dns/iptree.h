@@ -69,8 +69,8 @@ ISC_LANG_BEGINDECLS
  * starting the iteration.
  *
  * \return
- * * \ref ISC_TRUE True result, specific to the function using the callback.
- * * \ref ISC_FALSE False result, specific to the function using the callback.
+ * * \ref true True result, specific to the function using the callback.
+ * * \ref false False result, specific to the function using the callback.
  *
  * \par Pre-conditions
  * None.
@@ -84,8 +84,7 @@ ISC_LANG_BEGINDECLS
  * \par Thread-safety
  * The callback function's thread safety is undefined.
  */
-typedef isc_boolean_t (*dns_iptree_callbackfunc_t)(void **data,
-						   void *callback_arg);
+typedef bool (*dns_iptree_callbackfunc_t)(void **data, void *callback_arg);
 
 /**
  * \brief Search for an address prefix match, optionally creating a
@@ -93,7 +92,7 @@ typedef isc_boolean_t (*dns_iptree_callbackfunc_t)(void **data,
  *
  * This function searches for a matching result for a search address
  * prefix by implementing the ECS cache lookup algorithm. Depending on
- * whether `create` is ISC_TRUE, this function can optionally create a
+ * whether `create` is true, this function can optionally create a
  * resulting entry in the tree if there was no existing match.
  *
  * The arguments accepted by the function are chosen to closely match
@@ -106,7 +105,7 @@ typedef isc_boolean_t (*dns_iptree_callbackfunc_t)(void **data,
  * * `search_addr` contains the address family and the address field.
  * * `source_prefix_length` and `scope_prefix_length` correspond to the
  *   SOURCE PREFIX-LENGTH and SCOPE PREFIX-LENGTH fields. In the case of
- *   tree lookup during queries (`create=ISC_FALSE`), SCOPE
+ *   tree lookup during queries (`create=false`), SCOPE
  *   PREFIX-LENGTH should be set to 0. In the case of tree insertion,
  *   SCOPE PREFIX-LENGTH should be the value returned by the
  *   upstream server in its reply message.
@@ -135,7 +134,7 @@ typedef isc_boolean_t (*dns_iptree_callbackfunc_t)(void **data,
  * \param match_fn A function to callback to decide whether to consider
  * an answer for matching. It can be `NULL`, in which case, every answer
  * is considered when finding the longest prefix match. `match_fn`
- * must be set to `NULL` when `create` is `ISC_TRUE`.
+ * must be set to `NULL` when `create` is `true`.
  * \param match_arg The user data argument to pass to the callback
  * function. It can be `NULL`.
  * \param found_node Pointer to `NULL`-initialized `dns_iptree_node_t *`
@@ -144,7 +143,7 @@ typedef isc_boolean_t (*dns_iptree_callbackfunc_t)(void **data,
  * \return
  * * \ref ISC_R_SUCCESS The search was successful.
  * * \ref ISC_R_EXISTS The search was successful, but the node already
- *   exists (when `create` is \ref ISC_TRUE).
+ *   exists (when `create` is \ref true).
  * * \ref DNS_R_PARTIALMATCH The search was unsuccessful but a shorter
  *   address prefix length was present in the tree.
  * * \ref ISC_R_NOTFOUND The search was unsuccessful.
@@ -161,7 +160,7 @@ typedef isc_boolean_t (*dns_iptree_callbackfunc_t)(void **data,
  * the corresponding address family in `search_addr` (they must not be
  * longer than the maximum allowed length for that
  * family). `source_prefix_length` MUST be non-zero. If
- * `create` is ISC_TRUE, `scope_prefix_length` must be passed as 0.
+ * `create` is true, `scope_prefix_length` must be passed as 0.
  * `found_node` must point to a valid `dns_iptree_node_t *` and
  * `*found_node` must be initialized to `NULL`. If any of the
  * pre-conditions fail, the function will abort with a `REQUIRE()`
@@ -170,9 +169,9 @@ typedef isc_boolean_t (*dns_iptree_callbackfunc_t)(void **data,
  * \par Post-conditions
  * If a result was found (ISC_R_SUCCESS, ISC_R_EXISTS,
  * DNS_R_PARTIALMATCH), `*found_node` is assigned. If `create` was passed
- * as `ISC_TRUE` and `ISC_R_SUCCESS` is returned, the tree was modified
+ * as `true` and `ISC_R_SUCCESS` is returned, the tree was modified
  * (new entry may have been created, or an existing but empty entry may
- * have been modified). If `create` was passed as `ISC_TRUE` and
+ * have been modified). If `create` was passed as `true` and
  * `ISC_R_EXISTS` is returned, the tree is not modified.  If
  * `ISC_R_NOTFOUND` or `ISC_R_NOMEMORY` is returned, the tree and return
  * arguments are not modified. The caller must expect `*root` to be
@@ -189,9 +188,9 @@ isc_result_t
 dns_iptree_search(dns_iptree_node_t **root,
 		  isc_mem_t *mctx,
 		  const isc_netaddr_t *search_addr,
-		  isc_uint8_t source_prefix_length,
-		  isc_uint8_t scope_prefix_length,
-		  isc_boolean_t create,
+		  uint8_t source_prefix_length,
+		  uint8_t scope_prefix_length,
+		  bool create,
 		  dns_iptree_callbackfunc_t match_fn,
 		  void *match_arg,
 		  dns_iptree_node_t **found_node);
@@ -216,16 +215,16 @@ dns_iptree_search(dns_iptree_node_t **root,
  * \ref dns_iptree_search().
  * \param found_data Pointer to `NULL`-initialized `void *` pointer
  * from where a pointer to the value can be retrieved or stored.
- * \param found_address_prefix_length Pointer to `isc_uint8_t` where the
+ * \param found_address_prefix_length Pointer to `uint8_t` where the
  * length of address prefix matched for address in `addr` is returned.
- * \param found_scope_prefix_length Pointer to `isc_uint8_t` where the
+ * \param found_scope_prefix_length Pointer to `uint8_t` where the
  * scope prefix length matched for address in `addr` is returned.
  *
  * \par Pre-conditions
  * `found_node` must point to a valid IP tree node.  `found_data` must
  * point to a valid `void *` and `*found_data` must be initialized to
  * `NULL`. `found_address_prefix_length` and `found_scope_prefix_length`
- * must point to `isc_uint8_t`s to receive the return arguments. If any
+ * must point to `uint8_t`s to receive the return arguments. If any
  * of the pre-conditions fail, the function will abort with a
  * `REQUIRE()` assertion failure.
  *
@@ -243,8 +242,8 @@ dns_iptree_search(dns_iptree_node_t **root,
 void
 dns_iptree_get_data(dns_iptree_node_t *found_node,
 		    void **found_data,
-		    isc_uint8_t *found_address_prefix_length,
-		    isc_uint8_t *found_scope_prefix_length);
+		    uint8_t *found_address_prefix_length,
+		    uint8_t *found_scope_prefix_length);
 
 /**
  * \brief Set IP tree node data.
@@ -294,7 +293,7 @@ dns_iptree_set_data(dns_iptree_node_t *node, void *data);
  */
 void
 dns_iptree_set_scope(dns_iptree_node_t *node,
-		     isc_uint8_t scope_prefix_length);
+		     uint8_t scope_prefix_length);
 
 /**
  * \brief Return length of common address prefix.
@@ -304,16 +303,16 @@ dns_iptree_set_scope(dns_iptree_node_t *node,
  *
  * This function is provided for test purposes only.
  *
- * \param key1 Pointer to isc_uint32_t[4] array containing an address.
+ * \param key1 Pointer to uint32_t[4] array containing an address.
  * \param prefix1 Number of address bits in `key1`.
- * \param key2 Pointer to isc_uint32_t[4] array containing an address.
+ * \param key2 Pointer to uint32_t[4] array containing an address.
  * \param prefix2 Number of address bits in `key2`.
  *
  * \return Number of common address prefix bits between `key1` and
  * `key2`.
  *
  * \par Pre-conditions
- * `key1` and `key2` should point to valid isc_uint32_t[4] arrays.
+ * `key1` and `key2` should point to valid uint32_t[4] arrays.
  *
  * \par Post-conditions
  * None.
@@ -325,9 +324,9 @@ dns_iptree_set_scope(dns_iptree_node_t *node,
  * This function is thread-safe as long as the arguments do not change
  * while the function is executing.
  */
-isc_uint8_t
-dns_iptree_common_prefix(const isc_uint32_t *key1, isc_uint8_t prefix1,
-			 const isc_uint32_t *key2, isc_uint8_t prefix2);
+uint8_t
+dns_iptree_common_prefix(const uint32_t *key1, uint8_t prefix1,
+			 const uint32_t *key2, uint8_t prefix2);
 
 /**
  * \brief Iterate over all nodes with data in the tree.
@@ -430,7 +429,7 @@ dns_iptree_get_nodecount(const dns_iptree_node_t *root);
  * Print a GraphViz dot representation of the internal structure of the
  * IP tree to the passed stream.
  *
- * If show_pointers is `ISC_TRUE`, pointers are also included in the
+ * If show_pointers is `true`, pointers are also included in the
  * generated graph.
  *
  * The address prefix stored at each node is displayed. Then the left
@@ -439,7 +438,7 @@ dns_iptree_get_nodecount(const dns_iptree_node_t *root);
  */
 void
 dns_iptree_print_dot(const dns_iptree_node_t *root,
-		     isc_boolean_t show_pointers, FILE *f);
+		     bool show_pointers, FILE *f);
 
 /**
  * \brief Create an iterator over an IP tree.
