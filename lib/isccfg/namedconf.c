@@ -36,6 +36,17 @@
 #endif
 #endif
 
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h>
+
+# ifndef htobe64
+#  define htobe64(x) OSSwapHostToBigInt64(x)
+# endif
+# ifndef be64toh
+#  define be64toh(x) OSSwapBigToHostInt64(x)
+# endif
+#endif
+
 #include <isc/buffer.h>
 #include <isc/hex.h>
 #include <isc/lex.h>

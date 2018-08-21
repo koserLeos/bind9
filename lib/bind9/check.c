@@ -1622,7 +1622,7 @@ check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx,
 				if (result == ISC_R_SUCCESS)
 					result = ISC_R_FAILURE;
 			}
-
+		}
 		obj2 = cfg_tuple_get(obj, "versions");
 		if (obj2 != NULL && !cfg_obj_isvoid(obj2) &&
 		    dmode == dns_dtmode_unix)
