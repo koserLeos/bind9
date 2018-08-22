@@ -3274,7 +3274,7 @@ configure_dnstap(const cfg_obj_t **maps, dns_view_t *view) {
 				cfg_obj_log(obj2, ns_g_lctx,
 				    ISC_LOG_WARNING,
 				    "'dnstap-output size "
-				    "%" ISC_PRINT_QUADFORMAT "u' "
+				    "%" PRIu64 "' "
 				    "is too large for this "
 				    "system; reducing to %lu",
 				    max_size, (unsigned long)SIZE_MAX);
