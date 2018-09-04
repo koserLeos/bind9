@@ -26,15 +26,19 @@ from ISC.
 
 Security Fixes
 
+  * There was a long-existing flaw in the documentation for ms-self,
+    krb5-self, ms-subdomain, and krb5-subdomain rules in update-policy
+    statements. Though the policies worked as intended, operators who
+    configured their servers according to the misleading documentation may
+    have thought zone updates were more restricted than they were; users
+    of these rule types are advised to review the documentation and
+    correct their configurations if necessary. New rule types matching the
+    previously documented behavior will be introduced in a future
+    maintenance release. [GL !708]
+
   * named could crash during recursive processing of DNAME records when
     deny-answer-aliases was in use. This flaw is disclosed in
     CVE-2018-5740. [GL #387]
-
-  * When recursion is enabled but the allow-recursion and
-    allow-query-cache ACLs are not specified, they should be limited to
-    local networks, but they were inadvertently set to match the default
-    allow-query, thus allowing remote queries. This flaw is disclosed in
-    CVE-2018-5738. [GL #309]
 
 New Features
 
@@ -50,10 +54,8 @@ New Features
     be gathered. To disable this feature, add root-key-sentinel no; to
     named.conf.
 
-  * Add support for forwarding queries to Cisco Umbrella servers, when
+  * Added support for forwarding queries to Cisco Umbrella servers, when
     built with configure --enable-umbrella. [GL #229]
-
-Feature Changes
 
   * Added the ability not to return a DNS COOKIE option when one is
     present in the request. To prevent a cookie being returned, add
@@ -73,12 +75,14 @@ Feature Changes
 
 Bug Fixes
 
-  * named now rejects excessively large incremental (IXFR) zone transfers
-    in order to prevent possible corruption of journal files which could
-    cause named to abort when loading zones. [GL #339]
+  * Running rndc reconfig could cause inline-signing zones to stop
+    signing. [GL #439]
 
-  * Add support for forwarding queries to Cisco Umbrella servers. [GL #
-    229]
+  * Reloading all zones caused zone maintenance to stop for inline-signing
+    zones. [GL #435]
+
+  * Signatures loaded from the journal for the signed version of an
+    inline-signing zone were not scheduled for refresh. [GL #482]
 
 End of Life
 
