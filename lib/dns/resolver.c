@@ -2182,18 +2182,20 @@ build_protoss(resquery_t *query, isc_buffer_t *b) {
 		isc_buffer_putuint32(b, view->protoss_org);
 	}
 
-	switch (client->type.sa.sa_family) {
-	case AF_INET:
-		isc_buffer_putuint16(b, PROTOSS_V4);
-		isc_buffer_putmem(b, &client->type.sin.sin_addr, 4);
-		break;
-	case AF_INET6:
-		isc_buffer_putuint16(b, PROTOSS_V6);
-		isc_buffer_putmem(b, &client->type.sin6.sin6_addr, 16);
-		break;
-	default:
-		/* skip */
-		;
+	if (client != NULL) {
+		switch (client->type.sa.sa_family) {
+		case AF_INET:
+			isc_buffer_putuint16(b, PROTOSS_V4);
+			isc_buffer_putmem(b, &client->type.sin.sin_addr, 4);
+			break;
+		case AF_INET6:
+			isc_buffer_putuint16(b, PROTOSS_V6);
+			isc_buffer_putmem(b, &client->type.sin6.sin6_addr, 16);
+			break;
+		default:
+			/* skip */
+			;
+		}
 	}
 
 	if ((view->protoss_opts & PROTOSS_DEV) != 0) {
@@ -2629,7 +2631,6 @@ resquery_send(resquery_t *query) {
 				isc_buffer_init(&b, posbuf, sizeof(posbuf));
 
 				build_protoss(query, &b);
-
 
 				ednsopts[ednsopt].code = DNS_OPT_PROTOSS;
 				ednsopts[ednsopt].length =
