@@ -96,6 +96,9 @@
     <ClCompile Include="..\ecdb.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\ecs.c">
+      <Filter>Library Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\fixedname.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
@@ -111,6 +114,9 @@
       <Filter>Library Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\iptable.c">
+      <Filter>Library Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\iptree.c">
       <Filter>Library Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\journal.c">
@@ -440,6 +446,9 @@
     <ClInclude Include="..\include\dns\ecdb.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\dns\ecs.h">
+      <Filter>Library Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\include\dns\edns.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
@@ -467,6 +476,9 @@
       <Filter>Library Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\dns\iptable.h">
+      <Filter>Library Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\dns\iptree.h">
       <Filter>Library Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\dns\journal.h">

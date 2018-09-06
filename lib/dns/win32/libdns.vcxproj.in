@@ -135,6 +135,7 @@
     <ClCompile Include="..\dst_result.c" />
     <ClCompile Include="..\dyndb.c" />
     <ClCompile Include="..\ecdb.c" />
+    <ClCompile Include="..\ecs.c" />
     <ClCompile Include="..\fixedname.c" />
     <ClCompile Include="..\forward.c" />
 @IF GEOIP
@@ -145,6 +146,7 @@
     <ClCompile Include="..\hmac_link.c" />
     <ClCompile Include="..\ipkeylist.c" />
     <ClCompile Include="..\iptable.c" />
+    <ClCompile Include="..\iptree.c" />
     <ClCompile Include="..\journal.c" />
     <ClCompile Include="..\key.c" />
     <ClCompile Include="..\keydata.c" />
@@ -259,6 +261,7 @@
     <ClInclude Include="..\include\dns\dsdigest.h" />
     <ClInclude Include="..\include\dns\dyndb.h" />
     <ClInclude Include="..\include\dns\ecdb.h" />
+    <ClInclude Include="..\include\dns\ecs.h" />
     <ClInclude Include="..\include\dns\edns.h" />
     <ClInclude Include="..\include\dns\enumclass.h" />
     <ClInclude Include="..\include\dns\enumtype.h" />
@@ -270,6 +273,7 @@
 @END GEOIP
     <ClInclude Include="..\include\dns\ipkeylist.h" />
     <ClInclude Include="..\include\dns\iptable.h" />
+    <ClInclude Include="..\include\dns\iptree.h" />
     <ClInclude Include="..\include\dns\journal.h" />
     <ClInclude Include="..\include\dns\keydata.h" />
     <ClInclude Include="..\include\dns\keyflags.h" />
