@@ -403,6 +403,7 @@ my @substtest = ("CHECK_DSA",
                  "KEYMGR",
                  "NZD_TOOLS",
                  "PKCS11_TEST",
+                 "UMBRELLA",
                  "XMLSTATS",
                  "ZLIB"),
 
@@ -3408,6 +3409,9 @@ $configtest{"CHECK_DSA"} = 0;
 # dnstap not supported
 #$configtest{"DNSTAP"} = "dnstap";
 #$configtest{"FSTRM_CAPTURE"} = "fstrm_capture";
+
+# umbrella not supported
+# $configtest{"UMBRELLA"} = "umbrella";
 
 # no json-c library for WIN32
 #$configtest{"JSONSTATS"} = 1;
