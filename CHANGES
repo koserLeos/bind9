@@ -19,6 +19,10 @@
 5030.	[bug]		Align CMSG buffers to a 64-bit boundary, fixes crash
 			on architectures with strict alignment. [GL #521]
 
+5010.	[func]		New "validate-except" option specifies a list of
+			domains beneath which DNSSEC validation should not
+			be performed. [GL #237]
+
 	--- 9.11.4-S1 released ---
 
 5028.	[bug]		Spread the initial RRSIG expiration times over the
