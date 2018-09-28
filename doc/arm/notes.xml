@@ -151,22 +151,39 @@
     <itemizedlist>
       <listitem>
 	<para>
-         Running <command>rndc reconfig</command> could cause
-         <command>inline-signing</command> zones to stop signing. [GL #439]
-       </para>
+	  Running <command>rndc reconfig</command> could cause
+	  <command>inline-signing</command> zones to stop signing. [GL #439]
+        </para>
       </listitem>
       <listitem>
-       <para>
-         Reloading all zones caused zone maintenance to stop for
-         <command>inline-signing</command> zones. [GL #435]
-       </para>
+	<para>
+	  Reloading all zones caused zone maintenance to stop for
+	  <command>inline-signing</command> zones. [GL #435]
+        </para>
       </listitem>
       <listitem>
-       <para>
-         Signatures loaded from the journal for the signed version of an
-         <command>inline-signing</command> zone were not scheduled for
-         refresh. [GL #482]
-       </para>
+	<para>
+	  Signatures loaded from the journal for the signed version of an
+	  <command>inline-signing</command> zone were not scheduled for
+	  refresh. [GL #482]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  The <command>rndc nta</command> command could not differentiate
+	  between views of the same name but different class; this
+	  has been corrected with the addition of a <command>-class</command>
+	  option. [GL #105]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  When a negative trust anchor was added to multiple views
+	  using <command>rndc nta</command>, the text returned via
+	  <command>rndc</command> was incorrectly truncated after the
+	  first line, making it appear that only one NTA had been
+	  added. This has been fixed. [GL #105]
+	</para>
       </listitem>
     </itemizedlist>
   </section>
