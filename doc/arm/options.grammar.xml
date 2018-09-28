@@ -35,6 +35,7 @@
 	    ] [ dscp <replaceable>integer</replaceable> ];
 	<command>alt-transfer-source-v6</command> ( <replaceable>ipv6_address</replaceable> | * ) [ port ( <replaceable>integer</replaceable> |
 	    * ) ] [ dscp <replaceable>integer</replaceable> ];
+	<command>answer-cookie</command> <replaceable>boolean</replaceable>;
 	<command>attach-cache</command> <replaceable>string</replaceable>;
 	<command>auth-nxdomain</command> <replaceable>boolean</replaceable>; // default changed
 	<command>auto-dnssec</command> ( allow | maintain | off );
@@ -66,9 +67,9 @@
 	<command>coresize</command> ( default | unlimited | <replaceable>sizeval</replaceable> );
 	<command>datasize</command> ( default | unlimited | <replaceable>sizeval</replaceable> );
 	<command>deny-answer-addresses</command> { <replaceable>address_match_element</replaceable>; ... } [
-	    <command>except-from</command> { <replaceable>quoted_string</replaceable>; ... } ];
-	<command>deny-answer-aliases</command> { <replaceable>quoted_string</replaceable>; ... } [ except-from {
-	    <replaceable>quoted_string</replaceable>; ... } ];
+	    <command>except-from</command> { <replaceable>string</replaceable>; ... } ];
+	<command>deny-answer-aliases</command> { <replaceable>string</replaceable>; ... } [ except-from { <replaceable>string</replaceable>; ...
+	    } ];
 	<command>dialup</command> ( notify | notify-passive | passive | refresh | <replaceable>boolean</replaceable> );
 	<command>directory</command> <replaceable>quoted_string</replaceable>;
 	<command>disable-algorithms</command> <replaceable>string</replaceable> { <replaceable>string</replaceable>;
@@ -86,6 +87,7 @@
 	};
 	<command>dns64-contact</command> <replaceable>string</replaceable>;
 	<command>dns64-server</command> <replaceable>string</replaceable>;
+	<command>dnskey-sig-validity</command> <replaceable>integer</replaceable>;
 	<command>dnssec-accept-expired</command> <replaceable>boolean</replaceable>;
 	<command>dnssec-dnskey-kskonly</command> <replaceable>boolean</replaceable>;
 	<command>dnssec-enable</command> <replaceable>boolean</replaceable>;
@@ -255,7 +257,8 @@
 	    <command>min-update-interval</command> <replaceable>integer</replaceable> ] [ min-ns-dots <replaceable>integer</replaceable> ] [
 	    <command>nsip-wait-recurse</command> <replaceable>boolean</replaceable> ] [ qname-wait-recurse <replaceable>boolean</replaceable> ]
 	    [ recursive-only <replaceable>boolean</replaceable> ];
-	<command>root-delegation-only</command> [ exclude { <replaceable>quoted_string</replaceable>; ... } ];
+	<command>root-delegation-only</command> [ exclude { <replaceable>string</replaceable>; ... } ];
+	<command>root-key-sentinel</command> <replaceable>boolean</replaceable>;
 	<command>rrset-order</command> { [ class <replaceable>string</replaceable> ] [ type <replaceable>string</replaceable> ] [ name
 	    <replaceable>quoted_string</replaceable> ] <replaceable>string</replaceable> <replaceable>string</replaceable>; ... };
 	<command>secroots-file</command> <replaceable>quoted_string</replaceable>;
@@ -298,11 +301,15 @@
 	<command>transfers-per-ns</command> <replaceable>integer</replaceable>;
 	<command>trust-anchor-telemetry</command> <replaceable>boolean</replaceable>; // experimental
 	<command>try-tcp-refresh</command> <replaceable>boolean</replaceable>;
+	<command>umbrella-device</command> <replaceable>hexuint64</replaceable>;
+	<command>umbrella-organization</command> <replaceable>integer</replaceable>;
+	<command>umbrella-virtual-appliance</command> <replaceable>integer</replaceable>;
 	<command>update-check-ksk</command> <replaceable>boolean</replaceable>;
 	<command>use-alt-transfer-source</command> <replaceable>boolean</replaceable>;
 	<command>use-v4-udp-ports</command> { <replaceable>portrange</replaceable>; ... };
 	<command>use-v6-udp-ports</command> { <replaceable>portrange</replaceable>; ... };
 	<command>v6-bias</command> <replaceable>integer</replaceable>;
+	<command>validate-except</command> { <replaceable>string</replaceable>; ... };
 	<command>version</command> ( <replaceable>quoted_string</replaceable> | none );
 	<command>zero-no-soa-ttl</command> <replaceable>boolean</replaceable>;
 	<command>zero-no-soa-ttl-cache</command> <replaceable>boolean</replaceable>;

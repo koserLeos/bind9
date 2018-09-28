@@ -120,9 +120,9 @@ options {
         datasize ( default | unlimited | <sizeval> );
         deallocate-on-exit <boolean>; // obsolete
         deny-answer-addresses { <address_match_element>; ... } [
-            except-from { <quoted_string>; ... } ];
-        deny-answer-aliases { <quoted_string>; ... } [ except-from {
-            <quoted_string>; ... } ];
+            except-from { <string>; ... } ];
+        deny-answer-aliases { <string>; ... } [ except-from { <string>; ...
+            } ];
         dialup ( notify | notify-passive | passive | refresh | <boolean> );
         directory <quoted_string>;
         disable-algorithms <string> { <string>;
@@ -195,8 +195,8 @@ options {
         fstrm-set-output-queue-model ( mpsc | spsc ); // not configured
         fstrm-set-output-queue-size <integer>; // not configured
         fstrm-set-reopen-interval <integer>; // not configured
-        geoip-directory ( <quoted_string> | none ); // not configured
-        geoip-use-ecs <boolean>; // not configured
+        geoip-directory ( <quoted_string> | none );
+        geoip-use-ecs <boolean>;
         has-old-clients <boolean>; // obsolete
         heartbeat-interval <integer>;
         host-statistics <boolean>; // not implemented
@@ -214,7 +214,7 @@ options {
         listen-on-v6 [ port <integer> ] [ dscp
             <integer> ] {
             <address_match_element>; ... }; // may occur multiple times
-        lmdb-mapsize <sizeval>; // non-operational
+        lmdb-mapsize <sizeval>;
         lock-file ( <quoted_string> | none );
         maintain-ixfr-base <boolean>; // obsolete
         managed-keys-directory <quoted_string>;
@@ -326,7 +326,7 @@ options {
             nsip-wait-recurse <boolean> ] [ qname-wait-recurse <boolean> ]
             [ recursive-only <boolean> ];
         rfc2308-type1 <boolean>; // not yet implemented
-        root-delegation-only [ exclude { <quoted_string>; ... } ];
+        root-delegation-only [ exclude { <string>; ... } ];
         root-key-sentinel <boolean>;
         rrset-order { [ class <string> ] [ type <string> ] [ name
             <quoted_string> ] <string> <string>; ... };
@@ -387,6 +387,7 @@ options {
         use-v4-udp-ports { <portrange>; ... };
         use-v6-udp-ports { <portrange>; ... };
         v6-bias <integer>;
+        validate-except { <string>; ... };
         version ( <quoted_string> | none );
         zero-no-soa-ttl <boolean>;
         zero-no-soa-ttl-cache <boolean>;
@@ -487,9 +488,9 @@ view <string> [ <class> ] {
         cleaning-interval <integer>;
         clients-per-query <integer>;
         deny-answer-addresses { <address_match_element>; ... } [
-            except-from { <quoted_string>; ... } ];
-        deny-answer-aliases { <quoted_string>; ... } [ except-from {
-            <quoted_string>; ... } ];
+            except-from { <string>; ... } ];
+        deny-answer-aliases { <string>; ... } [ except-from { <string>; ...
+            } ];
         dialup ( notify | notify-passive | passive | refresh | <boolean> );
         disable-algorithms <string> { <string>;
             ... }; // may occur multiple times
@@ -557,7 +558,7 @@ view <string> [ <class> ] {
         }; // may occur multiple times
         key-directory <quoted_string>;
         lame-ttl <ttlval>;
-        lmdb-mapsize <sizeval>; // non-operational
+        lmdb-mapsize <sizeval>;
         maintain-ixfr-base <boolean>; // obsolete
         managed-keys { <string> <string>
             <integer> <integer> <integer>
@@ -659,7 +660,7 @@ view <string> [ <class> ] {
             nsip-wait-recurse <boolean> ] [ qname-wait-recurse <boolean> ]
             [ recursive-only <boolean> ];
         rfc2308-type1 <boolean>; // not yet implemented
-        root-delegation-only [ exclude { <quoted_string>; ... } ];
+        root-delegation-only [ exclude { <string>; ... } ];
         root-key-sentinel <boolean>;
         rrset-order { [ class <string> ] [ type <string> ] [ name
             <quoted_string> ] <string> <string>; ... };
@@ -731,6 +732,7 @@ view <string> [ <class> ] {
         use-alt-transfer-source <boolean>;
         use-queryport-pool <boolean>; // obsolete
         v6-bias <integer>;
+        validate-except { <string>; ... };
         zero-no-soa-ttl <boolean>;
         zero-no-soa-ttl-cache <boolean>;
         zone <string> [ <class> ] {
@@ -817,7 +819,7 @@ view <string> [ <class> ] {
                 serial-update-method ( date | increment | unixtime );
                 server-addresses { ( <ipv4_address> | <ipv6_address> ) [
                     port <integer> ]; ... };
-                server-names { <quoted_string>; ... };
+                server-names { <string>; ... };
                 sig-signing-nodes <integer>;
                 sig-signing-signatures <integer>;
                 sig-signing-type <integer>;
@@ -831,10 +833,10 @@ view <string> [ <class> ] {
                     | slave | static-stub | stub );
                 update-check-ksk <boolean>;
                 update-policy ( local | { ( deny | grant ) <string> (
-                    6to4-self | external | krb5-self | krb5-subdomain |
-                    ms-self | ms-subdomain | name | self | selfsub |
-                    selfwild | subdomain | tcp-self | wildcard | zonesub )
-                    [ <string> ] <rrtypelist>; ... };
+                    6to4-self | external | krb5-self | krb5-selfsub |
+                    krb5-subdomain | ms-self | ms-selfsub | ms-subdomain |
+                    name | self | selfsub | selfwild | subdomain | tcp-self
+                    | wildcard | zonesub ) [ <string> ] <rrtypelist>; ... };
                 use-alt-transfer-source <boolean>;
                 zero-no-soa-ttl <boolean>;
                 zone-statistics ( full | terse | none | <boolean> );
@@ -920,7 +922,7 @@ zone <string> [ <class> ] {
         serial-update-method ( date | increment | unixtime );
         server-addresses { ( <ipv4_address> | <ipv6_address> ) [ port
             <integer> ]; ... };
-        server-names { <quoted_string>; ... };
+        server-names { <string>; ... };
         sig-signing-nodes <integer>;
         sig-signing-signatures <integer>;
         sig-signing-type <integer>;
@@ -934,9 +936,10 @@ zone <string> [ <class> ] {
             | static-stub | stub );
         update-check-ksk <boolean>;
         update-policy ( local | { ( deny | grant ) <string> ( 6to4-self |
-            external | krb5-self | krb5-subdomain | ms-self | ms-subdomain
-            | name | self | selfsub | selfwild | subdomain | tcp-self |
-            wildcard | zonesub ) [ <string> ] <rrtypelist>; ... };
+            external | krb5-self | krb5-selfsub | krb5-subdomain | ms-self
+            | ms-selfsub | ms-subdomain | name | self | selfsub | selfwild
+            | subdomain | tcp-self | wildcard | zonesub ) [ <string> ]
+            <rrtypelist>; ... };
         use-alt-transfer-source <boolean>;
         zero-no-soa-ttl <boolean>;
         zone-statistics ( full | terse | none | <boolean> );

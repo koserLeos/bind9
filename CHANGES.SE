@@ -1,3 +1,7 @@
+5010.	[func]		New "validate-except" option specifies a list of
+			domains beneath which DNSSEC validation should not
+			be performed. [GL #237]
+
 	--- 9.11.4-S1 released ---
 
 5000.	[bug]		ns_server_servestale() could leave the server in

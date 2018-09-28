@@ -13,7 +13,7 @@
 
 <refentry xmlns:db="http://docbook.org/ns/docbook" version="5.0" xml:id="man.named.conf">
   <info>
-    <date>2018-05-30</date>
+    <date>2018-08-09</date>
   </info>
   <refentryinfo>
     <corpname>ISC</corpname>
@@ -209,6 +209,7 @@ options {
 	    ] [ dscp <replaceable>integer</replaceable> ];
 	alt-transfer-source-v6 ( <replaceable>ipv6_address</replaceable> | * ) [ port ( <replaceable>integer</replaceable> |
 	    * ) ] [ dscp <replaceable>integer</replaceable> ];
+	answer-cookie <replaceable>boolean</replaceable>;
 	attach-cache <replaceable>string</replaceable>;
 	auth-nxdomain <replaceable>boolean</replaceable>; // default changed
 	auto-dnssec ( allow | maintain | off );
@@ -240,9 +241,9 @@ options {
 	coresize ( default | unlimited | <replaceable>sizeval</replaceable> );
 	datasize ( default | unlimited | <replaceable>sizeval</replaceable> );
 	deny-answer-addresses { <replaceable>address_match_element</replaceable>; ... } [
-	    except-from { <replaceable>quoted_string</replaceable>; ... } ];
-	deny-answer-aliases { <replaceable>quoted_string</replaceable>; ... } [ except-from {
-	    <replaceable>quoted_string</replaceable>; ... } ];
+	    except-from { <replaceable>string</replaceable>; ... } ];
+	deny-answer-aliases { <replaceable>string</replaceable>; ... } [ except-from { <replaceable>string</replaceable>; ...
+	    } ];
 	dialup ( notify | notify-passive | passive | refresh | <replaceable>boolean</replaceable> );
 	directory <replaceable>quoted_string</replaceable>;
 	disable-algorithms <replaceable>string</replaceable> { <replaceable>string</replaceable>;
@@ -260,6 +261,7 @@ options {
 	};
 	dns64-contact <replaceable>string</replaceable>;
 	dns64-server <replaceable>string</replaceable>;
+	dnskey-sig-validity <replaceable>integer</replaceable>;
 	dnssec-accept-expired <replaceable>boolean</replaceable>;
 	dnssec-dnskey-kskonly <replaceable>boolean</replaceable>;
 	dnssec-enable <replaceable>boolean</replaceable>;
@@ -429,7 +431,8 @@ options {
 	    min-update-interval <replaceable>integer</replaceable> ] [ min-ns-dots <replaceable>integer</replaceable> ] [
 	    nsip-wait-recurse <replaceable>boolean</replaceable> ] [ qname-wait-recurse <replaceable>boolean</replaceable> ]
 	    [ recursive-only <replaceable>boolean</replaceable> ];
-	root-delegation-only [ exclude { <replaceable>quoted_string</replaceable>; ... } ];
+	root-delegation-only [ exclude { <replaceable>string</replaceable>; ... } ];
+	root-key-sentinel <replaceable>boolean</replaceable>;
 	rrset-order { [ class <replaceable>string</replaceable> ] [ type <replaceable>string</replaceable> ] [ name
 	    <replaceable>quoted_string</replaceable> ] <replaceable>string</replaceable> <replaceable>string</replaceable>; ... };
 	secroots-file <replaceable>quoted_string</replaceable>;
@@ -472,11 +475,15 @@ options {
 	transfers-per-ns <replaceable>integer</replaceable>;
 	trust-anchor-telemetry <replaceable>boolean</replaceable>; // experimental
 	try-tcp-refresh <replaceable>boolean</replaceable>;
+	umbrella-device <replaceable>hexuint64</replaceable>;
+	umbrella-organization <replaceable>integer</replaceable>;
+	umbrella-virtual-appliance <replaceable>integer</replaceable>;
 	update-check-ksk <replaceable>boolean</replaceable>;
 	use-alt-transfer-source <replaceable>boolean</replaceable>;
 	use-v4-udp-ports { <replaceable>portrange</replaceable>; ... };
 	use-v6-udp-ports { <replaceable>portrange</replaceable>; ... };
 	v6-bias <replaceable>integer</replaceable>;
+	validate-except { <replaceable>string</replaceable>; ... };
 	version ( <replaceable>quoted_string</replaceable> | none );
 	zero-no-soa-ttl <replaceable>boolean</replaceable>;
 	zero-no-soa-ttl-cache <replaceable>boolean</replaceable>;
@@ -512,6 +519,7 @@ server <replaceable>netprefix</replaceable> {
 	request-ixfr <replaceable>boolean</replaceable>;
 	request-nsid <replaceable>boolean</replaceable>;
 	send-cookie <replaceable>boolean</replaceable>;
+	send-umbrella <replaceable>boolean</replaceable>;
 	tcp-keepalive <replaceable>boolean</replaceable>;
 	tcp-only <replaceable>boolean</replaceable>;
 	tcp-only <replaceable>boolean</replaceable>;
@@ -593,9 +601,9 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	cleaning-interval <replaceable>integer</replaceable>;
 	clients-per-query <replaceable>integer</replaceable>;
 	deny-answer-addresses { <replaceable>address_match_element</replaceable>; ... } [
-	    except-from { <replaceable>quoted_string</replaceable>; ... } ];
-	deny-answer-aliases { <replaceable>quoted_string</replaceable>; ... } [ except-from {
-	    <replaceable>quoted_string</replaceable>; ... } ];
+	    except-from { <replaceable>string</replaceable>; ... } ];
+	deny-answer-aliases { <replaceable>string</replaceable>; ... } [ except-from { <replaceable>string</replaceable>; ...
+	    } ];
 	dialup ( notify | notify-passive | passive | refresh | <replaceable>boolean</replaceable> );
 	disable-algorithms <replaceable>string</replaceable> { <replaceable>string</replaceable>;
 	    ... };
@@ -616,6 +624,7 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	};
 	dns64-contact <replaceable>string</replaceable>;
 	dns64-server <replaceable>string</replaceable>;
+	dnskey-sig-validity <replaceable>integer</replaceable>;
 	dnssec-accept-expired <replaceable>boolean</replaceable>;
 	dnssec-dnskey-kskonly <replaceable>boolean</replaceable>;
 	dnssec-enable <replaceable>boolean</replaceable>;
@@ -754,7 +763,8 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	    min-update-interval <replaceable>integer</replaceable> ] [ min-ns-dots <replaceable>integer</replaceable> ] [
 	    nsip-wait-recurse <replaceable>boolean</replaceable> ] [ qname-wait-recurse <replaceable>boolean</replaceable> ]
 	    [ recursive-only <replaceable>boolean</replaceable> ];
-	root-delegation-only [ exclude { <replaceable>quoted_string</replaceable>; ... } ];
+	root-delegation-only [ exclude { <replaceable>string</replaceable>; ... } ];
+	root-key-sentinel <replaceable>boolean</replaceable>;
 	rrset-order { [ class <replaceable>string</replaceable> ] [ type <replaceable>string</replaceable> ] [ name
 	    <replaceable>quoted_string</replaceable> ] <replaceable>string</replaceable> <replaceable>string</replaceable>; ... };
 	send-cookie <replaceable>boolean</replaceable>;
@@ -785,6 +795,7 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 		request-ixfr <replaceable>boolean</replaceable>;
 		request-nsid <replaceable>boolean</replaceable>;
 		send-cookie <replaceable>boolean</replaceable>;
+		send-umbrella <replaceable>boolean</replaceable>;
 		tcp-keepalive <replaceable>boolean</replaceable>;
 		tcp-only <replaceable>boolean</replaceable>;
 		tcp-only <replaceable>boolean</replaceable>;
@@ -813,9 +824,13 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	    <replaceable>integer</replaceable> <replaceable>integer</replaceable> <replaceable>quoted_string</replaceable>;
 	    ... };
 	try-tcp-refresh <replaceable>boolean</replaceable>;
+	umbrella-device <replaceable>hexuint64</replaceable>;
+	umbrella-organization <replaceable>integer</replaceable>;
+	umbrella-virtual-appliance <replaceable>integer</replaceable>;
 	update-check-ksk <replaceable>boolean</replaceable>;
 	use-alt-transfer-source <replaceable>boolean</replaceable>;
 	v6-bias <replaceable>integer</replaceable>;
+	validate-except { <replaceable>string</replaceable>; ... };
 	zero-no-soa-ttl <replaceable>boolean</replaceable>;
 	zero-no-soa-ttl-cache <replaceable>boolean</replaceable>;
 	zone <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
@@ -848,6 +863,7 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 		dialup ( notify | notify-passive | passive | refresh |
 		    <replaceable>boolean</replaceable> );
 		dlz <replaceable>string</replaceable>;
+		dnskey-sig-validity <replaceable>integer</replaceable>;
 		dnssec-dnskey-kskonly <replaceable>boolean</replaceable>;
 		dnssec-loadkeys-interval <replaceable>integer</replaceable>;
 		dnssec-secure-to-insecure <replaceable>boolean</replaceable>;
@@ -895,7 +911,7 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 		serial-update-method ( date | increment | unixtime );
 		server-addresses { ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> ) [
 		    port <replaceable>integer</replaceable> ]; ... };
-		server-names { <replaceable>quoted_string</replaceable>; ... };
+		server-names { <replaceable>string</replaceable>; ... };
 		sig-signing-nodes <replaceable>integer</replaceable>;
 		sig-signing-signatures <replaceable>integer</replaceable>;
 		sig-signing-type <replaceable>integer</replaceable>;
@@ -909,10 +925,10 @@ view <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 		    | slave | static-stub | stub );
 		update-check-ksk <replaceable>boolean</replaceable>;
 		update-policy ( local | { ( deny | grant ) <replaceable>string</replaceable> (
-		    6to4-self | external | krb5-self | krb5-subdomain |
-		    ms-self | ms-subdomain | name | self | selfsub |
-		    selfwild | subdomain | tcp-self | wildcard | zonesub )
-		    [ <replaceable>string</replaceable> ] <replaceable>rrtypelist</replaceable>; ... };
+		    6to4-self | external | krb5-self | krb5-selfsub |
+		    krb5-subdomain | ms-self | ms-selfsub | ms-subdomain |
+		    name | self | selfsub | selfwild | subdomain | tcp-self
+		    | wildcard | zonesub ) [ <replaceable>string</replaceable> ] <replaceable>rrtypelist</replaceable>; ... };
 		use-alt-transfer-source <replaceable>boolean</replaceable>;
 		zero-no-soa-ttl <replaceable>boolean</replaceable>;
 		zone-statistics ( full | terse | none | <replaceable>boolean</replaceable> );
@@ -953,6 +969,7 @@ zone <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	delegation-only <replaceable>boolean</replaceable>;
 	dialup ( notify | notify-passive | passive | refresh | <replaceable>boolean</replaceable> );
 	dlz <replaceable>string</replaceable>;
+	dnskey-sig-validity <replaceable>integer</replaceable>;
 	dnssec-dnskey-kskonly <replaceable>boolean</replaceable>;
 	dnssec-loadkeys-interval <replaceable>integer</replaceable>;
 	dnssec-secure-to-insecure <replaceable>boolean</replaceable>;
@@ -996,7 +1013,7 @@ zone <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	serial-update-method ( date | increment | unixtime );
 	server-addresses { ( <replaceable>ipv4_address</replaceable> | <replaceable>ipv6_address</replaceable> ) [ port
 	    <replaceable>integer</replaceable> ]; ... };
-	server-names { <replaceable>quoted_string</replaceable>; ... };
+	server-names { <replaceable>string</replaceable>; ... };
 	sig-signing-nodes <replaceable>integer</replaceable>;
 	sig-signing-signatures <replaceable>integer</replaceable>;
 	sig-signing-type <replaceable>integer</replaceable>;
@@ -1010,9 +1027,10 @@ zone <replaceable>string</replaceable> [ <replaceable>class</replaceable> ] {
 	    | static-stub | stub );
 	update-check-ksk <replaceable>boolean</replaceable>;
 	update-policy ( local | { ( deny | grant ) <replaceable>string</replaceable> ( 6to4-self |
-	    external | krb5-self | krb5-subdomain | ms-self | ms-subdomain
-	    | name | self | selfsub | selfwild | subdomain | tcp-self |
-	    wildcard | zonesub ) [ <replaceable>string</replaceable> ] <replaceable>rrtypelist</replaceable>; ... };
+	    external | krb5-self | krb5-selfsub | krb5-subdomain | ms-self
+	    | ms-selfsub | ms-subdomain | name | self | selfsub | selfwild
+	    | subdomain | tcp-self | wildcard | zonesub ) [ <replaceable>string</replaceable> ]
+	    <replaceable>rrtypelist</replaceable>; ... };
 	use-alt-transfer-source <replaceable>boolean</replaceable>;
 	zero-no-soa-ttl <replaceable>boolean</replaceable>;
 	zone-statistics ( full | terse | none | <replaceable>boolean</replaceable> );

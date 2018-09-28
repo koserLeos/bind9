@@ -36,6 +36,7 @@
 	<command>request-ixfr</command> <replaceable>boolean</replaceable>;
 	<command>request-nsid</command> <replaceable>boolean</replaceable>;
 	<command>send-cookie</command> <replaceable>boolean</replaceable>;
+	<command>send-umbrella</command> <replaceable>boolean</replaceable>;
 	<command>tcp-keepalive</command> <replaceable>boolean</replaceable>;
 	<command>tcp-only</command> <replaceable>boolean</replaceable>;
 	<command>tcp-only</command> <replaceable>boolean</replaceable>;

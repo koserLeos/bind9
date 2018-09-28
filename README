@@ -295,6 +295,14 @@ those released in 9.11.4-P2. It also includes the following new features:
   * named can be configured to forward queries to Cisco Umbrella servers
     if built with --enable-umbrella.
 
+BIND (Supported Preview Edition) 9.11.5-S1 (2018)
+
+This version includes changes to the 9.11 branch through and including
+those released in 9.11.5. It also includes the following new feature:
+
+  * The "validate-except" option allows configuration of domains below
+    which DNSSEC validation should not be performed.
+
 Building BIND
 
 BIND requires a UNIX or Linux system with an ANSI C compiler, basic POSIX
