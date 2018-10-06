@@ -92,40 +92,9 @@
       </listitem>
       <listitem>
 	<para>
-	  <command>named</command> now supports the "root key sentinel"
-	  mechanism. This enables validating resolvers to indicate
-	  which trust anchors are configured for the root, so that
-	  information about root key rollover status can be gathered.
-	  To disable this feature, add
-	  <command>root-key-sentinel no;</command> to
-	  <filename>named.conf</filename>.
-	</para>
-      </listitem>
-      <listitem>
-	<para>
 	  Added support for forwarding queries to Cisco
 	  Umbrella servers, when built with
 	  <command>configure --enable-umbrella</command>. [GL #229]
-	</para>
-      </listitem>
-      <listitem>
-	<para>
-	  Added the ability not to return a DNS COOKIE option when one
-	  is present in the request.  To prevent a cookie being returned,
-	  add <command>answer-cookie no;</command> to
-	  <filename>named.conf</filename>. [GL #173]
-	</para>
-	<para>
-	  <command>answer-cookie no</command> is only intended as a
-	  temporary measure, for use when <command>named</command>
-	  shares an IP address with other servers that do not yet
-	  support DNS COOKIE.  A mismatch between servers on the
-	  same address is not expected to cause operational problems,
-	  but the option to disable COOKIE responses so that all
-	  servers have the same behavior is provided out of an
-	  abundance of caution. DNS COOKIE is an important security
-	  mechanism, and should not be disabled unless absolutely
-	  necessary.
 	</para>
       </listitem>
       <listitem>
@@ -137,19 +106,19 @@
       </listitem>
       <listitem>
 	<para>
-	  Two new update policy rule types have been added
-	  <command>krb5-selfsub</command> and <command>ms-selfsub</command>
-	  which allow machines with Kerberos principals to update
-	  the name space at or below the machine names identified
-	  in the respective principals.
-	</para>
-      </listitem>
-      <listitem>
-	<para>
 	  The <command>validate-except</command> option specifies a list of
 	  domains beneath which DNSSEC validation should not be performed,
 	  regardless of whether a trust anchor has been configured above
 	  them. [GL #237]
+	</para>
+      </listitem>
+      <listitem>
+	<para>
+	  Two new update policy rule types have been added,
+	  <command>krb5-selfsub</command> and <command>ms-selfsub</command>,
+	  which allow machines with Kerberos principals to update
+	  the name space at or below the machine names identified
+	  in the respective principals.
 	</para>
       </listitem>
     </itemizedlist>

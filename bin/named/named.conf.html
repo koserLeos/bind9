@@ -199,6 +199,7 @@ options {<br>
 	    ] [ dscp <em class="replaceable"><code>integer</code></em> ];<br>
 	alt-transfer-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [ port ( <em class="replaceable"><code>integer</code></em> |<br>
 	    * ) ] [ dscp <em class="replaceable"><code>integer</code></em> ];<br>
+	answer-cookie <em class="replaceable"><code>boolean</code></em>;<br>
 	attach-cache <em class="replaceable"><code>string</code></em>;<br>
 	auth-nxdomain <em class="replaceable"><code>boolean</code></em>; // default changed<br>
 	auto-dnssec ( allow | maintain | off );<br>
@@ -230,9 +231,9 @@ options {<br>
 	coresize ( default | unlimited | <em class="replaceable"><code>sizeval</code></em> );<br>
 	datasize ( default | unlimited | <em class="replaceable"><code>sizeval</code></em> );<br>
 	deny-answer-addresses { <em class="replaceable"><code>address_match_element</code></em>; ... } [<br>
-	    except-from { <em class="replaceable"><code>quoted_string</code></em>; ... } ];<br>
-	deny-answer-aliases { <em class="replaceable"><code>quoted_string</code></em>; ... } [ except-from {<br>
-	    <em class="replaceable"><code>quoted_string</code></em>; ... } ];<br>
+	    except-from { <em class="replaceable"><code>string</code></em>; ... } ];<br>
+	deny-answer-aliases { <em class="replaceable"><code>string</code></em>; ... } [ except-from { <em class="replaceable"><code>string</code></em>; ...<br>
+	    } ];<br>
 	dialup ( notify | notify-passive | passive | refresh | <em class="replaceable"><code>boolean</code></em> );<br>
 	directory <em class="replaceable"><code>quoted_string</code></em>;<br>
 	disable-algorithms <em class="replaceable"><code>string</code></em> { <em class="replaceable"><code>string</code></em>;<br>
@@ -250,6 +251,7 @@ options {<br>
 	};<br>
 	dns64-contact <em class="replaceable"><code>string</code></em>;<br>
 	dns64-server <em class="replaceable"><code>string</code></em>;<br>
+	dnskey-sig-validity <em class="replaceable"><code>integer</code></em>;<br>
 	dnssec-accept-expired <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-dnskey-kskonly <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-enable <em class="replaceable"><code>boolean</code></em>;<br>
@@ -419,7 +421,8 @@ options {<br>
 	    min-update-interval <em class="replaceable"><code>integer</code></em> ] [ min-ns-dots <em class="replaceable"><code>integer</code></em> ] [<br>
 	    nsip-wait-recurse <em class="replaceable"><code>boolean</code></em> ] [ qname-wait-recurse <em class="replaceable"><code>boolean</code></em> ]<br>
 	    [ recursive-only <em class="replaceable"><code>boolean</code></em> ];<br>
-	root-delegation-only [ exclude { <em class="replaceable"><code>quoted_string</code></em>; ... } ];<br>
+	root-delegation-only [ exclude { <em class="replaceable"><code>string</code></em>; ... } ];<br>
+	root-key-sentinel <em class="replaceable"><code>boolean</code></em>;<br>
 	rrset-order { [ class <em class="replaceable"><code>string</code></em> ] [ type <em class="replaceable"><code>string</code></em> ] [ name<br>
 	    <em class="replaceable"><code>quoted_string</code></em> ] <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>string</code></em>; ... };<br>
 	secroots-file <em class="replaceable"><code>quoted_string</code></em>;<br>
@@ -462,11 +465,15 @@ options {<br>
 	transfers-per-ns <em class="replaceable"><code>integer</code></em>;<br>
 	trust-anchor-telemetry <em class="replaceable"><code>boolean</code></em>; // experimental<br>
 	try-tcp-refresh <em class="replaceable"><code>boolean</code></em>;<br>
+	umbrella-device <em class="replaceable"><code>hexuint64</code></em>;<br>
+	umbrella-organization <em class="replaceable"><code>integer</code></em>;<br>
+	umbrella-virtual-appliance <em class="replaceable"><code>integer</code></em>;<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 	use-alt-transfer-source <em class="replaceable"><code>boolean</code></em>;<br>
 	use-v4-udp-ports { <em class="replaceable"><code>portrange</code></em>; ... };<br>
 	use-v6-udp-ports { <em class="replaceable"><code>portrange</code></em>; ... };<br>
 	v6-bias <em class="replaceable"><code>integer</code></em>;<br>
+	validate-except { <em class="replaceable"><code>string</code></em>; ... };<br>
 	version ( <em class="replaceable"><code>quoted_string</code></em> | none );<br>
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl-cache <em class="replaceable"><code>boolean</code></em>;<br>
@@ -503,6 +510,7 @@ server <em class="replaceable"><code>netprefix</code></em> {<br>
 	request-ixfr <em class="replaceable"><code>boolean</code></em>;<br>
 	request-nsid <em class="replaceable"><code>boolean</code></em>;<br>
 	send-cookie <em class="replaceable"><code>boolean</code></em>;<br>
+	send-umbrella <em class="replaceable"><code>boolean</code></em>;<br>
 	tcp-keepalive <em class="replaceable"><code>boolean</code></em>;<br>
 	tcp-only <em class="replaceable"><code>boolean</code></em>;<br>
 	tcp-only <em class="replaceable"><code>boolean</code></em>;<br>
@@ -587,9 +595,9 @@ view <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 	cleaning-interval <em class="replaceable"><code>integer</code></em>;<br>
 	clients-per-query <em class="replaceable"><code>integer</code></em>;<br>
 	deny-answer-addresses { <em class="replaceable"><code>address_match_element</code></em>; ... } [<br>
-	    except-from { <em class="replaceable"><code>quoted_string</code></em>; ... } ];<br>
-	deny-answer-aliases { <em class="replaceable"><code>quoted_string</code></em>; ... } [ except-from {<br>
-	    <em class="replaceable"><code>quoted_string</code></em>; ... } ];<br>
+	    except-from { <em class="replaceable"><code>string</code></em>; ... } ];<br>
+	deny-answer-aliases { <em class="replaceable"><code>string</code></em>; ... } [ except-from { <em class="replaceable"><code>string</code></em>; ...<br>
+	    } ];<br>
 	dialup ( notify | notify-passive | passive | refresh | <em class="replaceable"><code>boolean</code></em> );<br>
 	disable-algorithms <em class="replaceable"><code>string</code></em> { <em class="replaceable"><code>string</code></em>;<br>
 	    ... };<br>
@@ -610,6 +618,7 @@ view <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 	};<br>
 	dns64-contact <em class="replaceable"><code>string</code></em>;<br>
 	dns64-server <em class="replaceable"><code>string</code></em>;<br>
+	dnskey-sig-validity <em class="replaceable"><code>integer</code></em>;<br>
 	dnssec-accept-expired <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-dnskey-kskonly <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-enable <em class="replaceable"><code>boolean</code></em>;<br>
@@ -748,7 +757,8 @@ view <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 	    min-update-interval <em class="replaceable"><code>integer</code></em> ] [ min-ns-dots <em class="replaceable"><code>integer</code></em> ] [<br>
 	    nsip-wait-recurse <em class="replaceable"><code>boolean</code></em> ] [ qname-wait-recurse <em class="replaceable"><code>boolean</code></em> ]<br>
 	    [ recursive-only <em class="replaceable"><code>boolean</code></em> ];<br>
-	root-delegation-only [ exclude { <em class="replaceable"><code>quoted_string</code></em>; ... } ];<br>
+	root-delegation-only [ exclude { <em class="replaceable"><code>string</code></em>; ... } ];<br>
+	root-key-sentinel <em class="replaceable"><code>boolean</code></em>;<br>
 	rrset-order { [ class <em class="replaceable"><code>string</code></em> ] [ type <em class="replaceable"><code>string</code></em> ] [ name<br>
 	    <em class="replaceable"><code>quoted_string</code></em> ] <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>string</code></em>; ... };<br>
 	send-cookie <em class="replaceable"><code>boolean</code></em>;<br>
@@ -779,6 +789,7 @@ view <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 		request-ixfr <em class="replaceable"><code>boolean</code></em>;<br>
 		request-nsid <em class="replaceable"><code>boolean</code></em>;<br>
 		send-cookie <em class="replaceable"><code>boolean</code></em>;<br>
+		send-umbrella <em class="replaceable"><code>boolean</code></em>;<br>
 		tcp-keepalive <em class="replaceable"><code>boolean</code></em>;<br>
 		tcp-only <em class="replaceable"><code>boolean</code></em>;<br>
 		tcp-only <em class="replaceable"><code>boolean</code></em>;<br>
@@ -807,9 +818,13 @@ view <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 	    <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>integer</code></em> <em class="replaceable"><code>quoted_string</code></em>;<br>
 	    ... };<br>
 	try-tcp-refresh <em class="replaceable"><code>boolean</code></em>;<br>
+	umbrella-device <em class="replaceable"><code>hexuint64</code></em>;<br>
+	umbrella-organization <em class="replaceable"><code>integer</code></em>;<br>
+	umbrella-virtual-appliance <em class="replaceable"><code>integer</code></em>;<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 	use-alt-transfer-source <em class="replaceable"><code>boolean</code></em>;<br>
 	v6-bias <em class="replaceable"><code>integer</code></em>;<br>
+	validate-except { <em class="replaceable"><code>string</code></em>; ... };<br>
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl-cache <em class="replaceable"><code>boolean</code></em>;<br>
 	zone <em class="replaceable"><code>string</code></em> [ <em class="replaceable"><code>class</code></em> ] {<br>
@@ -842,6 +857,7 @@ view <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 		dialup ( notify | notify-passive | passive | refresh |<br>
 		    <em class="replaceable"><code>boolean</code></em> );<br>
 		dlz <em class="replaceable"><code>string</code></em>;<br>
+		dnskey-sig-validity <em class="replaceable"><code>integer</code></em>;<br>
 		dnssec-dnskey-kskonly <em class="replaceable"><code>boolean</code></em>;<br>
 		dnssec-loadkeys-interval <em class="replaceable"><code>integer</code></em>;<br>
 		dnssec-secure-to-insecure <em class="replaceable"><code>boolean</code></em>;<br>
@@ -889,7 +905,7 @@ view <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 		serial-update-method ( date | increment | unixtime );<br>
 		server-addresses { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> ) [<br>
 		    port <em class="replaceable"><code>integer</code></em> ]; ... };<br>
-		server-names { <em class="replaceable"><code>quoted_string</code></em>; ... };<br>
+		server-names { <em class="replaceable"><code>string</code></em>; ... };<br>
 		sig-signing-nodes <em class="replaceable"><code>integer</code></em>;<br>
 		sig-signing-signatures <em class="replaceable"><code>integer</code></em>;<br>
 		sig-signing-type <em class="replaceable"><code>integer</code></em>;<br>
@@ -903,10 +919,10 @@ view <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 		    | slave | static-stub | stub );<br>
 		update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 		update-policy ( local | { ( deny | grant ) <em class="replaceable"><code>string</code></em> (<br>
-		    6to4-self | external | krb5-self | krb5-subdomain |<br>
-		    ms-self | ms-subdomain | name | self | selfsub |<br>
-		    selfwild | subdomain | tcp-self | wildcard | zonesub )<br>
-		    [ <em class="replaceable"><code>string</code></em> ] <em class="replaceable"><code>rrtypelist</code></em>; ... };<br>
+		    6to4-self | external | krb5-self | krb5-selfsub |<br>
+		    krb5-subdomain | ms-self | ms-selfsub | ms-subdomain |<br>
+		    name | self | selfsub | selfwild | subdomain | tcp-self<br>
+		    | wildcard | zonesub ) [ <em class="replaceable"><code>string</code></em> ] <em class="replaceable"><code>rrtypelist</code></em>; ... };<br>
 		use-alt-transfer-source <em class="replaceable"><code>boolean</code></em>;<br>
 		zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 		zone-statistics ( full | terse | none | <em class="replaceable"><code>boolean</code></em> );<br>
@@ -948,6 +964,7 @@ zone <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 	delegation-only <em class="replaceable"><code>boolean</code></em>;<br>
 	dialup ( notify | notify-passive | passive | refresh | <em class="replaceable"><code>boolean</code></em> );<br>
 	dlz <em class="replaceable"><code>string</code></em>;<br>
+	dnskey-sig-validity <em class="replaceable"><code>integer</code></em>;<br>
 	dnssec-dnskey-kskonly <em class="replaceable"><code>boolean</code></em>;<br>
 	dnssec-loadkeys-interval <em class="replaceable"><code>integer</code></em>;<br>
 	dnssec-secure-to-insecure <em class="replaceable"><code>boolean</code></em>;<br>
@@ -991,7 +1008,7 @@ zone <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 	serial-update-method ( date | increment | unixtime );<br>
 	server-addresses { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> ) [ port<br>
 	    <em class="replaceable"><code>integer</code></em> ]; ... };<br>
-	server-names { <em class="replaceable"><code>quoted_string</code></em>; ... };<br>
+	server-names { <em class="replaceable"><code>string</code></em>; ... };<br>
 	sig-signing-nodes <em class="replaceable"><code>integer</code></em>;<br>
 	sig-signing-signatures <em class="replaceable"><code>integer</code></em>;<br>
 	sig-signing-type <em class="replaceable"><code>integer</code></em>;<br>
@@ -1005,9 +1022,10 @@ zone <em class="replaceable"><code>string</code></em> [ <em class="replaceable">
 	    | static-stub | stub );<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
 	update-policy ( local | { ( deny | grant ) <em class="replaceable"><code>string</code></em> ( 6to4-self |<br>
-	    external | krb5-self | krb5-subdomain | ms-self | ms-subdomain<br>
-	    | name | self | selfsub | selfwild | subdomain | tcp-self |<br>
-	    wildcard | zonesub ) [ <em class="replaceable"><code>string</code></em> ] <em class="replaceable"><code>rrtypelist</code></em>; ... };<br>
+	    external | krb5-self | krb5-selfsub | krb5-subdomain | ms-self<br>
+	    | ms-selfsub | ms-subdomain | name | self | selfsub | selfwild<br>
+	    | subdomain | tcp-self | wildcard | zonesub ) [ <em class="replaceable"><code>string</code></em> ]<br>
+	    <em class="replaceable"><code>rrtypelist</code></em>; ... };<br>
 	use-alt-transfer-source <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 	zone-statistics ( full | terse | none | <em class="replaceable"><code>boolean</code></em> );<br>
