@@ -10,12 +10,12 @@
 .\"     Title: named.conf
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 2018-05-30
+.\"      Date: 2018-08-09
 .\"    Manual: BIND9
 .\"    Source: ISC
 .\"  Language: English
 .\"
-.TH "NAMED\&.CONF" "5" "2018\-05\-30" "ISC" "BIND9"
+.TH "NAMED\&.CONF" "5" "2018\-08\-09" "ISC" "BIND9"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -222,6 +222,7 @@ options {
 	    ] [ dscp \fIinteger\fR ];
 	alt\-transfer\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR |
 	    * ) ] [ dscp \fIinteger\fR ];
+	answer\-cookie \fIboolean\fR;
 	attach\-cache \fIstring\fR;
 	auth\-nxdomain \fIboolean\fR; // default changed
 	auto\-dnssec ( allow | maintain | off );
@@ -253,9 +254,9 @@ options {
 	coresize ( default | unlimited | \fIsizeval\fR );
 	datasize ( default | unlimited | \fIsizeval\fR );
 	deny\-answer\-addresses { \fIaddress_match_element\fR; \&.\&.\&. } [
-	    except\-from { \fIquoted_string\fR; \&.\&.\&. } ];
-	deny\-answer\-aliases { \fIquoted_string\fR; \&.\&.\&. } [ except\-from {
-	    \fIquoted_string\fR; \&.\&.\&. } ];
+	    except\-from { \fIstring\fR; \&.\&.\&. } ];
+	deny\-answer\-aliases { \fIstring\fR; \&.\&.\&. } [ except\-from { \fIstring\fR; \&.\&.\&.
+	    } ];
 	dialup ( notify | notify\-passive | passive | refresh | \fIboolean\fR );
 	directory \fIquoted_string\fR;
 	disable\-algorithms \fIstring\fR { \fIstring\fR;
@@ -273,6 +274,7 @@ options {
 	};
 	dns64\-contact \fIstring\fR;
 	dns64\-server \fIstring\fR;
+	dnskey\-sig\-validity \fIinteger\fR;
 	dnssec\-accept\-expired \fIboolean\fR;
 	dnssec\-dnskey\-kskonly \fIboolean\fR;
 	dnssec\-enable \fIboolean\fR;
@@ -442,7 +444,8 @@ options {
 	    min\-update\-interval \fIinteger\fR ] [ min\-ns\-dots \fIinteger\fR ] [
 	    nsip\-wait\-recurse \fIboolean\fR ] [ qname\-wait\-recurse \fIboolean\fR ]
 	    [ recursive\-only \fIboolean\fR ];
-	root\-delegation\-only [ exclude { \fIquoted_string\fR; \&.\&.\&. } ];
+	root\-delegation\-only [ exclude { \fIstring\fR; \&.\&.\&. } ];
+	root\-key\-sentinel \fIboolean\fR;
 	rrset\-order { [ class \fIstring\fR ] [ type \fIstring\fR ] [ name
 	    \fIquoted_string\fR ] \fIstring\fR \fIstring\fR; \&.\&.\&. };
 	secroots\-file \fIquoted_string\fR;
@@ -485,11 +488,15 @@ options {
 	transfers\-per\-ns \fIinteger\fR;
 	trust\-anchor\-telemetry \fIboolean\fR; // experimental
 	try\-tcp\-refresh \fIboolean\fR;
+	umbrella\-device \fIhexuint64\fR;
+	umbrella\-organization \fIinteger\fR;
+	umbrella\-virtual\-appliance \fIinteger\fR;
 	update\-check\-ksk \fIboolean\fR;
 	use\-alt\-transfer\-source \fIboolean\fR;
 	use\-v4\-udp\-ports { \fIportrange\fR; \&.\&.\&. };
 	use\-v6\-udp\-ports { \fIportrange\fR; \&.\&.\&. };
 	v6\-bias \fIinteger\fR;
+	validate\-except { \fIstring\fR; \&.\&.\&. };
 	version ( \fIquoted_string\fR | none );
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zero\-no\-soa\-ttl\-cache \fIboolean\fR;
@@ -529,6 +536,7 @@ server \fInetprefix\fR {
 	request\-ixfr \fIboolean\fR;
 	request\-nsid \fIboolean\fR;
 	send\-cookie \fIboolean\fR;
+	send\-umbrella \fIboolean\fR;
 	tcp\-keepalive \fIboolean\fR;
 	tcp\-only \fIboolean\fR;
 	tcp\-only \fIboolean\fR;
@@ -622,9 +630,9 @@ view \fIstring\fR [ \fIclass\fR ] {
 	cleaning\-interval \fIinteger\fR;
 	clients\-per\-query \fIinteger\fR;
 	deny\-answer\-addresses { \fIaddress_match_element\fR; \&.\&.\&. } [
-	    except\-from { \fIquoted_string\fR; \&.\&.\&. } ];
-	deny\-answer\-aliases { \fIquoted_string\fR; \&.\&.\&. } [ except\-from {
-	    \fIquoted_string\fR; \&.\&.\&. } ];
+	    except\-from { \fIstring\fR; \&.\&.\&. } ];
+	deny\-answer\-aliases { \fIstring\fR; \&.\&.\&. } [ except\-from { \fIstring\fR; \&.\&.\&.
+	    } ];
 	dialup ( notify | notify\-passive | passive | refresh | \fIboolean\fR );
 	disable\-algorithms \fIstring\fR { \fIstring\fR;
 	    \&.\&.\&. };
@@ -645,6 +653,7 @@ view \fIstring\fR [ \fIclass\fR ] {
 	};
 	dns64\-contact \fIstring\fR;
 	dns64\-server \fIstring\fR;
+	dnskey\-sig\-validity \fIinteger\fR;
 	dnssec\-accept\-expired \fIboolean\fR;
 	dnssec\-dnskey\-kskonly \fIboolean\fR;
 	dnssec\-enable \fIboolean\fR;
@@ -783,7 +792,8 @@ view \fIstring\fR [ \fIclass\fR ] {
 	    min\-update\-interval \fIinteger\fR ] [ min\-ns\-dots \fIinteger\fR ] [
 	    nsip\-wait\-recurse \fIboolean\fR ] [ qname\-wait\-recurse \fIboolean\fR ]
 	    [ recursive\-only \fIboolean\fR ];
-	root\-delegation\-only [ exclude { \fIquoted_string\fR; \&.\&.\&. } ];
+	root\-delegation\-only [ exclude { \fIstring\fR; \&.\&.\&. } ];
+	root\-key\-sentinel \fIboolean\fR;
 	rrset\-order { [ class \fIstring\fR ] [ type \fIstring\fR ] [ name
 	    \fIquoted_string\fR ] \fIstring\fR \fIstring\fR; \&.\&.\&. };
 	send\-cookie \fIboolean\fR;
@@ -814,6 +824,7 @@ view \fIstring\fR [ \fIclass\fR ] {
 		request\-ixfr \fIboolean\fR;
 		request\-nsid \fIboolean\fR;
 		send\-cookie \fIboolean\fR;
+		send\-umbrella \fIboolean\fR;
 		tcp\-keepalive \fIboolean\fR;
 		tcp\-only \fIboolean\fR;
 		tcp\-only \fIboolean\fR;
@@ -842,9 +853,13 @@ view \fIstring\fR [ \fIclass\fR ] {
 	    \fIinteger\fR \fIinteger\fR \fIquoted_string\fR;
 	    \&.\&.\&. };
 	try\-tcp\-refresh \fIboolean\fR;
+	umbrella\-device \fIhexuint64\fR;
+	umbrella\-organization \fIinteger\fR;
+	umbrella\-virtual\-appliance \fIinteger\fR;
 	update\-check\-ksk \fIboolean\fR;
 	use\-alt\-transfer\-source \fIboolean\fR;
 	v6\-bias \fIinteger\fR;
+	validate\-except { \fIstring\fR; \&.\&.\&. };
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zero\-no\-soa\-ttl\-cache \fIboolean\fR;
 	zone \fIstring\fR [ \fIclass\fR ] {
@@ -877,6 +892,7 @@ view \fIstring\fR [ \fIclass\fR ] {
 		dialup ( notify | notify\-passive | passive | refresh |
 		    \fIboolean\fR );
 		dlz \fIstring\fR;
+		dnskey\-sig\-validity \fIinteger\fR;
 		dnssec\-dnskey\-kskonly \fIboolean\fR;
 		dnssec\-loadkeys\-interval \fIinteger\fR;
 		dnssec\-secure\-to\-insecure \fIboolean\fR;
@@ -924,7 +940,7 @@ view \fIstring\fR [ \fIclass\fR ] {
 		serial\-update\-method ( date | increment | unixtime );
 		server\-addresses { ( \fIipv4_address\fR | \fIipv6_address\fR ) [
 		    port \fIinteger\fR ]; \&.\&.\&. };
-		server\-names { \fIquoted_string\fR; \&.\&.\&. };
+		server\-names { \fIstring\fR; \&.\&.\&. };
 		sig\-signing\-nodes \fIinteger\fR;
 		sig\-signing\-signatures \fIinteger\fR;
 		sig\-signing\-type \fIinteger\fR;
@@ -938,10 +954,10 @@ view \fIstring\fR [ \fIclass\fR ] {
 		    | slave | static\-stub | stub );
 		update\-check\-ksk \fIboolean\fR;
 		update\-policy ( local | { ( deny | grant ) \fIstring\fR (
-		    6to4\-self | external | krb5\-self | krb5\-subdomain |
-		    ms\-self | ms\-subdomain | name | self | selfsub |
-		    selfwild | subdomain | tcp\-self | wildcard | zonesub )
-		    [ \fIstring\fR ] \fIrrtypelist\fR; \&.\&.\&. };
+		    6to4\-self | external | krb5\-self | krb5\-selfsub |
+		    krb5\-subdomain | ms\-self | ms\-selfsub | ms\-subdomain |
+		    name | self | selfsub | selfwild | subdomain | tcp\-self
+		    | wildcard | zonesub ) [ \fIstring\fR ] \fIrrtypelist\fR; \&.\&.\&. };
 		use\-alt\-transfer\-source \fIboolean\fR;
 		zero\-no\-soa\-ttl \fIboolean\fR;
 		zone\-statistics ( full | terse | none | \fIboolean\fR );
@@ -986,6 +1002,7 @@ zone \fIstring\fR [ \fIclass\fR ] {
 	delegation\-only \fIboolean\fR;
 	dialup ( notify | notify\-passive | passive | refresh | \fIboolean\fR );
 	dlz \fIstring\fR;
+	dnskey\-sig\-validity \fIinteger\fR;
 	dnssec\-dnskey\-kskonly \fIboolean\fR;
 	dnssec\-loadkeys\-interval \fIinteger\fR;
 	dnssec\-secure\-to\-insecure \fIboolean\fR;
@@ -1029,7 +1046,7 @@ zone \fIstring\fR [ \fIclass\fR ] {
 	serial\-update\-method ( date | increment | unixtime );
 	server\-addresses { ( \fIipv4_address\fR | \fIipv6_address\fR ) [ port
 	    \fIinteger\fR ]; \&.\&.\&. };
-	server\-names { \fIquoted_string\fR; \&.\&.\&. };
+	server\-names { \fIstring\fR; \&.\&.\&. };
 	sig\-signing\-nodes \fIinteger\fR;
 	sig\-signing\-signatures \fIinteger\fR;
 	sig\-signing\-type \fIinteger\fR;
@@ -1043,9 +1060,10 @@ zone \fIstring\fR [ \fIclass\fR ] {
 	    | static\-stub | stub );
 	update\-check\-ksk \fIboolean\fR;
 	update\-policy ( local | { ( deny | grant ) \fIstring\fR ( 6to4\-self |
-	    external | krb5\-self | krb5\-subdomain | ms\-self | ms\-subdomain
-	    | name | self | selfsub | selfwild | subdomain | tcp\-self |
-	    wildcard | zonesub ) [ \fIstring\fR ] \fIrrtypelist\fR; \&.\&.\&. };
+	    external | krb5\-self | krb5\-selfsub | krb5\-subdomain | ms\-self
+	    | ms\-selfsub | ms\-subdomain | name | self | selfsub | selfwild
+	    | subdomain | tcp\-self | wildcard | zonesub ) [ \fIstring\fR ]
+	    \fIrrtypelist\fR; \&.\&.\&. };
 	use\-alt\-transfer\-source \fIboolean\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zone\-statistics ( full | terse | none | \fIboolean\fR );

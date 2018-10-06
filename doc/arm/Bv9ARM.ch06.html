@@ -2473,6 +2473,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	    ] [ dscp <em class="replaceable"><code>integer</code></em> ];
 	<span class="command"><strong>alt-transfer-source-v6</strong></span> ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [ port ( <em class="replaceable"><code>integer</code></em> |
 	    * ) ] [ dscp <em class="replaceable"><code>integer</code></em> ];
+	<span class="command"><strong>answer-cookie</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>attach-cache</strong></span> <em class="replaceable"><code>string</code></em>;
 	<span class="command"><strong>auth-nxdomain</strong></span> <em class="replaceable"><code>boolean</code></em>; // default changed
 	<span class="command"><strong>auto-dnssec</strong></span> ( allow | maintain | off );
@@ -2504,9 +2505,9 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<span class="command"><strong>coresize</strong></span> ( default | unlimited | <em class="replaceable"><code>sizeval</code></em> );
 	<span class="command"><strong>datasize</strong></span> ( default | unlimited | <em class="replaceable"><code>sizeval</code></em> );
 	<span class="command"><strong>deny-answer-addresses</strong></span> { <em class="replaceable"><code>address_match_element</code></em>; ... } [
-	    <span class="command"><strong>except-from</strong></span> { <em class="replaceable"><code>quoted_string</code></em>; ... } ];
-	<span class="command"><strong>deny-answer-aliases</strong></span> { <em class="replaceable"><code>quoted_string</code></em>; ... } [ except-from {
-	    <em class="replaceable"><code>quoted_string</code></em>; ... } ];
+	    <span class="command"><strong>except-from</strong></span> { <em class="replaceable"><code>string</code></em>; ... } ];
+	<span class="command"><strong>deny-answer-aliases</strong></span> { <em class="replaceable"><code>string</code></em>; ... } [ except-from { <em class="replaceable"><code>string</code></em>; ...
+	    } ];
 	<span class="command"><strong>dialup</strong></span> ( notify | notify-passive | passive | refresh | <em class="replaceable"><code>boolean</code></em> );
 	<span class="command"><strong>directory</strong></span> <em class="replaceable"><code>quoted_string</code></em>;
 	<span class="command"><strong>disable-algorithms</strong></span> <em class="replaceable"><code>string</code></em> { <em class="replaceable"><code>string</code></em>;
@@ -2524,6 +2525,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	};
 	<span class="command"><strong>dns64-contact</strong></span> <em class="replaceable"><code>string</code></em>;
 	<span class="command"><strong>dns64-server</strong></span> <em class="replaceable"><code>string</code></em>;
+	<span class="command"><strong>dnskey-sig-validity</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>dnssec-accept-expired</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>dnssec-dnskey-kskonly</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>dnssec-enable</strong></span> <em class="replaceable"><code>boolean</code></em>;
@@ -2693,7 +2695,8 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	    <span class="command"><strong>min-update-interval</strong></span> <em class="replaceable"><code>integer</code></em> ] [ min-ns-dots <em class="replaceable"><code>integer</code></em> ] [
 	    <span class="command"><strong>nsip-wait-recurse</strong></span> <em class="replaceable"><code>boolean</code></em> ] [ qname-wait-recurse <em class="replaceable"><code>boolean</code></em> ]
 	    [ recursive-only <em class="replaceable"><code>boolean</code></em> ];
-	<span class="command"><strong>root-delegation-only</strong></span> [ exclude { <em class="replaceable"><code>quoted_string</code></em>; ... } ];
+	<span class="command"><strong>root-delegation-only</strong></span> [ exclude { <em class="replaceable"><code>string</code></em>; ... } ];
+	<span class="command"><strong>root-key-sentinel</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>rrset-order</strong></span> { [ class <em class="replaceable"><code>string</code></em> ] [ type <em class="replaceable"><code>string</code></em> ] [ name
 	    <em class="replaceable"><code>quoted_string</code></em> ] <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>string</code></em>; ... };
 	<span class="command"><strong>secroots-file</strong></span> <em class="replaceable"><code>quoted_string</code></em>;
@@ -2736,11 +2739,15 @@ badresp:1,adberr:0,findfail:0,valfail:0]
 	<span class="command"><strong>transfers-per-ns</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>trust-anchor-telemetry</strong></span> <em class="replaceable"><code>boolean</code></em>; // experimental
 	<span class="command"><strong>try-tcp-refresh</strong></span> <em class="replaceable"><code>boolean</code></em>;
+	<span class="command"><strong>umbrella-device</strong></span> <em class="replaceable"><code>hexuint64</code></em>;
+	<span class="command"><strong>umbrella-organization</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>umbrella-virtual-appliance</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>update-check-ksk</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>use-alt-transfer-source</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>use-v4-udp-ports</strong></span> { <em class="replaceable"><code>portrange</code></em>; ... };
 	<span class="command"><strong>use-v6-udp-ports</strong></span> { <em class="replaceable"><code>portrange</code></em>; ... };
 	<span class="command"><strong>v6-bias</strong></span> <em class="replaceable"><code>integer</code></em>;
+	<span class="command"><strong>validate-except</strong></span> { <em class="replaceable"><code>string</code></em>; ... };
 	<span class="command"><strong>version</strong></span> ( <em class="replaceable"><code>quoted_string</code></em> | none );
 	<span class="command"><strong>zero-no-soa-ttl</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>zero-no-soa-ttl-cache</strong></span> <em class="replaceable"><code>boolean</code></em>;
@@ -4948,6 +4955,21 @@ options {
                     <span class="command"><strong>dnssec-validation</strong></span> is off.
                   </p>
                 </div>
+              </dd>
+<dt><span class="term"><span class="command"><strong>validate-except</strong></span></span></dt>
+<dd>
+                <p>
+                  Specifies a list of domain names at and beneath which DNSSEC
+                  validation should <span class="emphasis"><em>not</em></span> be performed,
+                  regardless of the presence of a trust anchor at or above
+                  those names.  This may be used, for example, when configuring
+                  a top-level domain intended only for local use, so that the
+                  lack of a secure delegation for that domain in the root zone
+                  will not cause validation failures.  (This is similar
+                  to setting a negative trust anchor, except that it is a
+                  permanent configuration, whereas negative trust anchors
+                  expire and are removed after a set period of time.)
+                </p>
               </dd>
 <dt><span class="term"><span class="command"><strong>dnssec-accept-expired</strong></span></span></dt>
 <dd>
@@ -9086,6 +9108,7 @@ rate-limit {
 	<span class="command"><strong>request-ixfr</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>request-nsid</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>send-cookie</strong></span> <em class="replaceable"><code>boolean</code></em>;
+	<span class="command"><strong>send-umbrella</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>tcp-keepalive</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>tcp-only</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>tcp-only</strong></span> <em class="replaceable"><code>boolean</code></em>;
@@ -9880,6 +9903,7 @@ view "external" {
 	<span class="command"><strong>database</strong></span> <em class="replaceable"><code>string</code></em>;
 	<span class="command"><strong>dialup</strong></span> ( notify | notify-passive | passive | refresh | <em class="replaceable"><code>boolean</code></em> );
 	<span class="command"><strong>dlz</strong></span> <em class="replaceable"><code>string</code></em>;
+	<span class="command"><strong>dnskey-sig-validity</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>dnssec-dnskey-kskonly</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>dnssec-loadkeys-interval</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>dnssec-secure-to-insecure</strong></span> <em class="replaceable"><code>boolean</code></em>;
@@ -9909,7 +9933,7 @@ view "external" {
 	<span class="command"><strong>sig-signing-type</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>sig-validity-interval</strong></span> <em class="replaceable"><code>integer</code></em> [ <em class="replaceable"><code>integer</code></em> ];
 	<span class="command"><strong>update-check-ksk</strong></span> <em class="replaceable"><code>boolean</code></em>;
-	<span class="command"><strong>update-policy</strong></span> ( local | { ( deny | grant ) <em class="replaceable"><code>string</code></em> ( 6to4-self | external | krb5-self | krb5-subdomain | ms-self | ms-subdomain | name | self | selfsub | selfwild | subdomain | tcp-self | wildcard | zonesub ) [ <em class="replaceable"><code>string</code></em> ] <em class="replaceable"><code>rrtypelist</code></em>; ... };
+	<span class="command"><strong>update-policy</strong></span> ( local | { ( deny | grant ) <em class="replaceable"><code>string</code></em> ( 6to4-self | external | krb5-self | krb5-selfsub | krb5-subdomain | ms-self | ms-selfsub | ms-subdomain | name | self | selfsub | selfwild | subdomain | tcp-self | wildcard | zonesub ) [ <em class="replaceable"><code>string</code></em> ] <em class="replaceable"><code>rrtypelist</code></em>; ... };
 	<span class="command"><strong>zero-no-soa-ttl</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>zone-statistics</strong></span> ( full | terse | none | <em class="replaceable"><code>boolean</code></em> );
 };
@@ -9930,6 +9954,7 @@ view "external" {
 	<span class="command"><strong>database</strong></span> <em class="replaceable"><code>string</code></em>;
 	<span class="command"><strong>dialup</strong></span> ( notify | notify-passive | passive | refresh | <em class="replaceable"><code>boolean</code></em> );
 	<span class="command"><strong>dlz</strong></span> <em class="replaceable"><code>string</code></em>;
+	<span class="command"><strong>dnskey-sig-validity</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>dnssec-dnskey-kskonly</strong></span> <em class="replaceable"><code>boolean</code></em>;
 	<span class="command"><strong>dnssec-loadkeys-interval</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>dnssec-update-mode</strong></span> ( maintain | no-resign );
@@ -10020,7 +10045,7 @@ view "external" {
 	<span class="command"><strong>forwarders</strong></span> [ port <em class="replaceable"><code>integer</code></em> ] [ dscp <em class="replaceable"><code>integer</code></em> ] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> ) [ port <em class="replaceable"><code>integer</code></em> ] [ dscp <em class="replaceable"><code>integer</code></em> ]; ... };
 	<span class="command"><strong>max-records</strong></span> <em class="replaceable"><code>integer</code></em>;
 	<span class="command"><strong>server-addresses</strong></span> { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> ) [ port <em class="replaceable"><code>integer</code></em> ]; ... };
-	<span class="command"><strong>server-names</strong></span> { <em class="replaceable"><code>quoted_string</code></em>; ... };
+	<span class="command"><strong>server-names</strong></span> { <em class="replaceable"><code>string</code></em>; ... };
 	<span class="command"><strong>zone-statistics</strong></span> ( full | terse | none | <em class="replaceable"><code>boolean</code></em> );
 };
 </pre>
@@ -11155,12 +11180,13 @@ example.com. NS ns2.example.net.
               the rules are checked for each existing record type.
             </p>
             <p>
-              The <em class="replaceable"><code>ruletype</code></em> field has 13
+              The <em class="replaceable"><code>ruletype</code></em> field has 16
               values:
               <code class="varname">name</code>, <code class="varname">subdomain</code>,
               <code class="varname">wildcard</code>, <code class="varname">self</code>,
               <code class="varname">selfsub</code>, <code class="varname">selfwild</code>,
               <code class="varname">krb5-self</code>, <code class="varname">ms-self</code>,
+              <code class="varname">krb5-selfsub</code>, <code class="varname">ms-selfsub</code>,
               <code class="varname">krb5-subdomain</code>,
               <code class="varname">ms-subdomain</code>,
               <code class="varname">tcp-self</code>, <code class="varname">6to4-self</code>,
@@ -11331,6 +11357,21 @@ example.com. NS ns2.example.net.
 <tr>
 <td>
                       <p>
+                        <code class="varname">ms-selfsub</code>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        This is similar to <span class="command"><strong>ms-self</strong></span>
+                        except it also allows updates to any subdomain of
+                        the name specified in the Windows machine
+                        principal, not just to the name itself.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p>
                         <code class="varname">ms-subdomain</code>
                       </p>
                     </td>
@@ -11398,6 +11439,21 @@ example.com. NS ns2.example.net.
                         allows any machine with a valid principal in
                         the realm <strong class="userinput"><code>EXAMPLE.COM</code></strong> to update
                         its own address records.
+                      </p>
+                    </td>
+</tr>
+<tr>
+<td>
+                      <p>
+                        <code class="varname">krb5-selfsub</code>
+                      </p>
+                    </td>
+<td>
+                      <p>
+                        This is similar to <span class="command"><strong>krb5-self</strong></span>
+                        except it also allows updates to any subdomain of
+                        the name specified in the 'machine' part of the
+                        Kerberos principal, not just to the name itself.
                       </p>
                     </td>
 </tr>
@@ -15362,6 +15418,6 @@ HOST-127.EXAMPLE. MX 0 .
 </tr>
 </table>
 </div>
-<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.11.4-S1 (Supported Preview Version)</p>
+<p xmlns:db="http://docbook.org/ns/docbook" style="text-align: center;">BIND 9.11.5-S1 (Supported Preview Version)</p>
 </body>
 </html>
