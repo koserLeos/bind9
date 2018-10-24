@@ -11281,7 +11281,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 	/* Add example.org./CNAME = example.com. for 1.2.0.0/16 with TTL=3600 */
 
 	dns_rdata_init(&rdata);
-	rdata_data = "\x07example\x03com\x00";
+	rdata_data = "\x07example\x03com\x00\0";
 	DE_CONST(rdata_data, rdata.data);
 	rdata.length = 13;
 	rdata.rdclass = dns_rdataclass_in;
@@ -11378,7 +11378,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 	result = dns_rdataset_first(&rdataset);
 	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
 
-	rdata_data = "\x07example\x03com\x00";
+	rdata_data = "\x07example\x03com\x00\0";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
