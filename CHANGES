@@ -9,6 +9,11 @@
 
 	--- 9.11.5-S1 released ---
 
+5056.	[security]	A merge error when backporting the serve-stale
+			feature could cause the resolver to send too
+			many queries; this could potentially have been
+			exploited in an amplification attack. [GL #611]
+
 5038.	[bug]		Chaosnet addresses were compared incorrectly.
 			[GL #562]
 
