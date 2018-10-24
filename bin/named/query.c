@@ -1513,34 +1513,6 @@ query_addadditional(void *arg, dns_name_t *name, dns_rdatatype_t qtype) {
 
 	dns_cache_updatestats(client->view->cache, result);
 
-	if ((client->query.dboptions & DNS_DBFIND_STALEOK) != 0) {
-		char namebuf[DNS_NAME_FORMATSIZE];
-		bool success;
-
-		client->query.dboptions &= ~DNS_DBFIND_STALEOK;
-		if (dns_rdataset_isassociated(rdataset) &&
-		    dns_rdataset_count(rdataset) > 0 &&
-		    STALE(rdataset))
-		{
-			rdataset->ttl = client->view->staleanswerttl;
-			success = true;
-		} else {
-			success = false;
-		}
-
-		dns_name_format(client->query.qname,
-				namebuf, sizeof(namebuf));
-		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_SERVE_STALE,
-			      NS_LOGMODULE_QUERY, ISC_LOG_INFO,
-			      "%s resolver failure, stale answer %s",
-			      namebuf, success ? "used" : "unavailable");
-
-		if (!success) {
-			eresult = DNS_R_SERVFAIL;
-			goto cleanup;
-		}
-	}
-
 	if (!WANTDNSSEC(client))
 		query_putrdataset(client, &sigrdataset);
 	if (result == ISC_R_SUCCESS)
@@ -7501,8 +7473,37 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			dns_rdataset_disassociate(sigrdataset);
 	}
 
-	if (!is_zone)
+	if (!is_zone) {
 		dns_cache_updatestats(client->view->cache, result);
+	}
+
+	if ((client->query.dboptions & DNS_DBFIND_STALEOK) != 0) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		bool success;
+
+		client->query.dboptions &= ~DNS_DBFIND_STALEOK;
+		if (dns_rdataset_isassociated(rdataset) &&
+		    dns_rdataset_count(rdataset) > 0 &&
+		    STALE(rdataset))
+		{
+			rdataset->ttl = client->view->staleanswerttl;
+			success = true;
+		} else {
+			success = false;
+		}
+
+		dns_name_format(client->query.qname,
+				namebuf, sizeof(namebuf));
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_SERVE_STALE,
+			      NS_LOGMODULE_QUERY, ISC_LOG_INFO,
+			      "%s resolver failure, stale answer %s",
+			      namebuf, success ? "used" : "unavailable");
+
+		if (!success) {
+			QUERY_ERROR(DNS_R_SERVFAIL);
+			goto cleanup;
+		}
+	}
 
  resume:
 	CTRACE(ISC_LOG_DEBUG(3), "query_find: resume");
