@@ -75,6 +75,14 @@
 	  in use. This flaw is disclosed in CVE-2018-5740. [GL #387]
 	</para>
       </listitem>
+      <listitem>
+	<para>
+	  A merge error when backporting the <command>serve-stale</command>
+	  feature could cause the resolver to send too many queries; this
+	  could potentially have been exploited in an amplification attack.
+	  [GL #611]
+	</para>
+      </listitem>
     </itemizedlist>
   </section>
 

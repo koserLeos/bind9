@@ -2,13 +2,14 @@ variables:
   DEBIAN_FRONTEND: noninteractive
   LC_ALL: C
   DOCKER_DRIVER: overlay2
-  CI_REGISTRY_IMAGE: oerdnj/bind9
+  CI_REGISTRY_IMAGE: registry.gitlab.isc.org/isc-projects/images/bind9
   CCACHE_DIR: "/ccache"
 
 stages:
   - precheck
   - build
   - test
+  - push
 
 .centos-centos6-amd64: &centos_centos6_amd64_image
   image: "$CI_REGISTRY_IMAGE:centos-centos6-amd64"
@@ -117,6 +118,8 @@ stages:
     - ./configure --enable-developer --enable-umbrella --with-libtool --disable-static --with-atf=/usr --with-libidn2 --prefix=$HOME/.local --without-make-clean "${EXTRA_CONFIGURE}" || cat config.log
     - make -j${PARALLEL_JOBS_BUILD:-1} -k all V=1
   artifacts:
+    paths:
+    - doc/
     expire_in: '1 hour'
     untracked: true
 
@@ -177,6 +180,29 @@ precheck:debian:sid:amd64:
     expire_in: '1 week'
     when: on_failure
 
+docs:debian:sid:amd64:
+  <<: *debian_sid_amd64_image
+  stage: test
+  dependencies:
+    - build:debian:sid:amd64
+  script:
+    - make -C doc/misc docbook
+    - make -C doc/arm Bv9ARM.html
+  artifacts:
+    paths:
+    - doc/arm/
+    expire_in: '1 month'
+
+push:docs:
+  <<: *debian_sid_amd64_image
+  stage: push
+  dependencies: []
+  script:
+    - curl -X POST -F token=$GITLAB_PAGES_DOCS_TRIGGER_TOKEN -F ref=master $GITLAB_PAGES_DOCS_TRIGGER_URL
+  only:
+    - master@isc-projects/bind9
+    - /^v9_.*$/@isc-projects/bind9
+
 #build:debian:jessie:amd64:
 #  <<: *debian_jessie_amd64_image
 #  <<: *build_job
@@ -217,10 +243,14 @@ build:centos:centos7:amd64:
   <<: *build_job
 
 build:debian:sid:amd64:
+  variables:
+    EXTRA_CONFIGURE: "--without-eddsa"
   <<: *debian_sid_amd64_image
   <<: *build_job
     
 build:debian:sid:i386:
+  variables:
+    EXTRA_CONFIGURE: "--without-eddsa"
   <<: *debian_sid_i386_image
   <<: *build_job
 
