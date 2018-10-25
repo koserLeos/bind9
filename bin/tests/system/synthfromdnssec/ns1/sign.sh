@@ -34,7 +34,7 @@ zone=.
 infile=root.db.in
 zonefile=root.db
 
-keyname=`$KEYGEN -q -a RSAMD5 -b 1024 -n zone $zone`
+keyname=`$KEYGEN -q -a ${DEFAULT_ALGORITHM} -b ${DEFAULT_BITS} -n zone $zone`
 
 cat $infile $keyname.key > $zonefile
 

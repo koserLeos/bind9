@@ -61,7 +61,7 @@ if [ -x ${DIG} ] ; then
   echo_i "checking dig +multi +norrcomments works for dnskey (when default is rrcomments)($n)"
   ret=0
   $DIG $DIGOPTS +tcp @10.53.0.3 +multi +norrcomments DNSKEY dnskey.example > dig.out.test$n || ret=1
-  grep "; ZSK; alg = RSAMD5 ; key id = 30795" < dig.out.test$n > /dev/null && ret=1
+  grep "; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795" < dig.out.test$n > /dev/null && ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -69,7 +69,7 @@ if [ -x ${DIG} ] ; then
   echo_i "checking dig +multi +norrcomments works for soa (when default is rrcomments)($n)"
   ret=0
   $DIG $DIGOPTS +tcp @10.53.0.3 +multi +norrcomments SOA example > dig.out.test$n || ret=1
-  grep "; ZSK; alg = RSAMD5 ; key id = 30795" < dig.out.test$n > /dev/null && ret=1
+  grep "; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795" < dig.out.test$n > /dev/null && ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -77,7 +77,7 @@ if [ -x ${DIG} ] ; then
   echo_i "checking dig +rrcomments works for DNSKEY($n)"
   ret=0
   $DIG $DIGOPTS +tcp @10.53.0.3 +rrcomments DNSKEY dnskey.example > dig.out.test$n || ret=1
-  grep "; ZSK; alg = RSAMD5 ; key id = 30795" < dig.out.test$n > /dev/null || ret=1
+  grep "; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795" < dig.out.test$n > /dev/null || ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -85,7 +85,7 @@ if [ -x ${DIG} ] ; then
   echo_i "checking dig +short +rrcomments works for DNSKEY ($n)"
   ret=0
   $DIG $DIGOPTS +tcp @10.53.0.3 +short +rrcomments DNSKEY dnskey.example > dig.out.test$n || ret=1
-  grep "; ZSK; alg = RSAMD5 ; key id = 30795" < dig.out.test$n > /dev/null || ret=1
+  grep "; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795" < dig.out.test$n > /dev/null || ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -101,7 +101,7 @@ if [ -x ${DIG} ] ; then
   echo_i "checking dig +short +rrcomments works($n)"
   ret=0
   $DIG $DIGOPTS +tcp @10.53.0.3 +short +rrcomments DNSKEY dnskey.example > dig.out.test$n || ret=1
-  grep "S8M=  ; ZSK; alg = RSAMD5 ; key id = 30795$" < dig.out.test$n > /dev/null || ret=1
+  grep "S8M=  ; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795$" < dig.out.test$n > /dev/null || ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -135,7 +135,7 @@ if [ -x ${DIG} ] ; then
   echo_i "checking dig +short +rrcomments works($n)"
   ret=0
   $DIG $DIGOPTS +tcp @10.53.0.3 +short +rrcomments DNSKEY dnskey.example > dig.out.test$n || ret=1
-  grep "S8M=  ; ZSK; alg = RSAMD5 ; key id = 30795$" < dig.out.test$n > /dev/null || ret=1
+  grep "S8M=  ; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795$" < dig.out.test$n > /dev/null || ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -613,7 +613,7 @@ if [ -x ${DELV} ] ; then
   echo_i "checking delv +multi +norrcomments works for dnskey (when default is rrcomments)($n)"
   ret=0
   $DELV $DELVOPTS +tcp @10.53.0.3 +multi +norrcomments DNSKEY dnskey.example > delv.out.test$n || ret=1
-  grep "; ZSK; alg = RSAMD5 ; key id = 30795" < delv.out.test$n > /dev/null && ret=1
+  grep "; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795" < delv.out.test$n > /dev/null && ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -621,7 +621,7 @@ if [ -x ${DELV} ] ; then
   echo_i "checking delv +multi +norrcomments works for soa (when default is rrcomments)($n)"
   ret=0
   $DELV $DELVOPTS +tcp @10.53.0.3 +multi +norrcomments SOA example > delv.out.test$n || ret=1
-  grep "; ZSK; alg = RSAMD5 ; key id = 30795" < delv.out.test$n > /dev/null && ret=1
+  grep "; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795" < delv.out.test$n > /dev/null && ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -629,7 +629,7 @@ if [ -x ${DELV} ] ; then
   echo_i "checking delv +rrcomments works for DNSKEY($n)"
   ret=0
   $DELV $DELVOPTS +tcp @10.53.0.3 +rrcomments DNSKEY dnskey.example > delv.out.test$n || ret=1
-  grep "; ZSK; alg = RSAMD5 ; key id = 30795" < delv.out.test$n > /dev/null || ret=1
+  grep "; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795" < delv.out.test$n > /dev/null || ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -637,7 +637,7 @@ if [ -x ${DELV} ] ; then
   echo_i "checking delv +short +rrcomments works for DNSKEY ($n)"
   ret=0
   $DELV $DELVOPTS +tcp @10.53.0.3 +short +rrcomments DNSKEY dnskey.example > delv.out.test$n || ret=1
-  grep "; ZSK; alg = RSAMD5 ; key id = 30795" < delv.out.test$n > /dev/null || ret=1
+  grep "; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795" < delv.out.test$n > /dev/null || ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
@@ -645,7 +645,7 @@ if [ -x ${DELV} ] ; then
   echo_i "checking delv +short +rrcomments works ($n)"
   ret=0
   $DELV $DELVOPTS +tcp @10.53.0.3 +short +rrcomments DNSKEY dnskey.example > delv.out.test$n || ret=1
-  grep "S8M=  ; ZSK; alg = RSAMD5 ; key id = 30795$" < delv.out.test$n > /dev/null || ret=1
+  grep "S8M=  ; ZSK; alg = ${DEFAULT_ALGORITHM} ; key id = 30795$" < delv.out.test$n > /dev/null || ret=1
   if [ $ret != 0 ]; then echo_i "failed"; fi
   status=`expr $status + $ret`
 
