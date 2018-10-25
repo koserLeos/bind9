@@ -171,7 +171,7 @@ check_text_ok_single(const text_ok_t *text_ok, dns_rdataclass_t rdclass,
 	 */
 	result = dns_test_rdatafromstring(&rdata, rdclass, type, buf_fromtext,
 					  sizeof(buf_fromtext),
-					  text_ok->text_in);
+					  text_ok->text_in, false);
 	/*
 	 * Check whether result is as expected.
 	 */
@@ -339,7 +339,7 @@ check_compare_ok_single(const compare_ok_t *compare_ok,
 
 	result = dns_test_rdatafromstring(&rdata1, rdclass, type,
 					  buf1, sizeof(buf1),
-					  compare_ok->text1);
+					  compare_ok->text1, false);
 
 	ATF_REQUIRE_EQ_MSG(result, ISC_R_SUCCESS, "line %d: '%s': "
 			   "expected success, got failure",
@@ -347,7 +347,7 @@ check_compare_ok_single(const compare_ok_t *compare_ok,
 
 	result = dns_test_rdatafromstring(&rdata2, rdclass, type,
 					  buf2, sizeof(buf2),
-					  compare_ok->text2);
+					  compare_ok->text2, false);
 
 	ATF_REQUIRE_EQ_MSG(result, ISC_R_SUCCESS, "line %d: '%s': "
 			   "expected success, got failure",
