@@ -23,6 +23,14 @@
 			many queries; this could potentially have been
 			exploited in an amplification attack. [GL #611]
 
+5010.	[func]		New "validate-except" option specifies a list of
+			domains beneath which DNSSEC validation should not
+			be performed. [GL #237]
+
+	--- 9.11.5 released ---
+
+	--- 9.11.5rc1 released ---
+
 5038.	[bug]		Chaosnet addresses were compared incorrectly.
 			[GL #562]
 
@@ -43,10 +51,6 @@
 
 5030.	[bug]		Align CMSG buffers to a 64-bit boundary, fixes crash
 			on architectures with strict alignment. [GL #521]
-
-5010.	[func]		New "validate-except" option specifies a list of
-			domains beneath which DNSSEC validation should not
-			be performed. [GL #237]
 
 	--- 9.11.4-S1 released ---
 
