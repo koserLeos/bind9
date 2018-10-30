@@ -181,9 +181,9 @@ options {
         fetches-per-server <integer> [ ( drop | fail ) ];
         fetches-per-zone <integer> [ ( drop | fail ) ];
         files ( default | unlimited | <sizeval> );
-        filter-aaaa { <address_match_element>; ... }; // not configured
-        filter-aaaa-on-v4 ( break-dnssec | <boolean> ); // not configured
-        filter-aaaa-on-v6 ( break-dnssec | <boolean> ); // not configured
+        filter-aaaa { <address_match_element>; ... };
+        filter-aaaa-on-v4 ( break-dnssec | <boolean> );
+        filter-aaaa-on-v6 ( break-dnssec | <boolean> );
         flush-zones-on-shutdown <boolean>;
         forward ( first | only );
         forwarders [ port <integer> ] [ dscp <integer> ] { ( <ipv4_address>
@@ -195,8 +195,8 @@ options {
         fstrm-set-output-queue-model ( mpsc | spsc ); // not configured
         fstrm-set-output-queue-size <integer>; // not configured
         fstrm-set-reopen-interval <integer>; // not configured
-        geoip-directory ( <quoted_string> | none ); // not configured
-        geoip-use-ecs <boolean>; // not configured
+        geoip-directory ( <quoted_string> | none );
+        geoip-use-ecs <boolean>;
         has-old-clients <boolean>; // obsolete
         heartbeat-interval <integer>;
         host-statistics <boolean>; // not implemented
@@ -214,7 +214,7 @@ options {
         listen-on-v6 [ port <integer> ] [ dscp
             <integer> ] {
             <address_match_element>; ... }; // may occur multiple times
-        lmdb-mapsize <sizeval>; // non-operational
+        lmdb-mapsize <sizeval>;
         lock-file ( <quoted_string> | none );
         maintain-ixfr-base <boolean>; // obsolete
         managed-keys-directory <quoted_string>;
@@ -376,9 +376,9 @@ options {
         treat-cr-as-space <boolean>; // obsolete
         trust-anchor-telemetry <boolean>; // experimental
         try-tcp-refresh <boolean>;
-        umbrella-device <hexuint64>; // not configured
-        umbrella-organization <integer>; // not configured
-        umbrella-virtual-appliance <integer>; // not configured
+        umbrella-device <hexuint64>;
+        umbrella-organization <integer>;
+        umbrella-virtual-appliance <integer>;
         update-check-ksk <boolean>;
         use-alt-transfer-source <boolean>;
         use-id-pool <boolean>; // obsolete
@@ -419,7 +419,7 @@ server <netprefix> {
         request-nsid <boolean>;
         request-sit <boolean>; // obsolete
         send-cookie <boolean>;
-        send-umbrella <boolean>; // not configured
+        send-umbrella <boolean>;
         support-ixfr <boolean>; // obsolete
         tcp-keepalive <boolean>;
         tcp-only <boolean>;
@@ -544,9 +544,9 @@ view <string> [ <class> ] {
         fetch-quota-params <integer> <fixedpoint> <fixedpoint> <fixedpoint>;
         fetches-per-server <integer> [ ( drop | fail ) ];
         fetches-per-zone <integer> [ ( drop | fail ) ];
-        filter-aaaa { <address_match_element>; ... }; // not configured
-        filter-aaaa-on-v4 ( break-dnssec | <boolean> ); // not configured
-        filter-aaaa-on-v6 ( break-dnssec | <boolean> ); // not configured
+        filter-aaaa { <address_match_element>; ... };
+        filter-aaaa-on-v4 ( break-dnssec | <boolean> );
+        filter-aaaa-on-v6 ( break-dnssec | <boolean> );
         forward ( first | only );
         forwarders [ port <integer> ] [ dscp <integer> ] { ( <ipv4_address>
             | <ipv6_address> ) [ port <integer> ] [ dscp <integer> ]; ... };
@@ -558,7 +558,7 @@ view <string> [ <class> ] {
         }; // may occur multiple times
         key-directory <quoted_string>;
         lame-ttl <ttlval>;
-        lmdb-mapsize <sizeval>; // non-operational
+        lmdb-mapsize <sizeval>;
         maintain-ixfr-base <boolean>; // obsolete
         managed-keys { <string> <string>
             <integer> <integer> <integer>
@@ -693,7 +693,7 @@ view <string> [ <class> ] {
                 request-nsid <boolean>;
                 request-sit <boolean>; // obsolete
                 send-cookie <boolean>;
-                send-umbrella <boolean>; // not configured
+                send-umbrella <boolean>;
                 support-ixfr <boolean>; // obsolete
                 tcp-keepalive <boolean>;
                 tcp-only <boolean>;
@@ -725,9 +725,9 @@ view <string> [ <class> ] {
             <integer> <integer> <quoted_string>;
             ... }; // may occur multiple times
         try-tcp-refresh <boolean>;
-        umbrella-device <hexuint64>; // not configured
-        umbrella-organization <integer>; // not configured
-        umbrella-virtual-appliance <integer>; // not configured
+        umbrella-device <hexuint64>;
+        umbrella-organization <integer>;
+        umbrella-virtual-appliance <integer>;
         update-check-ksk <boolean>;
         use-alt-transfer-source <boolean>;
         use-queryport-pool <boolean>; // obsolete
@@ -817,8 +817,7 @@ view <string> [ <class> ] {
                 request-expire <boolean>;
                 request-ixfr <boolean>;
                 serial-update-method ( date | increment | unixtime );
-                server-addresses { ( <ipv4_address> | <ipv6_address> ) [
-                    port <integer> ]; ... };
+                server-addresses { ( <ipv4_address> | <ipv6_address> ); ... };
                 server-names { <string>; ... };
                 sig-signing-nodes <integer>;
                 sig-signing-signatures <integer>;
@@ -920,8 +919,7 @@ zone <string> [ <class> ] {
         request-expire <boolean>;
         request-ixfr <boolean>;
         serial-update-method ( date | increment | unixtime );
-        server-addresses { ( <ipv4_address> | <ipv6_address> ) [ port
-            <integer> ]; ... };
+        server-addresses { ( <ipv4_address> | <ipv6_address> ); ... };
         server-names { <string>; ... };
         sig-signing-nodes <integer>;
         sig-signing-signatures <integer>;
