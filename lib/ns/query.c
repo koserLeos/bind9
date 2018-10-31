@@ -8029,6 +8029,15 @@ query_delegation(query_ctx_t *qctx) {
 		RESTORE(qctx->sigrdataset, qctx->zsigrdataset);
 	}
 
+	if (qctx->client->view->proxyfor != NULL && RECURSIONOK(qctx->client) &&
+	    (qctx->client->query.attributes & NS_QUERYATTR_PROXYFOR) != 0 &&
+	    !dns_name_issubdomain(qctx->client->query.qname,
+				  qctx->client->view->proxyfor))
+	{
+		fprintf(stderr, "-PROXYFOR\n");
+		return (query_done(qctx));
+	}
+
 	if (RECURSIONOK(qctx->client)) {
 		/*
 		 * We have a delegation and recursion is allowed,
@@ -11176,6 +11185,19 @@ ns_query_start(ns_client_t *client) {
 	 */
 	if (WANTDNSSEC(client) || WANTAD(client))
 		message->flags |= DNS_MESSAGEFLAG_AD;
+
+	/*
+	 * If we are proxying for this name space set WANTRECURSION iff
+	 * not already set.  Also record that we are in PROXYFOR mode.
+	 */
+	if (client->view->proxyfor != NULL && !WANTRECURSION(client) &&
+	    dns_name_issubdomain(client->query.qname, client->view->proxyfor))
+	{
+		fprintf(stderr, "PROXYFOR\n");
+		client->query.attributes |= NS_QUERYATTR_WANTRECURSION;
+		client->query.attributes |= NS_QUERYATTR_RECURSIONOK;
+		client->query.attributes |= NS_QUERYATTR_PROXYFOR;
+	}
 
 	qclient = NULL;
 	ns_client_attach(client, &qclient);

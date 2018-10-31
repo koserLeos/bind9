@@ -234,6 +234,8 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->catzs = NULL;
 	dns_fixedname_init(&view->dlv_fixed);
 	view->managed_keys = NULL;
+	view->proxyfor = NULL;
+	dns_fixedname_init(&view->proxyforfixed);
 	view->redirect = NULL;
 	view->redirectzone = NULL;
 	dns_fixedname_init(&view->redirectfixed);

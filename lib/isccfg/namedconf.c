@@ -1944,6 +1944,7 @@ view_clauses[] = {
 	{ "preferred-glue", &cfg_type_astring, 0 },
 	{ "prefetch", &cfg_type_prefetch, 0 },
 	{ "provide-ixfr", &cfg_type_boolean, 0 },
+	{ "proxy-for", &cfg_type_astring, 0 },
 	{ "qname-minimization", &cfg_type_qminmethod, 0 },
 	/*
 	 * Note that the query-source option syntax is different

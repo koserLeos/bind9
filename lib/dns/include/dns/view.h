@@ -216,6 +216,9 @@ struct dns_view {
 							 * when valid */
 	dns_fixedname_t 		redirectfixed;
 
+	dns_name_t *			proxyfor;
+	dns_fixedname_t 		proxyforfixed;
+
 	/*
 	 * File and configuration data for zones added at runtime
 	 * (only used in BIND9).

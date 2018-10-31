@@ -5442,6 +5442,20 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	dns_view_setfailttl(view, fail_ttl);
 
 	/*
+	 * Set proxyfor namespace.
+	 */
+	obj = NULL;
+	result = named_config_get(maps, "proxy-for", &obj);
+	if (result == ISC_R_SUCCESS) {
+		dns_name_t *name = dns_fixedname_name(&view->proxyforfixed);
+		CHECK(dns_name_fromstring(name, cfg_obj_asstring(obj), 0,
+					  NULL));
+		view->proxyfor = name;
+	} else {
+		view->proxyfor = NULL;
+	}
+
+	/*
 	 * Name space to look up redirect information in.
 	 */
 	obj = NULL;
