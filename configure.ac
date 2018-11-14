@@ -5509,7 +5509,6 @@ AC_CONFIG_FILES([
 	lib/lwres/unix/include/lwres/Makefile
 	lib/samples/Makefile
 	lib/samples/Makefile-postinstall
-	unit/Makefile
 	unit/unittest.sh
 ])
 
