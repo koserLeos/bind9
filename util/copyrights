@@ -3824,6 +3824,7 @@
 ./lib/dns/tests/rdataset_test.c			C	2012,2018
 ./lib/dns/tests/rdatasetstats_test.c		C	2018
 ./lib/dns/tests/resolver_test.c			C	2018
+./lib/dns/tests/result_test.c			C	2018
 ./lib/dns/tests/rsa_test.c			C	2018
 ./lib/dns/tests/sigs_test.c			C	2018
 ./lib/dns/tests/testdata/db/data.db		ZONE	2018
@@ -4345,6 +4346,7 @@
 ./lib/isc/x86_64/include/Makefile.in		MAKE	2007,2012,2018
 ./lib/isc/x86_64/include/isc/Makefile.in	MAKE	2007,2012,2015,2016,2018
 ./lib/isc/x86_64/include/isc/atomic.h		C	2005,2007,2008,2015,2016,2017,2018
+./lib/isccc/Kyuafile				X	2018
 ./lib/isccc/Makefile.in				MAKE	2001,2003,2004,2007,2009,2011,2012,2014,2015,2016,2018
 ./lib/isccc/alist.c				C.NOM	2001,2004,2005,2007,2015,2018
 ./lib/isccc/api					X	2001,2006,2008,2009,2010,2011,2012,2013,2015,2016,2017,2018
@@ -4370,6 +4372,9 @@
 ./lib/isccc/result.c				C.NOM	2001,2003,2004,2005,2007,2018
 ./lib/isccc/sexpr.c				C.NOM	2001,2004,2005,2007,2014,2015,2018
 ./lib/isccc/symtab.c				C.NOM	2001,2004,2005,2007,2018
+./lib/isccc/tests/Kyuafile			X	2018
+./lib/isccc/tests/Makefile.in			MAKE	2018
+./lib/isccc/tests/result_test.c			C	2018
 ./lib/isccc/version.c				C	1998,1999,2000,2001,2004,2005,2007,2018
 ./lib/isccc/win32/DLLMain.c			C	2001,2004,2007,2018
 ./lib/isccc/win32/libisccc.def			X	2001,2016,2018
