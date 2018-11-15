@@ -492,8 +492,8 @@ dns_aclelement_matchx(const isc_netaddr_t *reqaddr,
 	}
 #endif
 	default:
-		/* Should be impossible. */
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
 
 	result = dns_acl_matchx(reqaddr, reqsigner, ecs,
@@ -671,7 +671,7 @@ dns_acl_isinsecure(const dns_acl_t *a) {
 
 		default:
 			INSIST(0);
-			return (true);
+			ISC_UNREACHABLE();
 		}
 	}
 

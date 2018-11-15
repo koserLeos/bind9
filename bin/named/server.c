@@ -1151,6 +1151,7 @@ get_view_querysource_dispatch(const cfg_obj_t **maps, int af,
 		break;
 	default:
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
 
 	sa = *(cfg_obj_assockaddr(obj));
@@ -1172,6 +1173,7 @@ get_view_querysource_dispatch(const cfg_obj_t **maps, int af,
 		break;
 	default:
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
 	if (result != ISC_R_SUCCESS)
 		return (ISC_R_SUCCESS);
@@ -1279,18 +1281,20 @@ configure_order(dns_order_t *order, const cfg_obj_t *ent) {
 	obj = cfg_tuple_get(ent, "ordering");
 	INSIST(cfg_obj_isstring(obj));
 	str = cfg_obj_asstring(obj);
-	if (!strcasecmp(str, "fixed"))
+	if (!strcasecmp(str, "fixed")) {
 #if DNS_RDATASET_FIXED
 		mode = DNS_RDATASETATTR_FIXEDORDER;
 #else
 		mode = 0;
 #endif /* DNS_RDATASET_FIXED */
-	else if (!strcasecmp(str, "random"))
+	} else if (!strcasecmp(str, "random")) {
 		mode = DNS_RDATASETATTR_RANDOMIZE;
-	else if (!strcasecmp(str, "cyclic"))
+	} else if (!strcasecmp(str, "cyclic")) {
 		mode = 0;
-	else
+	} else {
 		INSIST(0);
+		ISC_UNREACHABLE();
+	}
 
 	/*
 	 * "*" should match everything including the root (BIND 8 compat).
@@ -1422,14 +1426,16 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 	(void)cfg_map_get(cpeer, "transfer-format", &obj);
 	if (obj != NULL) {
 		str = cfg_obj_asstring(obj);
-		if (strcasecmp(str, "many-answers") == 0)
+		if (strcasecmp(str, "many-answers") == 0) {
 			CHECK(dns_peer_settransferformat(peer,
 							 dns_many_answers));
-		else if (strcasecmp(str, "one-answer") == 0)
+		} else if (strcasecmp(str, "one-answer") == 0) {
 			CHECK(dns_peer_settransferformat(peer,
 							 dns_one_answer));
-		else
+		} else {
 			INSIST(0);
+			ISC_UNREACHABLE();
+		}
 	}
 
 	obj = NULL;
@@ -2399,7 +2405,7 @@ catz_create_chg_task(dns_catz_entry_t *entry, dns_catz_zone_t *origin,
 	catz_chgzone_event_t *event;
 	isc_task_t *task;
 	isc_result_t result;
-	isc_taskaction_t action;
+	isc_taskaction_t action = NULL;
 
 	switch (type) {
 	case DNS_EVENT_CATZADDZONE:
@@ -3936,8 +3942,10 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 		view->checknames = false;
 	} else if (strcasecmp(str, "ignore") == 0) {
 		view->checknames = false;
-	} else
+	} else {
 		INSIST(0);
+		ISC_UNREACHABLE();
+	}
 
 	obj = NULL;
 	result = ns_config_get(maps, "zero-no-soa-ttl-cache", &obj);
@@ -4321,14 +4329,16 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 		obj2 = cfg_tuple_get(obj, "response");
 		if (!cfg_obj_isvoid(obj2)) {
 			const char *resp = cfg_obj_asstring(obj2);
-			isc_result_t r;
+			isc_result_t r = DNS_R_SERVFAIL;
 
-			if (strcasecmp(resp, "drop") == 0)
+			if (strcasecmp(resp, "drop") == 0) {
 				r = DNS_R_DROP;
-			else if (strcasecmp(resp, "fail") == 0)
+			} else if (strcasecmp(resp, "fail") == 0) {
 				r = DNS_R_SERVFAIL;
-			else
+			} else {
 				INSIST(0);
+				ISC_UNREACHABLE();
+			}
 
 			dns_resolver_setquotaresponse(view->resolver,
 						      dns_quotatype_server, r);
@@ -4650,20 +4660,24 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 			view->minimalresponses = dns_minimal_noauth;
 		} else if (strcasecmp(str, "no-auth-recursive") == 0) {
 			view->minimalresponses = dns_minimal_noauthrec;
-		} else
+		} else {
 			INSIST(0);
+			ISC_UNREACHABLE();
+		}
 	}
 
 	obj = NULL;
 	result = ns_config_get(maps, "transfer-format", &obj);
 	INSIST(result == ISC_R_SUCCESS);
 	str = cfg_obj_asstring(obj);
-	if (strcasecmp(str, "many-answers") == 0)
+	if (strcasecmp(str, "many-answers") == 0) {
 		view->transfer_format = dns_many_answers;
-	else if (strcasecmp(str, "one-answer") == 0)
+	} else if (strcasecmp(str, "one-answer") == 0) {
 		view->transfer_format = dns_one_answer;
-	else
+	} else {
 		INSIST(0);
+		ISC_UNREACHABLE();
+	}
 
 	obj = NULL;
 	result = ns_config_get(maps, "trust-anchor-telemetry", &obj);
@@ -4960,14 +4974,16 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 	obj2 = cfg_tuple_get(obj, "response");
 	if (!cfg_obj_isvoid(obj2)) {
 		const char *resp = cfg_obj_asstring(obj2);
-		isc_result_t r;
+		isc_result_t r = DNS_R_SERVFAIL;
 
-		if (strcasecmp(resp, "drop") == 0)
+		if (strcasecmp(resp, "drop") == 0) {
 			r = DNS_R_DROP;
-		else if (strcasecmp(resp, "fail") == 0)
+		} else if (strcasecmp(resp, "fail") == 0) {
 			r = DNS_R_SERVFAIL;
-		else
+		} else {
 			INSIST(0);
+			ISC_UNREACHABLE();
+		}
 
 		dns_resolver_setquotaresponse(view->resolver,
 					      dns_quotatype_zone, r);
@@ -4984,10 +5000,12 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 			view->v4_aaaa = dns_aaaa_ok;
 	} else {
 		const char *v4_aaaastr = cfg_obj_asstring(obj);
-		if (strcasecmp(v4_aaaastr, "break-dnssec") == 0)
+		if (strcasecmp(v4_aaaastr, "break-dnssec") == 0) {
 			view->v4_aaaa = dns_aaaa_break_dnssec;
-		else
+		} else {
 			INSIST(0);
+			ISC_UNREACHABLE();
+		}
 	}
 
 	obj = NULL;
@@ -5000,10 +5018,12 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 			view->v6_aaaa = dns_aaaa_ok;
 	} else {
 		const char *v6_aaaastr = cfg_obj_asstring(obj);
-		if (strcasecmp(v6_aaaastr, "break-dnssec") == 0)
+		if (strcasecmp(v6_aaaastr, "break-dnssec") == 0) {
 			view->v6_aaaa = dns_aaaa_break_dnssec;
-		else
+		} else {
 			INSIST(0);
+			ISC_UNREACHABLE();
+		}
 	}
 
 	CHECK(configure_view_acl(vconfig, config, ns_g_config,
@@ -5211,7 +5231,7 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 		const char *empty_dbtype[4] =
 				    { "_builtin", "empty", NULL, NULL };
 		int empty_dbtypec = 4;
-		dns_zonestat_level_t statlevel;
+		dns_zonestat_level_t statlevel = dns_zonestat_none;
 
 		name = dns_fixedname_initname(&fixed);
 
@@ -5249,14 +5269,16 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist,
 				statlevel = dns_zonestat_none;
 		} else {
 			const char *levelstr = cfg_obj_asstring(obj);
-			if (strcasecmp(levelstr, "full") == 0)
+			if (strcasecmp(levelstr, "full") == 0) {
 				statlevel = dns_zonestat_full;
-			else if (strcasecmp(levelstr, "terse") == 0)
+			} else if (strcasecmp(levelstr, "terse") == 0) {
 				statlevel = dns_zonestat_terse;
-			else if (strcasecmp(levelstr, "none") == 0)
+			} else if (strcasecmp(levelstr, "none") == 0) {
 				statlevel = dns_zonestat_none;
-			else
+			} else {
 				INSIST(0);
+				ISC_UNREACHABLE();
+			}
 		}
 
 		for (empty = empty_zones[empty_zone];
@@ -5703,16 +5725,18 @@ configure_forward(const cfg_obj_t *config, dns_view_t *view, dns_name_t *origin,
 				    "forwarding");
 		fwdpolicy = dns_fwdpolicy_none;
 	} else {
-		if (forwardtype == NULL)
+		if (forwardtype == NULL) {
 			fwdpolicy = dns_fwdpolicy_first;
-		else {
+		} else {
 			const char *forwardstr = cfg_obj_asstring(forwardtype);
-			if (strcasecmp(forwardstr, "first") == 0)
+			if (strcasecmp(forwardstr, "first") == 0) {
 				fwdpolicy = dns_fwdpolicy_first;
-			else if (strcasecmp(forwardstr, "only") == 0)
+			} else if (strcasecmp(forwardstr, "only") == 0) {
 				fwdpolicy = dns_fwdpolicy_only;
-			else
+			} else {
 				INSIST(0);
+				ISC_UNREACHABLE();
+			}
 		}
 	}
 
@@ -8982,7 +9006,8 @@ load_configuration(const char *filename, ns_server_t *server,
 	    cfg_map_get(options, "memstatistics", &obj) == ISC_R_SUCCESS) {
 		ns_g_memstatistics = cfg_obj_asboolean(obj);
 	} else {
-		ns_g_memstatistics = (isc_mem_debugging & ISC_MEM_DEBUGRECORD);
+		ns_g_memstatistics =
+			((isc_mem_debugging & ISC_MEM_DEBUGRECORD) != 0);
 	}
 
 	obj = NULL;
@@ -9073,6 +9098,7 @@ load_configuration(const char *filename, ns_server_t *server,
 		server->cookiealg = ns_cookiealg_aes;
 #else
 		INSIST(0);
+		ISC_UNREACHABLE();
 #endif
 	} else if (strcasecmp(cfg_obj_asstring(obj), "sha1") == 0) {
 		server->cookiealg = ns_cookiealg_sha1;
@@ -9080,6 +9106,7 @@ load_configuration(const char *filename, ns_server_t *server,
 		server->cookiealg = ns_cookiealg_sha256;
 	} else {
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
 
 	obj = NULL;
@@ -12641,7 +12668,7 @@ newzone_parse(ns_server_t *server, char *command, dns_view_t **viewp,
 	const char *viewname = NULL;
 	dns_rdataclass_t rdclass;
 	dns_view_t *view = NULL;
-	const char *bn;
+	const char *bn = NULL;
 
 	REQUIRE(viewp != NULL && *viewp == NULL);
 	REQUIRE(zoneobjp != NULL && *zoneobjp == NULL);
@@ -12651,12 +12678,14 @@ newzone_parse(ns_server_t *server, char *command, dns_view_t **viewp,
 	isc_buffer_init(&argbuf, command, (unsigned int) strlen(command));
 	isc_buffer_add(&argbuf, strlen(command));
 
-	if (strncasecmp(command, "add", 3) == 0)
+	if (strncasecmp(command, "add", 3) == 0) {
 		bn = "addzone";
-	else if (strncasecmp(command, "mod", 3) == 0)
+	} else if (strncasecmp(command, "mod", 3) == 0) {
 		bn = "modzone";
-	else
+	} else {
 		INSIST(0);
+		ISC_UNREACHABLE();
+	}
 
 	/*
 	 * Convert the "addzone" or "modzone" to just "zone", for
@@ -14078,8 +14107,8 @@ ns_server_zonestatus(ns_server_t *server, isc_lex_t *lex,
 
 	/* Security */
 	secure = dns_db_issecure(db);
-	allow = (dns_zone_getkeyopts(zone) & DNS_ZONEKEY_ALLOW);
-	maintain = (dns_zone_getkeyopts(zone) & DNS_ZONEKEY_MAINTAIN);
+	allow = ((dns_zone_getkeyopts(zone) & DNS_ZONEKEY_ALLOW) != 0);
+	maintain = ((dns_zone_getkeyopts(zone) & DNS_ZONEKEY_MAINTAIN) != 0);
 
 	/* Master files */
 	file = dns_zone_getfile(mayberaw);
@@ -14666,7 +14695,7 @@ mkey_dumpzone(dns_view_t *view, isc_buffer_t **text) {
 			snprintf(buf, sizeof(buf), "\n\talgorithm: %s", alg);
 			CHECK(putstr(text, buf));
 
-			revoked = (kd.flags & DNS_KEYFLAG_REVOKE);
+			revoked = ((kd.flags & DNS_KEYFLAG_REVOKE) != 0);
 			snprintf(buf, sizeof(buf), "\n\tflags:%s%s%s",
 				 revoked ? " REVOKE" : "",
 				 ((kd.flags & DNS_KEYFLAG_KSK) != 0)
@@ -14843,6 +14872,7 @@ ns_server_mkeys(ns_server_t *server, isc_lex_t *lex, isc_buffer_t **text) {
 			break;
 		default:
 			INSIST(0);
+			ISC_UNREACHABLE();
 		}
 
 		if (viewtxt != NULL)

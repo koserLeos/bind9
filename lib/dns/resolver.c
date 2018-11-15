@@ -2229,7 +2229,7 @@ resquery_send(resquery_t *query) {
 	bool cleanup_cctx = false;
 	bool secure_domain;
 	bool connecting = false;
-	bool tcp = (query->options & DNS_FETCHOPT_TCP);
+	bool tcp = ((query->options & DNS_FETCHOPT_TCP) != 0);
 	bool rd = false;
 	dns_ednsopt_t ednsopts[DNS_EDNSOPTIONS];
 	unsigned ednsopt = 0;
@@ -2325,7 +2325,7 @@ resquery_send(resquery_t *query) {
 	} else if (res->view->enablevalidation &&
 		 ((fctx->qmessage->flags & DNS_MESSAGEFLAG_RD) != 0))
 	{
-		bool checknta = !(query->options & DNS_FETCHOPT_NONTA);
+		bool checknta = ((query->options & DNS_FETCHOPT_NONTA) == 0);
 		result = issecuredomain(res->view, &fctx->name, fctx->type,
 					isc_time_seconds(&query->start),
 					checknta, &secure_domain);
@@ -3360,7 +3360,7 @@ findname(fetchctx_t *fctx, dns_name_t *name, in_port_t port,
 	isc_result_t result;
 
 	res = fctx->res;
-	unshared = (fctx->options & DNS_FETCHOPT_UNSHARED);
+	unshared = ((fctx->options & DNS_FETCHOPT_UNSHARED) != 0);
 	/*
 	 * If this name is a subdomain of the query domain, tell
 	 * the ADB to start looking using zone/hint data. This keeps us
@@ -5181,7 +5181,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 
 	negative = (vevent->rdataset == NULL);
 
-	sentresponse = (fctx->options & DNS_FETCHOPT_NOVALIDATE);
+	sentresponse = ((fctx->options & DNS_FETCHOPT_NOVALIDATE) != 0);
 
 	/*
 	 * If shutting down, ignore the results.  Check to see if we're
@@ -5830,7 +5830,7 @@ cache_name(fetchctx_t *fctx, resquery_t *query, dns_section_t section,
 	/*
 	 * Cache or validate each cacheable rdataset.
 	 */
-	fail = (fctx->res->options & DNS_RESOLVER_CHECKNAMESFAIL);
+	fail = ((fctx->res->options & DNS_RESOLVER_CHECKNAMESFAIL) != 0);
 	for (rdataset = ISC_LIST_HEAD(name->list);
 	     rdataset != NULL;
 	     rdataset = ISC_LIST_NEXT(rdataset, link))
@@ -6786,6 +6786,7 @@ is_answertarget_allowed(fetchctx_t *fctx, dns_name_t *qname, dns_name_t *rname,
 		break;
 	default:
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
 
 	if (chainingp != NULL)

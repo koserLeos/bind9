@@ -1067,7 +1067,7 @@ dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 
 	for (i = 0; i < n; i++) {
 		dns_rdataset_t *rds = sorted[i];
-		if (ctx->style.flags & DNS_STYLEFLAG_TRUST) {
+		if ((ctx->style.flags & DNS_STYLEFLAG_TRUST) != 0) {
 			if ((ctx->style.flags & DNS_STYLEFLAG_INDENT) != 0 ||
 			    (ctx->style.flags & DNS_STYLEFLAG_YAML) != 0)
 			{
@@ -1095,8 +1095,8 @@ dump_rdatasets_text(isc_mem_t *mctx, dns_name_t *name,
 				name = NULL;
 			}
 		}
-		if (ctx->style.flags & DNS_STYLEFLAG_RESIGN &&
-		    rds->attributes & DNS_RDATASETATTR_RESIGN) {
+		if (((ctx->style.flags & DNS_STYLEFLAG_RESIGN) != 0) &&
+		    ((rds->attributes & DNS_RDATASETATTR_RESIGN) != 0)) {
 			isc_buffer_t b;
 			char buf[sizeof("YYYYMMDDHHMMSS")];
 			memset(buf, 0, sizeof(buf));
@@ -1541,7 +1541,7 @@ dumpctx_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 		break;
 	default:
 		INSIST(0);
-		break;
+		ISC_UNREACHABLE();
 	}
 
 	result = totext_ctx_init(style, &dctx->tctx);
@@ -1681,6 +1681,7 @@ writeheader(dns_dumpctx_t *dctx) {
 		break;
 	default:
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
 
 	isc_mem_put(dctx->mctx, buffer.base, buffer.length);

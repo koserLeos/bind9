@@ -475,8 +475,8 @@ get_rate(dns_rrl_t *rrl, dns_rrl_rtype_t rtype) {
 		return (&rrl->all_per_second);
 	default:
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
-	return (NULL);
 }
 
 static int
@@ -839,7 +839,7 @@ make_log_buf(dns_rrl_t *rrl, dns_rrl_entry_t *e,
 		break;
 	default:
 		INSIST(0);
-		break;
+		ISC_UNREACHABLE();
 	}
 
 	switch (e->key.s.rtype) {
@@ -880,6 +880,7 @@ make_log_buf(dns_rrl_t *rrl, dns_rrl_entry_t *e,
 		break;
 	default:
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
 
 	if (plural)

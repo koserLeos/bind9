@@ -106,7 +106,6 @@
 					      ISC_MSG_UNLOCKED, "UNLOCKED"), \
 			       (lp), __FILE__, __LINE__)); \
 	} while (0)
-#define ISLOCKED(lp) (1)
 #define DESTROYLOCK(lp) \
 	RUNTIME_CHECK(isc_mutex_destroy((lp)) == ISC_R_SUCCESS)
 
@@ -216,6 +215,13 @@ extern void mock_assert(const int result, const char* const expression,
 	mock_assert((int)(expression), #expression, __FILE__, __LINE__)
 
 #else /* UNIT_TESTING */
+
+#ifdef HAVE_BUILTIN_UNREACHABLE
+#define ISC_UNREACHABLE() __builtin_unreachable();
+#else
+#define ISC_UNREACHABLE()
+#endif
+
 /*
  * Assertions
  */
