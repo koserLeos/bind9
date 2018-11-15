@@ -5,6 +5,9 @@
 			pairs when value was a seperate argument and started
 			with a dash. [GL #584]
 
+5088.	[bug]		dig/host/nslookup could crash when interrupted close to
+			a query timeout. [GL #599]
+
 5087.	[test]		Check that result tables are complete. [GL #676]
 
 5084.	[func]		Add configure time detection of Utimaco HSM
