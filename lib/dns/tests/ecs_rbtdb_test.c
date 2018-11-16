@@ -9,11 +9,25 @@
  * information regarding copyright ownership.
  */
 
-/*! \file */
-
 #include <config.h>
 
-#include <atf-c.h>
+#if HAVE_CMOCKA
+
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#define UNIT_TESTING
+#include <cmocka.h>
+
+#include <isc/mem.h>
+#include <isc/print.h>
+#include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/db.h>
 #include <dns/rdata.h>
@@ -23,14 +37,6 @@
 #include <dns/rdataset.h>
 #include <dns/ncache.h>
 #include <dns/result.h>
-
-#include <isc/mem.h>
-#include <isc/util.h>
-
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 /* NXDOMAIN message for nxdomain.example.org./A:
 
@@ -310,47 +316,45 @@ build_name_from_str(isc_mem_t *mctx, const char *namestr,
 	length = strlen(namestr);
 
 	result = isc_buffer_allocate(mctx, &b, length);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 	isc_buffer_putmem(b, (const unsigned char *) namestr, length);
 
 	dns_fixedname_init(fname);
 	name = dns_fixedname_name(fname);
-	ATF_REQUIRE(name != NULL);
+	assert_non_null(name);
 	result = dns_name_fromtext(name, b, dns_rootname, 0, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	isc_buffer_free(&b);
 }
 
-ATF_TC(iscache);
-ATF_TC_HEAD(iscache, tc) {
-	atf_tc_set_md_var(tc, "descr", "test dns_db_iscache");
-}
-ATF_TC_BODY(iscache, tc) {
+/* test dns_db_iscache */
+static void
+iscache(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
 	bool iscache;
 
+	UNUSED(state);
+
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	iscache = dns_db_iscache(db);
-	ATF_REQUIRE_EQ(iscache, true);
+	assert_true(iscache);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(findnode);
-ATF_TC_HEAD(findnode, tc) {
-	atf_tc_set_md_var(tc, "descr", "test dns_db_findnode");
-}
-ATF_TC_BODY(findnode, tc) {
+/* test dns_db_findnode */
+static void
+findnode(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -358,40 +362,40 @@ ATF_TC_BODY(findnode, tc) {
 	dns_fixedname_t fname;
 	dns_name_t *name;
 
+	UNUSED(state);
+
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, false, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE(node == NULL);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_null(node);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, false, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdataset);
-ATF_TC_HEAD(addrdataset, tc) {
-	atf_tc_set_md_var(tc, "descr", "test dns_db_addrdataset");
-}
-ATF_TC_BODY(addrdataset, tc) {
+/* test dns_db_addrdataset */
+static void
+addrdataset(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -408,22 +412,24 @@ ATF_TC_BODY(addrdataset, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	dns_rdata_init(&rdata);
 	rdata_data = "\x0a\x00\x00\x01";
@@ -440,13 +446,14 @@ ATF_TC_BODY(addrdataset, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdataset(db, node, NULL, now, &rdataset, 0, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -458,22 +465,23 @@ ATF_TC_BODY(addrdataset, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -492,12 +500,13 @@ ATF_TC_BODY(addrdataset, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -516,35 +525,34 @@ ATF_TC_BODY(addrdataset, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(findrdatasetext);
-ATF_TC_HEAD(findrdatasetext, tc) {
-	atf_tc_set_md_var(tc, "descr", "test dns_db_findrdatasetext");
-}
-ATF_TC_BODY(findrdatasetext, tc) {
+/* test dns_db_findrdatasetext */
+static void
+findrdatasetext(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -559,22 +567,24 @@ ATF_TC_BODY(findrdatasetext, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	dns_rdata_init(&rdata);
 	rdata_data = "\x0a\x00\x00\x01";
@@ -591,13 +601,14 @@ ATF_TC_BODY(findrdatasetext, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdataset(db, node, NULL, now, &rdataset, 0, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -607,27 +618,28 @@ ATF_TC_BODY(findrdatasetext, tc) {
 
 	node = NULL;
 	result = dns_db_findnode(db, name, false, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_a, 0,
 				     now, &rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -638,8 +650,8 @@ ATF_TC_BODY(findrdatasetext, tc) {
 
 	node = NULL;
 	result = dns_db_findnode(db, name, false, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -648,12 +660,13 @@ ATF_TC_BODY(findrdatasetext, tc) {
 
 	result = dns_db_findrdatasetext(db, node, NULL, dns_rdatatype_a, 0,
 					now, NULL, &ci, &rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -664,8 +677,8 @@ ATF_TC_BODY(findrdatasetext, tc) {
 
 	node = NULL;
 	result = dns_db_findnode(db, name, false, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -674,24 +687,25 @@ ATF_TC_BODY(findrdatasetext, tc) {
 
 	result = dns_db_findrdatasetext(db, node, NULL, dns_rdatatype_a, 0,
 					now, NULL, &ci, &rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -709,13 +723,8 @@ ATF_TC_BODY(findrdatasetext, tc) {
  * clientinfo with SOURCE=0, though supported, is never used. clientinfo
  * with SOURCE > 0 will fail assertion.
  */
-ATF_TC(addrdatasetext_negative_nxdomain);
-ATF_TC_HEAD(addrdatasetext_negative_nxdomain, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding negative answer (nxdomain, type=ANY) "
-			  "overriding NOTHING w/ clientinfo=NULL passed by dns_ncache_add()");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxdomain, tc) {
+static void
+add_neg_nxdomain(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -729,32 +738,34 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain, tc) {
 	dns_name_t *foundname;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "nxdomain.example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	isc_buffer_init(&source, nxdomain_message, sizeof(nxdomain_message));
 	isc_buffer_add(&source, sizeof(nxdomain_message));
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -782,14 +793,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain, tc) {
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_any,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -802,11 +814,12 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -824,13 +837,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain, tc) {
  * clientinfo with SOURCE=0, though supported, is never used. clientinfo
  * with SOURCE > 0 will fail assertion.
  */
-ATF_TC(addrdatasetext_negative_nxrrset);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding negative answer (type=APL) "
-			  "overriding NOTHING w/ clientinfo=NULL passed by dns_ncache_add()");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset, tc) {
+static void
+add_neg_nxrrset(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -844,32 +852,34 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset, tc) {
 	dns_name_t *foundname;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	isc_buffer_init(&source, nxrrset_message, sizeof(nxrrset_message));
 	isc_buffer_add(&source, sizeof(nxrrset_message));
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -897,14 +907,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset, tc) {
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -917,11 +928,12 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_rdataset_init(&rdataset);
@@ -930,17 +942,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
+	assert_int_equal(result, ISC_R_NOTFOUND);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_positive_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr", "test adding positive answer with clientinfo=NULL");
-}
-ATF_TC_BODY(addrdatasetext_positive_noclientinfo, tc) {
+/* test adding positive answer with clientinfo=NULL */
+static void
+add_pos_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -957,22 +967,24 @@ ATF_TC_BODY(addrdatasetext_positive_noclientinfo, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	dns_rdata_init(&rdata);
 	rdata_data = "\x0a\x00\x00\x01";
@@ -989,14 +1001,15 @@ ATF_TC_BODY(addrdatasetext_positive_noclientinfo, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -1008,22 +1021,23 @@ ATF_TC_BODY(addrdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1042,12 +1056,13 @@ ATF_TC_BODY(addrdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1066,35 +1081,34 @@ ATF_TC_BODY(addrdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_globaldata);
-ATF_TC_HEAD(addrdatasetext_positive_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr", "test adding positive answer with ecs.source=0");
-}
-ATF_TC_BODY(addrdatasetext_positive_globaldata, tc) {
+/* test adding positive answer with ecs.source=0 */
+static void
+add_pos_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -1111,22 +1125,24 @@ ATF_TC_BODY(addrdatasetext_positive_globaldata, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	dns_rdata_init(&rdata);
 	rdata_data = "\x0a\x00\x00\x01";
@@ -1143,7 +1159,7 @@ ATF_TC_BODY(addrdatasetext_positive_globaldata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Mark the rdataset being added as for 0/0 */
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
@@ -1154,10 +1170,11 @@ ATF_TC_BODY(addrdatasetext_positive_globaldata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -1169,22 +1186,23 @@ ATF_TC_BODY(addrdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1203,12 +1221,13 @@ ATF_TC_BODY(addrdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1227,35 +1246,34 @@ ATF_TC_BODY(addrdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_ecsdata);
-ATF_TC_HEAD(addrdatasetext_positive_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr", "test adding positive answers at different address prefixes");
-}
-ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
+/* test adding positive answers at different address prefixes */
+static void
+add_pos_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -1273,22 +1291,24 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	struct in6_addr in6_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 0/0 */
 
@@ -1307,7 +1327,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -1317,10 +1337,11 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.2 for 1.2.0.0/16/24 (exact-match) */
@@ -1340,7 +1361,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -1350,10 +1371,11 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.3 for 1.2.3.0/24 */
@@ -1373,7 +1395,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -1383,10 +1405,11 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.4 for 1.2.4.0/24 */
@@ -1406,7 +1429,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.4.0");
@@ -1416,10 +1439,11 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.5 for 1:2:3:4::1/56 */
@@ -1439,7 +1463,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	inet_pton(AF_INET6, "1:2:3:4::1", &in6_addr);
@@ -1449,10 +1473,11 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -1466,24 +1491,25 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1502,26 +1528,27 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1540,26 +1567,27 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x03";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1578,26 +1606,27 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 32);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 32);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x03";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1616,26 +1645,27 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x04";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1654,12 +1684,13 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 22);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 22);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1678,26 +1709,27 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 16);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 16);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1716,12 +1748,13 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1740,26 +1773,27 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 56);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 56);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 56);
+	assert_int_equal(ci.ecs.scope, 56);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x05";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1778,25 +1812,25 @@ ATF_TC_BODY(addrdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 32);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 32);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_ecsscopezero);
-ATF_TC_HEAD(addrdatasetext_positive_ecsscopezero, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answers at scope=/0 "
-			  "for IPv4 and IPv6 address prefixes");
-}
-ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
+/*
+ * test adding positive answers at scope=/0 for IPv4 and IPv6 address
+ * prefixes
+ */
+static void
+add_pos_ecsscopezero(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -1814,22 +1848,24 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 	struct in6_addr in6_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 1.2.3.0/24/0 */
 
@@ -1848,7 +1884,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -1858,10 +1894,11 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.2 for 1:2:3:4::1/56/0 */
@@ -1881,7 +1918,7 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	inet_pton(AF_INET6, "1:2:3:4::1", &in6_addr);
@@ -1891,10 +1928,11 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -1911,10 +1949,11 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
+	assert_int_equal(result, ISC_R_NOTFOUND);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1933,12 +1972,13 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1957,26 +1997,27 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -1995,26 +2036,27 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 56);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 56);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -2026,13 +2068,8 @@ ATF_TC_BODY(addrdatasetext_positive_ecsscopezero, tc) {
  * overriding various existing positive answers (global and ECS for
  * different address prefixes).
  */
-ATF_TC(addrdatasetext_positive_and_negative_nxdomain);
-ATF_TC_HEAD(addrdatasetext_positive_and_negative_nxdomain, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding negative answer (nxdomain, type=ANY) "
-			  "overriding positive answers");
-}
-ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
+static void
+add_pos_and_neg_nxdomain(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -2051,22 +2088,24 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "nxdomain.example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add nxdomain.example.org./A = 10.0.0.1 for 0/0 */
 
@@ -2085,7 +2124,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -2095,10 +2134,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add nxdomain.example.org./A = 10.0.0.2 for 1.2.0.0/16/24 (exact-match) */
@@ -2118,7 +2158,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -2128,10 +2168,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add nxdomain.example.org./A = 10.0.0.3 for 1.2.3.0/24 */
@@ -2151,7 +2192,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -2161,10 +2202,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add nxdomain.example.org./A = 10.0.0.4 for 1.2.4.0/24 */
@@ -2184,7 +2226,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.4.0");
@@ -2194,10 +2236,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2210,10 +2253,10 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -2241,14 +2284,15 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_any,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -2265,11 +2309,12 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2288,13 +2333,14 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2313,13 +2359,14 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2338,13 +2385,14 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2363,12 +2411,13 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2387,13 +2436,14 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2412,12 +2462,13 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -2429,13 +2480,8 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxdomain, tc) {
  * overriding various existing positive answers (global and ECS for
  * different address prefixes).
  */
-ATF_TC(addrdatasetext_positive_and_negative_nxrrset_same_type);
-ATF_TC_HEAD(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding negative answer (NXRRSET for APL type) "
-			  "overriding positive answers for APL type");
-}
-ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
+static void
+add_pos_and_neg_nxrrset_same_type(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -2454,22 +2500,24 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./APL = 1:10.0.0.1/32 for 0/0 */
 
@@ -2488,7 +2536,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -2498,10 +2546,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./APL = 1:10.0.0.2/32 for 1.2.0.0/16/24 (exact-match) */
@@ -2521,7 +2570,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -2531,10 +2580,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./APL = 1:10.0.0.3/32 for 1.2.3.0/24 */
@@ -2554,7 +2604,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -2564,10 +2614,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./APL = 1:10.0.0.4/32 for 1.2.4.0/24 */
@@ -2587,7 +2638,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.4.0");
@@ -2597,10 +2648,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2613,10 +2665,10 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -2644,14 +2696,15 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -2668,11 +2721,12 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2691,13 +2745,14 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2716,13 +2771,14 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2741,13 +2797,14 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2766,12 +2823,13 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2790,13 +2848,14 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -2815,12 +2874,13 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -2832,13 +2892,8 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_same_type, tc) {
  * overriding various existing positive answers (global and ECS for
  * different address prefixes).
  */
-ATF_TC(addrdatasetext_positive_and_negative_nxrrset_different_type);
-ATF_TC_HEAD(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding negative answer (NXRRSET for APL type) "
-			  "overriding positive answers for A type");
-}
-ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
+static void
+add_pos_and_neg_nxrrset_different_type(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -2857,22 +2912,24 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 0/0 */
 
@@ -2891,7 +2948,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -2901,10 +2958,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.2 for 1.2.0.0/16/24 (exact-match) */
@@ -2924,7 +2982,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -2934,10 +2992,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.3 for 1.2.3.0/24 */
@@ -2957,7 +3016,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -2967,10 +3026,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.4 for 1.2.4.0/24 */
@@ -2990,7 +3050,7 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.4.0");
@@ -3000,10 +3060,11 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -3016,10 +3077,10 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -3047,14 +3108,15 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -3069,24 +3131,25 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -3105,26 +3168,27 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -3143,26 +3207,27 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x03";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -3181,26 +3246,27 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x04";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -3219,12 +3285,13 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 22);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 22);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -3243,26 +3310,27 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 16);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 16);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -3281,12 +3349,13 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -3299,13 +3368,8 @@ ATF_TC_BODY(addrdatasetext_positive_and_negative_nxrrset_different_type, tc) {
  * the new answer addition getting rejected by DNS_R_UNCHANGED (because
  * the unexpired NXDOMAIN answer overrides it).
  */
-ATF_TC(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer "
-			  "overriding unexpired negative NXDOMAIN");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo, tc) {
+static void
+add_neg_nxdomain_unexpired_and_pos_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -3322,22 +3386,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "nxdomain.example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add an NXDOMAIN entry for "nxdomain.example.org" into the
@@ -3349,10 +3415,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -3380,14 +3446,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_any,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -3411,14 +3478,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -3434,11 +3502,12 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -3451,13 +3520,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo
  * the new answer addition getting rejected by DNS_R_UNCHANGED (because
  * the unexpired NXDOMAIN answer overrides it).
  */
-ATF_TC(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata);
-ATF_TC_HEAD(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer "
-			  "overriding unexpired negative NXDOMAIN");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, tc) {
+static void
+add_neg_nxdomain_unexpired_and_pos_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -3476,22 +3540,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, 
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "nxdomain.example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add an NXDOMAIN entry for "nxdomain.example.org" into the
@@ -3503,10 +3569,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, 
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -3534,14 +3600,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, 
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_any,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -3562,7 +3629,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -3572,10 +3639,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, 
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -3597,13 +3665,14 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, 
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -3616,13 +3685,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata, 
  * result in the new answer addition getting rejected by DNS_R_UNCHANGED
  * (because the unexpired NXDOMAIN answer overrides it).
  */
-ATF_TC(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata);
-ATF_TC_HEAD(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive address prefixed answer "
-			  "overriding unexpired negative NXDOMAIN");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc) {
+static void
+add_neg_nxdomain_unexpired_and_pos_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -3641,22 +3705,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc)
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "nxdomain.example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add an NXDOMAIN entry for "nxdomain.example.org" into the
@@ -3668,10 +3734,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc)
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -3699,14 +3765,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc)
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_any,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -3729,7 +3796,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc)
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -3739,10 +3806,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc)
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -3764,13 +3832,14 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc)
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXDOMAIN);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXDOMAIN);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -3783,13 +3852,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata, tc)
  * should result in the new answer addition getting rejected by
  * DNS_R_UNCHANGED (because the unexpired NXRRSET answer overrides it).
  */
-ATF_TC(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer "
-			  "overriding unexpired negative NXRRSET of the same type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noclientinfo, tc) {
+static void
+add_neg_nxrrset_same_type_unexpired_and_pos_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -3806,22 +3870,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noc
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -3833,10 +3899,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noc
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -3864,14 +3930,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noc
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -3895,14 +3962,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noc
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -3919,11 +3987,12 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noc
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -3936,13 +4005,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noc
  * should result in the new answer addition getting rejected by
  * DNS_R_UNCHANGED (because the unexpired NXRRSET answer overrides it).
  */
-ATF_TC(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_globaldata);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer for 0/0 "
-			  "overriding unexpired negative NXRRSET of the same type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_globaldata, tc) {
+static void
+add_neg_nxrrset_same_type_unexpired_and_pos_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -3961,22 +4025,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_glo
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -3988,10 +4054,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_glo
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -4019,14 +4085,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_glo
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -4047,7 +4114,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_glo
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -4057,10 +4124,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_glo
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -4082,13 +4150,14 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_glo
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -4101,13 +4170,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_glo
  * should result in the new answer addition getting rejected by
  * DNS_R_UNCHANGED (because the unexpired NXRRSET answer overrides it).
  */
-ATF_TC(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecsdata);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive address prefixed answer "
-			  "overriding unexpired negative NXRRSET of the same type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecsdata, tc) {
+static void
+add_neg_nxrrset_same_type_unexpired_and_pos_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -4126,22 +4190,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecs
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -4153,10 +4219,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecs
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -4184,14 +4250,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecs
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -4212,7 +4279,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecs
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -4222,10 +4289,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecs
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -4247,13 +4315,14 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecs
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -4266,13 +4335,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecs
  * type. It should result in the new answer addition being accepted
  * because it is for a different type.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer with no clientinfo "
-			  "overriding unexpired negative NXRRSET of a different type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_noclientinfo, tc) {
+static void
+add_neg_nxrrset_diff_type_unexpired_and_pos_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -4289,22 +4353,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -4316,10 +4382,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -4347,14 +4413,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -4377,14 +4444,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -4401,24 +4469,25 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -4431,13 +4500,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
  * type. It should result in the new answer addition being accepted
  * because it is for a different type.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_globaldata);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer for 0/0 "
-			  "overriding unexpired negative NXRRSET of a different type");
+static void
+add_neg_nxrrset_diff_type_unexpired_and_pos_globaldata(void **state) {
+{
 }
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_globaldata, tc) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -4456,22 +4522,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -4483,10 +4551,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -4514,14 +4582,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -4544,7 +4613,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -4554,10 +4623,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -4579,26 +4649,27 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -4611,13 +4682,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
  * type. It should result in the new answer addition being accepted
  * because it is for a different type.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_ecsdata);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding address prefixed answer "
-			  "overriding unexpired negative NXRRSET of a different type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_ecsdata, tc) {
+static void
+add_neg_nxrrset_diff_type_unexpired_and_pos_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -4636,22 +4702,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -4663,10 +4731,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -4694,14 +4762,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -4724,7 +4793,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -4734,10 +4803,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -4759,26 +4829,27 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -4791,13 +4862,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_unexpired_and_positiv
  * the new answer addition getting accepted because the NXDOMAIN entry
  * has expired in cache.
  */
-ATF_TC(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer with no clientinfo "
-			  "overriding expired negative NXDOMAIN");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, tc) {
+static void
+add_neg_nxdomain_expired_and_pos_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -4814,22 +4880,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, 
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "nxdomain.example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add an NXDOMAIN entry for "nxdomain.example.org" into the
@@ -4842,10 +4910,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, 
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -4873,14 +4941,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, 
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_any,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -4904,14 +4973,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -4937,14 +5007,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -4961,24 +5032,25 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, 
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -4991,13 +5063,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo, 
  * the new answer addition getting accepted because the NXDOMAIN entry
  * has expired in cache.
  */
-ATF_TC(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata);
-ATF_TC_HEAD(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer at 0/0 "
-			  "overriding expired negative NXDOMAIN");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc) {
+static void
+add_neg_nxdomain_expired_and_pos_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -5016,22 +5083,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "nxdomain.example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add an NXDOMAIN entry for "nxdomain.example.org" into the
@@ -5044,10 +5113,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -5075,14 +5144,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_any,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -5106,7 +5176,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -5116,10 +5186,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -5145,7 +5216,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -5155,10 +5226,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -5180,26 +5252,27 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -5212,13 +5285,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_globaldata, tc
  * result in the new answer addition getting accepted because the
  * NXDOMAIN entry has expired in cache.
  */
-ATF_TC(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata);
-ATF_TC_HEAD(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive address prefixed answer "
-			  "overriding expired negative NXDOMAIN");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
+static void
+add_neg_nxdomain_expired_and_pos_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -5237,22 +5305,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "nxdomain.example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add an NXDOMAIN entry for "nxdomain.example.org" into the
@@ -5265,10 +5335,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -5296,14 +5366,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_any,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -5328,7 +5399,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -5338,10 +5409,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -5369,7 +5441,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -5379,10 +5451,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -5404,26 +5477,27 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -5436,13 +5510,9 @@ ATF_TC_BODY(addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata, tc) {
  * should result in the new answer addition being accepted because the
  * NXRRSET entry has expired in the cache.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer with no clientinfo "
-			  "overriding expired negative NXRRSET of the same type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_noclientinfo, tc) {
+static void
+add_neg_nxrrset_same_type_expired_and_pos_noclientinfo(void **state)
+{
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -5459,22 +5529,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_nocli
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -5487,10 +5559,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_nocli
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -5518,14 +5590,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_nocli
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -5550,14 +5623,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_nocli
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -5585,14 +5659,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_nocli
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -5609,24 +5684,25 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_nocli
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x00\x01\x20\x04\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 8);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 8) == 0);
+	assert_int_equal(rdata.length, 8);
+	assert_memory_equal(rdata.data, rdata_data, 8);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -5639,13 +5715,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_nocli
  * should result in the new answer addition being accepted because the
  * NXRRSET entry has expired in the cache.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globaldata);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer for 0/0 "
-			  "overriding expired negative NXRRSET of the same type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globaldata, tc) {
+static void
+add_neg_nxrrset_same_type_expired_and_pos_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -5664,22 +5735,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -5692,10 +5765,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -5723,14 +5796,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -5754,7 +5828,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -5764,10 +5838,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -5793,7 +5868,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -5803,10 +5878,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -5828,26 +5904,27 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x00\x01\x20\x04\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 8);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 8) == 0);
+	assert_int_equal(rdata.length, 8);
+	assert_memory_equal(rdata.data, rdata_data, 8);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -5860,13 +5937,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globa
  * type. It should result in the new answer addition being accepted
  * because the NXRRSET entry has expired in the cache.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsdata);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive address prefixed answer "
-			  "overriding expired negative NXRRSET of the same type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsdata, tc) {
+static void
+add_neg_nxrrset_same_type_expired_and_pos_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -5885,22 +5957,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -5913,10 +5987,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -5944,14 +6018,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -5976,7 +6051,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -5986,10 +6061,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6015,7 +6091,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -6025,10 +6101,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -6050,26 +6127,27 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x00\x01\x20\x04\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 8);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 8) == 0);
+	assert_int_equal(rdata.length, 8);
+	assert_memory_equal(rdata.data, rdata_data, 8);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -6082,13 +6160,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsda
  * type. It should result in the new answer addition being accepted
  * because it is for a different type.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer with no clientinfo "
-			  "overriding expired negative NXRRSET of a different type");
+static void
+add_neg_nxrrset_diff_type_expired_and_pos_noclientinfo(void **state) {
+{
 }
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_noclientinfo, tc) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -6105,22 +6180,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -6133,10 +6210,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -6164,14 +6241,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -6196,14 +6274,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6217,10 +6296,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6240,24 +6320,25 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6271,10 +6352,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
+	assert_int_equal(result, ISC_R_NOTFOUND);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -6287,13 +6369,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
  * type. It should result in the new answer addition being accepted
  * because it is for a different type.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_globaldata);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive global answer for 0/0 "
-			  "overriding expired negative NXRRSET of a different type");
-}
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_globaldata, tc) {
+static void
+add_neg_nxrrset_diff_type_expired_and_pos_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -6312,22 +6389,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -6340,10 +6419,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -6371,14 +6450,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -6403,7 +6483,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -6413,10 +6493,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6435,12 +6516,13 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6465,26 +6547,27 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6503,12 +6586,13 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -6521,13 +6605,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
  * different type. It should result in the new answer addition being
  * accepted because it is for a different type.
  */
-ATF_TC(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_ecsdata);
-ATF_TC_HEAD(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive address prefixed answer "
-			  "overriding expired negative NXRRSET of a different type");
+static void
+add_neg_nxrrset_diff_type_expired_and_pos_ecsdata(void **state) {
+{
 }
-ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_ecsdata, tc) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -6546,22 +6627,24 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Now add an NXRRSET entry for "example.org/APL" into the cache
@@ -6574,10 +6657,10 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 
 	message = NULL;
 	result = dns_message_create(mctx, DNS_MESSAGE_INTENTPARSE, &message);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_message_parse(message, &source, 0);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Patch the message to add NCACHE attributes */
 	result = dns_message_firstname(message, DNS_SECTION_AUTHORITY);
@@ -6605,14 +6688,15 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 			}
 		}
 		result = dns_message_nextname(message, DNS_SECTION_AUTHORITY);
-		if (result == ISC_R_NOMORE)
+		if (result == ISC_R_NOMORE) {
 			break;
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		}
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	result = dns_ncache_add(message, db, node, dns_rdatatype_apl,
 				now, 256000, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_message_destroy(&message);
 
@@ -6637,7 +6721,7 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -6647,10 +6731,11 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6669,12 +6754,13 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_NCACHENXRRSET);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
+	assert_int_equal(result, DNS_R_NCACHENXRRSET);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6699,26 +6785,27 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6738,12 +6825,13 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -6756,13 +6844,8 @@ ATF_TC_BODY(addrdatasetext_negative_nxrrset_different_type_expired_and_positive_
  * positive answer with expired TTL (both positive answers have the same
  * RR type)
  */
-ATF_TC(addrdatasetext_positive_matching_longest_unexpired_answer);
-ATF_TC_HEAD(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test unexpired positive answer with short prefix length + "
-			  "expired answer with longer prefix length");
-}
-ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
+static void
+add_pos_matching_longest_unexpired_answer(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -6779,22 +6862,24 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 1.2.3.0/24 with TTL=1 */
 
@@ -6813,7 +6898,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -6823,10 +6908,11 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.2 for 1.2.0.0/16 with TTL=3600 */
@@ -6846,7 +6932,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -6856,10 +6942,11 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6878,25 +6965,26 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -6922,26 +7010,27 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 16);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 16);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -6955,13 +7044,8 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_unexpired_answer, tc) {
  * RRTYPE from that being searched. In this case, the former answer with
  * shorter prefix length and matching RRTYPE is the correct answer.
  */
-ATF_TC(addrdatasetext_positive_matching_longest_same_type_answer);
-ATF_TC_HEAD(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test positive A answer with short prefix length + "
-			  "positive APL answer with longer prefix length");
-}
-ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
+static void
+add_pos_matching_longest_same_type_answer(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -6978,22 +7062,24 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 1.2.3.0/24. */
 
@@ -7012,7 +7098,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -7022,10 +7108,11 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./APL = 1:10.0.0.2/32 for 1.2.0.0/16. */
@@ -7045,7 +7132,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -7055,10 +7142,11 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -7077,25 +7165,26 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -7115,25 +7204,26 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 16);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 16);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x00\x01\x20\x04\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 8);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 8) == 0);
+	assert_int_equal(rdata.length, 8);
+	assert_memory_equal(rdata.data, rdata_data, 8);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -7152,21 +7242,17 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_same_type_answer, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 16);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 16);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_multiple_types_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_positive_multiple_types_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answers for "
-			  "multiple types with clientinfo=NULL");
-}
-ATF_TC_BODY(addrdatasetext_positive_multiple_types_noclientinfo, tc) {
+/* test adding positive answers for multiple types with clientinfo=NULL */
+static void
+add_pos_multiple_types_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -7181,22 +7267,24 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_noclientinfo, tc) {
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 with no clientinfo. */
 
@@ -7215,14 +7303,15 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_noclientinfo, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./APL = 1:10.0.0.2/32 with no clientinfo. */
@@ -7242,14 +7331,15 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_noclientinfo, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -7264,24 +7354,25 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -7294,37 +7385,34 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x00\x01\x20\x04\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 8);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 8) == 0);
+	assert_int_equal(rdata.length, 8);
+	assert_memory_equal(rdata.data, rdata_data, 8);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_multiple_types_globaldata);
-ATF_TC_HEAD(addrdatasetext_positive_multiple_types_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answers for "
-			  "multiple types at 0/0");
-}
-ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
+/* test adding positive answers for multiple types at 0/0 */
+static void
+add_pos_multiple_types_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -7341,22 +7429,24 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 at 0/0. */
 
@@ -7375,7 +7465,7 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -7385,10 +7475,11 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./APL = 1:10.0.0.2/32 at 0/0. */
@@ -7408,7 +7499,7 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -7418,10 +7509,11 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -7442,26 +7534,27 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -7479,39 +7572,39 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x00\x01\x20\x04\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 8);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 8) == 0);
+	assert_int_equal(rdata.length, 8);
+	assert_memory_equal(rdata.data, rdata_data, 8);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_multiple_types_ecsdata);
-ATF_TC_HEAD(addrdatasetext_positive_multiple_types_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answers for "
-			  "multiple types for the same address prefix");
-}
-ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
+/*
+ * test adding positive answers for multiple types for the same address
+ * prefix
+ */
+static void
+add_pos_multiple_types_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -7528,22 +7621,24 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 at 1.2.3.0/24. */
 
@@ -7562,7 +7657,7 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -7572,10 +7667,11 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./APL = 1:10.0.0.2/32 at 1.2.3.0/24. */
@@ -7595,7 +7691,7 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -7605,10 +7701,11 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -7629,26 +7726,27 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -7667,40 +7765,40 @@ ATF_TC_BODY(addrdatasetext_positive_multiple_types_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_apl,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x00\x01\x20\x04\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 8);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 8) == 0);
+	assert_int_equal(rdata.length, 8);
+	assert_memory_equal(rdata.data, rdata_data, 8);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_expired_highertrust_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_positive_override_expired_highertrust_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with higher trust w/ expired TTL "
-			  "with clientinfo=NULL");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_noclientinfo, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * higher trust w/ expired TTL with clientinfo=NULL
+ */
+static void
+add_pos_override_expired_highertrust_noclientinfo(void **state)
+{
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -7715,22 +7813,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_noclientinfo, t
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=1 and no clientinfo.
@@ -7751,16 +7851,17 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_noclientinfo, t
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdataset.trust = dns_trust_authanswer;
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -7792,16 +7893,17 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_noclientinfo, t
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdataset.trust = dns_trust_answer;
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -7816,38 +7918,37 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_noclientinfo, t
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_expired_lowertrust_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_positive_override_expired_lowertrust_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with lower trust w/ expired TTL "
-			  "with clientinfo=NULL");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_noclientinfo, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * lower trust w/ expired TTL with clientinfo=NULL
+ */
+static void
+add_pos_override_expired_lowertrust_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -7862,22 +7963,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_noclientinfo, tc
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=1 and no clientinfo.
@@ -7898,16 +8001,17 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_noclientinfo, tc
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdataset.trust = dns_trust_answer;
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -7939,16 +8043,17 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_noclientinfo, tc
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdataset.trust = dns_trust_authanswer;
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -7963,38 +8068,37 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_noclientinfo, tc
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_unexpired_highertrust_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_positive_override_unexpired_highertrust_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with higher trust w/ unexpired TTL "
-			  "with clientinfo=NULL");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_noclientinfo, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * higher trust w/ unexpired TTL with clientinfo=NULL
+ */
+static void
+add_pos_override_unexpired_highertrust_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -8009,22 +8113,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_noclientinfo,
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=3600 and no
@@ -8046,16 +8152,17 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_noclientinfo,
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdataset.trust = dns_trust_authanswer;
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -8086,16 +8193,17 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_noclientinfo,
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdataset.trust = dns_trust_answer;
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -8110,38 +8218,37 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_noclientinfo,
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo);
-ATF_TC_HEAD(addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with lower trust w/ unexpired TTL "
-			  "with clientinfo=NULL");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * lower trust w/ unexpired TTL with clientinfo=NULL
+ */
+static void
+add_pos_override_unexpired_lowertrust_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -8156,22 +8263,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo, 
 	dns_rdataset_t rdataset;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=3600 and no
@@ -8193,16 +8302,17 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo, 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdataset.trust = dns_trust_answer;
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -8232,16 +8342,17 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo, 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdataset.trust = dns_trust_authanswer;
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -8256,38 +8367,37 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo, 
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_expired_highertrust_globaldata);
-ATF_TC_HEAD(addrdatasetext_positive_override_expired_highertrust_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with higher trust w/ expired TTL "
-			  "at 0/0");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_globaldata, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * higher trust w/ expired TTL at 0/0
+ */
+static void
+add_pos_override_expired_highertrust_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -8304,22 +8414,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_globaldata, tc)
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=1 at 0/0.
@@ -8340,7 +8452,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_globaldata, tc)
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -8352,10 +8464,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_globaldata, tc)
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -8386,7 +8499,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_globaldata, tc)
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -8398,10 +8511,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_globaldata, tc)
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -8422,40 +8536,39 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_globaldata, tc)
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_expired_lowertrust_globaldata);
-ATF_TC_HEAD(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with lower trust w/ expired TTL "
-			  "at 0/0");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * lower trust w/ expired TTL at 0/0
+ */
+static void
+add_pos_override_expired_lowertrust_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -8472,22 +8585,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) 
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=1 at 0/0.
@@ -8508,7 +8623,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -8520,10 +8635,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) 
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -8554,7 +8670,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -8566,10 +8682,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) 
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -8590,40 +8707,40 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_globaldata, tc) 
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_unexpired_highertrust_globaldata);
-ATF_TC_HEAD(addrdatasetext_positive_override_unexpired_highertrust_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with higher trust w/ unexpired TTL "
-			  "at 0/0");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_globaldata, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * higher trust w/ unexpired TTL at 0/0
+ */
+static void
+add_pos_override_unexpired_highertrust_globaldata(void **state)
+{
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -8640,22 +8757,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_globaldata, t
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=3600 at 0/0.
@@ -8676,7 +8795,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_globaldata, t
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -8688,10 +8807,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_globaldata, t
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -8721,7 +8841,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_globaldata, t
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -8733,10 +8853,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_globaldata, t
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -8757,40 +8878,41 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_globaldata, t
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_unexpired_lowertrust_globaldata);
-ATF_TC_HEAD(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with lower trust w/ unexpired TTL "
-			  "at 0/0");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * lower trust w/ unexpired TTL at 0/0
+ */
+
+static void
+add_pos_override_unexpired_lowertrust_globaldata(void **state)
+{
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -8807,22 +8929,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=3600 at 0/0.
@@ -8843,7 +8967,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -8855,10 +8979,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -8888,7 +9013,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -8900,10 +9025,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -8924,40 +9050,39 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_globaldata, tc
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_expired_highertrust_ecsdata);
-ATF_TC_HEAD(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with higher trust w/ expired TTL "
-			  "at address prefix");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * higher trust w/ expired TTL at address prefix
+ */
+static void
+add_pos_override_expired_highertrust_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -8974,22 +9099,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=1 at 1.2.3.0/24.
@@ -9010,7 +9137,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9022,10 +9149,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -9056,7 +9184,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9068,10 +9196,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -9092,40 +9221,39 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_highertrust_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_expired_lowertrust_ecsdata);
-ATF_TC_HEAD(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with lower trust w/ expired TTL "
-			  "at address prefix");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * lower trust w/ expired TTL at address prefix
+ */
+static void
+add_pos_override_expired_lowertrust_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -9142,22 +9270,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=1 at 1.2.3.0/24.
@@ -9178,7 +9308,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9190,10 +9320,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -9224,7 +9355,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9236,10 +9367,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -9260,40 +9392,39 @@ ATF_TC_BODY(addrdatasetext_positive_override_expired_lowertrust_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_unexpired_highertrust_ecsdata);
-ATF_TC_HEAD(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with higher trust w/ unexpired TTL "
-			  "at address prefix");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * higher trust w/ unexpired TTL at address prefix
+ */
+static void
+add_pos_override_unexpired_highertrust_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -9310,22 +9441,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) 
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=3600 at 1.2.3.0/24.
@@ -9346,7 +9479,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9358,10 +9491,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) 
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -9392,7 +9526,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) 
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9404,10 +9538,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) 
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_UNCHANGED);
+	assert_int_equal(result, DNS_R_UNCHANGED);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -9428,40 +9563,39 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_highertrust_ecsdata, tc) 
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata);
-ATF_TC_HEAD(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test adding positive answer overriding existing "
-			  "positive answer with lower trust w/ unexpired TTL "
-			  "at address prefix");
-}
-ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
+/*
+ * test adding positive answer overriding existing positive answer with
+ * lower trust w/ unexpired TTL at address prefix
+ */
+static void
+add_pos_override_unexpired_lowertrust_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -9478,22 +9612,24 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/*
 	 * Add example.org./A = 10.0.0.1 with TTL=3600 at 1.2.3.0/24.
@@ -9514,7 +9650,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9526,10 +9662,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -9559,7 +9696,7 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9571,10 +9708,11 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
@@ -9595,40 +9733,39 @@ ATF_TC_BODY(addrdatasetext_positive_override_unexpired_lowertrust_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(deleterdatasetext_positive_noclientinfo);
-ATF_TC_HEAD(deleterdatasetext_positive_noclientinfo, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test deleting cache entry with no clientinfo, "
-			  "with positive answers existing at different "
-			  "address prefixes");
-}
-ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
+/*
+ * test deleting cache entry with no clientinfo, with positive answers
+ * existing at different address prefixes
+ */
+static void
+deleterdatasetext_positive_noclientinfo(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -9646,22 +9783,24 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	struct in6_addr in6_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 0/0 */
 
@@ -9680,7 +9819,7 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -9690,10 +9829,11 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.2 for 1.2.0.0/16/24 (exact-match) */
@@ -9713,7 +9853,7 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -9723,10 +9863,11 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.3 for 1.2.3.0/24 */
@@ -9746,7 +9887,7 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -9756,10 +9897,11 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.4 for 1.2.4.0/24 */
@@ -9779,7 +9921,7 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.4.0");
@@ -9789,10 +9931,11 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.5 for 1:2:3:4::1/56 */
@@ -9812,7 +9955,7 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	inet_pton(AF_INET6, "1:2:3:4::1", &in6_addr);
@@ -9822,10 +9965,11 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Now delete the global answer with no clientinfo */
@@ -9833,7 +9977,7 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_deleterdatasetext(db, node, NULL,
 					  dns_rdatatype_a, 0,
 					  NULL, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
 	now += 2;
@@ -9848,10 +9992,11 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
+	assert_int_equal(result, ISC_R_NOTFOUND);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -9870,12 +10015,13 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -9894,26 +10040,27 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x03";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -9932,26 +10079,27 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 32);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 32);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x03";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -9970,26 +10118,27 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x04";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10008,12 +10157,13 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 22);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 22);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10032,26 +10182,27 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 16);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 16);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10070,12 +10221,13 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10094,26 +10246,27 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 56);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 56);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 56);
+	assert_int_equal(ci.ecs.scope, 56);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x05";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10132,26 +10285,25 @@ ATF_TC_BODY(deleterdatasetext_positive_noclientinfo, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 32);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 32);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(deleterdatasetext_positive_globaldata);
-ATF_TC_HEAD(deleterdatasetext_positive_globaldata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test deleting cache entry at 0/0, "
-			  "with positive answers existing at different "
-			  "address prefixes");
-}
-ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
+/*
+ * test deleting cache entry at 0/0, with positive answers existing at
+ * different address prefixes
+ */
+static void
+deleterdatasetext_positive_globaldata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -10169,22 +10321,24 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	struct in6_addr in6_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 0/0 */
 
@@ -10203,7 +10357,7 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -10213,10 +10367,11 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.2 for 1.2.0.0/16/24 (exact-match) */
@@ -10236,7 +10391,7 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -10246,10 +10401,11 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.3 for 1.2.3.0/24 */
@@ -10269,7 +10425,7 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -10279,10 +10435,11 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.4 for 1.2.4.0/24 */
@@ -10302,7 +10459,7 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.4.0");
@@ -10312,10 +10469,11 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.5 for 1:2:3:4::1/56 */
@@ -10335,7 +10493,7 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	inet_pton(AF_INET6, "1:2:3:4::1", &in6_addr);
@@ -10345,10 +10503,11 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Now delete the global answer at 0/0. */
@@ -10362,7 +10521,7 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_deleterdatasetext(db, node, NULL,
 					  dns_rdatatype_a, 0,
 					  NULL, &ci);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
 	now += 2;
@@ -10377,10 +10536,11 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
+	assert_int_equal(result, ISC_R_NOTFOUND);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10399,12 +10559,13 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10423,26 +10584,27 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x03";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10461,26 +10623,27 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 32);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 32);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x03";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10499,26 +10662,27 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x04";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10537,12 +10701,13 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 22);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 22);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10561,26 +10726,27 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 16);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 16);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10599,12 +10765,13 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10623,26 +10790,27 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 56);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 56);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 56);
+	assert_int_equal(ci.ecs.scope, 56);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x05";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10661,26 +10829,25 @@ ATF_TC_BODY(deleterdatasetext_positive_globaldata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 32);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 32);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-ATF_TC(deleterdatasetext_positive_ecsdata);
-ATF_TC_HEAD(deleterdatasetext_positive_ecsdata, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test deleting address prefixed cache entry, "
-			  "with positive answers existing at different "
-			  "address prefixes");
-}
-ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
+/*
+ * test deleting address prefixed cache entry, " with positive answers
+ * existing at different " address prefixes");
+ */
+static void
+deleterdatasetext_positive_ecsdata(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -10698,22 +10865,24 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	struct in6_addr in6_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 0/0 */
 
@@ -10732,7 +10901,7 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("0.0.0.0");
@@ -10742,10 +10911,11 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.2 for 1.2.0.0/16/24 (exact-match) */
@@ -10765,7 +10935,7 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -10775,10 +10945,11 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.3 for 1.2.3.0/24 */
@@ -10798,7 +10969,7 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -10808,10 +10979,11 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.4 for 1.2.4.0/24 */
@@ -10831,7 +11003,7 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.4.0");
@@ -10841,10 +11013,11 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./A = 10.0.0.5 for 1:2:3:4::1/56 */
@@ -10864,7 +11037,7 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	inet_pton(AF_INET6, "1:2:3:4::1", &in6_addr);
@@ -10874,10 +11047,11 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Now delete the answer at 1.2.3.0/24. */
@@ -10891,7 +11065,7 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_deleterdatasetext(db, node, NULL,
 					  dns_rdatatype_a, 0,
 					  NULL, &ci);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Sleep for 2 seconds so that the TTL counts down */
 	now += 2;
@@ -10904,24 +11078,25 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, NULL,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10940,26 +11115,27 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 0);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 0);
+	assert_int_equal(ci.ecs.scope, 0);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -10978,12 +11154,13 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11002,12 +11179,13 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 32);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 32);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11026,26 +11204,27 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x04";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11064,12 +11243,13 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 22);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 22);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11088,26 +11268,27 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 16);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 16);
+	assert_int_equal(ci.ecs.scope, 24);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x02";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11126,12 +11307,13 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11150,26 +11332,27 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 56);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 56);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 56);
+	assert_int_equal(ci.ecs.scope, 56);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x05";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11188,12 +11371,13 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(ci.ecs.source, 32);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 0xff);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_int_equal(ci.ecs.source, 32);
+	assert_int_equal(ci.ecs.scope, 0xff);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
@@ -11201,17 +11385,11 @@ ATF_TC_BODY(deleterdatasetext_positive_ecsdata, tc) {
 }
 
 /*
- * This tests searching where a CNAME answer with unexpired TTL and
- * shorter prefix length exists in ecs_tree alongside an unexpired
- * positive answer of non-CNAME type for a longer prefix-length.
- */
-ATF_TC(addrdatasetext_positive_matching_longest_cname_answer);
-ATF_TC_HEAD(addrdatasetext_positive_matching_longest_cname_answer, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "test CNAME answer with short prefix length + "
-			  "positive non-CNAME answer with longer prefix length");
-}
-ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
+ * test CNAME answer with short prefix length + positive non-CNAME answer
+ * with longer prefix length
+*/
+static void
+add_pos_matching_longest_cname_answer(void **state) {
 	dns_db_t *db = NULL;
 	isc_mem_t *mctx = NULL;
 	isc_result_t result;
@@ -11228,22 +11406,24 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 	struct in_addr in_addr;
 	isc_stdtime_t now;
 
+	UNUSED(state);
+
 	isc_stdtime_get(&now);
 
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
 			       dns_rdataclass_in, 0, NULL, &db);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	build_name_from_str(mctx, "example.org", &fname);
 	name = dns_fixedname_name(&fname);
 
 	node = NULL;
 	result = dns_db_findnode(db, name, true, &node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(node);
 
 	/* Add example.org./A = 10.0.0.1 for 1.2.3.0/24 with TTL=3600 */
 
@@ -11262,7 +11442,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.3.0");
@@ -11272,10 +11452,11 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/* Add example.org./CNAME = example.com. for 1.2.0.0/16 with TTL=3600 */
@@ -11295,7 +11476,7 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 
 	dns_rdataset_init(&rdataset);
 	result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_clientinfo_init(&ci, NULL, NULL, NULL);
 	in_addr.s_addr = inet_addr("1.2.0.0");
@@ -11305,10 +11486,11 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 
 	result = dns_db_addrdatasetext(db, node, NULL, now, &rdataset, 0,
 				       NULL, &ci, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11332,25 +11514,26 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(ci.ecs.source, 24);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 24);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_int_equal(ci.ecs.source, 24);
+	assert_int_equal(ci.ecs.scope, 24);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x0a\x00\x00\x01";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 4);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 4) == 0);
+	assert_int_equal(rdata.length, 4);
+	assert_memory_equal(rdata.data, rdata_data, 4);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	/*
@@ -11370,111 +11553,127 @@ ATF_TC_BODY(addrdatasetext_positive_matching_longest_cname_answer, tc) {
 	result = dns_db_findext(db, name, NULL, dns_rdatatype_a,
 				0, now, NULL, foundname, NULL, &ci,
 				&rdataset, NULL);
-	ATF_REQUIRE_EQ(result, DNS_R_CNAME);
-	ATF_REQUIRE_EQ(ci.ecs.source, 23);
-	ATF_REQUIRE_EQ(ci.ecs.scope, 16);
-	ATF_REQUIRE(rdataset.ttl > 3590 && rdataset.ttl < 3600);
+	assert_int_equal(result, DNS_R_CNAME);
+	assert_int_equal(ci.ecs.source, 23);
+	assert_int_equal(ci.ecs.scope, 16);
+	assert_in_range(rdataset.ttl, 3591, 3599);
 
 	result = dns_rdataset_first(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	rdata_data = "\x07example\x03com\x00\0";
 
 	dns_rdata_init(&rdata);
 	dns_rdataset_current(&rdataset, &rdata);
-	ATF_REQUIRE_EQ(rdata.length, 13);
-	ATF_REQUIRE(memcmp(rdata.data, rdata_data, 13) == 0);
+	assert_int_equal(rdata.length, 13);
+	assert_memory_equal(rdata.data, rdata_data, 13);
 
 	result = dns_rdataset_next(&rdataset);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
-	if (dns_rdataset_isassociated(&rdataset))
+	if (dns_rdataset_isassociated(&rdataset)) {
 		dns_rdataset_disassociate(&rdataset);
+	}
 	dns_rdataset_invalidate(&rdataset);
 
 	dns_db_detach(&db);
 	isc_mem_detach(&mctx);
 }
 
-/*
- * Main
- */
-ATF_TP_ADD_TCS(tp) {
-	ATF_TP_ADD_TC(tp, iscache);
-	ATF_TP_ADD_TC(tp, findnode);
-	ATF_TP_ADD_TC(tp, addrdataset);
-	ATF_TP_ADD_TC(tp, findrdatasetext);
+int
+main(void) {
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(iscache),
+		cmocka_unit_test(findnode),
+		cmocka_unit_test(addrdataset),
+		cmocka_unit_test(findrdatasetext),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxdomain);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset);
+		cmocka_unit_test(add_neg_nxdomain),
+		cmocka_unit_test(add_neg_nxrrset),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_ecsdata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_ecsscopezero);
+		cmocka_unit_test(add_pos_noclientinfo),
+		cmocka_unit_test(add_pos_globaldata),
+		cmocka_unit_test(add_pos_ecsdata),
+		cmocka_unit_test(add_pos_ecsscopezero),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_and_negative_nxdomain);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_and_negative_nxrrset_same_type);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_and_negative_nxrrset_different_type);
+		cmocka_unit_test(add_pos_and_neg_nxdomain),
+		cmocka_unit_test(add_pos_and_neg_nxrrset_same_type),
+		cmocka_unit_test(add_pos_and_neg_nxrrset_different_type),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxdomain_unexpired_and_positive_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxdomain_unexpired_and_positive_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxdomain_unexpired_and_positive_ecsdata);
+		cmocka_unit_test(add_neg_nxdomain_unexpired_and_pos_noclientinfo),
+		cmocka_unit_test(add_neg_nxdomain_unexpired_and_pos_globaldata),
+		cmocka_unit_test(add_neg_nxdomain_unexpired_and_pos_ecsdata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_same_type_unexpired_and_positive_ecsdata);
+		cmocka_unit_test(add_neg_nxrrset_same_type_unexpired_and_pos_noclientinfo),
+		cmocka_unit_test(add_neg_nxrrset_same_type_unexpired_and_pos_globaldata),
+		cmocka_unit_test(add_neg_nxrrset_same_type_unexpired_and_pos_ecsdata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_different_type_unexpired_and_positive_ecsdata);
+		cmocka_unit_test(add_neg_nxrrset_diff_type_unexpired_and_pos_noclientinfo),
+		cmocka_unit_test(add_neg_nxrrset_diff_type_unexpired_and_pos_globaldata),
+		cmocka_unit_test(add_neg_nxrrset_diff_type_unexpired_and_pos_ecsdata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxdomain_expired_and_positive_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxdomain_expired_and_positive_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxdomain_expired_and_positive_ecsdata);
+		cmocka_unit_test(add_neg_nxdomain_expired_and_pos_noclientinfo),
+		cmocka_unit_test(add_neg_nxdomain_expired_and_pos_globaldata),
+		cmocka_unit_test(add_neg_nxdomain_expired_and_pos_ecsdata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_same_type_expired_and_positive_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_same_type_expired_and_positive_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_same_type_expired_and_positive_ecsdata);
+		cmocka_unit_test(add_neg_nxrrset_same_type_expired_and_pos_noclientinfo),
+		cmocka_unit_test(add_neg_nxrrset_same_type_expired_and_pos_globaldata),
+		cmocka_unit_test(add_neg_nxrrset_same_type_expired_and_pos_ecsdata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_different_type_expired_and_positive_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_different_type_expired_and_positive_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_negative_nxrrset_different_type_expired_and_positive_ecsdata);
+		cmocka_unit_test(add_neg_nxrrset_diff_type_expired_and_pos_noclientinfo),
+		cmocka_unit_test(add_neg_nxrrset_diff_type_expired_and_pos_globaldata),
+		cmocka_unit_test(add_neg_nxrrset_diff_type_expired_and_pos_ecsdata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_matching_longest_unexpired_answer);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_matching_longest_same_type_answer);
+		cmocka_unit_test(add_pos_matching_longest_unexpired_answer),
+		cmocka_unit_test(add_pos_matching_longest_same_type_answer),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_multiple_types_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_multiple_types_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_multiple_types_ecsdata);
+		cmocka_unit_test(add_pos_multiple_types_noclientinfo),
+		cmocka_unit_test(add_pos_multiple_types_globaldata),
+		cmocka_unit_test(add_pos_multiple_types_ecsdata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_expired_highertrust_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_expired_lowertrust_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_unexpired_highertrust_noclientinfo);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_unexpired_lowertrust_noclientinfo);
+		cmocka_unit_test(add_pos_override_expired_highertrust_noclientinfo),
+		cmocka_unit_test(add_pos_override_expired_lowertrust_noclientinfo),
+		cmocka_unit_test(add_pos_override_unexpired_highertrust_noclientinfo),
+		cmocka_unit_test(add_pos_override_unexpired_lowertrust_noclientinfo),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_expired_highertrust_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_expired_lowertrust_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_unexpired_highertrust_globaldata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_unexpired_lowertrust_globaldata);
+		cmocka_unit_test(add_pos_override_expired_highertrust_globaldata),
+		cmocka_unit_test(add_pos_override_expired_lowertrust_globaldata),
+		cmocka_unit_test(add_pos_override_unexpired_highertrust_globaldata),
+		cmocka_unit_test(add_pos_override_unexpired_lowertrust_globaldata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_expired_highertrust_ecsdata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_expired_lowertrust_ecsdata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_unexpired_highertrust_ecsdata);
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_override_unexpired_lowertrust_ecsdata);
+		cmocka_unit_test(add_pos_override_expired_highertrust_ecsdata),
+		cmocka_unit_test(add_pos_override_expired_lowertrust_ecsdata),
+		cmocka_unit_test(add_pos_override_unexpired_highertrust_ecsdata),
+		cmocka_unit_test(add_pos_override_unexpired_lowertrust_ecsdata),
 
-	ATF_TP_ADD_TC(tp, deleterdatasetext_positive_noclientinfo);
-	ATF_TP_ADD_TC(tp, deleterdatasetext_positive_globaldata);
-	ATF_TP_ADD_TC(tp, deleterdatasetext_positive_ecsdata);
+		cmocka_unit_test(deleterdatasetext_positive_noclientinfo),
+		cmocka_unit_test(deleterdatasetext_positive_globaldata),
+		cmocka_unit_test(deleterdatasetext_positive_ecsdata),
 
-	ATF_TP_ADD_TC(tp, addrdatasetext_positive_matching_longest_cname_answer);
+		cmocka_unit_test(add_pos_matching_longest_cname_answer),
+		/*
+		 * Unit tests left to add:
+		 *
+		 * adding negative answer (nxdomain, type=ANY) with
+		 * existing negative answer (nxdomain, type=ANY) already in
+		 * cache
+		 *
+		 * adding negative answer (nxdomain, type=ANY) with
+		 * existing negative answer (NXRRSET) already in cache
+		 */
+	};
 
-	/*
-	 * Unit tests left to add:
-	 *
-	 * adding negative answer (nxdomain, type=ANY) with existing negative answer (nxdomain, type=ANY) already in cache
-	 * adding negative answer (nxdomain, type=ANY) with existing negative answer (NXRRSET) already in cache
-	 */
-
-	return (atf_no_error());
+	return (cmocka_run_group_tests(tests, NULL, NULL));
 }
+
+#else /* HAVE_CMOCKA */
+
+#include <stdio.h>
+
+int
+main(void) {
+	printf("1..0 # Skipped: cmocka not available\n");
+	return (0);
+}
+
+#endif

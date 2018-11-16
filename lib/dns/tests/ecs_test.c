@@ -9,16 +9,24 @@
  * information regarding copyright ownership.
  */
 
-/* ! \file */
-
 #include <config.h>
 
-#include <atf-c.h>
+#if HAVE_CMOCKA
 
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-#include <isc/util.h>
+#define UNIT_TESTING
+#include <cmocka.h>
+
+#include <isc/print.h>
 #include <isc/string.h>
+#include <isc/util.h>
 
 #include <dns/ecs.h>
 
@@ -43,29 +51,43 @@ int answers[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-ATF_TC(dns_ecs_type_allowed);
-ATF_TC_HEAD(dns_ecs_type_allowed, tc) {
-	atf_tc_set_md_var(tc, "descr", "dns_ecs_type_allowed");
-}
-ATF_TC_BODY(dns_ecs_type_allowed, tc) {
+static int
+_setup(void **state) {
 	isc_result_t result;
+
+	UNUSED(state);
+
+	result = dns_test_begin(NULL, false);
+	assert_int_equal(result, ISC_R_SUCCESS);
+
+	return (0);
+}
+
+static int
+_teardown(void **state) {
+	UNUSED(state);
+
+	dns_test_end();
+
+	return (0);
+}
+
+/* test dns_ecs_type_allowed */
+static void
+dns_ecs_type_allowed_test(void **state) {
 	isc_buffer_t buf;
 	int i;
 
-	UNUSED(tc);
-
-	result = dns_test_begin(NULL, false);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	UNUSED(state);
 
 	isc_buffer_init(&buf, testmap, sizeof(testmap));
 	isc_buffer_add(&buf, 2 + testmap[1]);
-	for (i = 0; i < 256; i++)
-		ATF_CHECK_EQ_MSG(answers[i] ? true : false,
-				 dns_ecs_type_allowed(&buf, i),
-				 "type %d should be %s", i,
+	for (i = 0; i < 256; i++) {
+		if (answers[i] != dns_ecs_type_allowed(&buf, i)) {
+			fail_msg("type %d should be %s", i,
 				 answers[i] ? "set" : "clear");
-
-	dns_test_end();
+		}
+	}
 }
 
 /*
@@ -104,24 +126,19 @@ domain_testdata_t domain_testcases[] = {
 	{ NULL, false, 0, 0 }
 };
 
-ATF_TC(dns_ecszones_name_allowed);
-ATF_TC_HEAD(dns_ecszones_name_allowed, tc) {
-	atf_tc_set_md_var(tc, "descr", "dns_ecszones_name_allowed");
-}
-ATF_TC_BODY(dns_ecszones_name_allowed, tc) {
+/* test dns_ecszones_name_allowed */
+static void
+dns_ecszones_name_allowed_test(void **state) {
 	isc_result_t result;
 	dns_ecszones_t *ecszones = NULL;
 	dns_fixedname_t fn;
 	dns_name_t *name;
 	int i;
 
-	UNUSED(tc);
-
-	result = dns_test_begin(NULL, false);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	UNUSED(state);
 
 	result = dns_ecszones_create(mctx, &ecszones);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	dns_fixedname_init(&fn);
 	name = dns_fixedname_name(&fn);
@@ -132,14 +149,14 @@ ATF_TC_BODY(dns_ecszones_name_allowed, tc) {
 			result = dns_name_fromstring2(name,
 						      domain_testdata[i].name,
 						      NULL, 0, NULL);
-			ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+			assert_int_equal(result, ISC_R_SUCCESS);
 		}
 
 		result = dns_ecszones_setdomain(ecszones, name,
 						!domain_testdata[i].active,
 						domain_testdata[i].bits4,
 						domain_testdata[i].bits6);
-		ATF_CHECK_EQ(result, ISC_R_SUCCESS);
+		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
 	for (i = 0; domain_testcases[i].name != NULL; i++) {
@@ -152,30 +169,24 @@ ATF_TC_BODY(dns_ecszones_name_allowed, tc) {
 			result = dns_name_fromstring2(name,
 						      domain_testcases[i].name,
 						      NULL, 0, NULL);
-			ATF_CHECK_EQ(result, ISC_R_SUCCESS);
-			if (result != ISC_R_SUCCESS)
+			assert_int_equal(result, ISC_R_SUCCESS);
+			if (result != ISC_R_SUCCESS) {
 				continue;
+			}
 		}
 
 		active = dns_ecszones_name_allowed(ecszones, name,
 						   &bits4, &bits6);
-		if (active != domain_testcases[i].active)
-			ATF_CHECK_MSG(0, "%s %s", domain_testcases[i].name,
-				      active ? "active" : "not active");
+		assert_int_equal(active, domain_testcases[i].active);
+
 		if (active) {
-			ATF_CHECK_EQ_MSG(bits4, domain_testcases[i].bits4,
-					 "test %d: %d: expected %d",
-					 i, bits4, domain_testcases[i].bits4);
-			ATF_CHECK_EQ_MSG(bits6, domain_testcases[i].bits6,
-					 "test %d: %d: expected %d",
-					 i, bits6, domain_testcases[i].bits6);
+			assert_int_equal(bits4, domain_testcases[i].bits4);
+			assert_int_equal(bits6, domain_testcases[i].bits6);
 		}
 	}
 
 	dns_ecszones_free(&ecszones);
-	ATF_CHECK_EQ(ecszones, NULL);
-
-	dns_test_end();
+	assert_null(ecszones);
 }
 
 typedef struct {
@@ -213,22 +224,17 @@ match_test_t match_testcases[] = {
 	{ AF_INET, "10.140.72.0", 9, "10.29.31.44", 9, false},
 	{ 0, NULL, 0, NULL, 0, 0 }
 };
-ATF_TC(dns_ecs_equals);
-ATF_TC_HEAD(dns_ecs_equals, tc) {
-	atf_tc_set_md_var(tc, "descr", "dns_ecs_equals");
-}
-ATF_TC_BODY(dns_ecs_equals, tc) {
-	isc_result_t result;
+
+/* test dns_ecs_equals */
+static void
+dns_ecs_equals_test(void **state) {
 	struct in_addr in4a, in4b;
 	struct in6_addr in6a, in6b;
 	isc_netaddr_t net1, net2;
 	dns_ecs_t ecs1, ecs2;
 	int i;
 
-	UNUSED(tc);
-
-	result = dns_test_begin(NULL, false);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	UNUSED(state);
 
 	for (i = 0; match_testcases[i].addr1 != NULL; i++) {
 		bool match;
@@ -251,20 +257,32 @@ ATF_TC_BODY(dns_ecs_equals, tc) {
 		ecs2.source = match_testcases[i].bits2;
 
 		match = dns_ecs_equals(&ecs1, &ecs2);
-		ATF_CHECK_EQ_MSG(match, match_testcases[i].match,
-				 "test %d: unexpected %s",
-				 i, match ? "match" : "no match");
+		assert_int_equal(match, match_testcases[i].match);
 	}
-
-	dns_test_end();
 }
 
-/*
- * Main
- */
-ATF_TP_ADD_TCS(tp) {
-	ATF_TP_ADD_TC(tp, dns_ecs_type_allowed);
-	ATF_TP_ADD_TC(tp, dns_ecszones_name_allowed);
-	ATF_TP_ADD_TC(tp, dns_ecs_equals);
-	return (atf_no_error());
+int
+main(void) {
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test_setup_teardown(dns_ecs_type_allowed_test,
+						_setup, _teardown),
+		cmocka_unit_test_setup_teardown(dns_ecszones_name_allowed_test,
+						_setup, _teardown),
+		cmocka_unit_test_setup_teardown(dns_ecs_equals_test,
+						_setup, _teardown),
+	};
+
+	return (cmocka_run_group_tests(tests, dns_test_init, dns_test_final));
 }
+
+#else /* HAVE_CMOCKA */
+
+#include <stdio.h>
+
+int
+main(void) {
+	printf("1..0 # Skipped: cmocka not available\n");
+	return (0);
+}
+
+#endif

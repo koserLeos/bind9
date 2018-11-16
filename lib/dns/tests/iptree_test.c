@@ -11,30 +11,40 @@
 
 #include <config.h>
 
-#include <atf-c.h>
+#if HAVE_CMOCKA
+
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <dns/iptree.h>
-#include <dns/ecs.h>
+#define UNIT_TESTING
+#include <cmocka.h>
 
 #include <isc/buffer.h>
 #include <isc/netaddr.h>
 #include <isc/mem.h>
+#include <isc/print.h>
+#include <isc/string.h>
 #include <isc/util.h>
+
+#include <dns/iptree.h>
+#include <dns/ecs.h>
 
 static bool
 destroy_cb(void **data, void *destroy_arg) {
 	size_t *count;
 
-	ATF_REQUIRE(data != NULL && *data != NULL);
+	REQUIRE(data != NULL && *data != NULL);
 
 	count = (size_t *) destroy_arg;
-	if (count != NULL)
+	if (count != NULL) {
 		(*count)++;
+	}
 
 	*data = NULL;
 
@@ -46,7 +56,7 @@ static bool
 callback_fn(void **data, void *callback_arg) {
 	size_t *count;
 
-	ATF_REQUIRE(data != NULL && *data != NULL);
+	REQUIRE(data != NULL && *data != NULL);
 
 	count = (size_t *) callback_arg;
 	(*count)++;
@@ -55,36 +65,32 @@ callback_fn(void **data, void *callback_arg) {
 	return (false);
 }
 
-ATF_TC(iptree_destroy_foreach__null);
-ATF_TC_HEAD(iptree_destroy_foreach__null, tc) {
-	atf_tc_set_md_var(tc, "descr", "destroy iptree with root=NULL");
-}
-ATF_TC_BODY(iptree_destroy_foreach__null, tc) {
+/* destroy iptree with root=NULL */
+static void
+iptree_destroy_foreach__null(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	root = NULL;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, NULL);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_common_prefix);
-ATF_TC_HEAD(iptree_common_prefix, tc) {
-	atf_tc_set_md_var(tc, "descr", "iptree_common_prefix");
-}
-ATF_TC_BODY(iptree_common_prefix, tc) {
+/* iptree_common_prefix */
+static void
+iptree_common_prefix(void **state) {
 	int diff;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	{
 		const uint32_t addr_a[4] = { 0, 0, 0, 0 };
@@ -92,7 +98,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 
 		/* addresses are equal */
 		diff = dns_iptree_common_prefix(addr_a, 128, addr_b, 128);
-		ATF_REQUIRE_EQ(diff, 128);
+		assert_int_equal(diff, 128);
 	}
 
 	{
@@ -101,7 +107,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 
 		/* addresses are equal */
 		diff = dns_iptree_common_prefix(addr_a, 32, addr_b, 32);
-		ATF_REQUIRE_EQ(diff, 32);
+		assert_int_equal(diff, 32);
 	}
 
 	{
@@ -110,7 +116,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 
 		/* addresses are equal */
 		diff = dns_iptree_common_prefix(addr_a, 128, addr_b, 128);
-		ATF_REQUIRE_EQ(diff, 128);
+		assert_int_equal(diff, 128);
 	}
 
 	{
@@ -123,7 +129,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 
 		/* addresses are equal */
 		diff = dns_iptree_common_prefix(addr_a, 128, addr_b, 128);
-		ATF_REQUIRE_EQ(diff, 128);
+		assert_int_equal(diff, 128);
 	}
 
 	{
@@ -136,7 +142,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 
 		/* addresses are equal */
 		diff = dns_iptree_common_prefix(addr_a, 32, addr_b, 32);
-		ATF_REQUIRE_EQ(diff, 32);
+		assert_int_equal(diff, 32);
 	}
 
 	{
@@ -144,7 +150,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 		const uint32_t addr_b[4] = { 0x40000000, 0, 0, 0 };
 
 		diff = dns_iptree_common_prefix(addr_a, 128, addr_b, 128);
-		ATF_REQUIRE_EQ(diff, 0);
+		assert_int_equal(diff, 0);
 	}
 
 	{
@@ -152,7 +158,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 		const uint32_t addr_b[4] = { 0x40000000, 0, 0, 0 };
 
 		diff = dns_iptree_common_prefix(addr_a, 128, addr_b, 128);
-		ATF_REQUIRE_EQ(diff, 0);
+		assert_int_equal(diff, 0);
 	}
 
 	{
@@ -160,7 +166,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 		const uint32_t addr_b[4] = { 0x80000000, 0, 0, 0 };
 
 		diff = dns_iptree_common_prefix(addr_a, 128, addr_b, 128);
-		ATF_REQUIRE_EQ(diff, 1);
+		assert_int_equal(diff, 1);
 	}
 
 	{
@@ -168,7 +174,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 		const uint32_t addr_b[4] = { 0x80000000, 0, 0, 0x000000ff };
 
 		diff = dns_iptree_common_prefix(addr_a, 128, addr_b, 128);
-		ATF_REQUIRE_EQ(diff, 1);
+		assert_int_equal(diff, 1);
 	}
 
 	{
@@ -180,7 +186,7 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 		};
 
 		diff = dns_iptree_common_prefix(addr_a, 128, addr_b, 128);
-		ATF_REQUIRE_EQ(diff, 125);
+		assert_int_equal(diff, 125);
 	}
 
 	{
@@ -193,15 +199,13 @@ ATF_TC_BODY(iptree_common_prefix, tc) {
 
 		/* addresses are equal up to first 32 bits */
 		diff = dns_iptree_common_prefix(addr_a, 32, addr_b, 32);
-		ATF_REQUIRE_EQ(diff, 32);
+		assert_int_equal(diff, 32);
 	}
 }
 
-ATF_TC(iptree_search__null_root_no_create);
-ATF_TC_HEAD(iptree_search__null_root_no_create, tc) {
-	atf_tc_set_md_var(tc, "descr", "search iptree with root=NULL, create=false");
-}
-ATF_TC_BODY(iptree_search__null_root_no_create, tc) {
+/* search iptree with root=NULL, create=false */
+static void
+iptree_search__null_root_no_create(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -209,11 +213,11 @@ ATF_TC_BODY(iptree_search__null_root_no_create, tc) {
 	isc_netaddr_t netaddr;
 	dns_iptree_node_t *found_node;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	in_addr.s_addr = inet_addr("1.2.3.4");
 	isc_netaddr_fromin(&netaddr, &in_addr);
@@ -222,19 +226,17 @@ ATF_TC_BODY(iptree_search__null_root_no_create, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 32, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE_EQ(root, NULL);
-	ATF_REQUIRE_EQ(found_node, NULL);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_null(root);
+	assert_null(found_node);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_v4);
-ATF_TC_HEAD(iptree_search_v4, tc) {
-	atf_tc_set_md_var(tc, "descr", "search IPv4 iptree with root=NULL, create=true");
-}
-ATF_TC_BODY(iptree_search_v4, tc) {
+/* search IPv4 iptree with root=NULL, create=true */
+static void
+iptree_search_v4(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root, *root_copy;
@@ -246,11 +248,11 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	uint8_t found_scope_prefix_length;
 	size_t count, dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET, "1.2.3.4", &in_addr);
 	isc_netaddr_fromin(&netaddr, &in_addr);
@@ -259,25 +261,25 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 
 	root = NULL;
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 0);
+	assert_int_equal(count, 0);
 
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 32, 32,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 32);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 32);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 32);
+	assert_int_equal(found_scope_prefix_length, 32);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0x809ffbc1;
@@ -290,20 +292,20 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 32, 32,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_EXISTS);
-	ATF_REQUIRE_EQ(root, root_copy);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_EXISTS);
+	assert_ptr_equal(root, root_copy);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0x809ffbc1);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 32);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 32);
+	assert_ptr_equal(*found_data, (void *) 0x809ffbc1);
+	assert_int_equal(found_address_prefix_length, 32);
+	assert_int_equal(found_scope_prefix_length, 32);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Repeat with create=false */
 	found_data = NULL;
@@ -312,20 +314,20 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 32, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(root, root_copy);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_ptr_equal(root, root_copy);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0x809ffbc1);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 32);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 32);
+	assert_ptr_equal(*found_data, (void *) 0x809ffbc1);
+	assert_int_equal(found_address_prefix_length, 32);
+	assert_int_equal(found_scope_prefix_length, 32);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Create 0/0 - a node corresponding to the global answer */
 	found_data = NULL;
@@ -334,20 +336,20 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 16, 0,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xf0173712;
@@ -359,19 +361,19 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 1, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf0173712);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xf0173712);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/*
 	 * Look for the inserted old 1.2.3.4/32. It should still be
@@ -383,19 +385,19 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 32, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0x809ffbc1);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 32);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 32);
+	assert_ptr_equal(*found_data, (void *) 0x809ffbc1);
+	assert_int_equal(found_address_prefix_length, 32);
+	assert_int_equal(found_scope_prefix_length, 32);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/*
 	 * Look for 1.2.3.4/24 - should get a PARTIALMATCH against 0/0.
@@ -406,19 +408,19 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf0173712);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xf0173712);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	inet_pton(AF_INET, "1.2.3.1", &in_addr2);
 	isc_netaddr_fromin(&netaddr2, &in_addr2);
@@ -432,19 +434,19 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf0173712);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xf0173712);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Create 1.2.3.1/32. */
 	found_data = NULL;
@@ -453,20 +455,20 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr2, 32, 32,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 32);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 32);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 32);
+	assert_int_equal(found_scope_prefix_length, 32);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 4);
+	assert_int_equal(count, 4);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xabcdabcd;
@@ -479,20 +481,20 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 32, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(root, root_copy);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_ptr_equal(root, root_copy);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xabcdabcd);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 32);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 32);
+	assert_ptr_equal(*found_data, (void *) 0xabcdabcd);
+	assert_int_equal(found_address_prefix_length, 32);
+	assert_int_equal(found_scope_prefix_length, 32);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 4);
+	assert_int_equal(count, 4);
 
 	/*
 	 * Create 1.2.3.1/24/26.
@@ -503,16 +505,16 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr2, 24, 26,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 24);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 26);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 24);
+	assert_int_equal(found_scope_prefix_length, 26);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xf000f000;
@@ -526,16 +528,16 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf000f000);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 24);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 26);
+	assert_ptr_equal(*found_data, (void *) 0xf000f000);
+	assert_int_equal(found_address_prefix_length, 24);
+	assert_int_equal(found_scope_prefix_length, 26);
 
 	/*
 	 * Search for 1.2.3.1/25. The longer 1.2.3.1/24 should not be
@@ -548,16 +550,16 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 25, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf0173712);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xf0173712);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	/*
 	 * Search for 1.2.3.1/24 again. It should be found (exact
@@ -569,16 +571,16 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf000f000);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 24);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 26);
+	assert_ptr_equal(*found_data, (void *) 0xf000f000);
+	assert_int_equal(found_address_prefix_length, 24);
+	assert_int_equal(found_scope_prefix_length, 26);
 
 	/*
 	 * Clear the node data, effectively deleting that address
@@ -595,16 +597,16 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr2, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 24);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 24);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 24);
+	assert_int_equal(found_scope_prefix_length, 24);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xb000b000;
@@ -618,16 +620,16 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xb000b000);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 24);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 24);
+	assert_ptr_equal(*found_data, (void *) 0xb000b000);
+	assert_int_equal(found_address_prefix_length, 24);
+	assert_int_equal(found_scope_prefix_length, 24);
 
 	/*
 	 * Search for 1.2.3.1/25. The longer 1.2.3.1/24 should be found
@@ -639,33 +641,31 @@ ATF_TC_BODY(iptree_search_v4, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 25, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xb000b000);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 24);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 24);
+	assert_ptr_equal(*found_data, (void *) 0xb000b000);
+	assert_int_equal(found_address_prefix_length, 24);
+	assert_int_equal(found_scope_prefix_length, 24);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 	/* dcount should be 4 (count - 1, where 1 is the fork node). */
-	ATF_REQUIRE_EQ(dcount, 4);
+	assert_int_equal(dcount, 4);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_v6);
-ATF_TC_HEAD(iptree_search_v6, tc) {
-	atf_tc_set_md_var(tc, "descr", "search IPv6 iptree with root=NULL, create=true");
-}
-ATF_TC_BODY(iptree_search_v6, tc) {
+/* search IPv6 iptree with root=NULL, create=true */
+static void
+iptree_search_v6(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root, *root_copy;
@@ -678,11 +678,11 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	uint8_t found_scope_prefix_length;
 	size_t count, dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET6, "1:2:3:4::1", &in_addr);
 	isc_netaddr_fromin6(&netaddr, &in_addr);
@@ -691,25 +691,25 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 
 	root = NULL;
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 0);
+	assert_int_equal(count, 0);
 
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 128);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 128);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 128);
+	assert_int_equal(found_scope_prefix_length, 128);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0x809ffbc1;
@@ -722,20 +722,20 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_EXISTS);
-	ATF_REQUIRE_EQ(root, root_copy);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_EXISTS);
+	assert_ptr_equal(root, root_copy);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0x809ffbc1);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 128);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 128);
+	assert_ptr_equal(*found_data, (void *) 0x809ffbc1);
+	assert_int_equal(found_address_prefix_length, 128);
+	assert_int_equal(found_scope_prefix_length, 128);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Repeat with create=false */
 	found_data = NULL;
@@ -744,20 +744,20 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 128, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(root, root_copy);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_ptr_equal(root, root_copy);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0x809ffbc1);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 128);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 128);
+	assert_ptr_equal(*found_data, (void *) 0x809ffbc1);
+	assert_int_equal(found_address_prefix_length, 128);
+	assert_int_equal(found_scope_prefix_length, 128);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Create 0/0 - a node corresponding to the global answer */
 	found_data = NULL;
@@ -766,20 +766,20 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 1, 0,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xf0173712;
@@ -791,19 +791,19 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 1, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf0173712);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xf0173712);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/*
 	 * Look for the inserted old 1:2:3:4::1/128. It should still be
@@ -815,19 +815,19 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 128, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0x809ffbc1);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 128);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 128);
+	assert_ptr_equal(*found_data, (void *) 0x809ffbc1);
+	assert_int_equal(found_address_prefix_length, 128);
+	assert_int_equal(found_scope_prefix_length, 128);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/*
 	 * Look for 1:2:3:4::1/120 - should get a PARTIALMATCH against
@@ -839,19 +839,19 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 120, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf0173712);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xf0173712);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	inet_pton(AF_INET6, "1:2:3:1::1", &in_addr2);
 	isc_netaddr_fromin6(&netaddr2, &in_addr2);
@@ -865,19 +865,19 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 120, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xf0173712);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xf0173712);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Create 1:2:3:1::1/128. */
 	found_data = NULL;
@@ -886,20 +886,20 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr2, 128, 128,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 128);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 128);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 128);
+	assert_int_equal(found_scope_prefix_length, 128);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 4);
+	assert_int_equal(count, 4);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xabcdabcd;
@@ -912,20 +912,20 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr2, 128, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE_EQ(root, root_copy);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_ptr_equal(root, root_copy);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xabcdabcd);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 128);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 128);
+	assert_ptr_equal(*found_data, (void *) 0xabcdabcd);
+	assert_int_equal(found_address_prefix_length, 128);
+	assert_int_equal(found_scope_prefix_length, 128);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 4);
+	assert_int_equal(count, 4);
 
 	/*
 	 * IPv4 lookup for 0.0.0.0/1 should not PARTIALMATCH anything,
@@ -938,28 +938,26 @@ ATF_TC_BODY(iptree_search_v6, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr3, 1, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE(found_node == NULL);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_null(found_node);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 4);
+	assert_int_equal(count, 4);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 	/* dcount should be 3 (count - 1, where 1 is the fork node). */
-	ATF_REQUIRE_EQ(dcount, 3);
+	assert_int_equal(dcount, 3);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_foreach);
-ATF_TC_HEAD(iptree_foreach, tc) {
-	atf_tc_set_md_var(tc, "descr", "test dns_iptree_foreach()");
-}
-ATF_TC_BODY(iptree_foreach, tc) {
+/* test dns_iptree_foreach() */
+static void
+iptree_foreach(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -971,11 +969,11 @@ ATF_TC_BODY(iptree_foreach, tc) {
 	uint8_t found_scope_prefix_length;
 	size_t count, cbcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Create 1:2:3:4::1/128 */
 	inet_pton(AF_INET6, "1:2:3:4::1", &in_addr);
@@ -986,28 +984,28 @@ ATF_TC_BODY(iptree_foreach, tc) {
 
 	root = NULL;
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 0);
+	assert_int_equal(count, 0);
 
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 128);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 128);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 128);
+	assert_int_equal(found_scope_prefix_length, 128);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xf0173712;
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Create 0/0 - a node corresponding to the global answer */
 	found_data = NULL;
@@ -1016,23 +1014,23 @@ ATF_TC_BODY(iptree_foreach, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 1, 0,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xf0173712;
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Create 1:2:3:1::1/128. */
 	inet_pton(AF_INET6, "1:2:3:1::1", &in_addr2);
@@ -1044,60 +1042,59 @@ ATF_TC_BODY(iptree_foreach, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr2, 128, 128,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 128);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 128);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 128);
+	assert_int_equal(found_scope_prefix_length, 128);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xf0173712;
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 4);
+	assert_int_equal(count, 4);
 
 	/* Test the callback */
 	cbcount = 0;
 	dns_iptree_foreach(root, callback_fn, &cbcount);
 	/* cbcount should be 3 (count - 1, where 1 is the fork node). */
-	ATF_REQUIRE_EQ(cbcount, 3);
+	assert_int_equal(cbcount, 3);
 
 	/* The tree should still exist. */
-	ATF_REQUIRE(root != NULL);
+	assert_non_null(root);
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 4);
+	assert_int_equal(count, 4);
 
 	/* Destroy the tree */
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, NULL);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
 static bool
 match_cb(void **data, void *match_arg) {
 	UNUSED(match_arg);
 
-	ATF_REQUIRE(data != NULL && *data != NULL);
+	REQUIRE(data != NULL && *data != NULL);
 
-	if (*data == (void *) 0xdd)
+	if (*data == (void *) 0xdd) {
 		return (false);
+	}
 
 	return (true);
 }
 
-ATF_TC(iptree_search_v4_exact_is_non_matching);
-ATF_TC_HEAD(iptree_search_v4_exact_is_non_matching, tc) {
-	atf_tc_set_md_var(tc, "descr", "search IPv4 iptree where an exact match node is ignored by match callback");
-}
-ATF_TC_BODY(iptree_search_v4_exact_is_non_matching, tc) {
+/* search IPv4 iptree where an exact match node is ignored by match callback */
+static void
+iptree_search_v4_exact_is_non_matching(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -1109,11 +1106,11 @@ ATF_TC_BODY(iptree_search_v4_exact_is_non_matching, tc) {
 	uint8_t found_scope_prefix_length;
 	size_t count, dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET, "1.2.3.4", &in_addr);
 	isc_netaddr_fromin(&netaddr, &in_addr);
@@ -1122,26 +1119,26 @@ ATF_TC_BODY(iptree_search_v4_exact_is_non_matching, tc) {
 
 	root = NULL;
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 0);
+	assert_int_equal(count, 0);
 
 	/* Insert 1.2.3.4/32. */
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 32, 32,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 32);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 32);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 32);
+	assert_int_equal(found_scope_prefix_length, 32);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xdd;
@@ -1153,20 +1150,20 @@ ATF_TC_BODY(iptree_search_v4_exact_is_non_matching, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 16, 0,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xcc;
@@ -1181,19 +1178,19 @@ ATF_TC_BODY(iptree_search_v4_exact_is_non_matching, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 32, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xdd);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 32);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 32);
+	assert_ptr_equal(*found_data, (void *) 0xdd);
+	assert_int_equal(found_address_prefix_length, 32);
+	assert_int_equal(found_scope_prefix_length, 32);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/*
 	 * Look for 1.2.3.4/32 with match callback which ignores 0xdd
@@ -1205,36 +1202,34 @@ ATF_TC_BODY(iptree_search_v4_exact_is_non_matching, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 32, 0,
 				   false, match_cb, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xcc);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xcc);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
-	ATF_REQUIRE_EQ(dcount, 2);
+	assert_int_equal(dcount, 2);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_v4_partial_is_non_matching);
-ATF_TC_HEAD(iptree_search_v4_partial_is_non_matching, tc) {
-	atf_tc_set_md_var(tc, "descr", "search IPv4 iptree where a partialmatch node is ignored by match callback");
-}
-ATF_TC_BODY(iptree_search_v4_partial_is_non_matching, tc) {
+/* search IPv4 iptree where a partialmatch node is ignored by match callback */
+static void
+iptree_search_v4_partial_is_non_matching(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -1246,11 +1241,11 @@ ATF_TC_BODY(iptree_search_v4_partial_is_non_matching, tc) {
 	uint8_t found_scope_prefix_length;
 	size_t count, dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET, "1.2.3.4", &in_addr);
 	isc_netaddr_fromin(&netaddr, &in_addr);
@@ -1259,26 +1254,26 @@ ATF_TC_BODY(iptree_search_v4_partial_is_non_matching, tc) {
 
 	root = NULL;
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 0);
+	assert_int_equal(count, 0);
 
 	/* Insert 1.2.3.0/24. */
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 32, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 24);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 24);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 24);
+	assert_int_equal(found_scope_prefix_length, 24);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 1);
+	assert_int_equal(count, 1);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xdd;
@@ -1290,20 +1285,20 @@ ATF_TC_BODY(iptree_search_v4_partial_is_non_matching, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 16, 0,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE(found_data != NULL);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_non_null(found_data);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Set some dummy data */
 	*found_data = (void *) 0xcc;
@@ -1318,19 +1313,19 @@ ATF_TC_BODY(iptree_search_v4_partial_is_non_matching, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 32, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xdd);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 24);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 24);
+	assert_ptr_equal(*found_data, (void *) 0xdd);
+	assert_int_equal(found_address_prefix_length, 24);
+	assert_int_equal(found_scope_prefix_length, 24);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/*
 	 * Look for 1.2.3.4/32 with match callback which ignores 0xdd
@@ -1342,38 +1337,34 @@ ATF_TC_BODY(iptree_search_v4_partial_is_non_matching, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, NULL, &netaddr, 32, 0,
 				   false, match_cb, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, DNS_R_PARTIALMATCH);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, DNS_R_PARTIALMATCH);
+	assert_non_null(found_node);
 
 	dns_iptree_get_data(found_node,
 			    (void **) &found_data,
 			    &found_address_prefix_length,
 			    &found_scope_prefix_length);
-	ATF_REQUIRE_EQ(*found_data, (void *) 0xcc);
-	ATF_REQUIRE_EQ(found_address_prefix_length, 0);
-	ATF_REQUIRE_EQ(found_scope_prefix_length, 0);
+	assert_ptr_equal(*found_data, (void *) 0xcc);
+	assert_int_equal(found_address_prefix_length, 0);
+	assert_int_equal(found_scope_prefix_length, 0);
 
 	count = dns_iptree_get_nodecount(root);
-	ATF_REQUIRE_EQ(count, 2);
+	assert_int_equal(count, 2);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
-	ATF_REQUIRE_EQ(dcount, 2);
+	assert_int_equal(dcount, 2);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_v6_byteorder);
-ATF_TC_HEAD(iptree_search_v6_byteorder, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "check that v6 byte ordering of address prefixes "
-			  "is correctly implemented");
-}
-ATF_TC_BODY(iptree_search_v6_byteorder, tc) {
+/* check that v6 byte ordering of address prefixes is correctly implemented */
+static void
+iptree_search_v6_byteorder(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -1382,11 +1373,11 @@ ATF_TC_BODY(iptree_search_v6_byteorder, tc) {
 	dns_iptree_node_t *found_node;
 	size_t dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET6, "7fff::1", &in_addr);
 	isc_netaddr_fromin6(&netaddr, &in_addr);
@@ -1396,9 +1387,9 @@ ATF_TC_BODY(iptree_search_v6_byteorder, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 8, 8,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x1234);
@@ -1410,17 +1401,17 @@ ATF_TC_BODY(iptree_search_v6_byteorder, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 8, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_NOTFOUND);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node == NULL);
+	assert_int_equal(result, ISC_R_NOTFOUND);
+	assert_non_null(root);
+	assert_null(found_node);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
 typedef struct {
@@ -1434,14 +1425,15 @@ destroy_testcase_cb(void **data, void *destroy_arg) {
 	size_t value;
 	int i;
 
-	ATF_REQUIRE(data != NULL && *data != NULL);
+	REQUIRE(data != NULL && *data != NULL);
 
 	test = (destroy_testcase_t *) destroy_arg;
 	value = (size_t) *data;
 
 	for (i = 0; i < 7; i++) {
-		if (test->nodes_to_delete[i] == 0)
+		if (test->nodes_to_delete[i] == 0) {
 			break;
+		}
 		if (test->nodes_to_delete[i] == value) {
 			*data = NULL;
 			break;
@@ -1452,11 +1444,9 @@ destroy_testcase_cb(void **data, void *destroy_arg) {
 	return (false);
 }
 
-ATF_TC(iptree_destroy_foreach);
-ATF_TC_HEAD(iptree_destroy_foreach, tc) {
-	atf_tc_set_md_var(tc, "descr", "iptree destroy tests");
-}
-ATF_TC_BODY(iptree_destroy_foreach, tc) {
+/* iptree destroy tests */
+static void
+iptree_destroy_foreach(void **state) {
 	isc_result_t result;
 	isc_mem_t *mctx;
 	unsigned int i;
@@ -1505,11 +1495,11 @@ ATF_TC_BODY(iptree_destroy_foreach, tc) {
 		{ { 7, 1, 2, 3, 4, 0, 0 }, 3 }
 	};
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	for (i = 0; i < sizeof(tests) / sizeof (destroy_testcase_t); i++) {
 		dns_iptree_node_t *root;
@@ -1535,9 +1525,9 @@ ATF_TC_BODY(iptree_destroy_foreach, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 4);
 
@@ -1547,9 +1537,9 @@ ATF_TC_BODY(iptree_destroy_foreach, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 5);
 
@@ -1559,9 +1549,9 @@ ATF_TC_BODY(iptree_destroy_foreach, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 6);
 
@@ -1571,9 +1561,9 @@ ATF_TC_BODY(iptree_destroy_foreach, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 7);
 
@@ -1587,9 +1577,9 @@ ATF_TC_BODY(iptree_destroy_foreach, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 127, 127,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 2);
 
@@ -1599,9 +1589,9 @@ ATF_TC_BODY(iptree_destroy_foreach, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 127, 127,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 3);
 
@@ -1615,61 +1605,57 @@ ATF_TC_BODY(iptree_destroy_foreach, tc) {
 					   destroy_testcase_cb,
 					   &tests[i]);
 
-		ATF_REQUIRE_EQ(dns_iptree_get_nodecount(root),
-			       tests[i].expected_nodecount);
+		assert_int_equal(dns_iptree_get_nodecount(root),
+				 tests[i].expected_nodecount);
 
 		/* Destroy the tree completely */
 		dns_iptree_destroy_foreach(&root, mctx,
 					   destroy_cb, NULL);
-		ATF_REQUIRE_EQ(root, NULL);
+		assert_null(root);
 	}
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_iter__null);
-ATF_TC_HEAD(iptree_iter__null, tc) {
-	atf_tc_set_md_var(tc, "descr", "iptree iterator with root=NULL");
-}
-ATF_TC_BODY(iptree_iter__null, tc) {
+/* iptree iterator with root=NULL */
+static void
+iptree_iter__null(void **state) {
 	isc_result_t result;
 	isc_mem_t *mctx;
 	dns_iptree_iter_t *iter;
 	void *data;
 	dns_ecs_t ecs;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	iter = NULL;
 	result = dns_iptree_iter_create(mctx, NULL, &iter);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	data = NULL;
 	dns_ecs_init(&ecs);
 	result = dns_iptree_iter_next(iter, &data, &ecs);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
-	ATF_REQUIRE_EQ(data, NULL);
-	ATF_REQUIRE_EQ(ecs.addr.family, AF_UNSPEC);
+	assert_int_equal(result, ISC_R_NOMORE);
+	assert_null(data);
+	assert_int_equal(ecs.addr.family, AF_UNSPEC);
 
 	result = dns_iptree_iter_next(iter, &data, &ecs);
-	ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
+	assert_int_equal(result, ISC_R_NOMORE);
 
 	dns_iptree_iter_destroy(&iter);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_iter);
-ATF_TC_HEAD(iptree_iter, tc) {
-	atf_tc_set_md_var(tc, "descr", "iptree iterator test");
-}
-ATF_TC_BODY(iptree_iter, tc) {
+/* iptree iterator test */
+static void
+iptree_iter(void **state) {
 	isc_result_t result;
 	isc_mem_t *mctx;
 	unsigned int i;
@@ -1721,19 +1707,22 @@ ATF_TC_BODY(iptree_iter, tc) {
 		1, 2, 4, 5, 3, 6, 7
 	};
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	for (i = 0; i < sizeof(tests) / sizeof (destroy_testcase_t); i++) {
-		dns_iptree_node_t *root;
+		dns_iptree_node_t *root = NULL;
 		struct in6_addr in_addr;
 		isc_netaddr_t netaddr;
-		dns_iptree_node_t *found_node;
-
-		root = NULL;
+		dns_iptree_node_t *found_node = NULL;
+		dns_iptree_iter_t *iter;
+		size_t value;
+		int last_found;
+		int j;
+		unsigned int count, expected_count;
 
 		/*
 		 * Build this tree (values shown are node data values):
@@ -1748,12 +1737,11 @@ ATF_TC_BODY(iptree_iter, tc) {
 		inet_pton(AF_INET6, "::0", &in_addr);
 		isc_netaddr_fromin6(&netaddr, &in_addr);
 
-		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 4);
 
@@ -1763,9 +1751,9 @@ ATF_TC_BODY(iptree_iter, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 5);
 
@@ -1775,9 +1763,9 @@ ATF_TC_BODY(iptree_iter, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 6);
 
@@ -1787,9 +1775,9 @@ ATF_TC_BODY(iptree_iter, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 128, 128,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 7);
 
@@ -1803,9 +1791,9 @@ ATF_TC_BODY(iptree_iter, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 127, 127,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 2);
 
@@ -1815,9 +1803,9 @@ ATF_TC_BODY(iptree_iter, tc) {
 		found_node = NULL;
 		result = dns_iptree_search(&root, mctx, &netaddr, 127, 127,
 					   true, NULL, NULL, &found_node);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-		ATF_REQUIRE(root != NULL);
-		ATF_REQUIRE(found_node != NULL);
+		assert_int_equal(result, ISC_R_SUCCESS);
+		assert_non_null(root);
+		assert_non_null(found_node);
 
 		dns_iptree_set_data(found_node, (void *) 3);
 
@@ -1831,95 +1819,87 @@ ATF_TC_BODY(iptree_iter, tc) {
 					   destroy_testcase_cb,
 					   &tests[i]);
 
-		ATF_REQUIRE_EQ(dns_iptree_get_nodecount(root),
-			       tests[i].expected_nodecount);
+		assert_int_equal(dns_iptree_get_nodecount(root),
+				 tests[i].expected_nodecount);
 
 		/*
 		 * Iterate over the remaining nodes and check that they
 		 * are in order and that none of the deleted nodes are
 		 * found.
 		 */
-		{
-			dns_iptree_iter_t *iter;
-			size_t value;
-			int last_found;
-			int j;
-			unsigned int count, expected_count;
+		iter = NULL;
+		result = dns_iptree_iter_create(mctx, root, &iter);
+		assert_int_equal(result, ISC_R_SUCCESS);
 
-			iter = NULL;
-			result = dns_iptree_iter_create(mctx, root, &iter);
-			ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		last_found = -1;
+		count = 0;
+		while (result == ISC_R_SUCCESS) {
+			void *data;
+			dns_ecs_t ecs;
 
-			last_found = -1;
-			count = 0;
-			while (result == ISC_R_SUCCESS) {
-				void *data;
-				dns_ecs_t ecs;
+			data = NULL;
+			dns_ecs_init(&ecs);
 
-				data = NULL;
-				dns_ecs_init(&ecs);
+			result = dns_iptree_iter_next(iter, &data, &ecs);
+			if (result == ISC_R_SUCCESS) {
+				count++;
 
-				result = dns_iptree_iter_next(iter, &data, &ecs);
-				if (result == ISC_R_SUCCESS) {
-					count++;
+				/*
+				 * Check the data returned.
+				 */
 
-					/*
-					 * Check the data returned.
-					 */
+				assert_non_null(data);
 
-					ATF_REQUIRE(data != NULL);
-
-					value = (size_t) data;
-					for (j = 0; j < 7; j++) {
-						ATF_REQUIRE(tests[i].nodes_to_delete[j] != value);
-						if (node_order[j] == value)
-							break;
+				value = (size_t) data;
+				for (j = 0; j < 7; j++) {
+					assert_ptr_not_equal(value,
+						tests[i].nodes_to_delete[j]);
+					if (node_order[j] == value) {
+						break;
 					}
-					ATF_REQUIRE(j < 7);
-					ATF_REQUIRE(last_found < j);
-					last_found = j;
-
-					/*
-					 * Check the ECS struct
-					 * returned.
-					 */
-
-					ATF_REQUIRE_EQ(ecs.addr.family, AF_INET6);
-				} else {
-					ATF_REQUIRE_EQ(data, NULL);
-					ATF_REQUIRE_EQ(ecs.addr.family, AF_UNSPEC);
 				}
+				assert_true(j < 7);
+				assert_true(last_found < j);
+				last_found = j;
+
+				/*
+				 * Check the ECS struct
+				 * returned.
+				 */
+
+				assert_int_equal(ecs.addr.family, AF_INET6);
+			} else {
+				assert_null(data);
+				assert_int_equal(ecs.addr.family, AF_UNSPEC);
 			}
-
-			ATF_REQUIRE_EQ(result, ISC_R_NOMORE);
-
-			expected_count = 7;
-			for (j = 0; j < 7; j++)
-				if (tests[i].nodes_to_delete[j] != 0)
-					expected_count--;
-
-			ATF_REQUIRE_EQ(count, expected_count);
-
-			dns_iptree_iter_destroy(&iter);
 		}
+
+		assert_int_equal(result, ISC_R_NOMORE);
+
+		expected_count = 7;
+		for (j = 0; j < 7; j++) {
+			if (tests[i].nodes_to_delete[j] != 0) {
+				expected_count--;
+			}
+		}
+
+		assert_int_equal(count, expected_count);
+
+		dns_iptree_iter_destroy(&iter);
 
 		/* Destroy the tree completely */
 		dns_iptree_destroy_foreach(&root, mctx,
 					   destroy_cb, NULL);
-		ATF_REQUIRE_EQ(root, NULL);
+		assert_null(root);
 	}
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_insert_left_parent);
-ATF_TC_HEAD(iptree_search_insert_left_parent, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "Check that inserting to a left parent "
-			  "of an existing node works");
-}
-ATF_TC_BODY(iptree_search_insert_left_parent, tc) {
+/* Check that inserting to a left parent of an existing node works */
+static void
+iptree_search_insert_left_parent(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -1928,11 +1908,11 @@ ATF_TC_BODY(iptree_search_insert_left_parent, tc) {
 	dns_iptree_node_t *found_node;
 	size_t dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET, "10.2.2.4", &in_addr);
 	isc_netaddr_fromin(&netaddr, &in_addr);
@@ -1943,9 +1923,9 @@ ATF_TC_BODY(iptree_search_insert_left_parent, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x1234);
@@ -1954,9 +1934,9 @@ ATF_TC_BODY(iptree_search_insert_left_parent, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 23, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x5678);
@@ -1965,34 +1945,30 @@ ATF_TC_BODY(iptree_search_insert_left_parent, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* 10.2.3.4/23 should also be found. */
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 23, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_insert_right_parent);
-ATF_TC_HEAD(iptree_search_insert_right_parent, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "Check that inserting to a right parent "
-			  "of an existing node works");
-}
-ATF_TC_BODY(iptree_search_insert_right_parent, tc) {
+/* Check that inserting to a right parent of an existing node works */
+static void
+iptree_search_insert_right_parent(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -2001,11 +1977,11 @@ ATF_TC_BODY(iptree_search_insert_right_parent, tc) {
 	dns_iptree_node_t *found_node;
 	size_t dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET, "10.2.3.4", &in_addr);
 	isc_netaddr_fromin(&netaddr, &in_addr);
@@ -2016,9 +1992,9 @@ ATF_TC_BODY(iptree_search_insert_right_parent, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x1234);
@@ -2027,9 +2003,9 @@ ATF_TC_BODY(iptree_search_insert_right_parent, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 23, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x5678);
@@ -2038,34 +2014,30 @@ ATF_TC_BODY(iptree_search_insert_right_parent, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* 10.2.3.4/23 should also be found. */
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 23, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_insert_left_child);
-ATF_TC_HEAD(iptree_search_insert_left_child, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "Check that inserting to a left child "
-			  "of an existing node works");
-}
-ATF_TC_BODY(iptree_search_insert_left_child, tc) {
+/* Check that inserting to a left child of an existing node works */
+static void
+iptree_search_insert_left_child(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -2074,11 +2046,11 @@ ATF_TC_BODY(iptree_search_insert_left_child, tc) {
 	dns_iptree_node_t *found_node;
 	size_t dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET, "10.2.2.4", &in_addr);
 	isc_netaddr_fromin(&netaddr, &in_addr);
@@ -2089,9 +2061,9 @@ ATF_TC_BODY(iptree_search_insert_left_child, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 23, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x5678);
@@ -2100,9 +2072,9 @@ ATF_TC_BODY(iptree_search_insert_left_child, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x1234);
@@ -2111,34 +2083,30 @@ ATF_TC_BODY(iptree_search_insert_left_child, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* 10.2.3.4/23 should also be found. */
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 23, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_insert_right_child);
-ATF_TC_HEAD(iptree_search_insert_right_child, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "Check that inserting to a right child "
-			  "of an existing node works");
-}
-ATF_TC_BODY(iptree_search_insert_right_child, tc) {
+/* Check that inserting to a right child of an existing node works */
+static void
+iptree_search_insert_right_child(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -2147,11 +2115,11 @@ ATF_TC_BODY(iptree_search_insert_right_child, tc) {
 	dns_iptree_node_t *found_node;
 	size_t dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	inet_pton(AF_INET, "10.2.3.4", &in_addr);
 	isc_netaddr_fromin(&netaddr, &in_addr);
@@ -2162,9 +2130,9 @@ ATF_TC_BODY(iptree_search_insert_right_child, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 23, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x5678);
@@ -2173,9 +2141,9 @@ ATF_TC_BODY(iptree_search_insert_right_child, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x1234);
@@ -2184,34 +2152,30 @@ ATF_TC_BODY(iptree_search_insert_right_child, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* 10.2.3.4/23 should also be found. */
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 23, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_insert_left_sibling);
-ATF_TC_HEAD(iptree_search_insert_left_sibling, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "Check that inserting to a left sibling "
-			  "of an existing node works");
-}
-ATF_TC_BODY(iptree_search_insert_left_sibling, tc) {
+/* Check that inserting to a left sibling of an existing node works */
+static void
+iptree_search_insert_left_sibling(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -2220,11 +2184,11 @@ ATF_TC_BODY(iptree_search_insert_left_sibling, tc) {
 	dns_iptree_node_t *found_node;
 	size_t dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	root = NULL;
 
@@ -2235,9 +2199,9 @@ ATF_TC_BODY(iptree_search_insert_left_sibling, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x5678);
@@ -2249,9 +2213,9 @@ ATF_TC_BODY(iptree_search_insert_left_sibling, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x1234);
@@ -2263,9 +2227,9 @@ ATF_TC_BODY(iptree_search_insert_left_sibling, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* 10.2.3.4/24 should also be found. */
 	inet_pton(AF_INET, "10.2.3.4", &in_addr);
@@ -2274,26 +2238,22 @@ ATF_TC_BODY(iptree_search_insert_left_sibling, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-ATF_TC(iptree_search_insert_right_sibling);
-ATF_TC_HEAD(iptree_search_insert_right_sibling, tc) {
-	atf_tc_set_md_var(tc, "descr",
-			  "Check that inserting to a right sibling "
-			  "of an existing node works");
-}
-ATF_TC_BODY(iptree_search_insert_right_sibling, tc) {
+/* Check that inserting to a right sibling of an existing node works */
+static void
+iptree_search_insert_right_sibling(void **state) {
 	isc_mem_t *mctx;
 	isc_result_t result;
 	dns_iptree_node_t *root;
@@ -2302,11 +2262,11 @@ ATF_TC_BODY(iptree_search_insert_right_sibling, tc) {
 	dns_iptree_node_t *found_node;
 	size_t dcount;
 
-	UNUSED(tc);
+	UNUSED(state);
 
 	mctx = NULL;
 	result = isc_mem_create(0, 0, &mctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	root = NULL;
 
@@ -2317,9 +2277,9 @@ ATF_TC_BODY(iptree_search_insert_right_sibling, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x5678);
@@ -2331,9 +2291,9 @@ ATF_TC_BODY(iptree_search_insert_right_sibling, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 24,
 				   true, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Set some dummy data */
 	dns_iptree_set_data(found_node, (void *) 0x1234);
@@ -2345,9 +2305,9 @@ ATF_TC_BODY(iptree_search_insert_right_sibling, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* 10.2.2.4/24 should also be found. */
 	inet_pton(AF_INET, "10.2.2.4", &in_addr);
@@ -2356,49 +2316,53 @@ ATF_TC_BODY(iptree_search_insert_right_sibling, tc) {
 	found_node = NULL;
 	result = dns_iptree_search(&root, mctx, &netaddr, 24, 0,
 				   false, NULL, NULL, &found_node);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
-	ATF_REQUIRE(root != NULL);
-	ATF_REQUIRE(found_node != NULL);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	assert_non_null(root);
+	assert_non_null(found_node);
 
 	/* Destroy the tree */
 	dcount = 0;
 	dns_iptree_destroy_foreach(&root, mctx, destroy_cb, &dcount);
-	ATF_REQUIRE_EQ(root, NULL);
+	assert_null(root);
 
 	isc_mem_destroy(&mctx);
-	ATF_REQUIRE_EQ(mctx, NULL);
+	assert_null(mctx);
 }
 
-/*
- * Main
- */
-ATF_TP_ADD_TCS(tp) {
-	ATF_TP_ADD_TC(tp, iptree_destroy_foreach__null);
+int
+main(void) {
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(iptree_destroy_foreach__null),
+		cmocka_unit_test(iptree_common_prefix),
+		cmocka_unit_test(iptree_search__null_root_no_create),
+		cmocka_unit_test(iptree_search_v4),
+		cmocka_unit_test(iptree_search_v6),
+		cmocka_unit_test(iptree_search_v4_exact_is_non_matching),
+		cmocka_unit_test(iptree_search_v4_partial_is_non_matching),
+		cmocka_unit_test(iptree_foreach),
+		cmocka_unit_test(iptree_search_v6_byteorder),
+		cmocka_unit_test(iptree_destroy_foreach),
+		cmocka_unit_test(iptree_iter__null),
+		cmocka_unit_test(iptree_iter),
+		cmocka_unit_test(iptree_search_insert_left_parent),
+		cmocka_unit_test(iptree_search_insert_right_parent),
+		cmocka_unit_test(iptree_search_insert_left_child),
+		cmocka_unit_test(iptree_search_insert_right_child),
+		cmocka_unit_test(iptree_search_insert_left_sibling),
+		cmocka_unit_test(iptree_search_insert_right_sibling),
+	};
 
-	ATF_TP_ADD_TC(tp, iptree_common_prefix);
-
-	ATF_TP_ADD_TC(tp, iptree_search__null_root_no_create);
-	ATF_TP_ADD_TC(tp, iptree_search_v4);
-	ATF_TP_ADD_TC(tp, iptree_search_v6);
-
-	ATF_TP_ADD_TC(tp, iptree_search_v4_exact_is_non_matching);
-	ATF_TP_ADD_TC(tp, iptree_search_v4_partial_is_non_matching);
-
-	ATF_TP_ADD_TC(tp, iptree_foreach);
-
-	ATF_TP_ADD_TC(tp, iptree_search_v6_byteorder);
-
-	ATF_TP_ADD_TC(tp, iptree_destroy_foreach);
-
-	ATF_TP_ADD_TC(tp, iptree_iter__null);
-	ATF_TP_ADD_TC(tp, iptree_iter);
-
-	ATF_TP_ADD_TC(tp, iptree_search_insert_left_parent);
-	ATF_TP_ADD_TC(tp, iptree_search_insert_right_parent);
-	ATF_TP_ADD_TC(tp, iptree_search_insert_left_child);
-	ATF_TP_ADD_TC(tp, iptree_search_insert_right_child);
-	ATF_TP_ADD_TC(tp, iptree_search_insert_left_sibling);
-	ATF_TP_ADD_TC(tp, iptree_search_insert_right_sibling);
-
-	return (atf_no_error());
+	return (cmocka_run_group_tests(tests, NULL, NULL));
 }
+
+#else /* HAVE_CMOCKA */
+
+#include <stdio.h>
+
+int
+main(void) {
+	printf("1..0 # Skipped: cmocka not available\n");
+	return (0);
+}
+
+#endif
