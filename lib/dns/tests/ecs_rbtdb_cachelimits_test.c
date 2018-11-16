@@ -9,15 +9,27 @@
  * information regarding copyright ownership.
  */
 
-/*! \file */
-
 #include <config.h>
 
-#include <atf-c.h>
+#if HAVE_CMOCKA
+
+#include <stdarg.h>
+#include <stddef.h>
+#include <setjmp.h>
+
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#define UNIT_TESTING
+#include <cmocka.h>
 
 #include <isc/app.h>
+#include <isc/commandline.h>
 #include <isc/print.h>
+#include <isc/string.h>
 #include <isc/task.h>
+#include <isc/util.h>
 
 #include <dns/cache.h>
 #include <dns/rbt.h>
@@ -26,14 +38,33 @@
 #include <dns/rdatalist.h>
 #include "dnstest.h"
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
 #define SETCACHESIZE_TEST_DURATION_SECONDS 5
 #define SETCACHESIZE_LIMIT_BYTES (2U * 1024 * 1024)
 #define SETCACHESIZE_NAMECOUNT 1024
+
+/* Set to true for verbose output */
+static bool verbose = false;
+
+static int
+_setup(void **state) {
+	isc_result_t result;
+
+	UNUSED(state);
+
+	result = dns_test_begin(NULL, true);
+	assert_int_equal(result, ISC_R_SUCCESS);
+
+	return (0);
+}
+
+static int
+_teardown(void **state) {
+	UNUSED(state);
+
+	dns_test_end();
+
+	return (0);
+}
 
 typedef struct {
 	isc_mem_t *cmctx;
@@ -73,8 +104,8 @@ run(isc_task_t *task, isc_event_t *event) {
 		node = NULL;
 		result = dns_db_findnode(testctx->db, testctx->names[i],
 					 true, &node);
-		ATF_REQUIRE(result == ISC_R_SUCCESS || result == ISC_R_EXISTS);
-		ATF_REQUIRE(node != NULL);
+		assert_true(result == ISC_R_SUCCESS || result == ISC_R_EXISTS);
+		assert_non_null(node);
 
 		r = random();
 
@@ -97,7 +128,7 @@ run(isc_task_t *task, isc_event_t *event) {
 
 		dns_rdataset_init(&rdataset);
 		result = dns_rdatalist_tordataset(&rdatalist, &rdataset);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		assert_int_equal(result, ISC_R_SUCCESS);
 
 		dns_clientinfo_init(&ci, NULL, NULL, NULL);
 		in_addr.s_addr = random();
@@ -108,7 +139,7 @@ run(isc_task_t *task, isc_event_t *event) {
 		result = dns_db_addrdatasetext(testctx->db, node, NULL, now,
 					       &rdataset, 0,
 					       NULL, &ci, NULL);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		assert_int_equal(result, ISC_R_SUCCESS);
 
 		if (dns_rdataset_isassociated(&rdataset))
 			dns_rdataset_disassociate(&rdataset);
@@ -121,18 +152,18 @@ run(isc_task_t *task, isc_event_t *event) {
 		 * that we never go above the maximum configured cache
 		 * size.
 		 */
-		ATF_REQUIRE(isc_mem_inuse(testctx->cmctx) <
+		assert_true(isc_mem_inuse(testctx->cmctx) <
 			    SETCACHESIZE_LIMIT_BYTES);
 
 		last = now;
 		isc_stdtime_get(&now);
-		if (now - last > 0) {
-			printf("Current usage: %zd/%u\n",
-			       isc_mem_inuse(testctx->cmctx),
-			       SETCACHESIZE_LIMIT_BYTES);
-			printf("Running for another %u seconds\n",
-			       (SETCACHESIZE_TEST_DURATION_SECONDS -
-				(now - start)));
+		if (verbose && now - last > 0) {
+			print_message("# Current usage: %zd/%u\n",
+				      isc_mem_inuse(testctx->cmctx),
+				      SETCACHESIZE_LIMIT_BYTES);
+			print_message("# Running for another %u seconds\n",
+				      (SETCACHESIZE_TEST_DURATION_SECONDS -
+				       (now - start)));
 		}
 		i = (i + 1) % SETCACHESIZE_NAMECOUNT;
 	}
@@ -141,21 +172,18 @@ run(isc_task_t *task, isc_event_t *event) {
 	isc_app_shutdown();
 }
 
-ATF_TC(setcachesize);
-ATF_TC_HEAD(setcachesize, tc) {
-	atf_tc_set_md_var(tc, "descr", "test dns_cache_setcachesize");
-}
-ATF_TC_BODY(setcachesize, tc) {
+/* test dns_cache_setcachesize */
+static void
+setcachesize(void **state) {
 	isc_result_t result;
 	dns_cache_t *cache;
 	char namestr[sizeof("name18446744073709551616.example.org.")];
 	unsigned int i;
 	testctx_t testctx;
 
-	debug_mem_record = false;
+	UNUSED(state);
 
-	result = dns_test_begin(NULL, true);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	debug_mem_record = false;
 
 	testctx.fnames = isc_mem_get(mctx,
 				     sizeof(dns_fixedname_t) *
@@ -166,11 +194,11 @@ ATF_TC_BODY(setcachesize, tc) {
 
 	testctx.cmctx = NULL;
 	result = isc_mem_create(0, 0, &testctx.cmctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	testctx.hmctx = NULL;
 	result = isc_mem_create(0, 0, &testctx.hmctx);
-	ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+	assert_int_equal(result, ISC_R_SUCCESS);
 
 	cache = NULL;
 	result = dns_cache_create3(testctx.cmctx, testctx.hmctx,
@@ -189,7 +217,7 @@ ATF_TC_BODY(setcachesize, tc) {
 		r = random();
 		snprintf(namestr, sizeof(namestr), "name%u.example.org.", r);
 		result = dns_test_namefromstring(namestr, &testctx.fnames[i]);
-		ATF_REQUIRE_EQ(result, ISC_R_SUCCESS);
+		assert_int_equal(result, ISC_R_SUCCESS);
 		testctx.names[i] = dns_fixedname_name(&testctx.fnames[i]);
 	}
 
@@ -205,15 +233,38 @@ ATF_TC_BODY(setcachesize, tc) {
 		    sizeof(dns_fixedname_t) * SETCACHESIZE_NAMECOUNT);
 	isc_mem_put(mctx, testctx.names,
 		    sizeof(dns_name_t *) * SETCACHESIZE_NAMECOUNT);
-
-	dns_test_end();
 }
 
-/*
- * Main
- */
-ATF_TP_ADD_TCS(tp) {
-	ATF_TP_ADD_TC(tp, setcachesize);
+int
+main(int argc, char **argv) {
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test_setup_teardown(setcachesize,
+						_setup, _teardown),
+	};
+	int c;
 
-	return (atf_no_error());
+	while ((c = isc_commandline_parse(argc, argv, "v")) != -1) {
+		switch (c) {
+		case 'v':
+			verbose = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+
+	return (cmocka_run_group_tests(tests, dns_test_init, dns_test_final));
 }
+
+#else /* HAVE_CMOCKA */
+
+#include <stdio.h>
+
+int
+main(void) {
+	printf("1..0 # Skipped: cmocka not available\n");
+	return (0);
+}
+
+#endif
