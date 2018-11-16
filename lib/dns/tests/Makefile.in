@@ -173,8 +173,9 @@ gost_test@EXEEXT@: gost_test.@O@ dnstest.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 		${DNSLIBS} ${ISCLIBS} ${LIBS} ${CMOCKA_LIBS}
 
 iptree_test@EXEEXT@: iptree_test.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
-	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
-		iptree_test.@O@ ${DNSLIBS} ${ISCLIBS} ${LIBS}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${CMOCKA_CLFAGS} \
+		${LDFLAGS} -o $@ iptree_test.@O@ \
+		${DNSLIBS} ${ISCLIBS} ${LIBS} ${CMOCKA_LIBS}
 
 keytable_test@EXEEXT@: keytable_test.@O@ dnstest.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
 	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${CMOCKA_CFLAGS} \
