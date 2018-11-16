@@ -647,6 +647,7 @@ sendquery(struct query *query, isc_task_t *task)
 				break;
 			default:
 				INSIST(0);
+				ISC_UNREACHABLE();
 			}
 
 			/* family */

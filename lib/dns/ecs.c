@@ -232,6 +232,7 @@ dns_ecs_equals(const dns_ecs_t *ecs1, const dns_ecs_t *ecs2) {
 		break;
 	default:
 		INSIST(0);
+		ISC_UNREACHABLE();
 	}
 
 	/*
