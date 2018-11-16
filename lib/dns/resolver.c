@@ -2581,6 +2581,7 @@ resquery_send(resquery_t *query) {
 					 * previously.
 					 */
 					INSIST(0);
+					ISC_UNREACHABLE();
 				}
 
 				isc_buffer_init(&b, ecsbuf, sizeof(ecsbuf));
