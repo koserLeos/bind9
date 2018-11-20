@@ -8058,14 +8058,6 @@ query_delegation(query_ctx_t *qctx) {
 		RESTORE(qctx->sigrdataset, qctx->zsigrdataset);
 	}
 
-	if (qctx->client->view->proxyfor != NULL && PROXYFOR(qctx->client) &&
-	    !dns_name_issubdomain(qctx->client->query.qname,
-				  qctx->client->view->proxyfor))
-	{
-		fprintf(stderr, "-PROXYFOR\n");
-		return (query_done(qctx));
-	}
-
 	if (RECURSIONOK(qctx->client)) {
 		/*
 		 * We have a delegation and recursion is allowed,
