@@ -5320,8 +5320,8 @@ ns__query_start(query_ctx_t *qctx) {
 		qctx->client->query.attributes &= ~NS_QUERYATTR_PROXYFOR;
 	}
 
-	if (qctx->client->view->proxyfor != NULL &&
-	    !RECURSIONOK(qctx->client) &&
+	if (!RECURSIONOK(qctx->client) &&
+	    qctx->client->view->proxyfor != NULL &&
 	    dns_name_issubdomain(qctx->client->query.qname,
 				 qctx->client->view->proxyfor))
 	{
@@ -8058,8 +8058,7 @@ query_delegation(query_ctx_t *qctx) {
 		RESTORE(qctx->sigrdataset, qctx->zsigrdataset);
 	}
 
-	if (qctx->client->view->proxyfor != NULL &&
-	    RECURSIONOK(qctx->client) && PROXYFOR(qctx->client) &&
+	if (qctx->client->view->proxyfor != NULL && PROXYFOR(qctx->client) &&
 	    !dns_name_issubdomain(qctx->client->query.qname,
 				  qctx->client->view->proxyfor))
 	{
