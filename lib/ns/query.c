@@ -10740,9 +10740,10 @@ query_done(query_ctx_t *qctx) {
 	qctx_freedata(qctx);
 
 	/*
-	 * Clear the AA bit if we're not authoritative.
+	 * Clear the AA bit if we're not authoritative or proxying.
 	 */
-	if (qctx->client->query.restarts == 0 && !qctx->authoritative) {
+	if (qctx->client->query.restarts == 0 && !qctx->authoritative &&
+	    !PROXYFOR(qctx->client)) {
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AA;
 	}
 
