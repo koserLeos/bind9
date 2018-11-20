@@ -146,6 +146,9 @@ do { \
 #define REDIRECT(c)		(((c)->query.attributes & \
 				  NS_QUERYATTR_REDIRECT) != 0)
 
+#define PROXYFOR(c)		(((c)->query.attributes & \
+				  NS_QUERYATTR_PROXYFOR) != 0)
+
 /*% Does the rdataset 'r' have an attached 'No QNAME Proof'? */
 #define NOQNAME(r)		(((r)->attributes & \
 				  DNS_RDATASETATTR_NOQNAME) != 0)
@@ -1475,6 +1478,12 @@ query_getcachedb(ns_client_t *client, const dns_name_t *name,
 	REQUIRE(dbp != NULL && *dbp == NULL);
 
 	if (!USECACHE(client)) {
+		return (DNS_R_REFUSED);
+	}
+
+fprintf(stderr, "PROXYFOR=%u\n",  PROXYFOR(client));
+
+	if (client->view->proxyfor != NULL && !PROXYFOR(client)) {
 		return (DNS_R_REFUSED);
 	}
 
@@ -5302,6 +5311,26 @@ ns__query_start(query_ctx_t *qctx) {
 	}
 
 	/*
+	 * If we are proxying for this name space set WANTRECURSION iff
+	 * not already set.  Also record that we are in PROXYFOR mode.
+	 */
+	if (PROXYFOR(qctx->client)) {
+		fprintf(stderr, "-PROXYFOR (reset)\n");
+		qctx->client->query.attributes &= ~NS_QUERYATTR_RECURSIONOK;
+		qctx->client->query.attributes &= ~NS_QUERYATTR_PROXYFOR;
+	}
+
+	if (qctx->client->view->proxyfor != NULL &&
+	    !RECURSIONOK(qctx->client) &&
+	    dns_name_issubdomain(qctx->client->query.qname,
+				 qctx->client->view->proxyfor))
+	{
+		fprintf(stderr, "PROXYFOR\n");
+		qctx->client->query.attributes |= NS_QUERYATTR_RECURSIONOK;
+		qctx->client->query.attributes |= NS_QUERYATTR_PROXYFOR;
+	}
+
+	/*
 	 * First we must find the right database.
 	 */
 	qctx->options &= DNS_GETDB_NOLOG; /* Preserve DNS_GETDB_NOLOG. */
@@ -8029,8 +8058,8 @@ query_delegation(query_ctx_t *qctx) {
 		RESTORE(qctx->sigrdataset, qctx->zsigrdataset);
 	}
 
-	if (qctx->client->view->proxyfor != NULL && RECURSIONOK(qctx->client) &&
-	    (qctx->client->query.attributes & NS_QUERYATTR_PROXYFOR) != 0 &&
+	if (qctx->client->view->proxyfor != NULL &&
+	    RECURSIONOK(qctx->client) && PROXYFOR(qctx->client) &&
 	    !dns_name_issubdomain(qctx->client->query.qname,
 				  qctx->client->view->proxyfor))
 	{
@@ -10555,6 +10584,8 @@ query_addauth(query_ctx_t *qctx) {
 	 * Add NS records to the authority section (if we haven't already
 	 * added them to the answer section).
 	 */
+fprintf(stderr, "qctx->want_restart=%u NOAUTHORITY=%u\n",
+	qctx->want_restart, NOAUTHORITY(qctx->client));
 	if (!qctx->want_restart && !NOAUTHORITY(qctx->client)) {
 		if (qctx->is_zone) {
 			if (!qctx->answer_has_ns) {
@@ -11185,19 +11216,6 @@ ns_query_start(ns_client_t *client) {
 	 */
 	if (WANTDNSSEC(client) || WANTAD(client))
 		message->flags |= DNS_MESSAGEFLAG_AD;
-
-	/*
-	 * If we are proxying for this name space set WANTRECURSION iff
-	 * not already set.  Also record that we are in PROXYFOR mode.
-	 */
-	if (client->view->proxyfor != NULL && !WANTRECURSION(client) &&
-	    dns_name_issubdomain(client->query.qname, client->view->proxyfor))
-	{
-		fprintf(stderr, "PROXYFOR\n");
-		client->query.attributes |= NS_QUERYATTR_WANTRECURSION;
-		client->query.attributes |= NS_QUERYATTR_RECURSIONOK;
-		client->query.attributes |= NS_QUERYATTR_PROXYFOR;
-	}
 
 	qclient = NULL;
 	ns_client_attach(client, &qclient);
