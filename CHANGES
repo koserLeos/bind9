@@ -1,3 +1,6 @@
+5101.	[bug]		Fix default installation path for Python modules.
+			[GL #730]
+
 5095.	[test]		Converted all unit tests from ATF to CMocka;
 			removed the source code for the ATF libraries.
 			Build with "configure --with-cmocka" to enable
