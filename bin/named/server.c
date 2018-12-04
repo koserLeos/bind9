@@ -10828,6 +10828,7 @@ ns_server_dumpdb(ns_server_t *server, isc_lex_t *lex, isc_buffer_t **text) {
 	if (ptr != NULL && strcmp(ptr, "-all") == 0) {
 		/* also dump zones */
 		dctx->dumpzones = true;
+		dctx->dumpecscache = true;
 		ptr = next_token(lex, NULL);
 	} else if (ptr != NULL && strcmp(ptr, "-cache") == 0) {
 		/* this is the default */
