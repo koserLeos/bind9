@@ -1,3 +1,7 @@
+5116.	[bug]		Named could crash if it is managing a key with
+			`managed-keys` and the authoritative zone is rolling
+			the key to an unsupported algorithm. [GL #780]
+
 5115.	[bug]		Allow unsupported algorithms in zone when not used for
 			signing with dnssec-signzone. [GL #783]
 

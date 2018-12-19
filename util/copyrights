@@ -811,10 +811,15 @@
 ./bin/tests/system/mkeys/README			TXT.BRIEF	2015,2016,2017,2018
 ./bin/tests/system/mkeys/clean.sh		SH	2015,2016,2017,2018
 ./bin/tests/system/mkeys/ns1/sign.sh		SH	2015,2016,2017,2018
+./bin/tests/system/mkeys/ns1/unsupported.key	X	2018
+./bin/tests/system/mkeys/ns1/zone.key		X	2018
 ./bin/tests/system/mkeys/ns2/named.args		X	2015,2016,2017,2018
 ./bin/tests/system/mkeys/ns3/named.args		X	2015,2016,2017,2018
 ./bin/tests/system/mkeys/ns5/named1.args	X	2017,2018
 ./bin/tests/system/mkeys/ns5/named2.args	X	2017,2018
+./bin/tests/system/mkeys/ns6/named.args		X	2018
+./bin/tests/system/mkeys/ns6/setup.sh		SH	2018
+./bin/tests/system/mkeys/ns6/unsupported-managed.key	X	2018
 ./bin/tests/system/mkeys/setup.sh		SH	2015,2016,2017,2018
 ./bin/tests/system/mkeys/tests.sh		SH	2015,2016,2017,2018
 ./bin/tests/system/names/clean.sh		SH	2015,2016,2018
