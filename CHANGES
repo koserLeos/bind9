@@ -1,3 +1,5 @@
+5116.	[test]		Test.
+
 5115.	[bug]		Allow unsupported algorithms in zone when not used for
 			signing with dnssec-signzone. [GL #783]
 
