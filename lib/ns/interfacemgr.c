@@ -427,6 +427,7 @@ ns_interface_create(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 	 */
 	ifp->ntcptarget = 1;
 	ifp->ntcpcurrent = 0;
+	ifp->ntcpalive = 0;
 	ifp->nudpdispatch = 0;
 
 	ifp->dscp = -1;

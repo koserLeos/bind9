@@ -423,6 +423,7 @@ exit_check(ns_client_t *client) {
 		 * We are trying to abort the current TCP connection,
 		 * if any.
 		 */
+		bool wasoverquota = false;
 		INSIST(client->recursionquota == NULL);
 		INSIST(client->newstate <= NS_CLIENTSTATE_READY);
 		if (client->nreads > 0)
@@ -439,10 +440,25 @@ exit_check(ns_client_t *client) {
 		if (client->tcpsocket != NULL) {
 			CTRACE("closetcp");
 			isc_socket_detach(&client->tcpsocket);
+			LOCK(&client->interface->lock);
+			INSIST(client->interface->ntcpalive > 0);
+			client->interface->ntcpalive--;
+			UNLOCK(&client->interface->lock);
 		}
-
-		if (client->tcpquota != NULL)
+		if (client->tcpquota != NULL) {
 			isc_quota_detach(&client->tcpquota);
+		} else {
+			/*
+			 * We went over quota with this client, we don't
+			 * want to restart listening unless this is the
+			 * last client on this interface, which is
+			 * checked later.
+			 */
+			if (TCP_CLIENT(client)) {
+				client->mortal = true;
+				wasoverquota = true;
+			}
+		}
 
 		if (client->timerset) {
 			(void)isc_timer_reset(client->timer,
@@ -472,9 +488,12 @@ exit_check(ns_client_t *client) {
 		    ((client->sctx->options & NS_SERVER_CLIENTTEST) == 0))
 		{
 			LOCK(&client->interface->lock);
-			if (client->interface->ntcpcurrent <
-				    client->interface->ntcptarget)
-				client->mortal = false;
+			if ((!wasoverquota && client->interface->ntcpcurrent <
+			     client->interface->ntcptarget) ||
+			    (wasoverquota &&
+			     client->interface->ntcpalive == 0)) {
+					client->mortal = false;
+			}
 			UNLOCK(&client->interface->lock);
 		}
 
@@ -530,9 +549,9 @@ exit_check(ns_client_t *client) {
 
 		INSIST(client->naccepts == 0);
 		INSIST(client->recursionquota == NULL);
-		if (client->tcplistener != NULL)
+		if (client->tcplistener != NULL) {
 			isc_socket_detach(&client->tcplistener);
-
+		}
 		if (client->udpsocket != NULL)
 			isc_socket_detach(&client->udpsocket);
 
@@ -3244,6 +3263,10 @@ client_accept(ns_client_t *client) {
 
 	CTRACE("accept");
 
+	LOCK(&client->interface->lock);
+	client->interface->ntcpcurrent++;
+	client->interface->ntcpalive++;
+	UNLOCK(&client->interface->lock);
 	result = isc_socket_accept(client->tcplistener, client->task,
 				   client_newconn, client);
 	if (result != ISC_R_SUCCESS) {
@@ -3261,9 +3284,6 @@ client_accept(ns_client_t *client) {
 	}
 	INSIST(client->naccepts == 0);
 	client->naccepts++;
-	LOCK(&client->interface->lock);
-	client->interface->ntcpcurrent++;
-	UNLOCK(&client->interface->lock);
 }
 
 static void

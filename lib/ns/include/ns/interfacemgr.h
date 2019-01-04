@@ -79,6 +79,8 @@ struct ns_interface {
 	int			ntcptarget;	/*%< Desired number of concurrent
 						     TCP accepts */
 	int			ntcpcurrent;	/*%< Current ditto, locked */
+	int			ntcpalive;	/*%< Number of TCP clients
+						     handling this interface */
 	int			nudpdispatch;	/*%< Number of UDP dispatches */
 	ns_clientmgr_t *	clientmgr;	/*%< Client manager. */
 	ISC_LINK(ns_interface_t) link;
