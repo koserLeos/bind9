@@ -95,7 +95,8 @@ struct ns_client {
 	int			nupdates;
 	int			nctls;
 	int			references;
-	bool		needshutdown; 	/*
+	bool			tcpalive;
+	bool			needshutdown; 	/*
 						 * Used by clienttest to get
 						 * the client to go from
 						 * inactive to free state
@@ -111,10 +112,10 @@ struct ns_client {
 	isc_socket_t *		tcpsocket;
 	unsigned char *		tcpbuf;
 	dns_tcpmsg_t		tcpmsg;
-	bool		tcpmsg_valid;
+	bool			tcpmsg_valid;
 	isc_timer_t *		timer;
 	isc_timer_t *		delaytimer;
-	bool 		timerset;
+	bool 			timerset;
 	dns_message_t *		message;
 	isc_socketevent_t *	sendevent;
 	isc_socketevent_t *	recvevent;
@@ -122,7 +123,7 @@ struct ns_client {
 	dns_rdataset_t *	opt;
 	uint16_t		udpsize;
 	uint16_t		extflags;
-	int16_t		ednsversion;	/* -1 noedns */
+	int16_t			ednsversion;	/* -1 noedns */
 	void			(*next)(ns_client_t *);
 	void			(*shutdown)(void *arg, isc_result_t result);
 	void 			*shutdown_arg;
@@ -132,14 +133,14 @@ struct ns_client {
 	isc_time_t		tnow;
 	dns_name_t		signername;   /*%< [T]SIG key name */
 	dns_name_t *		signer;	      /*%< NULL if not valid sig */
-	bool		mortal;	      /*%< Die after handling request */
-	bool		pipelined;   /*%< TCP queries not in sequence */
+	bool			mortal;	      /*%< Die after handling request */
+	bool			pipelined;   /*%< TCP queries not in sequence */
 	isc_quota_t		*tcpquota;
 	isc_quota_t		*recursionquota;
 	ns_interface_t		*interface;
 
 	isc_sockaddr_t		peeraddr;
-	bool		peeraddr_valid;
+	bool			peeraddr_valid;
 	isc_netaddr_t		destaddr;
 	isc_sockaddr_t		destsockaddr;
 

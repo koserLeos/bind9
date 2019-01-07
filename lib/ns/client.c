@@ -426,8 +426,11 @@ exit_check(ns_client_t *client) {
 		bool wasoverquota = false;
 		INSIST(client->recursionquota == NULL);
 		INSIST(client->newstate <= NS_CLIENTSTATE_READY);
-		if (client->nreads > 0)
+
+		if (client->nreads > 0) {
 			dns_tcpmsg_cancelread(&client->tcpmsg);
+		}
+
 		if (client->nreads != 0) {
 			/* Still waiting for read cancel completion. */
 			return (true);
@@ -437,14 +440,20 @@ exit_check(ns_client_t *client) {
 			dns_tcpmsg_invalidate(&client->tcpmsg);
 			client->tcpmsg_valid = false;
 		}
+
 		if (client->tcpsocket != NULL) {
 			CTRACE("closetcp");
 			isc_socket_detach(&client->tcpsocket);
-			LOCK(&client->interface->lock);
-			INSIST(client->interface->ntcpalive > 0);
-			client->interface->ntcpalive--;
-			UNLOCK(&client->interface->lock);
+
+			if (client->tcpalive) {
+				LOCK(&client->interface->lock);
+				INSIST(client->interface->ntcpalive > 0);
+				client->interface->ntcpalive--;
+				UNLOCK(&client->interface->lock);
+				client->tcpalive = false;
+			}
 		}
+
 		if (client->tcpquota != NULL) {
 			isc_quota_detach(&client->tcpquota);
 		} else {
@@ -488,11 +497,16 @@ exit_check(ns_client_t *client) {
 		    ((client->sctx->options & NS_SERVER_CLIENTTEST) == 0))
 		{
 			LOCK(&client->interface->lock);
-			if ((!wasoverquota && client->interface->ntcpcurrent <
-			     client->interface->ntcptarget) ||
-			    (wasoverquota &&
-			     client->interface->ntcpalive == 0)) {
+			if (wasoverquota) {
+				if (client->interface->ntcpalive == 0) {
 					client->mortal = false;
+				}
+			} else {
+				if (client->interface->ntcpcurrent <
+				   client->interface->ntcptarget)
+				{
+					client->mortal = false;
+				}
 			}
 			UNLOCK(&client->interface->lock);
 		}
@@ -522,41 +536,57 @@ exit_check(ns_client_t *client) {
 		/*
 		 * We are trying to enter the inactive state.
 		 */
-		if (client->naccepts > 0)
+		if (client->naccepts > 0) {
 			isc_socket_cancel(client->tcplistener, client->task,
 					  ISC_SOCKCANCEL_ACCEPT);
+		}
 
 		/* Still waiting for accept cancel completion. */
-		if (! (client->naccepts == 0))
+		if (! (client->naccepts == 0)) {
 			return (true);
+		}
 
 		/* Accept cancel is complete. */
-		if (client->nrecvs > 0)
+		if (client->nrecvs > 0) {
 			isc_socket_cancel(client->udpsocket, client->task,
 					  ISC_SOCKCANCEL_RECV);
+		}
 
 		/* Still waiting for recv cancel completion. */
-		if (! (client->nrecvs == 0))
+		if (! (client->nrecvs == 0)) {
 			return (true);
+		}
 
 		/* Still waiting for control event to be delivered */
-		if (client->nctls > 0)
+		if (client->nctls > 0) {
 			return (true);
-
-		/* Deactivate the client. */
-		if (client->interface)
-			ns_interface_detach(&client->interface);
+		}
 
 		INSIST(client->naccepts == 0);
 		INSIST(client->recursionquota == NULL);
 		if (client->tcplistener != NULL) {
 			isc_socket_detach(&client->tcplistener);
-		}
-		if (client->udpsocket != NULL)
-			isc_socket_detach(&client->udpsocket);
 
-		if (client->dispatch != NULL)
+			if (client->tcpalive) {
+				LOCK(&client->interface->lock);
+				INSIST(client->interface->ntcpalive > 0);
+				client->interface->ntcpalive--;
+				UNLOCK(&client->interface->lock);
+				client->tcpalive = false;
+			}
+		}
+		if (client->udpsocket != NULL) {
+			isc_socket_detach(&client->udpsocket);
+		}
+
+		/* Deactivate the client. */
+		if (client->interface) {
+			ns_interface_detach(&client->interface);
+		}
+
+		if (client->dispatch != NULL) {
 			dns_dispatch_detach(&client->dispatch);
+		}
 
 		client->attributes = 0;
 		client->mortal = false;
@@ -587,8 +617,9 @@ exit_check(ns_client_t *client) {
 				ISC_QUEUE_PUSH(manager->inactive, client,
 					       ilink);
 			}
-			if (client->needshutdown)
+			if (client->needshutdown) {
 				isc_task_shutdown(client->task);
+			}
 			return (true);
 		}
 	}
@@ -3050,6 +3081,7 @@ client_create(ns_clientmgr_t *manager, ns_client_t **clientp) {
 	dns_ecs_init(&client->ecs);
 	client->needshutdown = ((client->sctx->options &
 				 NS_SERVER_CLIENTTEST) != 0);
+	client->tcpalive = false;
 
 	ISC_EVENT_INIT(&client->ctlevent, sizeof(client->ctlevent), 0, NULL,
 		       NS_EVENT_CLIENTCONTROL, client_start, client, client,
@@ -3263,10 +3295,6 @@ client_accept(ns_client_t *client) {
 
 	CTRACE("accept");
 
-	LOCK(&client->interface->lock);
-	client->interface->ntcpcurrent++;
-	client->interface->ntcpalive++;
-	UNLOCK(&client->interface->lock);
 	result = isc_socket_accept(client->tcplistener, client->task,
 				   client_newconn, client);
 	if (result != ISC_R_SUCCESS) {
@@ -3283,6 +3311,11 @@ client_accept(ns_client_t *client) {
 		return;
 	}
 	INSIST(client->naccepts == 0);
+
+	LOCK(&client->interface->lock);
+	client->interface->ntcpcurrent++;
+	UNLOCK(&client->interface->lock);
+
 	client->naccepts++;
 }
 
@@ -3559,6 +3592,14 @@ get_client(ns_clientmgr_t *manager, ns_interface_t *ifp,
 		client->attributes |= NS_CLIENTATTR_TCP;
 		isc_socket_attach(ifp->tcpsocket,
 				  &client->tcplistener);
+
+		if (! client->tcpalive) {
+			LOCK(&client->interface->lock);
+			client->interface->ntcpalive++;
+			UNLOCK(&client->interface->lock);
+
+			client->tcpalive = true;
+		}
 	} else {
 		isc_socket_t *sock;
 
@@ -3630,6 +3671,12 @@ get_worker(ns_clientmgr_t *manager, ns_interface_t *ifp, isc_socket_t *sock) {
 	isc_socket_setname(client->tcpsocket, "worker-tcp", NULL);
 	(void)isc_socket_getpeername(client->tcpsocket, &client->peeraddr);
 	client->peeraddr_valid = true;
+
+	LOCK(&client->interface->lock);
+	client->interface->ntcpalive++;
+	UNLOCK(&client->interface->lock);
+
+	client->tcpalive = true;
 
 	INSIST(client->tcpmsg_valid == false);
 	dns_tcpmsg_init(client->mctx, client->tcpsocket, &client->tcpmsg);
