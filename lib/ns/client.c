@@ -457,16 +457,7 @@ exit_check(ns_client_t *client) {
 		if (client->tcpquota != NULL) {
 			isc_quota_detach(&client->tcpquota);
 		} else {
-			/*
-			 * We went over quota with this client, we don't
-			 * want to restart listening unless this is the
-			 * last client on this interface, which is
-			 * checked later.
-			 */
-			if (TCP_CLIENT(client)) {
-				client->mortal = true;
-				wasoverquota = true;
-			}
+			wasoverquota = true;
 		}
 
 		if (client->timerset) {
@@ -497,16 +488,8 @@ exit_check(ns_client_t *client) {
 		    ((client->sctx->options & NS_SERVER_CLIENTTEST) == 0))
 		{
 			LOCK(&client->interface->lock);
-			if (wasoverquota) {
-				if (client->interface->ntcpalive == 0) {
-					client->mortal = false;
-				}
-			} else {
-				if (client->interface->ntcpcurrent <
-				   client->interface->ntcptarget)
-				{
-					client->mortal = false;
-				}
+			if (client->interface->ntcpalive == 0 || !wasoverquota) {
+				client->mortal = false;
 			}
 			UNLOCK(&client->interface->lock);
 		}
@@ -3230,6 +3213,10 @@ client_newconn(isc_task_t *task, isc_event_t *event) {
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
 			      "accept failed: %s",
 			      isc_result_totext(nevent->result));
+		if (client->tcpquota != NULL) {
+			isc_quota_detach(&client->tcpquota);
+		}
+
 	}
 
 	if (exit_check(client))
@@ -3266,10 +3253,7 @@ client_newconn(isc_task_t *task, isc_event_t *event) {
 		 * deny service to legitimate TCP clients.
 		 */
 		client->pipelined = false;
-		result = isc_quota_attach(&client->sctx->tcpquota,
-					  &client->tcpquota);
-		if (result == ISC_R_SUCCESS)
-			result = ns_client_replace(client);
+		result = ns_client_replace(client);
 		if (result != ISC_R_SUCCESS) {
 			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
 				      NS_LOGMODULE_CLIENT, ISC_LOG_WARNING,
@@ -3294,6 +3278,28 @@ client_accept(ns_client_t *client) {
 	isc_result_t result;
 
 	CTRACE("accept");
+	result = isc_quota_attach(&client->sctx->tcpquota,
+				  &client->tcpquota);
+	if (result != ISC_R_SUCCESS) {
+			bool exit;
+			LOCK(&client->interface->lock);
+			exit = (client->interface->ntcpalive > 0);
+			UNLOCK(&client->interface->lock);
+			/*
+			 * We are over quota and there are other alive clients
+			 * that can handle this interface, bail.
+			 */
+			if (exit) {
+				(void)exit_check(client);
+				return;
+			}
+	}
+	if (! client->tcpalive) {
+		LOCK(&client->interface->lock);
+		client->interface->ntcpalive++;
+		UNLOCK(&client->interface->lock);
+		client->tcpalive = true;
+	}
 
 	result = isc_socket_accept(client->tcplistener, client->task,
 				   client_newconn, client);
@@ -3593,13 +3599,6 @@ get_client(ns_clientmgr_t *manager, ns_interface_t *ifp,
 		isc_socket_attach(ifp->tcpsocket,
 				  &client->tcplistener);
 
-		if (! client->tcpalive) {
-			LOCK(&client->interface->lock);
-			client->interface->ntcpalive++;
-			UNLOCK(&client->interface->lock);
-
-			client->tcpalive = true;
-		}
 	} else {
 		isc_socket_t *sock;
 
