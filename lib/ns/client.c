@@ -456,7 +456,7 @@ exit_check(ns_client_t *client) {
 
 		if (client->tcpquota != NULL) {
 			isc_quota_detach(&client->tcpquota);
-		} else {
+		} else if (TCP_CLIENT(client)) {
 			wasoverquota = true;
 		}
 
@@ -488,7 +488,9 @@ exit_check(ns_client_t *client) {
 		    ((client->sctx->options & NS_SERVER_CLIENTTEST) == 0))
 		{
 			LOCK(&client->interface->lock);
-			if (client->interface->ntcpalive == 0 || !wasoverquota) {
+			if (client->interface->ntcpalive == 0 ||
+			    !wasoverquota)
+			{
 				client->mortal = false;
 			}
 			UNLOCK(&client->interface->lock);
@@ -499,15 +501,17 @@ exit_check(ns_client_t *client) {
 		 * queue for recycling.
 		 */
 		if (client->mortal) {
-			if (client->newstate > NS_CLIENTSTATE_INACTIVE)
+			if (client->newstate > NS_CLIENTSTATE_INACTIVE) {
 				client->newstate = NS_CLIENTSTATE_INACTIVE;
+			}
 		}
 
 		if (NS_CLIENTSTATE_READY == client->newstate) {
 			if (TCP_CLIENT(client)) {
 				client_accept(client);
-			} else
+			} else {
 				client_udprecv(client);
+			}
 			client->newstate = NS_CLIENTSTATE_MAX;
 			return (true);
 		}
