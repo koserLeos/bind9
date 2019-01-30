@@ -565,10 +565,7 @@ process_gsstkey(dns_message_t *msg, dns_name_t *name, dns_rdata_tkey_t *tkeyin,
 
 	isc_stdtime_get(&now);
 
-	if (dns_name_countlabels(principal) == 0U) {
-		if (tsigkey != NULL)
-			dns_tsigkey_detach(&tsigkey);
-	} else if (tsigkey == NULL) {
+	if (tsigkey == NULL) {
 #ifdef GSSAPI
 		OM_uint32 gret, minor, lifetime;
 #endif
@@ -593,10 +590,9 @@ process_gsstkey(dns_message_t *msg, dns_name_t *name, dns_rdata_tkey_t *tkeyin,
 		dst_key_free(&dstkey);
 		tkeyout->inception = now;
 		tkeyout->expire = expire;
-	} else {
+	} else if (dns_name_countlabels(principal) != 0U) {
 		tkeyout->inception = tsigkey->inception;
 		tkeyout->expire = tsigkey->expire;
-		dns_tsigkey_detach(&tsigkey);
 	}
 
 	if (outtoken) {
@@ -629,8 +625,11 @@ process_gsstkey(dns_message_t *msg, dns_name_t *name, dns_rdata_tkey_t *tkeyin,
 	 * we need to make sure the response is signed (see RFC 3645, Section
 	 * 2.2).
 	 */
-	if (tsigkey != NULL && msg->tsigkey == NULL && msg->sig0key == NULL) {
-		dns_message_settsigkey(msg, tsigkey);
+	if (tsigkey != NULL) {
+		if (msg->tsigkey == NULL && msg->sig0key == NULL) {
+			dns_message_settsigkey(msg, tsigkey);
+		}
+		dns_tsigkey_detach(&tsigkey);
 	}
 
 	return (ISC_R_SUCCESS);
