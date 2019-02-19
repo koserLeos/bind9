@@ -1,3 +1,5 @@
+	--- 9.12.4rc1 released ---
+
 5164.	[bug]		Correct errno to result translation in dlz filesystem
 			modules. [GL #884]
 
