@@ -1540,6 +1540,7 @@ write_public_key(const dst_key_t *key, int type, const char *directory) {
 	isc_buffer_t keyb, textb, fileb, classb;
 	isc_region_t r;
 	char filename[NAME_MAX];
+	char tempname[NAME_MAX + 14];	/* see isc_file_mktemplate() docs */
 	unsigned char key_array[DST_KEY_MAXSIZE];
 	char text_array[DST_KEY_MAXTEXTSIZE];
 	char class_array[10];
@@ -1579,15 +1580,21 @@ write_public_key(const dst_key_t *key, int type, const char *directory) {
 	/*
 	 * Create public key file.
 	 */
-	if ((fp = fopen(filename, "w")) == NULL)
+	ret = isc_file_mktemplate(filename, tempname, sizeof(tempname));
+	if (ret != ISC_R_SUCCESS) {
+		return (ret);
+	}
+
+	if ((fp = fopen(tempname, "w")) == NULL) {
 		return (DST_R_WRITEERROR);
+	}
 
 	if (issymmetric(key)) {
 		access = 0;
 		isc_fsaccess_add(ISC_FSACCESS_OWNER,
 				 ISC_FSACCESS_READ | ISC_FSACCESS_WRITE,
 				 &access);
-		(void)isc_fsaccess_set(filename, access);
+		(void)isc_fsaccess_set(tempname, access);
 	}
 
 	/* Write key information in comments */
@@ -1642,6 +1649,12 @@ write_public_key(const dst_key_t *key, int type, const char *directory) {
 	if (ferror(fp))
 		ret = DST_R_WRITEERROR;
 	fclose(fp);
+
+	if (ret != ISC_R_SUCCESS) {
+		(void)isc_file_remove(tempname);
+	} else {
+		ret = isc_file_rename(tempname, filename);
+	}
 
 	return (ret);
 }

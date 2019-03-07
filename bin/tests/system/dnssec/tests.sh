@@ -3192,6 +3192,32 @@ n=$((n+1))
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
 
+echo_i "checking that dnssec-settime does not work with a non-writable key directory ($n)"
+ret=0
+keydir="settime-keys/test$n"
+mkdir -p "$keydir" || ret=1
+key=$($KEYGEN -K "$keydir" -q -a "$DEFAULT_ALGORITHM" -b "$DEFAULT_BITS" -P 19990101000000 .) || ret=1
+chmod 555 "$keydir" || ret=1
+$SETTIME -K "$keydir" -P 20000101000000 "$key" > settime.out.test$n 2>&1 && ret=1
+grep "20000101000000" "$keydir/$key.key" > /dev/null 2>&1 && ret=1
+grep "20000101000000" "$keydir/$key.private" > /dev/null 2>&1 && ret=1
+n=$((n+1))
+if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+echo_i "checking that dnssec-settime works with a writable key directory ($n)"
+ret=0
+keydir="settime-keys/test$n"
+mkdir -p "$keydir" || ret=1
+key=$($KEYGEN -K "$keydir" -q -a "$DEFAULT_ALGORITHM" -b "$DEFAULT_BITS" -P 19990101000000 .) || ret=1
+chmod 755 "$keydir" || ret=1
+$SETTIME -K "$keydir" -P 20000101000000 "$key" > settime.out.test$n 2>&1 || ret=1
+grep "20000101000000" "$keydir/$key.key" > /dev/null 2>&1 || ret=1
+grep "20000101000000" "$keydir/$key.private" > /dev/null 2>&1 || ret=1
+n=$((n+1))
+if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
 echo_i "check that CDS records are signed using KSK by dnssec-signzone ($n)"
 ret=0
 dig_with_opts +noall +answer @10.53.0.2 cds cds.secure > dig.out.test$n

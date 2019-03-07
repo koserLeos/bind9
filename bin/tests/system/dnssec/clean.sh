@@ -11,6 +11,11 @@
 
 set -e
 
+if [ -d ./settime-keys ]; then
+	chmod 755 ./settime-keys/test*
+	rm -rf ./settime-keys
+fi
+
 rm -f ./*/K* ./*/keyset-* ./*/dsset-* ./*/dlvset-* ./*/signedkey-* ./*/*.signed
 rm -f ./*/example.bk
 rm -f ./*/named.conf
@@ -95,6 +100,7 @@ rm -f ./ns7/split-rrsig.db ./ns7/split-rrsig.db.unsplit
 rm -f ./nsupdate.out*
 rm -f ./python.out.*
 rm -f ./rndc.out.*
+rm -f ./settime.out.*
 rm -f ./signer/*.db
 rm -f ./signer/*.signed.post*
 rm -f ./signer/*.signed.pre*

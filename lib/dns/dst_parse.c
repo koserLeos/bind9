@@ -596,6 +596,7 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 	FILE *fp;
 	isc_result_t result;
 	char filename[NAME_MAX];
+	char tempname[NAME_MAX + 14];	/* see isc_file_mktemplate() docs */
 	char buffer[MAXFIELDSIZE * 2];
 	isc_fsaccess_t access;
 	isc_stdtime_t when;
@@ -639,14 +640,20 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 			      filename, (unsigned int)mode);
 	}
 
-	if ((fp = fopen(filename, "w")) == NULL)
+	result = isc_file_mktemplate(filename, tempname, sizeof(tempname));
+	if (result != ISC_R_SUCCESS) {
+		return (result);
+	}
+
+	if ((fp = fopen(tempname, "w")) == NULL) {
 		return (DST_R_WRITEERROR);
+	}
 
 	access = 0;
 	isc_fsaccess_add(ISC_FSACCESS_OWNER,
 			 ISC_FSACCESS_READ | ISC_FSACCESS_WRITE,
 			 &access);
-	(void)isc_fsaccess_set(filename, access);
+	(void)isc_fsaccess_set(tempname, access);
 
 	dst_key_getprivateformat(key, &major, &minor);
 	if (major == 0 && minor == 0) {
@@ -762,6 +769,13 @@ dst__privstruct_writefile(const dst_key_t *key, const dst_private_t *priv,
 	fflush(fp);
 	result = ferror(fp) ? DST_R_WRITEERROR : ISC_R_SUCCESS;
 	fclose(fp);
+
+	if (result != ISC_R_SUCCESS) {
+		(void)isc_file_remove(tempname);
+	} else {
+		result = isc_file_rename(tempname, filename);
+	}
+
 	return (result);
 }
 
