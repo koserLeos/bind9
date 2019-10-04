@@ -65,6 +65,23 @@ check_ndots(irs_resconf_t *resconf) {
 }
 
 static isc_result_t
+search_example(irs_resconf_t *resconf) {
+	irs_resconf_search_t *entry;
+	irs_resconf_searchlist_t *list;
+	list = irs_resconf_getsearchlist(resconf);
+	if (!list)
+		return (ISC_R_NOTFOUND);
+	entry = ISC_LIST_HEAD(*list);
+	assert_true(entry && entry->domain);
+	assert_string_equal(entry->domain, "example.com");
+
+	entry = ISC_LIST_TAIL(*list);
+	assert_true(entry && entry->domain);
+	assert_string_equal(entry->domain, "example.net");
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
 check_options(irs_resconf_t *resconf) {
 	if (irs_resconf_getattempts(resconf) != 3) {
 		return ISC_R_BADNUMBER; /* default value only */
@@ -118,7 +135,8 @@ irs_resconf_load_test(void **state) {
 		  ISC_R_SUCCESS },
 		{ "testdata/port.conf", ISC_R_SUCCESS, NULL, ISC_R_SUCCESS },
 		{ "testdata/resolv.conf", ISC_R_SUCCESS, NULL, ISC_R_SUCCESS },
-		{ "testdata/search.conf", ISC_R_SUCCESS, NULL, ISC_R_SUCCESS },
+		{ "testdata/search.conf", ISC_R_SUCCESS, search_example,
+		  ISC_R_SUCCESS },
 		{ "testdata/sortlist-v4.conf", ISC_R_SUCCESS, NULL,
 		  ISC_R_SUCCESS },
 		{ "testdata/timeout.conf", ISC_R_SUCCESS, NULL, ISC_R_SUCCESS },
