@@ -332,7 +332,7 @@ struct isc_nmsocket {
 	/*%
 	 * A TCP socket has had isc_nm_pauseread() called.
 	 */
-	atomic_bool		paused;
+	atomic_bool		readpaused;
 
 	/*%
 	 * 'spare' handles for that can be reused to avoid allocations,

@@ -706,7 +706,7 @@ isc__nmsocket_init(isc_nmsocket_t *sock, isc_nm_t *mgr,
 	atomic_init(&sock->sequential, false);
 	atomic_init(&sock->overlimit, false);
 	atomic_init(&sock->processing, false);
-	atomic_init(&sock->paused, false);
+	atomic_init(&sock->readpaused, false);
 
 	sock->magic = NMSOCK_MAGIC;
 }
