@@ -376,7 +376,7 @@ struct isc_nmsocket {
 	unsigned char		*buf;
 
 	/*
-	 * This function will be called with hiandle->sock
+	 * This function will be called with handle->sock
 	 * as the argument whenever a handle's references drop
 	 * to zero, after its reset callback has been called.
 	 */
