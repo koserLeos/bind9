@@ -735,7 +735,8 @@ isc__nm_free_uvbuf(isc_nmsocket_t *sock, const uv_buf_t *buf) {
 
 	REQUIRE(VALID_NMSOCK(sock));
 	if (buf->base == NULL) {
-		return; /* Empty buffer, migth happen in case of error. */
+		/* Empty buffer: might happen in case of error. */
+		return;
 	}
 	worker = &sock->mgr->workers[sock->tid];
 
