@@ -110,7 +110,7 @@ connection_limit(isc_nmsocket_t *sock) {
 		 * We're already non-pipelining, so there's
 		 * no need to check per-connection limits.
 		 */
-		return;
+		return (false);
 	}
 
 	LOCK(&sock->lock);
