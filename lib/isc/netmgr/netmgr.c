@@ -529,7 +529,7 @@ nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree) {
 	}
 
 	if (sock->buf != NULL) {
-		isc_mem_put(sock->mgr->mctx, sock->buf, sock->buf_size);
+		isc_mem_free(sock->mgr->mctx, sock->buf);
 	}
 
 	if (sock->quota != NULL) {
@@ -734,13 +734,13 @@ isc__nm_free_uvbuf(isc_nmsocket_t *sock, const uv_buf_t *buf) {
 	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMSOCK(sock));
-
+	if (buf->base == NULL) {
+		return; /* Empty buffer, migth happen in case of error. */
+	}
 	worker = &sock->mgr->workers[sock->tid];
 
 	REQUIRE(worker->udprecvbuf_inuse);
 	REQUIRE(buf->base == worker->udprecvbuf);
-
-	UNUSED(buf);
 
 	worker->udprecvbuf_inuse = false;
 }
