@@ -133,7 +133,8 @@ processbuffer(isc_nmsocket_t *dnssock) {
 
 	/* While we have a complete packet in the buffer */
 	while (dnssock->buf_len > 2 &&
-	       dnslen(dnssock->buf) <= dnssock->buf_len - 2)
+	       dnslen(dnssock->buf) <= dnssock->buf_len - 2 &&
+	       !connection_limit(dnssock))
 	{
 		isc_nmhandle_t *dnshandle = NULL;
 		isc_region_t r2 = {
