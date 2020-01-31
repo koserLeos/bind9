@@ -1,3 +1,7 @@
+????.	[func]		The new "sig-signing-period" option gives more
+			control over the quantum size of incremental zone
+			signing. Thanks to Tony Finch. [GL !2984]
+
 5350.	[bug]		When a view was configured with class CHAOS, the
 			server could crash while processing a query for a
 			non-existent record. [GL #1540]
