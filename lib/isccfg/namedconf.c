@@ -2270,6 +2270,9 @@ zone_clauses[] = {
 	{ "sig-signing-nodes", &cfg_type_uint32,
 		CFG_ZONE_MASTER | CFG_ZONE_SLAVE
 	},
+	{ "sig-signing-period", &cfg_type_duration,
+		CFG_ZONE_MASTER | CFG_ZONE_SLAVE
+	},
 	{ "sig-signing-signatures", &cfg_type_uint32,
 		CFG_ZONE_MASTER | CFG_ZONE_SLAVE
 	},

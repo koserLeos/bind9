@@ -1568,6 +1568,11 @@ named_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		dns_zone_setnodes(zone, cfg_obj_asuint32(obj));
 
 		obj = NULL;
+		result = named_config_get(maps, "sig-signing-period", &obj);
+		INSIST(result == ISC_R_SUCCESS && obj != NULL);
+		dns_zone_setsigperiod(zone, cfg_obj_asduration(obj));
+
+		obj = NULL;
 		result = named_config_get(maps, "sig-signing-type", &obj);
 		INSIST(result == ISC_R_SUCCESS && obj != NULL);
 		dns_zone_setprivatetype(zone, cfg_obj_asuint32(obj));

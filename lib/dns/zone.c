@@ -360,6 +360,7 @@ struct dns_zone {
 	 */
 	uint32_t		signatures;
 	uint32_t		nodes;
+	dns_ttl_t		sigperiod;
 	dns_rdatatype_t		privatetype;
 
 	/*%
@@ -1041,6 +1042,7 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx) {
 	ISC_LIST_INIT(zone->setnsec3param_queue);
 	zone->signatures = 10;
 	zone->nodes = 100;
+	zone->sigperiod = 5;
 	zone->privatetype = (dns_rdatatype_t)0xffffU;
 	zone->added = false;
 	zone->automatic = false;
@@ -6785,7 +6787,7 @@ zone_resigninc(dns_zone_t *zone) {
 	} else {
 		expire = fullexpire = soaexpire - 1;
 	}
-	stop = now + 5;
+	stop = now + zone->sigperiod;
 
 	check_ksk = DNS_ZONE_OPTION(zone, DNS_ZONEOPT_UPDATECHECKKSK);
 	keyset_kskonly = DNS_ZONE_OPTION(zone, DNS_ZONEOPT_DNSKEYKSKONLY);
@@ -18120,6 +18122,13 @@ dns_zone_setnodes(dns_zone_t *zone, uint32_t nodes) {
 	if (nodes == 0)
 		nodes = 1;
 	zone->nodes = nodes;
+}
+
+void
+dns_zone_setsigperiod(dns_zone_t *zone, dns_ttl_t period) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	zone->sigperiod = period;
 }
 
 void

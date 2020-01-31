@@ -8940,13 +8940,26 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
 	    </varlistentry>
 
 	    <varlistentry>
+	      <term><command>sig-signing-period</command></term>
+	      <listitem>
+		<para>
+		  Specify the period of re-signing times that are
+		  considered close enough to "now" to be handled in the
+		  same incremental signing quantum. A larger period can
+		  reduce the frequency of incremental signing. The default
+		  is <literal>5</literal> seconds.
+		</para>
+	      </listitem>
+	    </varlistentry>
+
+	    <varlistentry>
 	      <term><command>sig-signing-signatures</command></term>
 	      <listitem>
 		<para>
-		  Specify a threshold number of signatures that
-		  will terminate processing a quantum when signing
-		  a zone with a new DNSKEY.  The default is
-		  <literal>10</literal>.
+		  Specify a threshold number of signatures that will
+		  terminate processing a quantum when signing a zone
+		  with a new DNSKEY or incrementally re-signing a
+		  zone. The default is <literal>10</literal>.
 		</para>
 	      </listitem>
 	    </varlistentry>

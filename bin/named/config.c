@@ -239,6 +239,7 @@ options {\n\
 	notify-to-soa no;\n\
 	serial-update-method increment;\n\
 	sig-signing-nodes 100;\n\
+	sig-signing-period 5;\n\
 	sig-signing-signatures 10;\n\
 	sig-signing-type 65534;\n\
 	sig-validity-interval 30; /* days */\n\

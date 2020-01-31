@@ -2141,6 +2141,12 @@ dns_zone_setnodes(dns_zone_t *zone, uint32_t nodes);
  */
 
 void
+dns_zone_setsigperiod(dns_zone_t *zone, dns_ttl_t period);
+/*%<
+ * Set the period of re-signing times that will be collected into one quantum.
+ */
+
+void
 dns_zone_setsignatures(dns_zone_t *zone, uint32_t signatures);
 /*%<
  * Set the number of signatures that will be generated per quantum.
