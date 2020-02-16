@@ -1844,6 +1844,15 @@ zone_xmlrender(dns_zone_t *zone, void *arg) {
 		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "refresh"));
 		TRY0(xmlTextWriterWriteString(writer, ISC_XMLCHAR buf));
 		TRY0(xmlTextWriterEndElement(writer));
+
+		result = dns_zone_getlastrefreshtime(zone, &timestamp);
+		if (result != ISC_R_SUCCESS) {
+			goto error;
+		}
+		isc_time_formatISO8601(&timestamp, buf, 64);
+		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "lastrefresh"));
+		TRY0(xmlTextWriterWriteString(writer, ISC_XMLCHAR buf));
+		TRY0(xmlTextWriterEndElement(writer));
 	}
 
 	if (statlevel == dns_zonestat_full) {
@@ -2687,6 +2696,14 @@ zone_jsonrender(dns_zone_t *zone, void *arg) {
 		}
 		isc_time_formatISO8601(&timestamp, buf, 64);
 		json_object_object_add(zoneobj, "refresh",
+				       json_object_new_string(buf));
+
+		result = dns_zone_getlastrefreshtime(zone, &timestamp);
+		if (result != ISC_R_SUCCESS) {
+			goto error;
+		}
+		isc_time_formatISO8601(&timestamp, buf, 64);
+		json_object_object_add(zoneobj, "lastrefresh",
 				       json_object_new_string(buf));
 	}
 

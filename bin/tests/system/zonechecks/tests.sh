@@ -196,6 +196,7 @@ checkfor "type: slave" rndc.out.slave
 checkfor "files: slave.db" rndc.out.slave
 checkfor "serial: " rndc.out.slave
 checkfor "nodes: " rndc.out.slave
+checkfor "last refresh: " rndc.out.slave
 checkfor "next refresh: " rndc.out.slave
 checkfor "expires: " rndc.out.slave
 checkfor "secure: yes" rndc.out.slave

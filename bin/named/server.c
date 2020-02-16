@@ -14512,9 +14512,10 @@ named_server_zonestatus(named_server_t *server, isc_lex_t *lex,
 	char lbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
 	char xbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
 	char rbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
+	char sbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
 	char kbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
 	char rtbuf[ISC_FORMATHTTPTIMESTAMP_SIZE];
-	isc_time_t loadtime, expiretime, refreshtime;
+	isc_time_t loadtime, expiretime, refreshtime, lastrefreshtime;
 	isc_time_t refreshkeytime, resigntime;
 	dns_zonetype_t zonetype;
 	bool dynamic = false, frozen = false;
@@ -14526,6 +14527,7 @@ named_server_zonestatus(named_server_t *server, isc_lex_t *lex,
 
 	isc_time_settoepoch(&loadtime);
 	isc_time_settoepoch(&refreshtime);
+	isc_time_settoepoch(&lastrefreshtime);
 	isc_time_settoepoch(&expiretime);
 	isc_time_settoepoch(&refreshkeytime);
 	isc_time_settoepoch(&resigntime);
@@ -14619,6 +14621,8 @@ named_server_zonestatus(named_server_t *server, isc_lex_t *lex,
 		isc_time_formathttptimestamp(&expiretime, xbuf, sizeof(xbuf));
 		dns_zone_getrefreshtime(mayberaw, &refreshtime);
 		isc_time_formathttptimestamp(&refreshtime, rbuf, sizeof(rbuf));
+		dns_zone_getlastrefreshtime(mayberaw, &lastrefreshtime);
+		isc_time_formathttptimestamp(&lastrefreshtime, sbuf, sizeof(sbuf));
 	}
 
 	/* Key refresh time */
@@ -14703,6 +14707,11 @@ named_server_zonestatus(named_server_t *server, isc_lex_t *lex,
 	if (!isc_time_isepoch(&loadtime)) {
 		CHECK(putstr(text, "\nlast loaded: "));
 		CHECK(putstr(text, lbuf));
+	}
+
+	if (!isc_time_isepoch(&lastrefreshtime)) {
+		CHECK(putstr(text, "\nlast refresh: "));
+		CHECK(putstr(text, sbuf));
 	}
 
 	if (!isc_time_isepoch(&refreshtime)) {

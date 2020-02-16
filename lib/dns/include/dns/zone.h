@@ -2413,6 +2413,12 @@ dns_zone_getloadtime(dns_zone_t *zone, isc_time_t *loadtime);
  */
 
 isc_result_t
+dns_zone_getlastrefreshtime(dns_zone_t *zone, isc_time_t *refreshtime);
+/*%
+ * Return the time when the (slave) zone was last refreshed.
+ */
+
+isc_result_t
 dns_zone_getrefreshtime(dns_zone_t *zone, isc_time_t *refreshtime);
 /*%
  * Return the time when the (slave) zone will need to be refreshed.

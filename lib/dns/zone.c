@@ -12884,16 +12884,25 @@ get_edns_expire(dns_zone_t *zone, dns_message_t *message, uint32_t *expirep) {
 }
 
 /*
- * Set the file modification time zone->expire seconds before expiretime.
+ * A zone's last refresh time is calculated from its expiry times.
  */
-static void
-setmodtime(dns_zone_t *zone, isc_time_t *expiretime) {
-	isc_result_t result;
-	isc_time_t when;
+static isc_result_t
+lastrefreshtime(dns_zone_t *zone, isc_time_t *refreshtime) {
 	isc_interval_t i;
 
 	isc_interval_set(&i, zone->expire, 0);
-	result = isc_time_subtract(expiretime, &i, &when);
+	return (isc_time_subtract(&zone->expiretime, &i, refreshtime));
+}
+
+/*
+ * Set the file modification time to the zone's last refresh time.
+ */
+static void
+setmodtime(dns_zone_t *zone) {
+	isc_result_t result;
+	isc_time_t when;
+
+	result = lastrefreshtime(zone, &when);
 	if (result != ISC_R_SUCCESS) {
 		return;
 	}
@@ -13258,7 +13267,7 @@ refresh_callback(isc_task_t *task, isc_event_t *event) {
 		if (isc_time_compare(&expiretime, &zone->expiretime) > 0) {
 			zone->expiretime = expiretime;
 			if (zone->masterfile != NULL) {
-				setmodtime(zone, &expiretime);
+				setmodtime(zone);
 			}
 		}
 
@@ -20755,6 +20764,19 @@ dns_zone_getrefreshtime(dns_zone_t *zone, isc_time_t *refreshtime) {
 	*refreshtime = zone->refreshtime;
 	UNLOCK_ZONE(zone);
 	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_zone_getlastrefreshtime(dns_zone_t *zone, isc_time_t *refreshtime) {
+	isc_result_t result = ISC_R_SUCCESS;
+
+	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(refreshtime != NULL);
+
+	LOCK_ZONE(zone);
+	result = lastrefreshtime(zone, refreshtime);
+	UNLOCK_ZONE(zone);
+	return (result);
 }
 
 isc_result_t
