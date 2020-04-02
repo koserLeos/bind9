@@ -2704,50 +2704,49 @@ zone_jsonrender(dns_zone_t *zone, void *arg) {
 
 		dnssecsignstats = dns_zone_getdnssecsignstats(zone);
 		if (dnssecsignstats != NULL) {
-			stats_dumparg_t dumparg;
-			json_object *counters = json_object_new_object();
-			CHECKMEM(counters);
+			stats_dumparg_t dumparg1;
+			json_object *counters1 = json_object_new_object();
 
-			dumparg.type = isc_statsformat_json;
-			dumparg.arg = counters;
-			dumparg.result = ISC_R_SUCCESS;
+			stats_dumparg_t dumparg2;
+			json_object *counters2 = json_object_new_object();
+
+			CHECKMEM(counters1);
+			CHECKMEM(counters2);
+
+			dumparg1.type = isc_statsformat_json;
+			dumparg1.arg = counters1;
+			dumparg1.result = ISC_R_SUCCESS;
 			dns_dnssecsignstats_dump(dnssecsignstats, false,
-						 dnssecsignstat_dump, &dumparg,
+						 dnssecsignstat_dump, &dumparg1,
 						 0);
-			if (dumparg.result != ISC_R_SUCCESS) {
-				json_object_put(counters);
+			if (dumparg1.result != ISC_R_SUCCESS) {
+				json_object_put(counters1);
 				goto error;
 			}
 
-			if (json_object_get_object(counters)->count != 0) {
+			if (json_object_get_object(counters1)->count != 0) {
 				json_object_object_add(zoneobj, "dnssec-sign",
-						       counters);
+						       counters1);
 			} else {
-				json_object_put(counters);
+				json_object_put(counters2);
 			}
-		}
 
-		if (dnssecsignstats != NULL) {
-			stats_dumparg_t dumparg;
-			json_object *counters = json_object_new_object();
-			CHECKMEM(counters);
-
-			dumparg.type = isc_statsformat_json;
-			dumparg.arg = counters;
-			dumparg.result = ISC_R_SUCCESS;
+			dumparg2.type = isc_statsformat_json;
+			dumparg2.arg = counters2;
+			dumparg2.result = ISC_R_SUCCESS;
 			dns_dnssecsignstats_dump(dnssecsignstats, true,
-						 dnssecsignstat_dump, &dumparg,
+						 dnssecsignstat_dump, &dumparg2,
 						 0);
-			if (dumparg.result != ISC_R_SUCCESS) {
-				json_object_put(counters);
+			if (dumparg2.result != ISC_R_SUCCESS) {
+				json_object_put(counters2);
 				goto error;
 			}
 
-			if (json_object_get_object(counters)->count != 0) {
+			if (json_object_get_object(counters2)->count != 0) {
 				json_object_object_add(
-					zoneobj, "dnssec-refresh", counters);
+					zoneobj, "dnssec-refresh", counters2);
 			} else {
-				json_object_put(counters);
+				json_object_put(counters2);
 			}
 		}
 	}
