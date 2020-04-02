@@ -3,6 +3,11 @@
 			possible key id per zone which results in a lot of
 			wasted memory. Fix by tracking up to four keys
 			per zone, rotate counters when keys are replaced.
+			This works for most cases, and fixes the immediate
+			problem of high memory usage, but is a temporary fix.
+			The complete fix will need to add a strategy that
+			grows the number of key slots per zone based on key
+			rollover events.
 			[GL #1179]
 
 5369.	[func]		Add the ability to specify whether or not to wait
