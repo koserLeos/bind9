@@ -427,7 +427,8 @@ danger:
   script:
     - danger-python ci -f
   only:
-    - merge_requests
+    variables:
+      - '$CI_MERGE_REQUEST_ID && $DANGER_GITLAB_API_TOKEN'
 
 flake8:
   <<: *default_triggering_rules
