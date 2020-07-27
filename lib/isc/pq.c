@@ -158,6 +158,9 @@ node_new(isc_pq_t *pq, size_t level, uint32_t key, void *value) {
 
 	ClearLowestBit(&node->references);
 
+	/* Must be claimed */
+	assert((node->references & 0x01) == 0x01);
+
 	return (node);
 }
 
