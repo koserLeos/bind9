@@ -78,11 +78,64 @@ struct node {
 node_t *
 HelpDelete(isc_pq_t *pq, node_t *node, size_t level);
 
+bool
+DecrementAndTestAndSet(atomic_uint_fast32_t *ptr) {
+	uint_fast32_t new = 0;
+	uint_fast32_t old = atomic_load_acquire(ptr);
+	do {
+		new = old - 2;
+		if (new == 0) {
+			new = 1;
+		}
+	} while (!atomic_compare_exchange_weak_acq_rel(ptr, &old, new));
+	return (old - new) & 1;
+}
+
+void
+ClearLowestBit(atomic_uint_fast32_t *ptr) {
+	uint_fast32_t new = 0;
+	uint_fast32_t old = atomic_load_acquire(ptr);
+	do {
+		new = old - 1;
+	} while (!atomic_compare_exchange_weak_acq_rel(ptr, &old, new));
+}
+
+static void
+node_free(void *node0);
+
+static bool
+Release(node_t *ptr) {
+	if (ptr == NULL) {
+		return false;
+	}
+	if (DecrementAndTestAndSet(&ptr->references) == 0) {
+		return false;
+	}
+	node_free(ptr);
+	return true;
+}
+
+static void *
+SafeRead(node_t **ptr) {
+	REQUIRE(*ptr != NULL);
+	for (;;) {
+		node_t *q = (node_t *)atomic_load((atomic_uintptr_t *)ptr);
+		uint32_t old = atomic_fetch_add_relaxed(&q->references, 2);
+		REQUIRE(old < UINT32_MAX);
+		if (q == *ptr) {
+			return q;
+		} else {
+			Release(q);
+		}
+	}
+}
+
 static void
 node_free(void *node0) {
 	node_t *node = (node_t *)node0;
-	isc_refcount_destroy(&node->references);
-	node->references = UINT32_MAX;
+	fprintf(stderr, "Destroying %p->references = %" PRIuFAST32 "\n", node, node->references);
+	/* isc_refcount_destroy(&node->references); */
+	/* node->references = UINT32_MAX; */
 	isc_mem_put(node->pq->mctx, node, sizeof(*node) + node->level * sizeof(node->next[0]));
 }
 
@@ -96,12 +149,15 @@ node_new(isc_pq_t *pq, size_t level, uint32_t key, void *value) {
 			  .level = level,
 			  .valid = 0,
 			  .key = key };
-	atomic_init(&node->valid, 0);
+	atomic_init(&node->valid, 2);
 	atomic_init(&node->value, (uintptr_t)value);
-	isc_refcount_init(&node->references, 1);
+	isc_refcount_init(&node->references, 2);
 	for (size_t i = 0; i < level; i++) {
 		atomic_init(&node->next[i], (uintptr_t)0);
 	}
+
+	ClearLowestBit(&node->references);
+
 	return (node);
 }
 
@@ -120,19 +176,20 @@ node_new(isc_pq_t *pq, size_t level, uint32_t key, void *value) {
 
 static node_t *
 _read_node(node_t **nodep, char *file, unsigned int line) {
-	assert(nodep != NULL);
-	node_t *node = *nodep;
-	if (node == NULL || is_marked(node)) {
-		fprintf(stderr, "%s:%u:%u: read_node: %p\n", file, line, (unsigned int)pthread_self(), (node));
-		return NULL;
+	{
+		node_t *node = *nodep;
+		if (node == NULL || is_marked(node)) {
+			fprintf(stderr, "%s:%u:%u: read_node: %p\n", file, line, (unsigned int)pthread_self(), (node));
+			return NULL;
+		}
+		if (atomic_load(&node->references) > 100) {
+			fprintf(stderr, "%s:%u:%u: READ_NODE: %p->%" PRIxFAST32 "!!!!!!!!\n", file, line, (unsigned int)pthread_self(), node, node->references);
+		} else {
+			fprintf(stderr, "%s:%u:%u: read_node: %p->%" PRIxFAST32 "\n", file, line, (unsigned int)pthread_self(), node, node->references);
+		}
 	}
-	if (atomic_load(&node->references) > 100) {
-		fprintf(stderr, "%s:%u:%u: READ_NODE: %p->%" PRIxFAST32 "!!!!!!!!\n", file, line, (unsigned int)pthread_self(), node, node->references);
-	} else {
-		fprintf(stderr, "%s:%u:%u: read_node: %p->%" PRIxFAST32 "\n", file, line, (unsigned int)pthread_self(), node, node->references);
-	}
-	isc_refcount_increment(&node->references);
-	return (node);
+
+	return SafeRead(nodep);
 }
 
 static node_t *
@@ -146,13 +203,14 @@ _copy_node(node_t *node, char *file, unsigned int line) {
 
 static void
 _release_node(node_t **nodep, char *file, unsigned int line) {
-	REQUIRE(nodep != NULL && *nodep != NULL);
-	node_t *node = *nodep;
-	fprintf(stderr, "%s:%u:%u: rlse_node: %p->%" PRIxFAST32 "\n", file, line, (unsigned int)pthread_self(), (node), (node)->references); \
-	REQUIRE(!is_marked(node));
-	if (isc_refcount_decrement(&(node)->references) == 1) {
+	{
+		REQUIRE(nodep != NULL && *nodep != NULL);
+		node_t *node = *nodep;
+		fprintf(stderr, "%s:%u:%u: rlse_node: %p->%" PRIxFAST32 "\n", file, line, (unsigned int)pthread_self(), (node), (node)->references); \
+		REQUIRE(!is_marked(node));
+	}
+	if (Release(*nodep)) {
 		*nodep = NULL;
-		node_free(node);
 	}
 }
 
@@ -222,6 +280,7 @@ mark_value(isc_pq_t *pq, node_t **nextp, node_t *prev, uintptr_t *valuep) {
 			 * The value is already marked, look for the
 			 * next item on the list
 			 */
+
 			*nextp = node = HelpDelete(pq, node, 0);
 			return (false);
 		}
@@ -270,7 +329,7 @@ thread_local int swap_next_backoff = 0;
 #endif
 
 static inline void
-swap_next(isc_pq_t *pq, node_t **prevp, node_t *node, size_t level, char *file, unsigned int line) {
+RemoveNode(isc_pq_t *pq, node_t **prevp, node_t *node, size_t level, char *file, unsigned int line) {
 #if defined(ISC_PQ_EXPONENTIAL_BACKOFF)
 	swap_next_backoff = 2;
 #endif
@@ -457,7 +516,7 @@ DeleteMin(isc_pq_t *pq) {
 	 */
 	prev = COPY_HEAD(pq);
 	for (int i = node->level-1; i >= 0; i--) {
-		swap_next(pq, &prev, node, (size_t)i, __FILE__, __LINE__);
+		RemoveNode(pq, &prev, node, (size_t)i, __FILE__, __LINE__);
 	}
 
 	node_print(PQ_HEAD(pq), "head", "DeleteEnd", __FILE__, __LINE__);
@@ -506,7 +565,7 @@ HelpDelete(isc_pq_t *pq, node_t *node, size_t level) {
 	 * in order to avoid executing sub-operations that have already been
 	 * performed.
 	 */
-	swap_next(pq, &prev, node, level, __FILE__, __LINE__);
+	RemoveNode(pq, &prev, node, level, __FILE__, __LINE__);
 
 	release_node(&node);
 	return prev;
