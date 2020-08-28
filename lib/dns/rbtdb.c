@@ -1967,7 +1967,7 @@ send_to_prune_tree(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 static void
 cleanup_dead_nodes(dns_rbtdb_t *rbtdb, int bucketnum) {
 	dns_rbtnode_t *node;
-	int count = 10; /* XXXJT: should be adjustable */
+	size_t count = 1000U; /* XXXJT: should be adjustable */
 
 	if (rbtdb->cachestats != NULL) {
 		isc_stats_increment(rbtdb->cachestats,

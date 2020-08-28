@@ -613,39 +613,44 @@ begin_cleaning(cache_cleaner_t *cleaner) {
 			      "cache cleaner could not create "
 			      "iterator: %s",
 			      isc_result_totext(result));
-	} else {
-		dns_dbiterator_setcleanmode(cleaner->iterator, true);
-		result = dns_dbiterator_first(cleaner->iterator);
+		return;
 	}
+
+	REQUIRE(DNS_DBITERATOR_VALID(cleaner->iterator));
+
+	dns_dbiterator_setcleanmode(cleaner->iterator, true);
+	result = dns_dbiterator_first(cleaner->iterator);
+
 	if (result != ISC_R_SUCCESS) {
 		/*
 		 * If the result is ISC_R_NOMORE, the database is empty,
 		 * so there is nothing to be cleaned.
 		 */
-		if (result != ISC_R_NOMORE && cleaner->iterator != NULL) {
+		if (result != ISC_R_NOMORE) {
 			UNEXPECTED_ERROR(__FILE__, __LINE__,
 					 "cache cleaner: "
 					 "dns_dbiterator_first() failed: %s",
 					 dns_result_totext(result));
 			dns_dbiterator_destroy(&cleaner->iterator);
-		} else if (cleaner->iterator != NULL) {
+		} else {
 			result = dns_dbiterator_pause(cleaner->iterator);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		}
-	} else {
-		/*
-		 * Pause the iterator to free its lock.
-		 */
-		result = dns_dbiterator_pause(cleaner->iterator);
-		RUNTIME_CHECK(result == ISC_R_SUCCESS);
-
-		isc_log_write(
-			dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_CACHE,
-			ISC_LOG_DEBUG(1), "begin cache cleaning, mem inuse %lu",
-			(unsigned long)isc_mem_inuse(cleaner->cache->mctx));
-		cleaner->state = cleaner_s_busy;
-		isc_task_send(cleaner->task, &cleaner->resched_event);
+		return;
 	}
+
+	/*
+	 * Pause the iterator to free its lock.
+	 */
+	result = dns_dbiterator_pause(cleaner->iterator);
+	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+
+	isc_log_write(
+		dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_CACHE,
+		ISC_LOG_DEBUG(1), "begin cache cleaning, mem inuse %lu",
+		(unsigned long)isc_mem_inuse(cleaner->cache->mctx));
+	cleaner->state = cleaner_s_busy;
+	isc_task_send(cleaner->task, &cleaner->resched_event);
 
 	return;
 }
@@ -731,7 +736,6 @@ incremental_cleaning_action(isc_task_t *task, isc_event_t *event) {
 	cache_cleaner_t *cleaner = event->ev_arg;
 	isc_result_t result;
 	unsigned int n_names;
-	isc_time_t start;
 
 	UNUSED(task);
 
@@ -762,7 +766,6 @@ incremental_cleaning_action(isc_task_t *task, isc_event_t *event) {
 
 	REQUIRE(DNS_DBITERATOR_VALID(cleaner->iterator));
 
-	isc_time_now(&start);
 	while (n_names-- > 0) {
 		dns_dbnode_t *node = NULL;
 
