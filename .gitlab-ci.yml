@@ -978,13 +978,13 @@ gcc:asan:
     CFLAGS: "${CFLAGS_COMMON} -fsanitize=address,undefined -DISC_MEM_USE_INTERNAL_MALLOC=0"
     LDFLAGS: "-fsanitize=address,undefined"
     EXTRA_CONFIGURE: "--with-libidn2"
-  <<: *base_image
+  <<: *fedora_34_amd64_image
   <<: *build_job
 
 system:gcc:asan:
   variables:
     ASAN_OPTIONS: ${ASAN_OPTIONS_COMMON}
-  <<: *base_image
+  <<: *fedora_34_amd64_image
   <<: *system_test_job
   needs:
     - job: gcc:asan
@@ -993,7 +993,7 @@ system:gcc:asan:
 unit:gcc:asan:
   variables:
     ASAN_OPTIONS: ${ASAN_OPTIONS_COMMON}
-  <<: *base_image
+  <<: *fedora_34_amd64_image
   <<: *unit_test_job
   needs:
     - job: gcc:asan
@@ -1029,18 +1029,18 @@ unit:clang:asan:
 # Jobs for builds with TSAN enabled
 
 gcc:tsan:
-  <<: *base_image
-  <<: *build_job
   variables:
     CC: gcc
     CFLAGS: "${CFLAGS_COMMON} -fsanitize=thread -DISC_MEM_USE_INTERNAL_MALLOC=0"
     LDFLAGS: "-fsanitize=thread"
     EXTRA_CONFIGURE: "--with-libidn2"
+  <<: *fedora_34_amd64_image
+  <<: *build_job
 
 system:gcc:tsan:
   variables:
     TSAN_OPTIONS: ${TSAN_OPTIONS_COMMON}
-  <<: *base_image
+  <<: *fedora_34_amd64_image
   <<: *system_test_tsan_job
   needs:
     - job: gcc:tsan
@@ -1049,7 +1049,7 @@ system:gcc:tsan:
 unit:gcc:tsan:
   variables:
     TSAN_OPTIONS: ${TSAN_OPTIONS_COMMON} suppressions=$CI_PROJECT_DIR/tsan-suppressions.txt
-  <<: *base_image
+  <<: *fedora_34_amd64_image
   <<: *unit_test_tsan_job
   needs:
     - job: gcc:tsan
@@ -1085,7 +1085,7 @@ unit:clang:tsan:
 # Jobs for builds with TSAN enabled --disable-atomics
 
 gcc:tsan:noatomics:
-  <<: *base_image
+  <<: *fedora_34_amd64_image
   <<: *build_job
   variables:
     CC: gcc
@@ -1096,7 +1096,7 @@ gcc:tsan:noatomics:
 system:gcc:tsan:noatomics:
   variables:
     TSAN_OPTIONS: ${TSAN_OPTIONS_COMMON}
-  <<: *base_image
+  <<: *fedora_34_amd64_image
   <<: *system_test_tsan_job
   needs:
     - job: gcc:tsan:noatomics
@@ -1105,7 +1105,7 @@ system:gcc:tsan:noatomics:
 unit:gcc:tsan:noatomics:
   variables:
     TSAN_OPTIONS: ${TSAN_OPTIONS_COMMON}
-  <<: *base_image
+  <<: *fedora_34_amd64_image
   <<: *unit_test_tsan_job
   needs:
     - job: gcc:tsan:noatomics
