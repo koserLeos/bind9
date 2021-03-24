@@ -12,6 +12,7 @@
  */
 
 #include <isc/managers.h>
+#include <isc/rwlock.h>
 #include <isc/util.h>
 
 #include "netmgr_p.h"
@@ -54,6 +55,8 @@ isc_managers_create(isc_mem_t *mctx, size_t workers, size_t quantum,
 		}
 		*timermgrp = timermgr;
 	}
+
+	isc_rwlock_setworkers(workers);
 
 	return (ISC_R_SUCCESS);
 fail:
