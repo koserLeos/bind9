@@ -19,6 +19,7 @@
 
 #include "config.h"
 #include "mem_p.h"
+#include "rwlock_p.h"
 #include "tls_p.h"
 #include "trampoline_p.h"
 
@@ -45,10 +46,12 @@ isc__initialize(void) {
 	isc__mem_initialize();
 	isc__tls_initialize();
 	isc__trampoline_initialize();
+	isc__rwlock_initialize();
 }
 
 void
 isc__shutdown(void) {
+	isc__rwlock_shutdown();
 	isc__trampoline_shutdown();
 	isc__tls_shutdown();
 	isc__mem_shutdown();

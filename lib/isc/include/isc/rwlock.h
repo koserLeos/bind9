@@ -21,6 +21,7 @@
 #include <isc/lang.h>
 #include <isc/platform.h>
 #include <isc/types.h>
+#include <isc/queue.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -42,20 +43,12 @@ typedef struct isc_rwlock_node {
 	alignas(ISC_CACHE_LINE) atomic_bool succ_must_wait;
 } isc_rwlock_node_t;
 
-typedef struct isc_rwlock_counter {
-	alignas(ISC_CACHE_LINE) atomic_int_fast32_t counter;
-} isc_rwlock_counter_t;
-
 struct isc_rwlock {
 	unsigned int magic;
-	uint16_t ncounters;
-	atomic_uint_fast32_t spins;
-	alignas(ISC_CACHE_LINE) atomic_uintptr_t mynode;
+	alignas(ISC_CACHE_LINE) isc_rwlock_node_t *mynode;
 	alignas(ISC_CACHE_LINE) atomic_uintptr_t tail;
-	/* alignas(ISC_CACHE_LINE) isc_rwlock_counter_t *readers; */
+	alignas(ISC_CACHE_LINE) isc_queue_t *nodes;
 	alignas(ISC_CACHE_LINE) atomic_uint_fast32_t readers_counter;
-	alignas(ISC_CACHE_LINE) isc_rwlock_node_t *nodes;
-	alignas(ISC_CACHE_LINE) isc_rwlock_node_t **next;
 };
 
 #elif USE_C_RW_WP
