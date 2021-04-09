@@ -15017,6 +15017,9 @@ zone_shutdown(isc_task_t *task, isc_event_t *event) {
 		dns_zonemgr_releasezone(zone->zmgr, zone);
 	}
 
+	if (zone->view != NULL) {
+		LOCK(&zone->view->lock);
+	}
 	LOCK_ZONE(zone);
 	INSIST(zone != zone->raw);
 	if (linked) {
@@ -15049,6 +15052,9 @@ zone_shutdown(isc_task_t *task, isc_event_t *event) {
 	checkds_cancel(zone);
 
 	notify_cancel(zone);
+	if (zone->view != NULL) {
+		UNLOCK(&zone->view->lock);
+	}
 
 	forward_cancel(zone);
 
