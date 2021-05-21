@@ -374,7 +374,7 @@ build_query(mysql_data_t *state, mysql_instance_t *dbi, const char *command,
 	isc_result_t result;
 	bool localdbi = false;
 	mysql_arglist_t arglist;
-	mysql_arg_t *item;
+	mysql_arg_t *item, *nextitem;
 	char *p, *q, *tmp = NULL, *querystr = NULL;
 	char *query = NULL;
 	size_t len = 0;
@@ -467,8 +467,9 @@ fail:
 	va_end(ap1);
 
 	for (item = DLZ_LIST_HEAD(arglist); item != NULL;
-	     item = DLZ_LIST_NEXT(item, link))
+	     item = nextitem)
 	{
+		nextitem = DLZ_LIST_NEXT(item, link);
 		if (item->arg != NULL) {
 			free(item->arg);
 		}
@@ -536,13 +537,13 @@ relname(const char *name, const char *zone) {
 	const char *p;
 	char *new;
 
-	new = (char *)malloc(strlen(name) + 1);
+	nlen = strlen(name);
+	zlen = strlen(zone);
+
+	new = (char *)malloc(nlen + 1);
 	if (new == NULL) {
 		return (NULL);
 	}
-
-	nlen = strlen(name);
-	zlen = strlen(zone);
 
 	if (nlen < zlen) {
 		strcpy(new, name);
@@ -560,7 +561,7 @@ relname(const char *name, const char *zone) {
 		return (new);
 	}
 
-	strncpy(new, name, nlen - zlen);
+	memcpy(new, name, nlen - zlen);
 	new[nlen - zlen - 1] = '\0';
 	return (new);
 }
@@ -1418,7 +1419,7 @@ cleanup:
 			if (newtx->zone != NULL) {
 				free(newtx->zone);
 			}
-			if (newtx->zone != NULL) {
+			if (newtx->zone_id != NULL) {
 				free(newtx->zone_id);
 			}
 			free(newtx);
