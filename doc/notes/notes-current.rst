@@ -8,7 +8,7 @@
    See the COPYRIGHT file distributed with this work for additional
    information regarding copyright ownership.
 
-Notes for BIND 9.16.18
+Notes for BIND 9.16.19
 ----------------------
 
 Security Fixes
