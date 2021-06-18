@@ -39,10 +39,12 @@ Feature Changes
 Bug Fixes
 ~~~~~~~~~
 
-- Fixed a bug that caused the NSEC salt to be changed for KASP zones on
-  every startup. :gl:`#2725`
+- When preparing DNS responses, ``named`` could replace the letters
+  ``W`` (uppercase) and ``w`` (lowercase) with ``\000``. This has been
+  fixed. :gl:`#2779`
 
-- Signed, insecure delegation responses prepared by ``named`` either
-  lacked the necessary NSEC records or contained duplicate NSEC records
-  when both wildcard expansion and CNAME chaining were required to
-  prepare the response. This has been fixed. :gl:`#2759`
+- The configuration-checking code failed to account for the inheritance
+  rules of the ``key-directory`` option. As a side effect of this flaw,
+  the code detecting ``key-directory`` conflicts for zones using KASP
+  incorrectly reported unique key directories as being reused. This has
+  been fixed. :gl:`#2778`
