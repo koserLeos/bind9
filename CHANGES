@@ -1,3 +1,5 @@
+6395.	[func]		Implement ZONEMD generation and verification. [GL #2099]
+
 6394.	[bug]		Named's -4 and -6 options now apply to zone primaries,
 			also-notify and parental-agents.  Report when a zone
 			has these options configured but does not have an IPv4
