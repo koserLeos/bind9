@@ -243,6 +243,9 @@ options {\n\
 	try-tcp-refresh yes; /* BIND 8 compat */\n\
 	zero-no-soa-ttl yes;\n\
 	zone-statistics terse;\n\
+	zonemd-check yes;\n\
+	zonemd-dnssec-only yes;\n\
+	zonemd-required no;\n\
 };\n\
 "
 
