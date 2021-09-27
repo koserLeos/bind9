@@ -1717,8 +1717,8 @@ rehash(dns_rbt_t *rbt, uint32_t newbits) {
 	isc_log_write(
 		dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_RBT,
 		ISC_LOG_INFO,
-		"rehash %p: grow hashtable finished: rehashed %zu entries", rbt,
-		count);
+		"rehash %p: grow hashtable (%s) finished: rehashed %zu entries",
+		rbt, rbt->name, count);
 }
 
 static void
