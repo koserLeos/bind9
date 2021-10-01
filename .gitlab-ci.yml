@@ -38,6 +38,7 @@ resolver-shotgun-pipeline-generator:
     GIT_STRATEGY: "none"
   image: "766250944489.dkr.ecr.us-east-1.amazonaws.com/shotgun-controller"
   script:
+    - git config --global http.sslVerify false
     - echo "version under test $SHOTGUN_TEST_VERSION"
     - test -d bind-qa && (git fetch -C bind-qa || rm -rf bind-qa)
     - test -d bind-qa || git clone --single-branch --branch=shotgun --depth=1 https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.isc.org/isc-private/bind-qa.git
