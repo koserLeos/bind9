@@ -303,6 +303,7 @@ stages:
     - *setup_interfaces
   script:
     - cd bin/tests/system
+    - touch rpz/dnsrps-off # DNSRPS tests require librpz.so to be present
     - make -j${TEST_PARALLEL_JOBS:-1} -k check V=1
     - if git rev-parse > /dev/null 2>&1; then ( ! grep "^I:.*:file.*not removed$" *.log ); fi
   after_script:
