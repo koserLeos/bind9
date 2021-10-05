@@ -847,7 +847,7 @@ gcc:bionic:amd64:
   variables:
     CC: gcc
     CFLAGS: "${CFLAGS_COMMON} -O2"
-    EXTRA_CONFIGURE: "--disable-dnstap --disable-geoip"
+    EXTRA_CONFIGURE: "--disable-dnstap --disable-geoip --enable-dnsrps --enable-dnsrps-dl"
   <<: *ubuntu_bionic_amd64_image
   <<: *build_job
 
