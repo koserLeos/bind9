@@ -1,3 +1,5 @@
+5735.	[cleanup]	Address Coverity warnings in lib/dns/rpz.c. [GL #2938]
+
 5734.	[bug]		Fix "dig" aborting with error in some cases
 			like when doing zone transfers. [GL #2884]
 

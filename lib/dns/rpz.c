@@ -1784,6 +1784,7 @@ finish_update(dns_rpz_zone_t *rpz) {
 			uint64_t defer = rpz->min_update_interval;
 			char dname[DNS_NAME_FORMATSIZE];
 			isc_interval_t interval;
+			isc_result_t result;
 
 			dns_name_format(&rpz->origin, dname,
 					DNS_NAME_FORMATSIZE);
@@ -1794,8 +1795,10 @@ finish_update(dns_rpz_zone_t *rpz) {
 				      "%" PRIu64 " seconds",
 				      dname, defer);
 			isc_interval_set(&interval, (unsigned int)defer, 0);
-			isc_timer_reset(rpz->updatetimer, isc_timertype_once,
-					NULL, &interval, true);
+			result = isc_timer_reset(rpz->updatetimer,
+						 isc_timertype_once, NULL,
+						 &interval, true);
+			RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		} else {
 			isc_event_t *event = NULL;
 			INSIST(!ISC_LINK_LINKED(&rpz->updateevent, ev_link));
@@ -2244,8 +2247,8 @@ rpz_detach(dns_rpz_zone_t **rpzp) {
 			}
 		}
 
-		isc_timer_reset(rpz->updatetimer, isc_timertype_inactive, NULL,
-				NULL, true);
+		(void)isc_timer_reset(rpz->updatetimer, isc_timertype_inactive,
+				      NULL, NULL, true);
 		isc_timer_detach(&rpz->updatetimer);
 
 		isc_ht_destroy(&rpz->nodes);
