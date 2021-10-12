@@ -1585,8 +1585,8 @@ AC_CONFIG_FILES([util/check-make-install])
 #
 # Profiling
 #
-CFLAGS="$CFLAGS -fprofile-use=$(pwd)/profile -Wno-missing-profile"
-LDFLAGS="$LDFLAGS -fprofile-use=$(pwd)/profile"
+CFLAGS="$CFLAGS -fprofile-use=$(pwd)/profile -fprofile-prefix-path=$(pwd) -Wno-missing-profile"
+LDFLAGS="$LDFLAGS -fprofile-use=$(pwd)/profile -fprofile-prefix-path=$(pwd)"
 
 #
 # Do it
