@@ -1583,6 +1583,12 @@ AC_CONFIG_FILES([fuzz/Makefile])
 AC_CONFIG_FILES([util/check-make-install])
 
 #
+# Profiling
+#
+CFLAGS="$CFLAGS -fprofile-use=$(pwd)/profile -Wno-missing-profile"
+LDFLAGS="$LDFLAGS -fprofile-use=$(pwd)/profile"
+
+#
 # Do it
 #
 
