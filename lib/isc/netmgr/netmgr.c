@@ -2620,7 +2620,6 @@ isc_nmsocket_set_max_streams(isc_nmsocket_t *listener,
 		UNUSED(max_streams);
 		break;
 	};
-	return;
 }
 
 void

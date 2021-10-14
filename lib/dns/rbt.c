@@ -1931,8 +1931,6 @@ addonlevel(dns_rbtnode_t *node, dns_rbtnode_t *current, int order,
 	root->color = BLACK;
 	ENSURE(root->is_root);
 	*rootp = root;
-
-	return;
 }
 
 /*

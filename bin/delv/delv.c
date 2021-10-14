@@ -1278,7 +1278,6 @@ plus_option(char *option) {
 		fprintf(stderr, "Invalid option: +%s\n", option);
 		usage();
 	}
-	return;
 }
 
 /*

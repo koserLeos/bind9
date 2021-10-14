@@ -550,7 +550,6 @@ cleanup:
 		isc_task_detach(&global_task);
 		isc_loopmgr_shutdown(loopmgr);
 	}
-	return;
 }
 
 /*%
@@ -1654,7 +1653,6 @@ plus_option(char *option, struct query *query, bool global) {
 		fprintf(stderr, "Invalid option: +%s\n", option);
 		usage();
 	}
-	return;
 }
 
 /*%

@@ -368,7 +368,6 @@ currentversion(dns_db_t *db, dns_dbversion_t **versionp) {
 	REQUIRE(versionp != NULL && *versionp == NULL);
 
 	*versionp = (void *)&sdlz->dummy_version;
-	return;
 }
 
 static isc_result_t
@@ -733,7 +732,6 @@ printnode(dns_db_t *db, dns_dbnode_t *node, FILE *out) {
 	UNUSED(db);
 	UNUSED(node);
 	UNUSED(out);
-	return;
 }
 
 static isc_result_t

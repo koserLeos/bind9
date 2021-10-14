@@ -3508,7 +3508,6 @@ launch_next_query(dig_query_t *query) {
 	}
 
 	lookup_detach(&l);
-	return;
 }
 
 /*%

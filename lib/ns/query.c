@@ -4900,7 +4900,6 @@ again:
 	} else if (found != NULL) {
 		dns_name_copy(&name, found);
 	}
-	return;
 }
 
 static uint32_t

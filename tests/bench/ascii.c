@@ -113,7 +113,6 @@ cmp_oldskool(void *va, void *vb, unsigned int size) {
 	return;
 diff:
 	oldskool_result = false;
-	return;
 }
 
 static bool tolower1_result;
@@ -165,7 +164,6 @@ cmp_chunks8(void *va, void *vb, unsigned int size) {
 	return;
 diff:
 	chunk_result = false;
-	return;
 }
 
 static void

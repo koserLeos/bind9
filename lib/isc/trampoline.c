@@ -155,7 +155,6 @@ isc__trampoline_detach(isc__trampoline_t *trampoline) {
 	free(trampoline);
 
 	uv_mutex_unlock(&isc__trampoline_lock);
-	return;
 }
 
 void
