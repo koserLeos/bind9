@@ -207,6 +207,9 @@
 			goto failure;                                        \
 	} while (0)
 
+#define IS_ADD_NEW(rule) \
+	(rule != NULL && dns_ssurule_matchtype(rule) == dns_ssumatchtype_addnew)
+
 /*
  * Return TRUE if NS_CLIENTATTR_TCP is set in the attributes other FALSE.
  */
@@ -895,16 +898,19 @@ name_exists(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
  */
 typedef struct {
 	/* The ownername of the record to be updated. */
-	dns_name_t *name;
+	const dns_name_t *name;
 
 	/* The signature's name if the request was signed. */
-	dns_name_t *signer;
+	const dns_name_t *signer;
+
+	/* The zone's name. */
+	const dns_name_t *origin;
 
 	/* The address of the client. */
-	isc_netaddr_t *addr;
+	const isc_netaddr_t *addr;
 
 	/* The ACL environment */
-	dns_aclenv_t *aclenv;
+	const dns_aclenv_t *aclenv;
 
 	/* Whether the request was sent via TCP. */
 	bool tcp;
@@ -913,7 +919,7 @@ typedef struct {
 	dns_ssutable_t *table;
 
 	/* the key used for TKEY requests */
-	dst_key_t *key;
+	const dst_key_t *key;
 } ssu_check_t;
 
 static isc_result_t
@@ -930,24 +936,28 @@ ssu_checkrule(void *data, dns_rdataset_t *rrset) {
 	    rrset->type == dns_rdatatype_nsec) {
 		return (ISC_R_SUCCESS);
 	}
-
-	rule_ok = dns_ssutable_checkrules(ssuinfo->table, ssuinfo->signer,
-					  ssuinfo->name, ssuinfo->addr,
-					  ssuinfo->tcp, ssuinfo->aclenv,
-					  rrset->type, ssuinfo->key, &rule);
+	rule_ok = dns_ssutable_checkrules(
+		ssuinfo->table, ssuinfo->signer, ssuinfo->name, ssuinfo->origin,
+		ssuinfo->addr, ssuinfo->tcp, ssuinfo->aclenv, rrset->type,
+		ssuinfo->key, &rule);
+	if (IS_ADD_NEW(rule)) {
+		return (ISC_R_FAILURE);
+	}
 	return (rule_ok ? ISC_R_SUCCESS : ISC_R_FAILURE);
 }
 
 static bool
 ssu_checkall(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
-	     dns_ssutable_t *ssutable, dns_name_t *signer, isc_netaddr_t *addr,
-	     dns_aclenv_t *aclenv, bool tcp, dst_key_t *key) {
+	     dns_ssutable_t *ssutable, dns_name_t *signer, dns_name_t *origin,
+	     isc_netaddr_t *addr, dns_aclenv_t *aclenv, bool tcp,
+	     dst_key_t *key) {
 	isc_result_t result;
 	ssu_check_t ssuinfo;
 
 	ssuinfo.name = name;
 	ssuinfo.table = ssutable;
 	ssuinfo.signer = signer;
+	ssuinfo.origin = origin;
 	ssuinfo.addr = addr;
 	ssuinfo.aclenv = aclenv;
 	ssuinfo.tcp = tcp;
@@ -2755,9 +2765,6 @@ update_action(isc_task_t *task, isc_event_t *event) {
 	if (ssutable == NULL) {
 		CHECK(checkupdateacl(client, dns_zone_getupdateacl(zone),
 				     "update", zonename, false, false));
-	} else if (client->signer == NULL && !TCPCLIENT(client)) {
-		CHECK(checkupdateacl(client, NULL, "update", zonename, false,
-				     true));
 	}
 
 	if (dns_zone_getupdatedisabled(zone)) {
@@ -2858,15 +2865,42 @@ update_action(isc_task_t *task, isc_event_t *event) {
 			if (rdata.type != dns_rdatatype_any) {
 				if (!dns_ssutable_checkrules(
 					    ssutable, client->signer, name,
-					    &netaddr, TCPCLIENT(client), env,
-					    rdata.type, tsigkey, &rules[rule]))
+					    zonename, &netaddr,
+					    TCPCLIENT(client), env, rdata.type,
+					    tsigkey, &rules[rule]))
 				{
 					FAILC(DNS_R_REFUSED, "rejected by "
 							     "secure update");
 				}
+				/* add-new is addition only */
+				if (update_class == dns_rdataclass_none &&
+				    IS_ADD_NEW(rules[rule])) {
+					FAILC(DNS_R_REFUSED,
+					      "rejected by secure update");
+				}
+				/*
+				 * There must be no records at the name except
+				 * the the record to be added.
+				 */
+				if (IS_ADD_NEW(rules[rule])) {
+					bool flag;
+					result = rr_exists(db, ver, name,
+							   &rdata, &flag);
+					if (result == ISC_R_SUCCESS && flag) {
+						continue;
+					}
+					CHECK(name_exists(db, ver, name,
+							  &flag));
+					if (flag) {
+						FAILC(DNS_R_REFUSED,
+						      "rejected by secure "
+						      "update");
+					}
+				}
 			} else {
 				if (!ssu_checkall(db, ver, name, ssutable,
-						  client->signer, &netaddr, env,
+						  client->signer, zonename,
+						  &netaddr, env,
 						  TCPCLIENT(client), tsigkey))
 				{
 					FAILC(DNS_R_REFUSED, "rejected by "

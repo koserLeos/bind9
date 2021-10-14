@@ -278,8 +278,9 @@ stf_from_address(dns_name_t *stfself, const isc_netaddr_t *tcpaddr) {
 
 bool
 dns_ssutable_checkrules(dns_ssutable_t *table, const dns_name_t *signer,
-			const dns_name_t *name, const isc_netaddr_t *addr,
-			bool tcp, const dns_aclenv_t *env, dns_rdatatype_t type,
+			const dns_name_t *name, const dns_name_t *origin,
+			const isc_netaddr_t *addr, bool tcp,
+			const dns_aclenv_t *env, dns_rdatatype_t type,
 			const dst_key_t *key, const dns_ssurule_t **rulep) {
 	dns_fixedname_t fixed;
 	dns_name_t *stfself;
@@ -294,10 +295,7 @@ dns_ssutable_checkrules(dns_ssutable_t *table, const dns_name_t *signer,
 	REQUIRE(signer == NULL || dns_name_isabsolute(signer));
 	REQUIRE(dns_name_isabsolute(name));
 	REQUIRE(addr == NULL || env != NULL);
-
-	if (signer == NULL && addr == NULL) {
-		return (false);
-	}
+	REQUIRE(rulep == NULL || *rulep == NULL);
 
 	for (rule = ISC_LIST_HEAD(table->rules); rule != NULL;
 	     rule = ISC_LIST_NEXT(rule, link))
@@ -342,6 +340,7 @@ dns_ssutable_checkrules(dns_ssutable_t *table, const dns_name_t *signer,
 			break;
 		case dns_ssumatchtype_external:
 		case dns_ssumatchtype_dlz:
+		case dns_ssumatchtype_addnew:
 			break;
 		}
 
@@ -492,6 +491,42 @@ dns_ssutable_checkrules(dns_ssutable_t *table, const dns_name_t *signer,
 		case dns_ssumatchtype_dlz:
 			if (!dns_dlz_ssumatch(table->dlzdatabase, signer, name,
 					      addr, type, key)) {
+				continue;
+			}
+			break;
+		case dns_ssumatchtype_addnew:
+
+			if (signer != NULL)
+				continue;
+
+			/*
+			 * Wildcard matches a single label for addnew.
+			 */
+			if (dns_name_iswildcard(rule->identity)) {
+				dns_name_t suffix;
+				dns_name_t identity;
+				unsigned int labels;
+
+				dns_name_init(&suffix, NULL);
+
+				labels = dns_name_countlabels(name);
+				if (labels < 2) {
+					continue;
+				}
+				dns_name_getlabelsequence(name, 1, labels - 1,
+							  &suffix);
+				dns_name_init(&identity, NULL);
+				labels = dns_name_countlabels(rule->identity);
+				dns_name_getlabelsequence(rule->identity, 1,
+							  labels - 1,
+							  &identity);
+				if (dns_name_equal(&identity, dns_rootname)) {
+					dns_name_clone(origin, &identity);
+				}
+				if (!dns_name_equal(&identity, &suffix)) {
+					continue;
+				}
+			} else if (!dns_name_equal(rule->identity, name)) {
 				continue;
 			}
 			break;
@@ -657,6 +692,8 @@ dns_ssu_mtypefromstring(const char *str, dns_ssumatchtype_t *mtype) {
 		*mtype = dns_ssumatchtype_6to4self;
 	} else if (strcasecmp(str, "zonesub") == 0) {
 		*mtype = dns_ssumatchtype_subdomain;
+	} else if (strcasecmp(str, "add-new") == 0) {
+		*mtype = dns_ssumatchtype_addnew;
 	} else if (strcasecmp(str, "external") == 0) {
 		*mtype = dns_ssumatchtype_external;
 	} else {
