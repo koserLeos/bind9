@@ -220,7 +220,7 @@ loadctx_destroy(dns_loadctx_t *lctx);
 				SETRESULT(lctx, result);                  \
 				LOGIT(result);                            \
 				read_till_eol = true;                     \
-				err goto next_line;                       \
+				(err) goto next_line;                     \
 			} else                                            \
 				goto log_and_cleanup;                     \
 		}                                                         \
@@ -284,8 +284,8 @@ loadctx_destroy(dns_loadctx_t *lctx);
 		}                                              \
 	} while (0)
 
-#define MANYERRS(lctx, result)                                     \
-	((result != ISC_R_SUCCESS) && (result != ISC_R_IOERROR) && \
+#define MANYERRS(lctx, result)                                         \
+	(((result) != ISC_R_SUCCESS) && ((result) != ISC_R_IOERROR) && \
 	 ((lctx)->options & DNS_MASTER_MANYERRORS) != 0)
 
 #define SETRESULT(lctx, r)                     \
@@ -294,9 +294,9 @@ loadctx_destroy(dns_loadctx_t *lctx);
 	}
 
 #define LOGITFILE(result, filename)                                            \
-	if (result == ISC_R_INVALIDFILE || result == ISC_R_FILENOTFOUND ||     \
-	    result == ISC_R_IOERROR || result == ISC_R_TOOMANYOPENFILES ||     \
-	    result == ISC_R_NOPERM)                                            \
+	if ((result) == ISC_R_INVALIDFILE || (result) == ISC_R_FILENOTFOUND || \
+	    (result) == ISC_R_IOERROR || (result) == ISC_R_TOOMANYOPENFILES || \
+	    (result) == ISC_R_NOPERM)                                          \
 		(*callbacks->error)(callbacks, "%s: %s:%lu: %s: %s",           \
 				    "dns_master_load", source, line, filename, \
 				    isc_result_totext(result));                \
@@ -304,7 +304,7 @@ loadctx_destroy(dns_loadctx_t *lctx);
 		LOGIT(result)
 
 #define LOGIT(result)                                                 \
-	if (result == ISC_R_NOMEMORY)                                 \
+	if ((result) == ISC_R_NOMEMORY)                               \
 		(*callbacks->error)(callbacks, "dns_master_load: %s", \
 				    isc_result_totext(result));       \
 	else                                                          \

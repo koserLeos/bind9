@@ -676,9 +676,9 @@ static isc_result_t
 findnoqname(fetchctx_t *fctx, dns_message_t *message, dns_name_t *name,
 	    dns_rdatatype_t type, dns_name_t **noqname);
 
-#define fctx_done_detach(fctxp, result)                                 \
-	if (fctx__done(*fctxp, result, __func__, __FILE__, __LINE__)) { \
-		fetchctx_detach(fctxp);                                 \
+#define fctx_done_detach(fctxp, result)                                   \
+	if (fctx__done(*(fctxp), result, __func__, __FILE__, __LINE__)) { \
+		fetchctx_detach(fctxp);                                   \
 	}
 
 #define fctx_done_unref(fctx, result)                                 \

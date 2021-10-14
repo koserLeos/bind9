@@ -352,24 +352,24 @@ peer_delete(dns_peer_t **peer) {
 	isc_mem_put(mem, p, sizeof(*p));
 }
 
-#define ACCESS_OPTION(name, macro, type, element)                        \
-	isc_result_t dns_peer_get##name(dns_peer_t *peer, type *value) { \
-		REQUIRE(DNS_PEER_VALID(peer));                           \
-		REQUIRE(value != NULL);                                  \
-		if (DNS_BIT_CHECK(macro, &peer->bitflags)) {             \
-			*value = peer->element;                          \
-			return (ISC_R_SUCCESS);                          \
-		} else {                                                 \
-			return (ISC_R_NOTFOUND);                         \
-		}                                                        \
-	}                                                                \
-	isc_result_t dns_peer_set##name(dns_peer_t *peer, type value) {  \
-		bool existed;                                            \
-		REQUIRE(DNS_PEER_VALID(peer));                           \
-		existed = DNS_BIT_CHECK(macro, &peer->bitflags);         \
-		peer->element = value;                                   \
-		DNS_BIT_SET(macro, &peer->bitflags);                     \
-		return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);         \
+#define ACCESS_OPTION(name, macro, type, element)                         \
+	isc_result_t dns_peer_get##name(dns_peer_t *peer, (type)*value) { \
+		REQUIRE(DNS_PEER_VALID(peer));                            \
+		REQUIRE(value != NULL);                                   \
+		if (DNS_BIT_CHECK(macro, &peer->bitflags)) {              \
+			*value = peer->element;                           \
+			return (ISC_R_SUCCESS);                           \
+		} else {                                                  \
+			return (ISC_R_NOTFOUND);                          \
+		}                                                         \
+	}                                                                 \
+	isc_result_t dns_peer_set##name(dns_peer_t *peer, type value) {   \
+		bool existed;                                             \
+		REQUIRE(DNS_PEER_VALID(peer));                            \
+		existed = DNS_BIT_CHECK(macro, &peer->bitflags);          \
+		peer->element = value;                                    \
+		DNS_BIT_SET(macro, &peer->bitflags);                      \
+		return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);          \
 	}
 
 ACCESS_OPTION(bogus, BOGUS_BIT, bool, bogus)
@@ -388,27 +388,27 @@ ACCESS_OPTION(transferformat, SERVER_TRANSFER_FORMAT_BIT, dns_transfer_format_t,
 ACCESS_OPTION(transfers, TRANSFERS_BIT, uint32_t, transfers)
 ACCESS_OPTION(udpsize, SERVER_UDPSIZE_BIT, uint16_t, udpsize)
 
-#define ACCESS_OPTIONMAX(name, macro, type, element, max)                \
-	isc_result_t dns_peer_get##name(dns_peer_t *peer, type *value) { \
-		REQUIRE(DNS_PEER_VALID(peer));                           \
-		REQUIRE(value != NULL);                                  \
-		if (DNS_BIT_CHECK(macro, &peer->bitflags)) {             \
-			*value = peer->element;                          \
-			return (ISC_R_SUCCESS);                          \
-		} else {                                                 \
-			return (ISC_R_NOTFOUND);                         \
-		}                                                        \
-	}                                                                \
-	isc_result_t dns_peer_set##name(dns_peer_t *peer, type value) {  \
-		bool existed;                                            \
-		REQUIRE(DNS_PEER_VALID(peer));                           \
-		existed = DNS_BIT_CHECK(macro, &peer->bitflags);         \
-		if (value > max) {                                       \
-			value = max;                                     \
-		}                                                        \
-		peer->element = value;                                   \
-		DNS_BIT_SET(macro, &peer->bitflags);                     \
-		return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);         \
+#define ACCESS_OPTIONMAX(name, macro, type, element, max)                 \
+	isc_result_t dns_peer_get##name(dns_peer_t *peer, (type)*value) { \
+		REQUIRE(DNS_PEER_VALID(peer));                            \
+		REQUIRE(value != NULL);                                   \
+		if (DNS_BIT_CHECK(macro, &peer->bitflags)) {              \
+			*value = peer->element;                           \
+			return (ISC_R_SUCCESS);                           \
+		} else {                                                  \
+			return (ISC_R_NOTFOUND);                          \
+		}                                                         \
+	}                                                                 \
+	isc_result_t dns_peer_set##name(dns_peer_t *peer, type value) {   \
+		bool existed;                                             \
+		REQUIRE(DNS_PEER_VALID(peer));                            \
+		existed = DNS_BIT_CHECK(macro, &peer->bitflags);          \
+		if (value > (max)) {                                      \
+			value = max;                                      \
+		}                                                         \
+		peer->element = value;                                    \
+		DNS_BIT_SET(macro, &peer->bitflags);                      \
+		return (existed ? ISC_R_EXISTS : ISC_R_SUCCESS);          \
 	}
 
 ACCESS_OPTIONMAX(padding, SERVER_PADDING_BIT, uint16_t, padding, 512)
@@ -444,43 +444,43 @@ ACCESS_SOCKADDR(notifysource, notify_source)
 ACCESS_SOCKADDR(querysource, query_source)
 ACCESS_SOCKADDR(transfersource, transfer_source)
 
-#define ACCESS_OPTION_OVERWRITE(name, macro, type, element)              \
-	isc_result_t dns_peer_get##name(dns_peer_t *peer, type *value) { \
-		REQUIRE(DNS_PEER_VALID(peer));                           \
-		REQUIRE(value != NULL);                                  \
-		if (DNS_BIT_CHECK(macro, &peer->bitflags)) {             \
-			*value = peer->element;                          \
-			return (ISC_R_SUCCESS);                          \
-		} else {                                                 \
-			return (ISC_R_NOTFOUND);                         \
-		}                                                        \
-	}                                                                \
-	isc_result_t dns_peer_set##name(dns_peer_t *peer, type value) {  \
-		REQUIRE(DNS_PEER_VALID(peer));                           \
-		peer->element = value;                                   \
-		DNS_BIT_SET(macro, &peer->bitflags);                     \
-		return (ISC_R_SUCCESS);                                  \
+#define ACCESS_OPTION_OVERWRITE(name, macro, type, element)               \
+	isc_result_t dns_peer_get##name(dns_peer_t *peer, (type)*value) { \
+		REQUIRE(DNS_PEER_VALID(peer));                            \
+		REQUIRE(value != NULL);                                   \
+		if (DNS_BIT_CHECK(macro, &peer->bitflags)) {              \
+			*value = peer->element;                           \
+			return (ISC_R_SUCCESS);                           \
+		} else {                                                  \
+			return (ISC_R_NOTFOUND);                          \
+		}                                                         \
+	}                                                                 \
+	isc_result_t dns_peer_set##name(dns_peer_t *peer, type value) {   \
+		REQUIRE(DNS_PEER_VALID(peer));                            \
+		peer->element = value;                                    \
+		DNS_BIT_SET(macro, &peer->bitflags);                      \
+		return (ISC_R_SUCCESS);                                   \
 	}
 
 ACCESS_OPTION_OVERWRITE(ednsversion, EDNS_VERSION_BIT, uint8_t, ednsversion)
 
-#define ACCESS_OPTION_OVERWRITEDSCP(name, macro, type, element)          \
-	isc_result_t dns_peer_get##name(dns_peer_t *peer, type *value) { \
-		REQUIRE(DNS_PEER_VALID(peer));                           \
-		REQUIRE(value != NULL);                                  \
-		if (DNS_BIT_CHECK(macro, &peer->bitflags)) {             \
-			*value = peer->element;                          \
-			return (ISC_R_SUCCESS);                          \
-		} else {                                                 \
-			return (ISC_R_NOTFOUND);                         \
-		}                                                        \
-	}                                                                \
-	isc_result_t dns_peer_set##name(dns_peer_t *peer, type value) {  \
-		REQUIRE(DNS_PEER_VALID(peer));                           \
-		REQUIRE(value < 64);                                     \
-		peer->element = value;                                   \
-		DNS_BIT_SET(macro, &peer->bitflags);                     \
-		return (ISC_R_SUCCESS);                                  \
+#define ACCESS_OPTION_OVERWRITEDSCP(name, macro, type, element)           \
+	isc_result_t dns_peer_get##name(dns_peer_t *peer, (type)*value) { \
+		REQUIRE(DNS_PEER_VALID(peer));                            \
+		REQUIRE(value != NULL);                                   \
+		if (DNS_BIT_CHECK(macro, &peer->bitflags)) {              \
+			*value = peer->element;                           \
+			return (ISC_R_SUCCESS);                           \
+		} else {                                                  \
+			return (ISC_R_NOTFOUND);                          \
+		}                                                         \
+	}                                                                 \
+	isc_result_t dns_peer_set##name(dns_peer_t *peer, type value) {   \
+		REQUIRE(DNS_PEER_VALID(peer));                            \
+		REQUIRE(value < 64);                                      \
+		peer->element = value;                                    \
+		DNS_BIT_SET(macro, &peer->bitflags);                      \
+		return (ISC_R_SUCCESS);                                   \
 	}
 ACCESS_OPTION_OVERWRITEDSCP(notifydscp, NOTIFY_DSCP_BIT, isc_dscp_t,
 			    notify_dscp)

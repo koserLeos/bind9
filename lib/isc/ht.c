@@ -32,8 +32,9 @@ typedef struct isc_ht_node isc_ht_node_t;
 #define HT_MAX_BITS   32
 #define HT_OVERCOMMIT 3
 
-#define HT_NEXTTABLE(idx)      ((idx == 0) ? 1 : 0)
-#define TRY_NEXTTABLE(idx, ht) (idx == ht->hindex && rehashing_in_progress(ht))
+#define HT_NEXTTABLE(idx) (((idx) == 0) ? 1 : 0)
+#define TRY_NEXTTABLE(idx, ht) \
+	((idx) == (ht)->hindex && rehashing_in_progress(ht))
 
 #define GOLDEN_RATIO_32 0x61C88647
 

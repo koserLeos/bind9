@@ -84,9 +84,9 @@ typedef uint32_t rbtdb_rdatatype_t;
 
 #define RBTDB_RDATATYPE_BASE(type) ((dns_rdatatype_t)((type)&0xFFFF))
 #define RBTDB_RDATATYPE_EXT(type)  ((dns_rdatatype_t)((type) >> 16))
-#define RBTDB_RDATATYPE_VALUE(base, ext)              \
-	((rbtdb_rdatatype_t)(((uint32_t)ext) << 16) | \
-	 (((uint32_t)base) & 0xffff))
+#define RBTDB_RDATATYPE_VALUE(base, ext)                \
+	((rbtdb_rdatatype_t)(((uint32_t)(ext)) << 16) | \
+	 (((uint32_t)(base)) & 0xffff))
 
 #define RBTDB_RDATATYPE_SIGNSEC \
 	RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, dns_rdatatype_nsec)
@@ -115,27 +115,27 @@ typedef isc_rwlock_t nodelock_t;
 
 #define NODE_INITLOCK(l)    isc_rwlock_init((l), 0, 0)
 #define NODE_DESTROYLOCK(l) isc_rwlock_destroy(l)
-#define NODE_LOCK(l, t, tp)                          \
-	{                                            \
-		REQUIRE(*tp == isc_rwlocktype_none); \
-		RWLOCK((l), (t));                    \
-		*tp = t;                             \
+#define NODE_LOCK(l, t, tp)                            \
+	{                                              \
+		REQUIRE(*(tp) == isc_rwlocktype_none); \
+		RWLOCK((l), (t));                      \
+		*(tp) = t;                             \
 	}
 #define NODE_RDLOCK(l, tp) NODE_LOCK(l, isc_rwlocktype_read, tp);
 #define NODE_WRLOCK(l, tp) NODE_LOCK(l, isc_rwlocktype_write, tp);
 
-#define NODE_UNLOCK(l, tp)                           \
-	{                                            \
-		REQUIRE(*tp != isc_rwlocktype_none); \
-		RWUNLOCK(l, *tp);                    \
-		*tp = isc_rwlocktype_none;           \
+#define NODE_UNLOCK(l, tp)                             \
+	{                                              \
+		REQUIRE(*(tp) != isc_rwlocktype_none); \
+		RWUNLOCK(l, *(tp));                    \
+		*(tp) = isc_rwlocktype_none;           \
 	}
 #define NODE_TRYLOCK(l, t, tp)                                   \
 	({                                                       \
-		REQUIRE(*tp == isc_rwlocktype_none);             \
+		REQUIRE(*(tp) == isc_rwlocktype_none);           \
 		isc_result_t _result = isc_rwlock_trylock(l, t); \
 		if (_result == ISC_R_SUCCESS) {                  \
-			*tp = t;                                 \
+			*(tp) = t;                               \
 		};                                               \
 		_result;                                         \
 	})
@@ -143,10 +143,10 @@ typedef isc_rwlock_t nodelock_t;
 #define NODE_TRYWRLOCK(l, tp) NODE_TRYLOCK(l, isc_rwlocktype_write, tp)
 #define NODE_TRYUPGRADE(l, tp)                                   \
 	({                                                       \
-		REQUIRE(*tp == isc_rwlocktype_read);             \
+		REQUIRE(*(tp) == isc_rwlocktype_read);           \
 		isc_result_t _result = isc_rwlock_tryupgrade(l); \
 		if (_result == ISC_R_SUCCESS) {                  \
-			*tp = isc_rwlocktype_write;              \
+			*(tp) = isc_rwlocktype_write;            \
 		};                                               \
 		_result;                                         \
 	})
@@ -155,26 +155,26 @@ typedef isc_rwlock_t treelock_t;
 
 #define TREE_INITLOCK(l)    isc_rwlock_init(l, 0, 0)
 #define TREE_DESTROYLOCK(l) isc_rwlock_destroy(l)
-#define TREE_LOCK(l, t, tp)                          \
-	{                                            \
-		REQUIRE(*tp == isc_rwlocktype_none); \
-		RWLOCK(l, t);                        \
-		*tp = t;                             \
+#define TREE_LOCK(l, t, tp)                            \
+	{                                              \
+		REQUIRE(*(tp) == isc_rwlocktype_none); \
+		RWLOCK(l, t);                          \
+		*(tp) = t;                             \
 	}
 #define TREE_RDLOCK(l, tp) TREE_LOCK(l, isc_rwlocktype_read, tp);
 #define TREE_WRLOCK(l, tp) TREE_LOCK(l, isc_rwlocktype_write, tp);
-#define TREE_UNLOCK(l, tp)                           \
-	{                                            \
-		REQUIRE(*tp != isc_rwlocktype_none); \
-		RWUNLOCK(l, *tp);                    \
-		*tp = isc_rwlocktype_none;           \
+#define TREE_UNLOCK(l, tp)                             \
+	{                                              \
+		REQUIRE(*(tp) != isc_rwlocktype_none); \
+		RWUNLOCK(l, *(tp));                    \
+		*(tp) = isc_rwlocktype_none;           \
 	}
 #define TREE_TRYLOCK(l, t, tp)                                   \
 	({                                                       \
-		REQUIRE(*tp == isc_rwlocktype_none);             \
+		REQUIRE(*(tp) == isc_rwlocktype_none);           \
 		isc_result_t _result = isc_rwlock_trylock(l, t); \
 		if (_result == ISC_R_SUCCESS) {                  \
-			*tp = t;                                 \
+			*(tp) = t;                               \
 		};                                               \
 		_result;                                         \
 	})
@@ -182,10 +182,10 @@ typedef isc_rwlock_t treelock_t;
 #define TREE_TRYWRLOCK(l, tp) TREE_TRYLOCK(l, isc_rwlocktype_write, tp)
 #define TREE_TRYUPGRADE(l, tp)                                   \
 	({                                                       \
-		REQUIRE(*tp == isc_rwlocktype_read);             \
+		REQUIRE(*(tp) == isc_rwlocktype_read);           \
 		isc_result_t _result = isc_rwlock_tryupgrade(l); \
 		if (_result == ISC_R_SUCCESS) {                  \
-			*tp = isc_rwlocktype_write;              \
+			*(tp) = isc_rwlocktype_write;            \
 		};                                               \
 		_result;                                         \
 	})
@@ -429,10 +429,11 @@ typedef ISC_LIST(dns_rbtnode_t) rbtnodelist_t;
 #define STATCOUNT(header)                              \
 	((atomic_load_acquire(&(header)->attributes) & \
 	  RDATASET_ATTR_STATCOUNT) != 0)
-#define STALE_TTL(header, rbtdb) (NXDOMAIN(header) ? 0 : rbtdb->serve_stale_ttl)
+#define STALE_TTL(header, rbtdb) \
+	(NXDOMAIN(header) ? 0 : (rbtdb)->serve_stale_ttl)
 
 #define RDATASET_ATTR_GET(header, attribute) \
-	(atomic_load_acquire(&(header)->attributes) & attribute)
+	(atomic_load_acquire(&(header)->attributes) & (attribute))
 #define RDATASET_ATTR_SET(header, attribute) \
 	atomic_fetch_or_release(&(header)->attributes, attribute)
 #define RDATASET_ATTR_CLR(header, attribute) \

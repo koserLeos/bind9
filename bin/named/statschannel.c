@@ -2511,7 +2511,7 @@ render_xml_traffic(const isc_httpd_t *httpd, const isc_httpdurl_t *urlinfo,
 
 #define CHECKMEM(m)                              \
 	do {                                     \
-		if (m == NULL) {                 \
+		if ((m) == NULL) {               \
 			result = ISC_R_NOMEMORY; \
 			goto cleanup;            \
 		}                                \
