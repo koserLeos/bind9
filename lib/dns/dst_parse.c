@@ -547,7 +547,8 @@ dst__privstruct_parse(dst_key_t *key, unsigned int alg, isc_lex_t *lex,
 				goto fail;
 			}
 
-			ret = dns_time32_fromtext(DST_AS_STR(token), &when);
+			ret = dns_time32_fromtext(DST_AS_STR(token),
+						  (uint32_t *)&when);
 			if (ret != ISC_R_SUCCESS) {
 				goto fail;
 			}

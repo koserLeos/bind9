@@ -402,8 +402,8 @@ control_recvmessage(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	controllistener_t *listener = conn->listener;
 	controlkey_t *key = NULL;
 	isc_event_t *event = NULL;
-	isccc_time_t sent;
-	isccc_time_t exp;
+	isc_stdtime_t sent;
+	isc_stdtime_t exp;
 	uint32_t nonce;
 
 	conn->reading = false;
@@ -468,7 +468,9 @@ control_recvmessage(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 		goto cleanup;
 	}
 
-	if (isccc_cc_lookupuint32(conn->ctrl, "_tim", &sent) == ISC_R_SUCCESS) {
+	if (isccc_cc_lookupuint32(conn->ctrl, "_tim", (uint32_t *)&sent) ==
+	    ISC_R_SUCCESS)
+	{
 		if ((sent + CLOCKSKEW) < conn->now ||
 		    (sent - CLOCKSKEW) > conn->now) {
 			log_invalid(&conn->ccmsg, ISCCC_R_CLOCKSKEW);
@@ -482,7 +484,8 @@ control_recvmessage(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	/*
 	 * Expire messages that are too old.
 	 */
-	if (isccc_cc_lookupuint32(conn->ctrl, "_exp", &exp) == ISC_R_SUCCESS &&
+	if (isccc_cc_lookupuint32(conn->ctrl, "_exp", (uint32_t *)&exp) ==
+		    ISC_R_SUCCESS &&
 	    conn->now > exp)
 	{
 		log_invalid(&conn->ccmsg, ISCCC_R_EXPIRED);

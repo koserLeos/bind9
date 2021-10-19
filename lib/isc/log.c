@@ -1592,7 +1592,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 		    local_time[0] == '\0') {
 			isc_time_t isctime;
 
-			TIME_NOW(&isctime);
+			isc_time_now(&isctime);
 
 			isc_time_formattimestamp(&isctime, local_time,
 						 sizeof(local_time));
@@ -1641,7 +1641,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				 * messages which fall within the
 				 * duplicate_interval range.
 				 */
-				TIME_NOW(&oldest);
+				isc_time_now(&oldest);
 				if (isc_time_subtract(&oldest, &interval,
 						      &oldest) != ISC_R_SUCCESS)
 				{
@@ -1717,7 +1717,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				message->text = (char *)(message + 1);
 				size -= sizeof(isc_logmessage_t);
 				strlcpy(message->text, lctx->buffer, size);
-				TIME_NOW(&message->time);
+				isc_time_now(&message->time);
 				ISC_LINK_INIT(message, link);
 				ISC_LIST_APPEND(lctx->messages, message, link);
 			}

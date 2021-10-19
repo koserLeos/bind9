@@ -97,7 +97,6 @@ libisc_la_HEADERS =			\
 	include/isc/time.h		\
 	include/isc/timer.h		\
 	include/isc/tls.h		\
-	include/isc/tm.h		\
 	include/isc/types.h		\
 	include/isc/url.h		\
 	include/isc/utf8.h		\
@@ -201,7 +200,6 @@ libisc_la_SOURCES =		\
 	timer_p.h		\
 	tls.c			\
 	tls_p.h			\
-	tm.c			\
 	trampoline.c		\
 	trampoline_p.h		\
 	url.c			\

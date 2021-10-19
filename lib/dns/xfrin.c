@@ -1104,7 +1104,7 @@ xfrin_connect_done(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	zmgr = dns_zone_getmgr(xfr->zone);
 	if (zmgr != NULL) {
 		if (result != ISC_R_SUCCESS) {
-			TIME_NOW(&now);
+			isc_time_now(&now);
 			dns_zonemgr_unreachableadd(zmgr, &xfr->primaryaddr,
 						   &xfr->sourceaddr, &now);
 			CHECK(result);

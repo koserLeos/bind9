@@ -1781,7 +1781,7 @@ ns__client_request(isc_nmhandle_t *handle, isc_result_t eresult,
 
 	client->state = NS_CLIENTSTATE_WORKING;
 
-	TIME_NOW(&client->requesttime);
+	isc_time_now(&client->requesttime);
 	client->tnow = client->requesttime;
 	client->now = isc_time_seconds(&client->tnow);
 
@@ -2805,7 +2805,7 @@ ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 		UNLOCK(&client->query.fetchlock);
 		fprintf(f,
 			"; client %s%s%s: id %u '%s/%s/%s'%s%s "
-			"requesttime %u\n",
+			"requesttime %" PRIu64 "\n",
 			peerbuf, sep, name, client->message->id, namebuf,
 			typebuf, classbuf, origfor, original,
 			isc_time_seconds(&client->requesttime));

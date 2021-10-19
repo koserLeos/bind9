@@ -3810,7 +3810,7 @@ main(int argc, char *argv[]) {
 	check_result(result, "dns_master_stylecreate");
 
 	gdb = NULL;
-	TIME_NOW(&timer_start);
+	isc_time_now(&timer_start);
 	loadzone(file, origin, rdclass, &gdb);
 	gorigin = dns_db_origin(gdb);
 	gclass = dns_db_class(gdb);
@@ -4018,7 +4018,7 @@ main(int argc, char *argv[]) {
 	}
 
 	presign();
-	TIME_NOW(&sign_start);
+	isc_time_now(&sign_start);
 	signapex();
 	if (!atomic_load(&finished)) {
 		/*
@@ -4047,7 +4047,7 @@ main(int argc, char *argv[]) {
 	isc_managers_destroy(&netmgr, &taskmgr, NULL);
 	isc_mem_put(mctx, tasks, ntasks * sizeof(isc_task_t *));
 	postsign();
-	TIME_NOW(&sign_finish);
+	isc_time_now(&sign_finish);
 
 	if (disable_zone_check) {
 		vresult = ISC_R_SUCCESS;
@@ -4130,7 +4130,7 @@ main(int argc, char *argv[]) {
 	(void)isc_app_finish();
 
 	if (printstats) {
-		TIME_NOW(&timer_finish);
+		isc_time_now(&timer_finish);
 		print_stats(&timer_start, &timer_finish, &sign_start,
 			    &sign_finish);
 	}

@@ -2187,13 +2187,13 @@ main(int argc, char *argv[]) {
 	 */
 	if (burst) {
 		isc_time_t start, now;
-		RUNCHECK(isc_time_now(&start));
+		isc_time_now(&start);
 		/*
 		 * Sleep to 1ms of the end of the second then run a busy loop
 		 * until the second changes.
 		 */
 		do {
-			RUNCHECK(isc_time_now(&now));
+			isc_time_now(&now);
 			if (isc_time_seconds(&start) == isc_time_seconds(&now))
 			{
 				int us = US_PER_SEC -

@@ -8455,7 +8455,7 @@ load_configuration(const char *filename, named_server_t *server,
 	isc_logconfig_t *logc = NULL;
 	isc_portset_t *v4portset = NULL;
 	isc_portset_t *v6portset = NULL;
-	isc_result_t result, tresult;
+	isc_result_t result;
 	uint32_t heartbeat_interval;
 	uint32_t interface_interval;
 	uint32_t udpsize;
@@ -9771,11 +9771,7 @@ cleanup:
 	/*
 	 * Record the time of most recent configuration
 	 */
-	tresult = isc_time_now(&named_g_configtime);
-	if (tresult != ISC_R_SUCCESS) {
-		named_main_earlyfatal("isc_time_now() failed: %s",
-				      isc_result_totext(result));
-	}
+	isc_time_now(&named_g_configtime);
 
 	/* Relinquish exclusive access to configuration data. */
 	if (exclusive) {
@@ -11812,7 +11808,7 @@ named_server_dumpsecroots(named_server_t *server, isc_lex_t *lex,
 		}
 	}
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	isc_time_formattimestamp(&now, tbuf, sizeof(tbuf));
 	CHECK(putstr(text, "secure roots as of "));
 	CHECK(putstr(text, tbuf));
@@ -14324,7 +14320,7 @@ named_server_changezone(named_server_t *server, char *command,
 		      addzone ? NAMED_COMMAND_ADDZONE : NAMED_COMMAND_MODZONE);
 
 	/* Changing a zone counts as reconfiguration */
-	CHECK(isc_time_now(&named_g_configtime));
+	isc_time_now(&named_g_configtime);
 
 cleanup:
 	if (isc_buffer_usedlength(*text) > 0) {
@@ -14644,7 +14640,7 @@ named_server_delzone(named_server_t *server, isc_lex_t *lex,
 		      "zone %s scheduled for removal via delzone", zonename);
 
 	/* Removing a zone counts as reconfiguration */
-	CHECK(isc_time_now(&named_g_configtime));
+	isc_time_now(&named_g_configtime);
 
 	result = ISC_R_SUCCESS;
 
@@ -15139,7 +15135,7 @@ named_server_dnssec(named_server_t *server, isc_lex_t *lex,
 	}
 
 	/* Initialize current time and key list. */
-	TIME_NOW(&timenow);
+	isc_time_now(&timenow);
 	now = isc_time_seconds(&timenow);
 	when = now;
 

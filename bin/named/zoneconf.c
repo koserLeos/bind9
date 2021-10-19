@@ -2045,7 +2045,7 @@ named_zone_configure_writeable_dlz(dns_dlzdb_t *dlzdatabase, dns_zone_t *zone,
 	isc_time_t now;
 	isc_result_t result;
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	dns_zone_settype(zone, dns_zone_dlz);
 	result = dns_sdlz_setdb(dlzdatabase, rdclass, name, &db);

@@ -207,7 +207,8 @@ set_age(dns_rrl_t *rrl, dns_rrl_entry_t *e, isc_stdtime_t now) {
 				dns_lctx, DNS_LOGCATEGORY_RRL,
 				DNS_LOGMODULE_REQUEST, DNS_RRL_LOG_DEBUG1,
 				"rrl new time base scanned %d entries"
-				" at %d for %d %d %d %d",
+				" at %" PRIu64 " for %" PRIu64 " %" PRIu64
+				" %" PRIu64 " %" PRIu64,
 				i, now, rrl->ts_bases[ts_gen],
 				rrl->ts_bases[(ts_gen + 1) % DNS_RRL_TS_BASES],
 				rrl->ts_bases[(ts_gen + 2) % DNS_RRL_TS_BASES],

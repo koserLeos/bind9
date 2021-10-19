@@ -1661,7 +1661,7 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result, int line) {
 	 */
 	fctx->result = result;
 	fctx->exitline = line;
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	fctx->duration = isc_time_microdiff(&now, &fctx->start);
 
 	for (event = ISC_LIST_HEAD(fctx->events); event != NULL;
@@ -2050,7 +2050,7 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 
 	dns_message_create(fctx->mctx, DNS_MESSAGE_INTENTPARSE,
 			   &query->rmessage);
-	TIME_NOW(&query->start);
+	isc_time_now(&query->start);
 
 	/*
 	 * If this is a TCP query, then we need to make a socket and
@@ -4711,8 +4711,8 @@ fctx_create(dns_resolver_t *res, isc_task_t *task, const dns_name_t *name,
 	dns_rdataset_init(&fctx->qminrrset);
 	dns_rdataset_init(&fctx->nsrrset);
 
-	TIME_NOW(&fctx->start);
-	fctx->now = (isc_stdtime_t)fctx->start.seconds;
+	isc_time_now(&fctx->start);
+	fctx->now = (isc_stdtime_t)isc_time_seconds(&fctx->start);
 
 	if (client != NULL) {
 		isc_sockaddr_format(client, fctx->clientstr,
@@ -7821,7 +7821,7 @@ rctx_respinit(resquery_t *query, fetchctx_t *fctx, isc_result_t result,
 			     .retryopts = query->options };
 	isc_buffer_init(&rctx->buffer, region->base, region->length);
 	isc_buffer_add(&rctx->buffer, region->length);
-	TIME_NOW(&rctx->tnow);
+	isc_time_now(&rctx->tnow);
 	rctx->finish = &rctx->tnow;
 	rctx->now = (isc_stdtime_t)isc_time_seconds(&rctx->tnow);
 }

@@ -1691,8 +1691,7 @@ dns_rpz_update_taskaction(isc_task_t *task, isc_event_t *event) {
 	result = isc_timer_reset(zone->updatetimer, isc_timertype_inactive,
 				 NULL, NULL, true);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
-	result = isc_time_now(&zone->lastupdated);
-	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+	isc_time_now(&zone->lastupdated);
 	UNLOCK(&zone->rpzs->maint_lock);
 }
 

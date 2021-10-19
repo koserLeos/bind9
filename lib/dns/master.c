@@ -1248,28 +1248,18 @@ load_text(dns_loadctx_t *lctx) {
 				finish_include = true;
 			} else if (strcasecmp(DNS_AS_STR(token), "$DATE") == 0)
 			{
-				int64_t dump_time64;
 				isc_stdtime_t dump_time, current_time;
 				GETTOKEN(lctx->lex, 0, &token, false);
 				isc_stdtime_get(&current_time);
-				result = dns_time64_fromtext(DNS_AS_STR(token),
-							     &dump_time64);
+				result = dns_time64_fromtext(
+					DNS_AS_STR(token),
+					(int64_t *)&dump_time);
 				if (MANYERRS(lctx, result)) {
 					SETRESULT(lctx, result);
 					LOGIT(result);
-					dump_time64 = 0;
+					dump_time = 0;
 				} else if (result != ISC_R_SUCCESS) {
 					goto log_and_cleanup;
-				}
-				dump_time = (isc_stdtime_t)dump_time64;
-				if (dump_time != dump_time64) {
-					UNEXPECTED_ERROR(__FILE__, __LINE__,
-							 "%s: %s:%lu: $DATE "
-							 "outside epoch",
-							 "dns_master_load",
-							 source, line);
-					result = ISC_R_UNEXPECTED;
-					goto insist_and_cleanup;
 				}
 				if (dump_time > current_time) {
 					UNEXPECTED_ERROR(__FILE__, __LINE__,

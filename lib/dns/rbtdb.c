@@ -5643,7 +5643,7 @@ printnode(dns_db_t *db, dns_dbnode_t *node, FILE *out) {
 					"\tserial = %lu, ttl = %u, "
 					"trust = %u, attributes = %" PRIuLEAST16
 					", "
-					"resign = %u\n",
+					"resign = %" PRIu64 "\n",
 					(unsigned long)current->serial,
 					current->rdh_ttl, current->trust,
 					attributes,

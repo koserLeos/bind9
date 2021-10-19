@@ -443,7 +443,7 @@ dispentry_runtime(dns_dispentry_t *resp) {
 		return (0);
 	}
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	return (isc_time_microdiff(&now, &resp->start) / 1000);
 }
 
@@ -1686,7 +1686,7 @@ startrecv(isc_nmhandle_t *handle, dns_dispatch_t *disp, dns_dispentry_t *resp) {
 	case isc_socktype_udp:
 		REQUIRE(resp != NULL && resp->handle == NULL);
 
-		TIME_NOW(&resp->start);
+		isc_time_now(&resp->start);
 		isc_nmhandle_attach(handle, &resp->handle);
 		dispentry_attach(resp, &(dns_dispentry_t *){ NULL });
 		isc_nm_read(resp->handle, udp_recv, resp);

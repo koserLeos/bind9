@@ -1139,7 +1139,7 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx) {
 	REQUIRE(zonep != NULL && *zonep == NULL);
 	REQUIRE(mctx != NULL);
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	zone = isc_mem_get(mctx, sizeof(*zone));
 	*zone = z;
 
@@ -2137,7 +2137,7 @@ zone_load(dns_zone_t *zone, unsigned int flags, bool locked) {
 		LOCK_ZONE(zone->raw);
 	}
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	INSIST(zone->type != dns_zone_none);
 
@@ -2183,7 +2183,7 @@ zone_load(dns_zone_t *zone, unsigned int flags, bool locked) {
 	 * zone->loadtime is set, then the file will still be reloaded
 	 * the next time dns_zone_load is called.
 	 */
-	TIME_NOW(&loadtime);
+	isc_time_now(&loadtime);
 
 	/*
 	 * Don't do the load if the file that stores the zone is older
@@ -3838,7 +3838,7 @@ zone_addnsec3chain(dns_zone_t *zone, dns_rdata_nsec3param_t *nsec3param) {
 		ISC_LIST_INITANDAPPEND(zone->nsec3chain, nsec3chain, link);
 		nsec3chain = NULL;
 		if (isc_time_isepoch(&zone->nsec3chaintime)) {
-			TIME_NOW(&now);
+			isc_time_now(&now);
 			zone->nsec3chaintime = now;
 			if (zone->task != NULL) {
 				zone_settimer(zone, &now);
@@ -4158,7 +4158,7 @@ set_refreshkeytimer(dns_zone_t *zone, dns_rdata_keydata_t *key,
 		then = key->removehd;
 	}
 
-	TIME_NOW(&timenow);
+	isc_time_now(&timenow);
 	if (then > now) {
 		DNS_ZONE_TIME_ADD(&timenow, then - now, &timethen);
 	} else {
@@ -4859,7 +4859,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 		INSIST(LOCKED_ZONE(zone->secure));
 	}
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	/*
 	 * Initiate zone transfer?  We may need a error code that
@@ -5313,7 +5313,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 				dnssec_log(
 					zone, ISC_LOG_DEBUG(3),
 					"next resign: %s/%s "
-					"in %d seconds",
+					"in %" PRIu64 " seconds",
 					namebuf, typebuf,
 					next.resign - timenow -
 						dns_zone_getsigresigninginterval(
@@ -6586,7 +6586,7 @@ dns_zone_maintenance(dns_zone_t *zone) {
 	ENTER;
 
 	LOCK_ZONE(zone);
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	zone_settimer(zone, &now);
 	UNLOCK_ZONE(zone);
 }
@@ -7047,7 +7047,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 	}
 	if (timewarn > 0) {
 		isc_stdtime_t stdwarn = (isc_stdtime_t)timewarn;
-		if (timewarn == stdwarn) {
+		if ((uint64_t)timewarn == stdwarn) {
 			set_key_expiry_warning(zone, (isc_stdtime_t)timewarn,
 					       now);
 		} else {
@@ -11233,7 +11233,7 @@ failure:
 		isc_time_t timenow, timethen;
 		char timebuf[80];
 
-		TIME_NOW(&timenow);
+		isc_time_now(&timenow);
 		DNS_ZONE_TIME_ADD(&timenow, dns_zone_mkey_hour, &timethen);
 		zone->refreshkeytime = timethen;
 		zone_settimer(zone, &timenow);
@@ -11297,7 +11297,7 @@ zone_maintenance(dns_zone_t *zone) {
 		return;
 	}
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	/*
 	 * Expire check.
@@ -11525,7 +11525,7 @@ again:
 			set_resigntime(zone);
 			if (zone->task != NULL) {
 				isc_time_t now;
-				TIME_NOW(&now);
+				isc_time_now(&now);
 				zone_settimer(zone, &now);
 			}
 		}
@@ -11856,7 +11856,7 @@ zone_needdump(dns_zone_t *zone, unsigned int delay) {
 		return;
 	}
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	/* add some noise */
 	DNS_ZONE_JITTER_ADD(&now, delay, &dumptime);
 
@@ -12770,7 +12770,7 @@ dns_zone_notify(dns_zone_t *zone) {
 	LOCK_ZONE(zone);
 	DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_NEEDNOTIFY);
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	zone_settimer(zone, &now);
 	UNLOCK_ZONE(zone);
 }
@@ -13193,7 +13193,7 @@ stub_glue_response_cb(isc_task_t *task, isc_event_t *event) {
 
 	ENTER;
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	LOCK_ZONE(zone);
 
@@ -13614,7 +13614,7 @@ stub_callback(isc_task_t *task, isc_event_t *event) {
 
 	ENTER;
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	LOCK_ZONE(zone);
 
@@ -13994,7 +13994,7 @@ refresh_callback(isc_task_t *task, isc_event_t *event) {
 
 	ENTER;
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	LOCK_ZONE(zone);
 
@@ -15307,7 +15307,7 @@ cancel_refresh(dns_zone_t *zone) {
 	ENTER;
 
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_REFRESH);
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	zone_settimer(zone, &now);
 }
 
@@ -16709,7 +16709,7 @@ nextevent:
 	 * signature expiration.
 	 */
 	set_resigntime(zone);
-	TIME_NOW(&timenow);
+	isc_time_now(&timenow);
 	zone_settimer(zone, &timenow);
 	UNLOCK_ZONE(zone);
 
@@ -16731,7 +16731,7 @@ failure:
 	if (result != ISC_R_SUCCESS) {
 		LOCK_ZONE(zone);
 		set_resigntime(zone);
-		TIME_NOW(&timenow);
+		isc_time_now(&timenow);
 		zone_settimer(zone, &timenow);
 		UNLOCK_ZONE(zone);
 		if (result == DNS_R_UNCHANGED) {
@@ -17164,7 +17164,7 @@ receive_secure_db(isc_task_t *task, isc_event_t *event) {
 		goto failure;
 	}
 
-	TIME_NOW(&loadtime);
+	isc_time_now(&loadtime);
 	ZONEDB_LOCK(&zone->dblock, isc_rwlocktype_read);
 	if (zone->db != NULL) {
 		result = dns_db_getsoaserial(zone->db, NULL, &oldserial);
@@ -17569,7 +17569,7 @@ again:
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_REFRESH);
 	DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_SOABEFOREAXFR);
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	switch (xfrresult) {
 	case ISC_R_SUCCESS:
 		DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_NEEDNOTIFY);
@@ -17965,7 +17965,7 @@ dns_zone_setsigresigninginterval(dns_zone_t *zone, uint32_t interval) {
 	zone->sigresigninginterval = interval;
 	set_resigntime(zone);
 	if (zone->task != NULL) {
-		TIME_NOW(&now);
+		isc_time_now(&now);
 		zone_settimer(zone, &now);
 	}
 	UNLOCK_ZONE(zone);
@@ -18034,7 +18034,7 @@ got_transfer_quota(isc_task_t *task, isc_event_t *event) {
 		CHECK(ISC_R_CANCELED);
 	}
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	isc_sockaddr_format(&zone->primaryaddr, primary, sizeof(primary));
 	if (dns_zonemgr_unreachable(zone->zmgr, &zone->primaryaddr,
@@ -20295,7 +20295,7 @@ zone_signwithkey(dns_zone_t *zone, dns_secalg_t algorithm, uint16_t keyid,
 	signing->deleteit = deleteit;
 	signing->done = false;
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	ZONEDB_LOCK(&zone->dblock, isc_rwlocktype_read);
 	if (zone->db != NULL) {
@@ -20999,7 +20999,7 @@ checkds_done(isc_task_t *task, isc_event_t *event) {
 			     "checkds: empty DS response from %s", addrbuf);
 	}
 
-	TIME_NOW(&timenow);
+	isc_time_now(&timenow);
 	now = isc_time_seconds(&timenow);
 
 	CHECK(dns_zone_getdb(zone, &db));
@@ -21585,7 +21585,7 @@ zone_rekey(dns_zone_t *zone) {
 	CHECK(dns_db_newversion(db, &ver));
 	CHECK(dns_db_getoriginnode(db, &node));
 
-	TIME_NOW(&timenow);
+	isc_time_now(&timenow);
 	now = isc_time_seconds(&timenow);
 
 	kasp = dns_zone_getkasp(zone);
@@ -22120,7 +22120,7 @@ dns_zone_rekey(dns_zone_t *zone, bool fullsign) {
 			DNS_ZONEKEY_SETOPTION(zone, DNS_ZONEKEY_FULLSIGN);
 		}
 
-		TIME_NOW(&now);
+		isc_time_now(&now);
 		zone->refreshkeytime = now;
 		zone_settimer(zone, &now);
 
@@ -22387,7 +22387,7 @@ dns_zone_dlzpostload(dns_zone_t *zone, dns_db_t *db) {
 	isc_result_t result;
 	dns_zone_t *secure = NULL;
 
-	TIME_NOW(&loadtime);
+	isc_time_now(&loadtime);
 
 	/*
 	 * Lock hierarchy: zmgr, zone, raw.

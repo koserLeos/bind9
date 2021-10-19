@@ -2460,7 +2460,7 @@ dns_view_loadnta(dns_view_t *view) {
 			CHECK(ISC_R_UNEXPECTEDTOKEN);
 		}
 		timestamp = TSTR(token);
-		CHECK(dns_time32_fromtext(timestamp, &t));
+		CHECK(dns_time32_fromtext(timestamp, (uint32_t *)&t));
 
 		CHECK(isc_lex_gettoken(lex, options, &token));
 		if (token.type != isc_tokentype_eol &&

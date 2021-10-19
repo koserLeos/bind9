@@ -990,13 +990,17 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 	}
 
 	if (rdtype == dns_rdatatype_a) {
-		DP(NCACHE_LEVEL, "expire_v4 set to MIN(%u,%u) import_rdataset",
+		DP(NCACHE_LEVEL,
+		   "expire_v4 set to MIN(%" PRIu64 ",%" PRIu64
+		   ") import_rdataset",
 		   adbname->expire_v4, now + rdataset->ttl);
 		adbname->expire_v4 = ISC_MIN(
 			adbname->expire_v4,
 			ISC_MIN(now + ADB_ENTRY_WINDOW, now + rdataset->ttl));
 	} else {
-		DP(NCACHE_LEVEL, "expire_v6 set to MIN(%u,%u) import_rdataset",
+		DP(NCACHE_LEVEL,
+		   "expire_v6 set to MIN(%" PRIu64 ",%" PRIu64
+		   ") import_rdataset",
 		   adbname->expire_v6, now + rdataset->ttl);
 		adbname->expire_v6 = ISC_MIN(
 			adbname->expire_v6,

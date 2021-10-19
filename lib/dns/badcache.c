@@ -210,7 +210,6 @@ void
 dns_badcache_add(dns_badcache_t *bc, const dns_name_t *name,
 		 dns_rdatatype_t type, bool update, uint32_t flags,
 		 isc_time_t *expire) {
-	isc_result_t result;
 	unsigned int hashval, hash;
 	dns_bcentry_t *bad, *prev, *next;
 	isc_time_t now;
@@ -222,10 +221,7 @@ dns_badcache_add(dns_badcache_t *bc, const dns_name_t *name,
 
 	RWLOCK(&bc->lock, isc_rwlocktype_read);
 
-	result = isc_time_now(&now);
-	if (result != ISC_R_SUCCESS) {
-		isc_time_settoepoch(&now);
-	}
+	isc_time_now(&now);
 
 	hashval = dns_name_hash(name, false);
 	hash = hashval % bc->size;
@@ -386,7 +382,6 @@ dns_badcache_flush(dns_badcache_t *bc) {
 void
 dns_badcache_flushname(dns_badcache_t *bc, const dns_name_t *name) {
 	dns_bcentry_t *bad, *prev, *next;
-	isc_result_t result;
 	isc_time_t now;
 	unsigned int hash;
 
@@ -395,10 +390,7 @@ dns_badcache_flushname(dns_badcache_t *bc, const dns_name_t *name) {
 
 	RWLOCK(&bc->lock, isc_rwlocktype_read);
 
-	result = isc_time_now(&now);
-	if (result != ISC_R_SUCCESS) {
-		isc_time_settoepoch(&now);
-	}
+	isc_time_now(&now);
 	hash = dns_name_hash(name, false) % bc->size;
 	LOCK(&bc->tlocks[hash]);
 	prev = NULL;
@@ -430,7 +422,6 @@ dns_badcache_flushtree(dns_badcache_t *bc, const dns_name_t *name) {
 	unsigned int i;
 	int n;
 	isc_time_t now;
-	isc_result_t result;
 
 	REQUIRE(VALID_BADCACHE(bc));
 	REQUIRE(name != NULL);
@@ -441,11 +432,7 @@ dns_badcache_flushtree(dns_badcache_t *bc, const dns_name_t *name) {
 	 */
 	RWLOCK(&bc->lock, isc_rwlocktype_write);
 
-	result = isc_time_now(&now);
-	if (result != ISC_R_SUCCESS) {
-		isc_time_settoepoch(&now);
-	}
-
+	isc_time_now(&now);
 	for (i = 0; atomic_load_relaxed(&bc->count) > 0 && i < bc->size; i++) {
 		prev = NULL;
 		for (bad = bc->table[i]; bad != NULL; bad = next) {
@@ -489,7 +476,7 @@ dns_badcache_print(dns_badcache_t *bc, const char *cachename, FILE *fp) {
 	RWLOCK(&bc->lock, isc_rwlocktype_write);
 	fprintf(fp, ";\n; %s\n;\n", cachename);
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	for (i = 0; atomic_load_relaxed(&bc->count) > 0 && i < bc->size; i++) {
 		prev = NULL;
 		for (bad = bc->table[i]; bad != NULL; bad = next) {

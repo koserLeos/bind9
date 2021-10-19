@@ -17,6 +17,7 @@
 
 #include <inttypes.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include <isc/lang.h>
 #include <isc/types.h>
@@ -25,16 +26,9 @@
  *** Intervals
  ***/
 
-/*!
- *  \brief
- * The contents of this structure are private, and MUST NOT be accessed
- * directly by callers.
- *
- * The contents are exposed only to allow callers to avoid dynamic allocation.
- */
 struct isc_interval {
-	unsigned int seconds;
-	unsigned int nanoseconds;
+	uint64_t seconds;
+	uint64_t nanoseconds;
 };
 
 extern const isc_interval_t *const isc_interval_zero;
@@ -49,8 +43,7 @@ extern const isc_interval_t *const isc_interval_zero;
 ISC_LANG_BEGINDECLS
 
 void
-isc_interval_set(isc_interval_t *i, unsigned int seconds,
-		 unsigned int nanoseconds);
+isc_interval_set(isc_interval_t *i, uint64_t seconds, uint64_t nanoseconds);
 /*%<
  * Set 'i' to a value representing an interval of 'seconds' seconds and
  * 'nanoseconds' nanoseconds, suitable for use in isc_time_add() and
@@ -72,7 +65,7 @@ isc_interval_iszero(const isc_interval_t *i);
  *\li	'i' is a valid pointer.
  */
 
-unsigned int
+uint64_t
 isc_interval_ms(const isc_interval_t *i);
 /*%<
  * Returns interval 'i' expressed as a number of milliseconds.
@@ -86,22 +79,15 @@ isc_interval_ms(const isc_interval_t *i);
  *** Absolute Times
  ***/
 
-/*%
- * The contents of this structure are private, and MUST NOT be accessed
- * directly by callers.
- *
- * The contents are exposed only to allow callers to avoid dynamic allocation.
- */
-
 struct isc_time {
-	unsigned int seconds;
-	unsigned int nanoseconds;
+	uint64_t seconds;
+	uint64_t nanoseconds;
 };
 
 extern const isc_time_t *const isc_time_epoch;
 
 void
-isc_time_set(isc_time_t *t, unsigned int seconds, unsigned int nanoseconds);
+isc_time_set(isc_time_t *t, uint64_t seconds, uint64_t nanoseconds);
 /*%<
  * Set 't' to a value which represents the given number of seconds and
  * nanoseconds since 00:00:00 January 1, 1970, UTC.
@@ -142,7 +128,7 @@ isc_time_isepoch(const isc_time_t *t);
  *\li	't' is a valid pointer.
  */
 
-isc_result_t
+void
 isc_time_now(isc_time_t *t);
 /*%<
  * Set 't' to the current absolute time.
@@ -150,18 +136,9 @@ isc_time_now(isc_time_t *t);
  * Requires:
  *
  *\li	't' is a valid pointer.
- *
- * Returns:
- *
- *\li	Success
- *\li	Unexpected error
- *		Getting the time from the system failed.
- *\li	Out of range
- *		The time from the system is too large to be represented
- *		in the current definition of isc_time_t.
  */
 
-isc_result_t
+void
 isc_time_now_hires(isc_time_t *t);
 /*%<
  * Set 't' to the current absolute time. Uses higher resolution clocks
@@ -170,15 +147,6 @@ isc_time_now_hires(isc_time_t *t);
  * Requires:
  *
  *\li	't' is a valid pointer.
- *
- * Returns:
- *
- *\li	Success
- *\li	Unexpected error
- *		Getting the time from the system failed.
- *\li	Out of range
- *		The time from the system is too large to be represented
- *		in the current definition of isc_time_t.
  */
 
 isc_result_t
@@ -270,7 +238,7 @@ isc_time_microdiff(const isc_time_t *t1, const isc_time_t *t2);
  *\li	The difference of t1 - t2, or 0 if t1 <= t2.
  */
 
-uint32_t
+uint64_t
 isc_time_seconds(const isc_time_t *t);
 /*%<
  * Return the number of seconds since the epoch stored in a time structure.
@@ -280,30 +248,7 @@ isc_time_seconds(const isc_time_t *t);
  *\li	't' is a valid pointer.
  */
 
-isc_result_t
-isc_time_secondsastimet(const isc_time_t *t, time_t *secondsp);
-/*%<
- * Ensure the number of seconds in an isc_time_t is representable by a time_t.
- *
- * Notes:
- *\li	The number of seconds stored in an isc_time_t might be larger
- *	than the number of seconds a time_t is able to handle.  Since
- *	time_t is mostly opaque according to the ANSI/ISO standard
- *	(essentially, all you can be sure of is that it is an arithmetic type,
- *	not even necessarily integral), it can be tricky to ensure that
- *	the isc_time_t is in the range a time_t can handle.  Use this
- *	function in place of isc_time_seconds() any time you need to set a
- *	time_t from an isc_time_t.
- *
- * Requires:
- *\li	't' is a valid pointer.
- *
- * Returns:
- *\li	Success
- *\li	Out of range
- */
-
-uint32_t
+uint64_t
 isc_time_nanoseconds(const isc_time_t *t);
 /*%<
  * Return the number of nanoseconds stored in a time structure.
