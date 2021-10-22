@@ -26,6 +26,7 @@
 
 int
 lwres__print_sprintf(char *str, const char *format, ...) {
+	REQUIRE(str != NULL);
 	va_list ap;
 
 	va_start(ap, format);
