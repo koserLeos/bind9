@@ -210,10 +210,10 @@ isc_task_create_bound(isc_taskmgr_t *manager, unsigned int quantum,
 	REQUIRE(VALID_MANAGER(manager));
 	REQUIRE(taskp != NULL && *taskp == NULL);
 
-	XTRACE("isc_task_create");
-
 	task = isc_mem_get(manager->mctx, sizeof(*task));
 	*task = (isc_task_t){ 0 };
+
+	XTRACE("isc_task_create");
 
 	isc_taskmgr_attach(manager, &task->manager);
 
