@@ -172,7 +172,6 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		goto free_rdatas;
 	}
 	for (i = 0; i < nalloc && result == ISC_R_SUCCESS; i++) {
-		INSIST(result == ISC_R_SUCCESS);
 		dns_rdata_init(&x[i].rdata);
 		dns_rdataset_current(rdataset, &x[i].rdata);
 		INSIST(x[i].rdata.data != &removed);
