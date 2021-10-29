@@ -181,7 +181,7 @@ static void
 subthread_assert_result_equal(isc_result_t result, isc_result_t expected,
 			      const char *file, unsigned int line) {
 	if (result != expected) {
-		printf("# %s:%u subthread_assert_result_equal(%u != %u)\n",
+		printf("# %s:%u subthread_assert_result_equal(%d != %d)\n",
 		       file, line, result, expected);
 		set_global_error(result);
 	}

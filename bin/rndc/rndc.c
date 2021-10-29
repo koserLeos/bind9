@@ -376,7 +376,7 @@ rndc_recvdone(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 
 		result = isccc_cc_lookupuint32(data, "result", &eresult);
 		if (result == ISC_R_SUCCESS) {
-			printf("%s %u\n", isc_result_toid(eresult), eresult);
+			printf("%s %d\n", isc_result_toid(eresult), eresult);
 		} else {
 			printf("NONE -1\n");
 		}
