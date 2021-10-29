@@ -2215,6 +2215,8 @@ deletefromlevel(dns_rbtnode_t *item, dns_rbtnode_t **rootp) {
 				}
 			}
 
+			/* cppcheck-suppress nullPointerRedundantCheck
+			 * symbolName=child */
 			parent = PARENT(child);
 		}
 
