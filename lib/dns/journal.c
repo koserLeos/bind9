@@ -525,11 +525,11 @@ static isc_result_t
 journal_write_xhdr(dns_journal_t *j, uint32_t size, uint32_t count,
 		   uint32_t serial0, uint32_t serial1) {
 	if (j->header_ver1) {
-		journal_rawxhdr_ver1_t raw;
-		encode_uint32(size, raw.size);
-		encode_uint32(serial0, raw.serial0);
-		encode_uint32(serial1, raw.serial1);
-		return (journal_write(j, &raw, sizeof(raw)));
+		journal_rawxhdr_ver1_t raw_ver1;
+		encode_uint32(size, raw_ver1.size);
+		encode_uint32(serial0, raw_ver1.serial0);
+		encode_uint32(serial1, raw_ver1.serial1);
+		return (journal_write(j, &raw_ver1, sizeof(raw_ver1)));
 	} else {
 		journal_rawxhdr_t raw;
 		encode_uint32(size, raw.size);
