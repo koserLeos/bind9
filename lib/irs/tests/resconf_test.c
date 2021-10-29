@@ -32,6 +32,8 @@ static isc_mem_t *mctx = NULL;
 
 static void
 setup_test(void) {
+	int n;
+
 	isc_mem_create(&mctx);
 
 	/*
@@ -39,7 +41,8 @@ setup_test(void) {
 	 * that access test data files must first chdir to the proper
 	 * location.
 	 */
-	assert_return_code(chdir(TESTS_DIR), 0);
+	n = chdir(TESTS_DIR);
+	assert_return_code(n, 0);
 }
 
 static isc_result_t

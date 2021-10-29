@@ -86,6 +86,8 @@ static void
 isc_hmac_test(isc_hmac_t *hmac, const void *key, size_t keylen,
 	      const isc_md_type_t *type, const char *buf, size_t buflen,
 	      const char *result, const int repeats) {
+	isc_result_t result;
+
 	assert_non_null(hmac);
 	assert_int_equal(isc_hmac_init(hmac, key, keylen, type), ISC_R_SUCCESS);
 
@@ -108,7 +110,8 @@ isc_hmac_test(isc_hmac_t *hmac, const void *key, size_t keylen,
 	isc_buffer_t b;
 	isc_buffer_init(&b, hexdigest, sizeof(hexdigest));
 
-	assert_return_code(isc_hex_totext(&r, 0, "", &b), ISC_R_SUCCESS);
+	result = isc_hex_totext(&r, 0, "", &b);
+	assert_return_code(result, ISC_R_SUCCESS);
 
 	assert_memory_equal(hexdigest, result, (result ? strlen(result) : 0));
 	assert_int_equal(isc_hmac_reset(hmac), ISC_R_SUCCESS);

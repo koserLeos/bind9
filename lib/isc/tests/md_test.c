@@ -84,6 +84,8 @@ isc_md_free_test(void **state) {
 static void
 isc_md_test(isc_md_t *md, const isc_md_type_t *type, const char *buf,
 	    size_t buflen, const char *result, const int repeats) {
+	isc_result_t result;
+
 	assert_non_null(md);
 	assert_int_equal(isc_md_init(md, type), ISC_R_SUCCESS);
 
@@ -104,7 +106,8 @@ isc_md_test(isc_md_t *md, const isc_md_type_t *type, const char *buf,
 	isc_buffer_t b;
 	isc_buffer_init(&b, hexdigest, sizeof(hexdigest));
 
-	assert_return_code(isc_hex_totext(&r, 0, "", &b), ISC_R_SUCCESS);
+	result = isc_hex_totext(&r, 0, "", &b),
+	assert_return_code(result, ISC_R_SUCCESS);
 
 	assert_memory_equal(hexdigest, result, (result ? strlen(result) : 0));
 	assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
