@@ -200,11 +200,11 @@ additionaldata_lp(ARGS_ADDLDATA) {
 	isc_region_consume(&region, 2);
 	dns_name_fromregion(&name, &region);
 
-	result = (add)(arg, &name, dns_rdatatype_l32, NULL);
+	result = (*add)(arg, &name, dns_rdatatype_l32, NULL);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}
-	return ((add)(arg, &name, dns_rdatatype_l64, NULL));
+	return ((*add)(arg, &name, dns_rdatatype_l64, NULL));
 }
 
 static inline isc_result_t
@@ -214,7 +214,7 @@ digest_lp(ARGS_DIGEST) {
 	REQUIRE(rdata->type == dns_rdatatype_lp);
 
 	dns_rdata_toregion(rdata, &region);
-	return ((digest)(arg, &region));
+	return ((*digest)(arg, &region));
 }
 
 static inline bool

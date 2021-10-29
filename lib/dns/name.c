@@ -2315,7 +2315,7 @@ dns_name_digest(const dns_name_t *name, dns_digestfunc_t digest, void *arg) {
 
 	isc_buffer_usedregion(&buffer, &r);
 
-	return ((digest)(arg, &r));
+	return ((*digest)(arg, &r));
 }
 
 bool

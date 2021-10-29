@@ -316,7 +316,7 @@ digest_nxt(ARGS_DIGEST) {
 	}
 	isc_region_consume(&r, name_length(&name));
 
-	return ((digest)(arg, &r));
+	return ((*digest)(arg, &r));
 }
 
 static inline bool

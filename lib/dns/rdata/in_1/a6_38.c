@@ -424,7 +424,7 @@ digest_in_a6(ARGS_DIGEST) {
 	octets = 1 + 16 - prefixlen / 8;
 
 	r1.length = octets;
-	result = (digest)(arg, &r1);
+	result = (*digest)(arg, &r1);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}

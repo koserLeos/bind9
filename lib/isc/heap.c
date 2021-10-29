@@ -278,6 +278,6 @@ isc_heap_foreach(isc_heap_t *heap, isc_heapaction_t action, void *uap) {
 	REQUIRE(action != NULL);
 
 	for (i = 1; i <= heap->last; i++) {
-		(action)(heap->array[i], uap);
+		(*action)(heap->array[i], uap);
 	}
 }

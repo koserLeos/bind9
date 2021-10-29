@@ -202,7 +202,7 @@ digest_in_a(ARGS_DIGEST) {
 
 	dns_rdata_toregion(rdata, &r);
 
-	return ((digest)(arg, &r));
+	return ((*digest)(arg, &r));
 }
 
 static inline bool

@@ -548,7 +548,7 @@ dns_zt_apply(dns_zt_t *zt, bool stop, isc_result_t *sub,
 		if (result == ISC_R_SUCCESS) {
 			zone = node->data;
 			if (zone != NULL) {
-				result = (action)(zone, uap);
+				result = (*action)(zone, uap);
 			}
 			if (result != ISC_R_SUCCESS && stop) {
 				tresult = result;

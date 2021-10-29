@@ -281,7 +281,7 @@ digest_ch_a(ARGS_DIGEST) {
 	dns_name_fromregion(&name, &r);
 	isc_region_consume(&r, name_length(&name));
 	RETERR(dns_name_digest(&name, digest, arg));
-	return ((digest)(arg, &r));
+	return ((*digest)(arg, &r));
 }
 
 static inline bool

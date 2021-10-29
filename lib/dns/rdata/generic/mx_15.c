@@ -284,7 +284,7 @@ additionaldata_mx(ARGS_ADDLDATA) {
 		return (ISC_R_SUCCESS);
 	}
 
-	result = (add)(arg, &name, dns_rdatatype_a, NULL);
+	result = (*add)(arg, &name, dns_rdatatype_a, NULL);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}
@@ -296,8 +296,8 @@ additionaldata_mx(ARGS_ADDLDATA) {
 		return (ISC_R_SUCCESS);
 	}
 
-	return ((add)(arg, dns_fixedname_name(&fixed), dns_rdatatype_tlsa,
-		      NULL));
+	return ((*add)(arg, dns_fixedname_name(&fixed), dns_rdatatype_tlsa,
+		       NULL));
 }
 
 static inline isc_result_t
@@ -311,7 +311,7 @@ digest_mx(ARGS_DIGEST) {
 	r2 = r1;
 	isc_region_consume(&r2, 2);
 	r1.length = 2;
-	RETERR((digest)(arg, &r1));
+	RETERR((*digest)(arg, &r1));
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &r2);
 	return (dns_name_digest(&name, digest, arg));

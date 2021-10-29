@@ -1309,7 +1309,7 @@ dns_rdata_digest(dns_rdata_t *rdata, dns_digestfunc_t digest, void *arg) {
 
 	if (use_default) {
 		dns_rdata_toregion(rdata, &r);
-		result = (digest)(arg, &r);
+		result = (*digest)(arg, &r);
 	}
 
 	return (result);

@@ -320,7 +320,7 @@ digest_in_px(ARGS_DIGEST) {
 	r2 = r1;
 	isc_region_consume(&r2, 2);
 	r1.length = 2;
-	result = (digest)(arg, &r1);
+	result = (*digest)(arg, &r1);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}

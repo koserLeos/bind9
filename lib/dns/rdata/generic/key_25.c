@@ -431,7 +431,7 @@ digest_key(ARGS_DIGEST) {
 
 	dns_rdata_toregion(rdata, &r);
 
-	return ((digest)(arg, &r));
+	return ((*digest)(arg, &r));
 }
 
 static inline bool

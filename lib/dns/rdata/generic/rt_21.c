@@ -248,15 +248,15 @@ additionaldata_rt(ARGS_ADDLDATA) {
 	isc_region_consume(&region, 2);
 	dns_name_fromregion(&name, &region);
 
-	result = (add)(arg, &name, dns_rdatatype_x25, NULL);
+	result = (*add)(arg, &name, dns_rdatatype_x25, NULL);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}
-	result = (add)(arg, &name, dns_rdatatype_isdn, NULL);
+	result = (*add)(arg, &name, dns_rdatatype_isdn, NULL);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}
-	return ((add)(arg, &name, dns_rdatatype_a, NULL));
+	return ((*add)(arg, &name, dns_rdatatype_a, NULL));
 }
 
 static inline isc_result_t
@@ -271,7 +271,7 @@ digest_rt(ARGS_DIGEST) {
 	r2 = r1;
 	isc_region_consume(&r2, 2);
 	r1.length = 2;
-	result = (digest)(arg, &r1);
+	result = (*digest)(arg, &r1);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}

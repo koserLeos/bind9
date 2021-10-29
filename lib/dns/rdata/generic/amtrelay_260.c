@@ -409,7 +409,7 @@ digest_amtrelay(ARGS_DIGEST) {
 	REQUIRE(rdata->type == dns_rdatatype_amtrelay);
 
 	dns_rdata_toregion(rdata, &region);
-	return ((digest)(arg, &region));
+	return ((*digest)(arg, &region));
 }
 
 static inline bool

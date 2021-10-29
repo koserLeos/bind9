@@ -640,7 +640,7 @@ additionaldata_naptr(ARGS_ADDLDATA) {
 	dns_name_fromregion(&name, &sr);
 
 	if (atype != 0) {
-		return ((add)(arg, &name, atype, NULL));
+		return ((*add)(arg, &name, atype, NULL));
 	}
 
 	return (ISC_R_SUCCESS);
@@ -690,7 +690,7 @@ digest_naptr(ARGS_DIGEST) {
 	 * Digest the RR up to the replacement name.
 	 */
 	r1.length = length;
-	result = (digest)(arg, &r1);
+	result = (*digest)(arg, &r1);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}

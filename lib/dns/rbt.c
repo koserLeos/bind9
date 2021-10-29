@@ -1051,9 +1051,9 @@ dns_rbt_findnode(dns_rbt_t *rbt, const dns_name_t *name, dns_name_t *foundname,
 						return (result);
 					}
 
-					result = (callback)(current,
-							    callback_name,
-							    callback_arg);
+					result = (*callback)(current,
+							     callback_name,
+							     callback_arg);
 					if (result != DNS_R_CONTINUE) {
 						saved_result = result;
 						/*

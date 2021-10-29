@@ -254,7 +254,7 @@ additionaldata_afsdb(ARGS_ADDLDATA) {
 	isc_region_consume(&region, 2);
 	dns_name_fromregion(&name, &region);
 
-	return ((add)(arg, &name, dns_rdatatype_a, NULL));
+	return ((*add)(arg, &name, dns_rdatatype_a, NULL));
 }
 
 static inline isc_result_t
@@ -268,7 +268,7 @@ digest_afsdb(ARGS_DIGEST) {
 	r2 = r1;
 	isc_region_consume(&r2, 2);
 	r1.length = 2;
-	RETERR((digest)(arg, &r1));
+	RETERR((*digest)(arg, &r1));
 	dns_name_init(&name, NULL);
 	dns_name_fromregion(&name, &r2);
 

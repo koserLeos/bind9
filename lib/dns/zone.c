@@ -2999,7 +2999,8 @@ zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	 */
 	if (!dns_name_issubdomain(name, &zone->origin)) {
 		if (zone->checkns != NULL) {
-			return ((zone->checkns)(zone, name, owner, NULL, NULL));
+			return ((*zone->checkns)(zone, name, owner, NULL,
+						 NULL));
 		}
 		return (true);
 	}

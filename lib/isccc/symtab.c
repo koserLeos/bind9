@@ -277,7 +277,7 @@ isccc_symtab_foreach(isccc_symtab_t *symtab, isccc_symtabforeachaction_t action,
 		for (elt = ISC_LIST_HEAD(symtab->table[i]); elt != NULL;
 		     elt = nelt) {
 			nelt = ISC_LIST_NEXT(elt, link);
-			if ((action)(elt->key, elt->type, elt->value, arg)) {
+			if ((*action)(elt->key, elt->type, elt->value, arg)) {
 				free_elt(symtab, i, elt);
 			}
 		}

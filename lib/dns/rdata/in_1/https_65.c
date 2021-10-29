@@ -123,7 +123,7 @@ digest_in_https(ARGS_DIGEST) {
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
 	dns_rdata_toregion(rdata, &region1);
-	return ((digest)(arg, &region1));
+	return ((*digest)(arg, &region1));
 }
 
 static inline bool

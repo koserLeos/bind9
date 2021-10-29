@@ -228,7 +228,7 @@ digest_csync(ARGS_DIGEST) {
 	REQUIRE(rdata->type == dns_rdatatype_csync);
 
 	dns_rdata_toregion(rdata, &r);
-	return ((digest)(arg, &r));
+	return ((*digest)(arg, &r));
 }
 
 static inline bool

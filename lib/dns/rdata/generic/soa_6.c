@@ -389,7 +389,7 @@ digest_soa(ARGS_DIGEST) {
 	RETERR(dns_name_digest(&name, digest, arg));
 	isc_region_consume(&r, name_length(&name));
 
-	return ((digest)(arg, &r));
+	return ((*digest)(arg, &r));
 }
 
 static inline bool
