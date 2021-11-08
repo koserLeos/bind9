@@ -387,6 +387,7 @@ start_tcpdns_child(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nmsocket_t *sock,
 	isc__nm_maybe_enqueue_ievent(&mgr->workers[tid],
 				     (isc__netievent_t *)ievent);
 }
+
 isc_result_t
 isc_nm_listentcpdns(isc_nm_t *mgr, uint32_t workers, isc_sockaddr_t *iface,
 		    isc_nm_recv_cb_t recv_cb, void *recv_cbarg,
@@ -701,7 +702,8 @@ isc__nm_tcpdns_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 	 * This MUST be done asynchronously, no matter which thread we're
 	 * in. The callback function for isc_nm_read() often calls
 	 * isc_nm_read() again; if we tried to do that synchronously
-	 * we'd clash in processbuffer() and grow the stack indefinitely.
+	 * we'd clash in isc__nm_tcpdns_processbuffer() and grow the
+	 * stack indefinitely.
 	 */
 	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
 			       (isc__netievent_t *)ievent);
@@ -1459,4 +1461,128 @@ isc__nm_async_tcpdnscancel(isc__networker_t *worker, isc__netievent_t *ev0) {
 	REQUIRE(sock->tid == isc_nm_tid());
 
 	isc__nm_failed_read_cb(sock, ISC_R_EOF, false);
+}
+
+static isc_result_t
+pairdns_direct(isc_nmsocket_t *sock, isc__nm_uvreq_t *req) {
+	isc_result_t result = ISC_R_UNSET;
+
+	REQUIRE(VALID_NMSOCK(sock));
+	REQUIRE(VALID_UVREQ(req));
+
+	REQUIRE(isc__nm_in_netthread());
+	REQUIRE(sock->tid == isc_nm_tid());
+
+	if (isc__nm_closing(sock)) {
+		result = ISC_R_SHUTTINGDOWN;
+		goto error;
+	}
+
+	atomic_store(&sock->connected, true);
+
+error:
+	LOCK(&sock->lock);
+	sock->result = result;
+	SIGNAL(&sock->cond);
+	if (!atomic_load(&sock->active)) {
+		WAIT(&sock->scond, &sock->lock);
+	}
+	INSIST(atomic_load(&sock->active));
+	UNLOCK(&sock->lock);
+
+	return (result);
+}
+
+void
+isc__nm_async_dnspair(isc__networker_t *worker, isc__netievent_t *ev0) {
+	isc__netievent_dnspair_t *ievent =
+		(isc__netievent_dnspair_t *)ev0;
+	isc_nmsocket_t *sock = ievent->sock;
+	isc__nm_uvreq_t *req = ievent->req;
+	isc_result_t result = ISC_R_SUCCESS;
+
+	UNUSED(worker);
+
+	REQUIRE(VALID_NMSOCK(sock));
+	REQUIRE(sock->type == isc_nm_tcpdnssocket);
+	REQUIRE(sock->parent == NULL);
+	REQUIRE(sock->tid == isc_nm_tid());
+
+	result = pairdns_direct(sock, req);
+	if (result != ISC_R_SUCCESS) {
+		isc__nmsocket_clearcb(sock);
+		isc__nm_connectcb(sock, req, result, true);
+		atomic_store(&sock->active, false);
+		isc__nm_tcpdns_close(sock);
+	}
+
+	/*
+	 * The sock is now attached to the handle.
+	 */
+	isc__nmsocket_detach(&sock);
+}
+
+void
+isc_nm_dnspair(isc_nm_t *mgr, isc_nm_cb_t ccb, void *ccbarg,
+	       isc_nm_recv_cb_t scb, void *scbarg) {
+	uv_os_sock_t fds[2];
+	isc_nmsocket_t *csock = NULL, *ssock = NULL;
+	isc__netievent_tcpdnsconnect_t *cevent = NULL;
+	isc__netievent_tcpdnslisten_t *sevent = NULL;
+	isc__nm_uvreq_t *req = NULL;
+	int r;
+
+	REQUIRE(VALID_NM(mgr));
+
+	/* XXX: uv_socketpair() was introduced in libuv 1.40 */
+	r = socketpair(PF_LOCAL, SOCK_STREAM, 0, fds);
+	RUNTIME_CHECK(r == 0);
+
+	/* Set up server socket */
+	ssock = isc_mem_get(mgr->mctx, sizeof(*ssock));
+	isc__nmsocket_init(ssock, mgr, isc_nm_tcpdnssocket, NULL);
+	ssock->recv_cb = scb;
+	ssock->recv_cbarg = scbarg;
+	ssock->fd = fds[1];
+
+	sevent = isc__nm_get_netievent_tcpdnslisten(mgr, ssock);
+
+	/* Set up client socket */
+	csock = isc_mem_get(mgr->mctx, sizeof(*csock));
+	isc__nmsocket_init(csock, mgr, isc_nm_tcpdnssocket, NULL);
+	csock->result = ISC_R_UNSET;
+	csock->fd = fds[0];
+	atomic_init(&csock->client, true);
+
+	req = isc__nm_uvreq_get(mgr, csock);
+	req->cb.connect = ccb;
+	req->cbarg = ccbarg;
+	req->handle = isc__nmhandle_get(csock, NULL, NULL);
+
+	cevent = isc__nm_get_netievent_dnspair(mgr, csock, req);
+
+	if (isc__nm_in_netthread()) {
+		atomic_store(&csock->active, true);
+		csock->tid = isc_nm_tid();
+		isc__nm_async_dnspair(&mgr->workers[csock->tid],
+				      (isc__netievent_t *)cevent);
+		isc__nm_put_netievent_dnspair(mgr, cevent);
+	} else {
+		atomic_init(&csock->active, false);
+		csock->tid = isc_random_uniform(mgr->nworkers);
+		isc__nm_enqueue_ievent(&mgr->workers[csock->tid],
+				       (isc__netievent_t *)cevent);
+	}
+
+	ssock->tid = isc_random_uniform(mgr->nworkers);
+	isc__nm_maybe_enqueue_ievent(&mgr->workers[ssock->tid],
+				     (isc__netievent_t *)sevent);
+
+	LOCK(&csock->lock);
+	while (csock->result == ISC_R_UNSET) {
+		WAIT(&csock->cond, &csock->lock);
+	}
+	atomic_store(&csock->active, true);
+	BROADCAST(&csock->scond);
+	UNLOCK(&csock->lock);
 }

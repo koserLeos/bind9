@@ -295,6 +295,8 @@ typedef enum isc__netievent_type {
 	netievent_tcpdnsread,
 	netievent_tcpdnscancel,
 
+	netievent_dnspair,
+
 	netievent_tlsclose,
 	netievent_tlssend,
 	netievent_tlsstartread,
@@ -1574,6 +1576,12 @@ isc__nm_async_tcpdnsread(isc__networker_t *worker, isc__netievent_t *ev0);
  */
 
 void
+isc__nm_async_dnspair(isc__networker_t *worker, isc__netievent_t *ev0);
+/*%<
+ * Callback handlers for asynchronous DNS socket pair events.
+ */
+
+void
 isc__nm_tcpdns_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg);
 /*
  * Back-end implementation of isc_nm_read() for TCPDNS handles.
@@ -1956,6 +1964,8 @@ NETIEVENT_SOCKET_REQ_TYPE(tcpdnssend);
 NETIEVENT_SOCKET_HANDLE_TYPE(tcpdnscancel);
 NETIEVENT_SOCKET_QUOTA_TYPE(tcpdnsaccept);
 
+NETIEVENT_SOCKET_REQ_TYPE(dnspair);
+
 NETIEVENT_SOCKET_TYPE(tlsdnsclose);
 NETIEVENT_SOCKET_TYPE(tlsdnsread);
 NETIEVENT_SOCKET_TYPE(tlsdnsstop);
@@ -2025,6 +2035,8 @@ NETIEVENT_SOCKET_REQ_DECL(tcpdnsconnect);
 NETIEVENT_SOCKET_REQ_DECL(tcpdnssend);
 NETIEVENT_SOCKET_HANDLE_DECL(tcpdnscancel);
 NETIEVENT_SOCKET_QUOTA_DECL(tcpdnsaccept);
+
+NETIEVENT_SOCKET_REQ_DECL(dnspair);
 
 NETIEVENT_SOCKET_DECL(tlsdnsclose);
 NETIEVENT_SOCKET_DECL(tlsdnsread);

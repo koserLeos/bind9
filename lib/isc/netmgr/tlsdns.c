@@ -898,8 +898,8 @@ isc__nm_tlsdns_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 	 * This MUST be done asynchronously, no matter which thread
 	 * we're in. The callback function for isc_nm_read() often calls
 	 * isc_nm_read() again; if we tried to do that synchronously
-	 * we'd clash in processbuffer() and grow the stack
-	 * indefinitely.
+	 * we'd clash in isc__nm_tlsdns_processbuffer() and grow the
+	 * stack indefinitely.
 	 */
 	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
 			       (isc__netievent_t *)ievent);

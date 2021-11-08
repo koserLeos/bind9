@@ -900,6 +900,8 @@ process_netievent(isc__networker_t *worker, isc__netievent_t *ievent) {
 		NETIEVENT_CASE(tcpdnsread);
 		NETIEVENT_CASE(tcpdnsstop);
 
+		NETIEVENT_CASE(dnspair);
+
 		NETIEVENT_CASE(tlsdnscycle);
 		NETIEVENT_CASE(tlsdnsaccept);
 		NETIEVENT_CASE(tlsdnslisten);
@@ -1022,6 +1024,8 @@ NETIEVENT_SOCKET_REQ_DEF(tcpdnsconnect);
 NETIEVENT_SOCKET_REQ_DEF(tcpdnssend);
 NETIEVENT_SOCKET_HANDLE_DEF(tcpdnscancel);
 NETIEVENT_SOCKET_QUOTA_DEF(tcpdnsaccept);
+
+NETIEVENT_SOCKET_REQ_DEF(dnspair);
 
 NETIEVENT_SOCKET_DEF(tlsdnsclose);
 NETIEVENT_SOCKET_DEF(tlsdnsread);

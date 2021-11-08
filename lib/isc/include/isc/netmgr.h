@@ -499,9 +499,11 @@ isc_nm_tlsdnsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
  * 'cb'.
  */
 
+void
+isc_nm_dnspair(isc_nm_t *mgr, isc_nm_cb_t ccb, void *ccbarg,
+	       isc_nm_recv_cb_t scb, void *scbarg);
 /*%<
- * Returns 'true' iff 'handle' is associated with a socket of type
- * 'isc_nm_tlsdnssocket'.
+ * FIXME
  */
 
 bool
