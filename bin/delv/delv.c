@@ -84,6 +84,9 @@ static isc_log_t *lctx = NULL;
 /* Configurables */
 static char *server = NULL;
 static const char *port = "53";
+static isc_nm_t *netmgr = NULL;
+static isc_taskmgr_t *taskmgr = NULL;
+static isc_timermgr_t *timermgr = NULL;
 static isc_sockaddr_t *srcaddr4 = NULL, *srcaddr6 = NULL;
 static isc_sockaddr_t a4, a6;
 static char *curqname = NULL, *qname = NULL;
@@ -1708,20 +1711,97 @@ get_reverse(char *reverse, size_t len, char *value, bool strict) {
 	}
 }
 
+static isc_result_t
+setup_client(dns_client_t **clientp) {
+	isc_result_t result;
+	dns_client_t *client = NULL;
+
+	REQUIRE(clientp != NULL && *clientp == NULL);
+
+	/* Create client */
+	result = dns_client_create(mctx, taskmgr, netmgr, timermgr, 0, &client,
+				   srcaddr4, srcaddr6);
+	if (result != ISC_R_SUCCESS) {
+		delv_log(ISC_LOG_ERROR, "dns_client_create: %s",
+			 isc_result_totext(result));
+		goto cleanup;
+	}
+
+	/* Set the nameserver */
+	if (server != NULL) {
+		addserver(client);
+	} else {
+		findserver(client);
+	}
+
+	CHECK(setup_dnsseckeys(client));
+
+	*clientp = client;
+
+cleanup:
+	if (result != ISC_R_SUCCESS) {
+		if (client != NULL) {
+			dns_client_detach(&client);
+		}
+	}
+
+	return (result);
+}
+
+static isc_result_t
+client_resolve(dns_client_t *client, const dns_name_t *query_name,
+	       dns_namelist_t *namelist)
+{
+	isc_result_t result;
+	unsigned int resopt;
+	char namestr[DNS_NAME_FORMATSIZE];
+
+	/* Set up resolution options */
+	resopt = DNS_CLIENTRESOPT_NOCDFLAG;
+	if (no_sigs) {
+		resopt |= DNS_CLIENTRESOPT_NODNSSEC;
+	}
+	if (!root_validation) {
+		resopt |= DNS_CLIENTRESOPT_NOVALIDATE;
+	}
+	if (cdflag) {
+		resopt &= ~DNS_CLIENTRESOPT_NOCDFLAG;
+	}
+	if (use_tcp) {
+		resopt |= DNS_CLIENTRESOPT_TCP;
+	}
+
+	/* Perform resolution */
+	result = dns_client_resolve(client, query_name, dns_rdataclass_in,
+				    qtype, resopt, namelist);
+	if (result != ISC_R_SUCCESS && !yaml) {
+		delv_log(ISC_LOG_ERROR, "resolution failed: %s",
+			  isc_result_totext(result));
+	}
+
+	if (yaml) {
+		printf("type: DELV_RESULT\n");
+		dns_name_format(query_name, namestr, sizeof(namestr));
+		printf("query_name: %s\n", namestr);
+		printf("status: %s\n", isc_result_totext(result));
+		printf("records:\n");
+	}
+
+	return (result);
+}
+
 int
 main(int argc, char *argv[]) {
 	dns_client_t *client = NULL;
 	isc_result_t result;
 	dns_fixedname_t qfn;
 	dns_name_t *query_name, *response_name;
-	char namestr[DNS_NAME_FORMATSIZE];
 	dns_rdataset_t *rdataset;
 	dns_namelist_t namelist;
-	unsigned int resopt;
-	isc_nm_t *netmgr = NULL;
-	isc_taskmgr_t *taskmgr = NULL;
-	isc_timermgr_t *timermgr = NULL;
 	dns_master_style_t *style = NULL;
+	struct sigaction sa;
+
+	ISC_LIST_INIT(namelist);
 
 	progname = argv[0];
 	preparse_args(argc, argv);
@@ -1744,58 +1824,21 @@ main(int argc, char *argv[]) {
 
 	setup_logging(stderr);
 
-	/* Create client */
-	result = dns_client_create(mctx, taskmgr, netmgr, timermgr, 0, &client,
-				   srcaddr4, srcaddr6);
-	if (result != ISC_R_SUCCESS) {
-		delv_log(ISC_LOG_ERROR, "dns_client_create: %s",
-			 isc_result_totext(result));
-		goto cleanup;
+	/* Unblock SIGINT if it's been blocked by isc_app_ctxstart() */
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	if (sigfillset(&sa.sa_mask) != 0 || sigaction(SIGINT, &sa, NULL) < 0) {
+		fatal("Couldn't set up signal handler");
 	}
-
-	/* Set the nameserver */
-	if (server != NULL) {
-		addserver(client);
-	} else {
-		findserver(client);
-	}
-
-	CHECK(setup_dnsseckeys(client));
 
 	/* Construct QNAME */
 	CHECK(convert_name(&qfn, &query_name, qname));
 
-	/* Set up resolution options */
-	resopt = DNS_CLIENTRESOPT_NOCDFLAG;
-	if (no_sigs) {
-		resopt |= DNS_CLIENTRESOPT_NODNSSEC;
-	}
-	if (!root_validation) {
-		resopt |= DNS_CLIENTRESOPT_NOVALIDATE;
-	}
-	if (cdflag) {
-		resopt &= ~DNS_CLIENTRESOPT_NOCDFLAG;
-	}
-	if (use_tcp) {
-		resopt |= DNS_CLIENTRESOPT_TCP;
-	}
+	/* Set up DNS client */
+	CHECK(setup_client(&client));
 
-	/* Perform resolution */
-	ISC_LIST_INIT(namelist);
-	result = dns_client_resolve(client, query_name, dns_rdataclass_in,
-				    qtype, resopt, &namelist);
-	if (result != ISC_R_SUCCESS && !yaml) {
-		delv_log(ISC_LOG_ERROR, "resolution failed: %s",
-			 isc_result_totext(result));
-	}
-
-	if (yaml) {
-		printf("type: DELV_RESULT\n");
-		dns_name_format(query_name, namestr, sizeof(namestr));
-		printf("query_name: %s\n", namestr);
-		printf("status: %s\n", isc_result_totext(result));
-		printf("records:\n");
-	}
+	/* Set up and perform DNS client resolution */
+	CHECK(client_resolve(client, query_name, &namelist));
 
 	for (response_name = ISC_LIST_HEAD(namelist); response_name != NULL;
 	     response_name = ISC_LIST_NEXT(response_name, link))
