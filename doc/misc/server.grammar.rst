@@ -2,6 +2,7 @@
 
   server <netprefix> {
   	bogus <boolean>;
+  	connect [ port <integer> ] [ transport <string> ] [ tls <string> ];
   	edns <boolean>;
   	edns-udp-size <integer>;
   	edns-version <integer>;
@@ -24,7 +25,7 @@
   	request-nsid <boolean>;
   	send-cookie <boolean>;
   	tcp-keepalive <boolean>;
-  	tcp-only <boolean>;
+  	tcp-only <boolean>; // deprecated
   	transfer-format ( many-answers | one-answer );
   	transfer-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ] [
   	    dscp <integer> ];

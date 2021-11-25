@@ -2465,11 +2465,24 @@ static cfg_type_t cfg_type_key = { "key",	  cfg_parse_named_map,
 				   cfg_print_map, cfg_doc_map,
 				   &cfg_rep_map,  key_clausesets };
 
+static cfg_tuplefielddef_t cfg_server_connect_tuple_fields[] = {
+	{ "port", &cfg_type_optional_port, 0 },
+	{ "transport", &cfg_type_astring, 0 },
+	{ "tls", &cfg_type_astring, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_type_t cfg_type_server_connect = {
+	"server-connect", cfg_parse_kv_tuple, cfg_print_kv_tuple,
+	cfg_doc_kv_tuple, &cfg_rep_tuple,     cfg_server_connect_tuple_fields
+};
+
 /*%
  * Clauses that can be found in a 'server' statement.
  */
 static cfg_clausedef_t server_clauses[] = {
 	{ "bogus", &cfg_type_boolean, 0 },
+	{ "connect", &cfg_type_server_connect, 0 },
 	{ "edns", &cfg_type_boolean, 0 },
 	{ "edns-udp-size", &cfg_type_uint32, 0 },
 	{ "edns-version", &cfg_type_uint32, 0 },
@@ -2488,7 +2501,7 @@ static cfg_clausedef_t server_clauses[] = {
 	{ "send-cookie", &cfg_type_boolean, 0 },
 	{ "support-ixfr", NULL, CFG_CLAUSEFLAG_ANCIENT },
 	{ "tcp-keepalive", &cfg_type_boolean, 0 },
-	{ "tcp-only", &cfg_type_boolean, 0 },
+	{ "tcp-only", &cfg_type_boolean, CFG_CLAUSEFLAG_DEPRECATED },
 	{ "transfer-format", &cfg_type_transferformat, 0 },
 	{ "transfer-source", &cfg_type_sockaddr4wild, 0 },
 	{ "transfer-source-v6", &cfg_type_sockaddr6wild, 0 },
