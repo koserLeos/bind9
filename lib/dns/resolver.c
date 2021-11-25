@@ -336,7 +336,6 @@ struct fetchctx {
 	dns_rdatatype_t qmintype;
 	dns_fetch_t *qminfetch;
 	dns_rdataset_t qminrrset;
-	dns_name_t qmindcname;
 
 	/*%
 	 * The number of events we're waiting for.
@@ -4507,9 +4506,6 @@ resume_qmin(isc_task_t *task, isc_event_t *event) {
 		goto cleanup;
 	}
 
-	dns_name_free(&fctx->qmindcname, fctx->mctx);
-	dns_name_init(&fctx->qmindcname, NULL);
-	dns_name_dup(dcname, fctx->mctx, &fctx->qmindcname);
 	fctx->ns_ttl = fctx->nameservers.ttl;
 	fctx->ns_ttl_ok = true;
 
@@ -4647,7 +4643,6 @@ fctx_destroy(fetchctx_t *fctx) {
 	}
 	dns_name_free(&fctx->name, fctx->mctx);
 	dns_name_free(&fctx->qminname, fctx->mctx);
-	dns_name_free(&fctx->qmindcname, fctx->mctx);
 	dns_db_detach(&fctx->cache);
 	dns_adb_detach(&fctx->adb);
 	isc_mem_free(fctx->mctx, fctx->info);
@@ -5132,7 +5127,6 @@ fctx_create(dns_resolver_t *res, const dns_name_t *name, dns_rdatatype_t type,
 	fctx->qmin_warning = ISC_R_SUCCESS;
 	fctx->qminfetch = NULL;
 	dns_rdataset_init(&fctx->qminrrset);
-	dns_name_init(&fctx->qmindcname, NULL);
 	isc_stdtime_get(&fctx->now);
 	ISC_LIST_INIT(fctx->queries);
 	ISC_LIST_INIT(fctx->finds);
@@ -5238,7 +5232,6 @@ fctx_create(dns_resolver_t *res, const dns_name_t *name, dns_rdatatype_t type,
 			}
 
 			dns_name_dup(fname, mctx, &fctx->domain);
-			dns_name_dup(dcname, mctx, &fctx->qmindcname);
 			fctx->ns_ttl = fctx->nameservers.ttl;
 			fctx->ns_ttl_ok = true;
 		} else {
@@ -5246,7 +5239,6 @@ fctx_create(dns_resolver_t *res, const dns_name_t *name, dns_rdatatype_t type,
 			 * We're in forward-only mode.  Set the query domain.
 			 */
 			dns_name_dup(fname, mctx, &fctx->domain);
-			dns_name_dup(fname, mctx, &fctx->qmindcname);
 			/*
 			 * Disable query minimization
 			 */
@@ -5254,7 +5246,6 @@ fctx_create(dns_resolver_t *res, const dns_name_t *name, dns_rdatatype_t type,
 		}
 	} else {
 		dns_name_dup(domain, mctx, &fctx->domain);
-		dns_name_dup(domain, mctx, &fctx->qmindcname);
 		dns_rdataset_clone(nameservers, &fctx->nameservers);
 		fctx->ns_ttl = fctx->nameservers.ttl;
 		fctx->ns_ttl_ok = true;
@@ -5419,9 +5410,6 @@ cleanup_fcount:
 cleanup_domain:
 	if (dns_name_countlabels(&fctx->domain) > 0) {
 		dns_name_free(&fctx->domain, mctx);
-	}
-	if (dns_name_countlabels(&fctx->qmindcname) > 0) {
-		dns_name_free(&fctx->qmindcname, mctx);
 	}
 
 cleanup_nameservers:
@@ -9673,10 +9661,6 @@ rctx_referral(respctx_t *rctx) {
 	dns_name_dup(rctx->ns_name, fctx->mctx, &fctx->domain);
 
 	if ((fctx->options & DNS_FETCHOPT_QMINIMIZE) != 0) {
-		dns_name_free(&fctx->qmindcname, fctx->mctx);
-		dns_name_init(&fctx->qmindcname, NULL);
-		dns_name_dup(rctx->ns_name, fctx->mctx, &fctx->qmindcname);
-
 		result = fctx_minimize_qname(fctx);
 		if (result != ISC_R_SUCCESS) {
 			rctx->result = result;
@@ -9823,9 +9807,6 @@ rctx_nextserver(respctx_t *rctx, dns_message_t *message,
 		dns_name_free(&fctx->domain, fctx->mctx);
 		dns_name_init(&fctx->domain, NULL);
 		dns_name_dup(fname, fctx->mctx, &fctx->domain);
-		dns_name_free(&fctx->qmindcname, fctx->mctx);
-		dns_name_init(&fctx->qmindcname, NULL);
-		dns_name_dup(dcname, fctx->mctx, &fctx->qmindcname);
 
 		result = fcount_incr(fctx, true);
 		if (result != ISC_R_SUCCESS) {
@@ -10879,7 +10860,7 @@ fctx_minimize_qname(fetchctx_t *fctx) {
 
 	REQUIRE(VALID_FCTX(fctx));
 
-	dlabels = dns_name_countlabels(&fctx->qmindcname);
+	dlabels = dns_name_countlabels(&fctx->domain);
 	nlabels = dns_name_countlabels(&fctx->name);
 	dns_name_free(&fctx->qminname, fctx->mctx);
 	dns_name_init(&fctx->qminname, NULL);
