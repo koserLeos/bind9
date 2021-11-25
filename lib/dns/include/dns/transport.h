@@ -31,6 +31,9 @@ typedef struct dns_transport	  dns_transport_t;
 typedef struct dns_transport_list dns_transport_list_t;
 
 dns_transport_t *
+dns_transport_create(dns_transport_type_t type, isc_mem_t *mctx);
+
+dns_transport_t *
 dns_transport_new(const dns_name_t *name, dns_transport_type_t type,
 		  dns_transport_list_t *list);
 /*%<

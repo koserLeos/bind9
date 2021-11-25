@@ -131,14 +131,23 @@ dns_transport_get_mode(dns_transport_t *transport) {
 }
 
 dns_transport_t *
-dns_transport_new(const dns_name_t *name, dns_transport_type_t type,
-		  dns_transport_list_t *list) {
-	dns_transport_t *transport = isc_mem_get(list->mctx,
-						 sizeof(*transport));
+dns_transport_create(dns_transport_type_t type, isc_mem_t *mctx) {
+	dns_transport_t *transport;
+
+	REQUIRE(type > DNS_TRANSPORT_NONE && type < DNS_TRANSPORT_COUNT);
+
+	transport = isc_mem_get(mctx, sizeof(*transport));
 	*transport = (dns_transport_t){ .type = type };
 	isc_refcount_init(&transport->references, 1);
-	isc_mem_attach(list->mctx, &transport->mctx);
+	isc_mem_attach(mctx, &transport->mctx);
 	transport->magic = TRANSPORT_MAGIC;
+	return (transport);
+}
+
+dns_transport_t *
+dns_transport_new(const dns_name_t *name, dns_transport_type_t type,
+		  dns_transport_list_t *list) {
+	dns_transport_t *transport = dns_transport_create(type, list->mctx);
 
 	list_add(list, name, type, transport);
 

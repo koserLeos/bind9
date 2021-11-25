@@ -71,6 +71,7 @@ struct dns_peer {
 	uint8_t ednsversion; /* edns version */
 
 	uint32_t bitflags;
+	dns_transport_t *transport;
 
 	ISC_LINK(dns_peer_t) next;
 };
@@ -96,6 +97,7 @@ struct dns_peer {
 #define FORCE_TCP_BIT		   15
 #define SERVER_PADDING_BIT	   16
 #define REQUEST_TCP_KEEPALIVE_BIT  17
+#define TRANSPORT_BIT		   18
 
 static void
 peerlist_delete(dns_peerlist_t **list);
@@ -342,6 +344,11 @@ peer_delete(dns_peer_t **peer) {
 	if (p->transfer_source != NULL) {
 		isc_mem_put(mem, p->transfer_source,
 			    sizeof(*p->transfer_source));
+	}
+
+	if (DNS_BIT_CHECK(TRANSPORT_BIT, &p->bitflags)) {
+		INSIST(p->transport != NULL);
+		dns_transport_detach(&p->transport);
 	}
 
 	isc_mem_put(mem, p, sizeof(*p));
@@ -964,4 +971,27 @@ dns_peer_getednsversion(dns_peer_t *peer, uint8_t *ednsversion) {
 	} else {
 		return (ISC_R_NOTFOUND);
 	}
+}
+
+isc_result_t
+dns_peer_settransport(dns_peer_t *peer, dns_transport_type_t type) {
+	REQUIRE(DNS_PEER_VALID(peer));
+
+	peer->transport = dns_transport_create(type, peer->mem);
+	DNS_BIT_SET(TRANSPORT_BIT, &peer->bitflags);
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_peer_gettransport(dns_peer_t *peer, dns_transport_t **transportp) {
+	REQUIRE(DNS_PEER_VALID(peer));
+	REQUIRE(transportp != NULL && *transportp == NULL);
+
+	if (!DNS_BIT_CHECK(EDNS_VERSION_BIT, &peer->bitflags)) {
+		return (ISC_R_NOTFOUND);
+	}
+
+	*transportp = peer->transport;
+
+	return (ISC_R_SUCCESS);
 }

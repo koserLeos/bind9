@@ -1529,6 +1529,13 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 	}
 
 	obj = NULL;
+	(void)cfg_map_get(cpeer, "connect", &obj);
+	if (obj != NULL) {
+		(void)dns_peer_setforcetcp(peer, false);
+		//(void)dns_peer_settransport(peer, DNS_TRANSPORT_TCP);
+	}
+
+	obj = NULL;
 	(void)cfg_map_get(cpeer, "tcp-keepalive", &obj);
 	if (obj != NULL) {
 		CHECK(dns_peer_settcpkeepalive(peer, cfg_obj_asboolean(obj)));

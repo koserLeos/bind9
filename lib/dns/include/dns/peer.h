@@ -32,6 +32,7 @@
 #include <isc/netaddr.h>
 #include <isc/refcount.h>
 
+#include <dns/transport.h>
 #include <dns/types.h>
 
 #define DNS_PEERLIST_MAGIC ISC_MAGIC('s', 'e', 'R', 'L')
@@ -221,4 +222,11 @@ dns_peer_setednsversion(dns_peer_t *peer, uint8_t ednsversion);
 
 isc_result_t
 dns_peer_getednsversion(dns_peer_t *peer, uint8_t *ednsversion);
+
+isc_result_t
+dns_peer_settransport(dns_peer_t *peer, dns_transport_type_t type);
+
+isc_result_t
+dns_peer_gettransport(dns_peer_t *peer, dns_transport_t **transportp);
+
 ISC_LANG_ENDDECLS
