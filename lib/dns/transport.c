@@ -51,6 +51,7 @@ struct dns_transport {
 		char *endpoint;
 		dns_http_mode_t mode;
 	} doh;
+	uint16_t port;
 };
 
 static void
@@ -289,6 +290,18 @@ dns_transport_find(const dns_transport_type_t type, const dns_name_t *name,
 	RWUNLOCK(&list->lock, isc_rwlocktype_read);
 
 	return (transport);
+}
+
+uint16_t
+dns_transport_get_port(const dns_transport_t *transport) {
+	REQUIRE(VALID_TRANSPORT(transport));
+	return (transport->port);
+}
+
+void
+dns_transport_set_port(dns_transport_t *transport, const uint16_t port) {
+	REQUIRE(VALID_TRANSPORT(transport));
+	transport->port = port;
 }
 
 dns_transport_list_t *

@@ -224,7 +224,7 @@ isc_result_t
 dns_peer_getednsversion(dns_peer_t *peer, uint8_t *ednsversion);
 
 isc_result_t
-dns_peer_settransport(dns_peer_t *peer, dns_transport_type_t type);
+dns_peer_settransport(dns_peer_t *peer, dns_transport_t *transport);
 
 isc_result_t
 dns_peer_gettransport(dns_peer_t *peer, dns_transport_t **transportp);

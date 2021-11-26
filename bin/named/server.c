@@ -1531,8 +1531,40 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 	obj = NULL;
 	(void)cfg_map_get(cpeer, "connect", &obj);
 	if (obj != NULL) {
+		dns_transport_t *transport = NULL;
+		const cfg_obj_t *obj_port = NULL, *obj_transport = NULL;
+		const char *transport_name = NULL;
+
 		(void)dns_peer_setforcetcp(peer, false);
-		//(void)dns_peer_settransport(peer, DNS_TRANSPORT_TCP);
+		INSIST(cfg_obj_istuple(obj));
+
+		obj_transport = cfg_tuple_get(obj, "transport");
+		if (cfg_obj_isstring(obj_transport)) {
+			transport_name = cfg_obj_asstring(obj_transport);
+
+			if (strcasecmp(transport_name, "tcp") == 0) {
+				transport = dns_transport_create(
+					DNS_TRANSPORT_TCP, mctx);
+			} else if (strcasecmp(transport_name, "tls") == 0) {
+				transport = dns_transport_create(
+					DNS_TRANSPORT_TLS, mctx);
+			} else {
+				INSIST(0);
+				ISC_UNREACHABLE();
+			}
+		}
+
+		obj_port = cfg_tuple_get(obj, "port");
+		if (cfg_obj_isuint32(obj_port)) {
+			dns_transport_set_port(
+				transport,
+				(in_port_t)cfg_obj_asuint32(obj_port));
+		}
+
+		if (transport != NULL) {
+			(void)dns_peer_settransport(peer, transport);
+			dns_transport_detach(&transport);
+		}
 	}
 
 	obj = NULL;

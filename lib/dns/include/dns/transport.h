@@ -83,6 +83,12 @@ dns_transport_set_mode(dns_transport_t *transport, dns_http_mode_t mode);
  *\li	'transport' is of type DNS_TRANSPORT_HTTP (for endpoint or mode).
  */
 
+uint16_t
+dns_transport_get_port(const dns_transport_t *transport);
+
+void
+dns_transport_set_port(dns_transport_t *transport, const uint16_t port);
+
 void
 dns_transport_attach(dns_transport_t *source, dns_transport_t **targetp);
 /*%<

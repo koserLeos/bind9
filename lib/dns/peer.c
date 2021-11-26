@@ -974,10 +974,10 @@ dns_peer_getednsversion(dns_peer_t *peer, uint8_t *ednsversion) {
 }
 
 isc_result_t
-dns_peer_settransport(dns_peer_t *peer, dns_transport_type_t type) {
+dns_peer_settransport(dns_peer_t *peer, dns_transport_t *transport) {
 	REQUIRE(DNS_PEER_VALID(peer));
 
-	peer->transport = dns_transport_create(type, peer->mem);
+	dns_transport_attach(transport, &peer->transport);
 	DNS_BIT_SET(TRANSPORT_BIT, &peer->bitflags);
 	return (ISC_R_SUCCESS);
 }
