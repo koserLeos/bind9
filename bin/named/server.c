@@ -1552,6 +1552,9 @@ configure_peer(const cfg_obj_t *cpeer, isc_mem_t *mctx, dns_peer_t **peerp) {
 				INSIST(0);
 				ISC_UNREACHABLE();
 			}
+		} else {
+			INSIST(0);
+			ISC_UNREACHABLE();
 		}
 
 		obj_port = cfg_tuple_get(obj, "port");
