@@ -977,14 +977,6 @@ isc_nm_udpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		return;
 	}
 
-	result = isc__nm_socket_reuse(sock->fd);
-	RUNTIME_CHECK(result == ISC_R_SUCCESS ||
-		      result == ISC_R_NOTIMPLEMENTED);
-
-	result = isc__nm_socket_reuse_lb(sock->fd);
-	RUNTIME_CHECK(result == ISC_R_SUCCESS ||
-		      result == ISC_R_NOTIMPLEMENTED);
-
 	(void)isc__nm_socket_incoming_cpu(sock->fd);
 
 	(void)isc__nm_socket_disable_pmtud(sock->fd, sa_family);
