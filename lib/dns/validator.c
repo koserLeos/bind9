@@ -1001,19 +1001,24 @@ notfound:
 static inline bool
 check_deadlock(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 	       dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset) {
-	dns_validator_t *parent;
+	dns_validator_t *parent = NULL;
 
 	for (parent = val; parent != NULL; parent = parent->parent) {
-		if (parent->event != NULL && parent->event->type == type &&
+		if (parent->event == NULL) {
+			continue;
+		}
+
+		if ((parent->event->type == type ||
+		     (parent->event->type == dns_rdatatype_cname &&
+		      parent->event->origtype == type)) &&
 		    dns_name_equal(parent->event->name, name) &&
 		    /*
 		     * As NSEC3 records are meta data you sometimes
 		     * need to prove a NSEC3 record which says that
 		     * itself doesn't exist.
 		     */
-		    (parent->event->type != dns_rdatatype_nsec3 ||
-		     rdataset == NULL || sigrdataset == NULL ||
-		     parent->event->message == NULL ||
+		    (type != dns_rdatatype_nsec3 || rdataset == NULL ||
+		     sigrdataset == NULL || parent->event->message == NULL ||
 		     parent->event->rdataset != NULL ||
 		     parent->event->sigrdataset != NULL))
 		{
@@ -1083,9 +1088,9 @@ create_validator(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 		  (DNS_VALIDATOR_NOCDFLAG | DNS_VALIDATOR_NONTA));
 
 	validator_logcreate(val, name, type, caller, "validator");
-	result = dns_validator_create(val->view, name, type, rdataset, sig,
-				      NULL, vopts, val->task, action, val,
-				      &val->subvalidator);
+	result = dns_validator_create(val->view, name, type, dns_rdatatype_none,
+				      rdataset, sig, NULL, vopts, val->task,
+				      action, val, &val->subvalidator);
 	if (result == ISC_R_SUCCESS) {
 		val->subvalidator->parent = val;
 		val->subvalidator->depth = val->depth + 1;
@@ -3100,9 +3105,10 @@ validator_start(isc_task_t *task, isc_event_t *event) {
 
 isc_result_t
 dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
-		     dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
-		     dns_message_t *message, unsigned int options,
-		     isc_task_t *task, isc_taskaction_t action, void *arg,
+		     dns_rdatatype_t origtype, dns_rdataset_t *rdataset,
+		     dns_rdataset_t *sigrdataset, dns_message_t *message,
+		     unsigned int options, isc_task_t *task,
+		     isc_taskaction_t action, void *arg,
 		     dns_validator_t **validatorp) {
 	isc_result_t result = ISC_R_FAILURE;
 	dns_validator_t *val;
@@ -3122,6 +3128,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	event->result = ISC_R_FAILURE;
 	event->name = name;
 	event->type = type;
+	event->origtype = origtype;
 	event->rdataset = rdataset;
 	event->sigrdataset = sigrdataset;
 	event->message = message;

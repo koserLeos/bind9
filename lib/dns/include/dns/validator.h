@@ -77,6 +77,13 @@ typedef struct dns_validatorevent {
 	 */
 	dns_name_t	   *name;
 	dns_rdatatype_t type;
+
+	/*
+	 * Original query type (may differ from type in the case
+	 * of CNAME responses).
+	 */
+	dns_rdatatype_t origtype;
+
 	/*
 	 * Rdata and RRSIG (if any) for positive responses.
 	 */
@@ -161,17 +168,17 @@ ISC_LANG_BEGINDECLS
 
 isc_result_t
 dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
-		     dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
-		     dns_message_t *message, unsigned int options,
-		     isc_task_t *task, isc_taskaction_t action, void *arg,
+		     dns_rdatatype_t origtype, dns_rdataset_t *rdataset,
+		     dns_rdataset_t *sigrdataset, dns_message_t *message,
+		     unsigned int options, isc_task_t *task,
+		     isc_taskaction_t action, void *arg,
 		     dns_validator_t **validatorp);
 /*%<
  * Start a DNSSEC validation.
  *
- * This validates a response to the question given by
- * 'name' and 'type'.
+ * This validates a response RRset matching owner 'name' and type 'type'.
  *
- * To validate a positive response, the response data is
+ * When validating a positive response, the response data is
  * given by 'rdataset' and 'sigrdataset'.  If 'sigrdataset'
  * is NULL, the data is presumed insecure and an attempt
  * is made to prove its insecurity by finding the appropriate
@@ -184,10 +191,16 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  * is implemented yet).  If the complete response message
  * is not available, 'message' is NULL.
  *
- * To validate a negative response, the complete negative response
- * message is given in 'message'.  The 'rdataset', and
+ * When validating a negative response, the complete negative
+ * response message is given in 'message'.  The 'rdataset', and
  * 'sigrdataset' arguments must be NULL, but the 'name' and 'type'
  * arguments must be provided.
+ *
+ * 'origtype' is the original query type that generated this
+ * response. This may differ from 'type', if 'type' is CNAME.
+ * This is used for loop detection, to prevent a case in
+ * which a validator attempts to restart the same fetch that was
+ * already waiting for the validator.
  *
  * The validation is performed in the context of 'view'.
  *

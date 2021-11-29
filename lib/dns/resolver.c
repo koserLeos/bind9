@@ -919,9 +919,10 @@ valcreate(fetchctx_t *fctx, dns_message_t *message, dns_adbaddrinfo_t *addrinfo,
 	  dns_name_t *name, dns_rdatatype_t type, dns_rdataset_t *rdataset,
 	  dns_rdataset_t *sigrdataset, unsigned int valoptions,
 	  isc_task_t *task) {
-	dns_validator_t *validator = NULL;
-	dns_valarg_t *valarg;
 	isc_result_t result;
+	dns_validator_t *validator = NULL;
+	dns_valarg_t *valarg = NULL;
+	dns_rdatatype_t origtype = dns_rdatatype_none;
 
 	valarg = isc_mem_get(fctx->mctx, sizeof(*valarg));
 
@@ -938,9 +939,12 @@ valcreate(fetchctx_t *fctx, dns_message_t *message, dns_adbaddrinfo_t *addrinfo,
 		valoptions &= ~DNS_VALIDATOR_DEFER;
 	}
 
-	result = dns_validator_create(fctx->res->view, name, type, rdataset,
-				      sigrdataset, message, valoptions, task,
-				      validated, valarg, &validator);
+	if (type == dns_rdatatype_cname) {
+		origtype = fctx->type;
+	}
+	result = dns_validator_create(
+		fctx->res->view, name, type, origtype, rdataset, sigrdataset,
+		message, valoptions, task, validated, valarg, &validator);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	if (result == ISC_R_SUCCESS) {
 		inc_stats(fctx->res, dns_resstatscounter_val);
