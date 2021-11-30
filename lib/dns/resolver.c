@@ -298,6 +298,7 @@ struct fetchctx {
 	/*% Not locked. */
 	unsigned int magic;
 	dns_resolver_t *res;
+	dns_fetch_t *fetch;
 	dns_fixedname_t fname;
 	dns_name_t *name;
 	dns_rdatatype_t type;
@@ -308,6 +309,7 @@ struct fetchctx {
 	isc_mem_t *mctx;
 	isc_stdtime_t now;
 	isc_task_t *task;
+	dns_validator_t *pval;
 
 	/* Atomic */
 	isc_refcount_t references;
@@ -942,9 +944,10 @@ valcreate(fetchctx_t *fctx, dns_message_t *message, dns_adbaddrinfo_t *addrinfo,
 	if (type == dns_rdatatype_cname) {
 		origtype = fctx->type;
 	}
-	result = dns_validator_create(
-		fctx->res->view, name, type, origtype, rdataset, sigrdataset,
-		message, valoptions, task, validated, valarg, &validator);
+	result = dns_validator_create(fctx->res->view, name, type, origtype,
+				      rdataset, sigrdataset, message,
+				      valoptions, task, validated, valarg,
+				      fctx->fetch, &validator);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	if (result == ISC_R_SUCCESS) {
 		inc_stats(fctx->res, dns_resstatscounter_val);
@@ -4630,7 +4633,8 @@ fctx_create(dns_resolver_t *res, isc_task_t *task, const dns_name_t *name,
 	    dns_rdatatype_t type, const dns_name_t *domain,
 	    dns_rdataset_t *nameservers, const isc_sockaddr_t *client,
 	    unsigned int options, unsigned int bucketnum, unsigned int depth,
-	    isc_counter_t *qc, fetchctx_t **fctxp) {
+	    isc_counter_t *qc, dns_fetch_t *fetch, dns_validator_t *pval,
+	    fetchctx_t **fctxp) {
 	fetchctx_t *fctx = NULL;
 	isc_result_t result;
 	isc_result_t iresult;
@@ -4647,9 +4651,11 @@ fctx_create(dns_resolver_t *res, isc_task_t *task, const dns_name_t *name,
 
 	fctx = isc_mem_get(res->mctx, sizeof(*fctx));
 	*fctx = (fetchctx_t){
+		.fetch = fetch,
 		.type = type,
 		.qmintype = type,
 		.options = options,
+		.pval = pval,
 		.task = task,
 		.bucketnum = bucketnum,
 		.dbucketnum = RES_NOBUCKET,
@@ -10683,9 +10689,16 @@ dns_resolver_createfetch(dns_resolver_t *res, const dns_name_t *name,
 	}
 
 	if (fctx == NULL) {
+		void *validator = NULL;
+
+		if ((options & DNS_FETCHOPT_VALIDATING) != 0) {
+			options &= ~DNS_FETCHOPT_VALIDATING;
+			validator = arg;
+		}
+
 		result = fctx_create(res, task, name, type, domain, nameservers,
 				     client, options, bucketnum, depth, qc,
-				     &fctx);
+				     fetch, validator, &fctx);
 		if (result != ISC_R_SUCCESS) {
 			goto unlock;
 		}
@@ -11462,4 +11475,15 @@ dns_resolver_setnonbackofftries(dns_resolver_t *resolver, unsigned int tries) {
 	REQUIRE(tries > 0);
 
 	resolver->nonbackofftries = tries;
+}
+
+dns_validator_t *
+dns_fetch_validator(dns_fetch_t *fetch) {
+	fetchctx_t *fctx = NULL;
+
+	REQUIRE(DNS_FETCH_VALID(fetch));
+	fctx = fetch->private;
+	REQUIRE(VALID_FCTX(fctx));
+
+	return (fctx->pval);
 }

@@ -85,6 +85,11 @@ typedef struct dns_validatorevent {
 	dns_rdatatype_t origtype;
 
 	/*
+	 * Original fetch that triggered this validation.
+	 */
+	dns_fetch_t *fetch;
+
+	/*
 	 * Rdata and RRSIG (if any) for positive responses.
 	 */
 	dns_rdataset_t *rdataset;
@@ -129,6 +134,7 @@ struct dns_validator {
 	unsigned int	      options;
 	unsigned int	      attributes;
 	dns_validatorevent_t *event;
+	dns_fetch_t	    *caller;
 	dns_fetch_t	    *fetch;
 	dns_validator_t	*subvalidator;
 	dns_validator_t	*parent;
@@ -171,7 +177,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 		     dns_rdatatype_t origtype, dns_rdataset_t *rdataset,
 		     dns_rdataset_t *sigrdataset, dns_message_t *message,
 		     unsigned int options, isc_task_t *task,
-		     isc_taskaction_t action, void *arg,
+		     isc_taskaction_t action, void *arg, dns_fetch_t *fetch,
 		     dns_validator_t **validatorp);
 /*%<
  * Start a DNSSEC validation.
@@ -203,6 +209,9 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  * already waiting for the validator.
  *
  * The validation is performed in the context of 'view'.
+ *
+ * If set, 'fetch' references the resolver fetch that triggered
+ * this validation.
  *
  * When the validation finishes, a dns_validatorevent_t with
  * the given 'action' and 'arg' are sent to 'task'.

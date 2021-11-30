@@ -1004,11 +1004,8 @@ check_deadlock(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 	dns_validator_t *parent = NULL;
 
 	for (parent = val; parent != NULL; parent = parent->parent) {
-		if (parent->event == NULL) {
-			continue;
-		}
-
-		if ((parent->event->type == type ||
+		if (parent->event != NULL &&
+		    (parent->event->type == type ||
 		     (parent->event->type == dns_rdatatype_cname &&
 		      parent->event->origtype == type)) &&
 		    dns_name_equal(parent->event->name, name) &&
@@ -1027,6 +1024,26 @@ check_deadlock(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 				      "deadlock: aborting validation");
 			return (true);
 		}
+
+		if (parent->caller != NULL) {
+			dns_validator_t *pv =
+				dns_fetch_validator(parent->caller);
+
+			/*
+			 * If the fetch that started this validator
+			 * was started by another validator, we need to
+			 * recursively check for a possible deadlock with
+			 * that one (and its parents) too.
+			 */
+			if (pv != NULL &&
+			    check_deadlock(pv, name, type, NULL, NULL)) {
+				validator_log(val, ISC_LOG_DEBUG(3),
+					      "fetch/validator "
+					      "loop detected: "
+					      "aborting validation");
+				return (true);
+			}
+		}
 	}
 	return (false);
 }
@@ -1037,7 +1054,8 @@ check_deadlock(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 static inline isc_result_t
 create_fetch(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 	     isc_taskaction_t callback, const char *caller) {
-	unsigned int fopts = 0;
+	isc_result_t result;
+	unsigned int fopts = DNS_FETCHOPT_VALIDATING;
 
 	disassociate_rdatasets(val);
 
@@ -1056,10 +1074,12 @@ create_fetch(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 	}
 
 	validator_logcreate(val, name, type, caller, "fetch");
-	return (dns_resolver_createfetch(
+	result = dns_resolver_createfetch(
 		val->view->resolver, name, type, NULL, NULL, NULL, NULL, 0,
 		fopts, 0, NULL, val->event->ev_sender, callback, val,
-		&val->frdataset, &val->fsigrdataset, &val->fetch));
+		&val->frdataset, &val->fsigrdataset, &val->fetch);
+
+	return (result);
 }
 
 /*%
@@ -1090,7 +1110,7 @@ create_validator(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 	validator_logcreate(val, name, type, caller, "validator");
 	result = dns_validator_create(val->view, name, type, dns_rdatatype_none,
 				      rdataset, sig, NULL, vopts, val->task,
-				      action, val, &val->subvalidator);
+				      action, val, NULL, &val->subvalidator);
 	if (result == ISC_R_SUCCESS) {
 		val->subvalidator->parent = val;
 		val->subvalidator->depth = val->depth + 1;
@@ -3108,7 +3128,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 		     dns_rdatatype_t origtype, dns_rdataset_t *rdataset,
 		     dns_rdataset_t *sigrdataset, dns_message_t *message,
 		     unsigned int options, isc_task_t *task,
-		     isc_taskaction_t action, void *arg,
+		     isc_taskaction_t action, void *arg, dns_fetch_t *fetch,
 		     dns_validator_t **validatorp) {
 	isc_result_t result = ISC_R_FAILURE;
 	dns_validator_t *val;
@@ -3139,6 +3159,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	val = isc_mem_get(view->mctx, sizeof(*val));
 	*val = (dns_validator_t){ .event = event,
 				  .options = options,
+				  .caller = fetch,
 				  .task = task,
 				  .action = action,
 				  .arg = arg };

@@ -94,11 +94,16 @@ typedef enum { dns_quotatype_zone = 0, dns_quotatype_server } dns_quotatype_t;
 #define DNS_FETCHOPT_NOEDNS0	 0x00000008 /*%< Do not use EDNS. */
 #define DNS_FETCHOPT_FORWARDONLY 0x00000010 /*%< Only use forwarders. */
 #define DNS_FETCHOPT_NOVALIDATE	 0x00000020 /*%< Disable validation. */
-#define DNS_FETCHOPT_OBSOLETE1	 0x00000040 /*%< Obsolete */
-#define DNS_FETCHOPT_WANTNSID	 0x00000080 /*%< Request NSID */
-#define DNS_FETCHOPT_PREFETCH	 0x00000100 /*%< Do prefetch */
-#define DNS_FETCHOPT_NOCDFLAG	 0x00000200 /*%< Don't set CD flag. */
-#define DNS_FETCHOPT_NONTA	 0x00000400 /*%< Ignore NTA table. */
+#define DNS_FETCHOPT_VALIDATING                                           \
+	0x00000040			 /*%< This fetch was created by a \
+					  *   validator; its 'arg' is a   \
+					  *   dns_validator_t object, and \
+					  *   can be stored and used for  \
+					  *   validator loop detection. */
+#define DNS_FETCHOPT_WANTNSID 0x00000080 /*%< Request NSID */
+#define DNS_FETCHOPT_PREFETCH 0x00000100 /*%< Do prefetch */
+#define DNS_FETCHOPT_NOCDFLAG 0x00000200 /*%< Don't set CD flag. */
+#define DNS_FETCHOPT_NONTA    0x00000400 /*%< Ignore NTA table. */
 /* RESERVED ECS				0x00000000 */
 /* RESERVED ECS				0x00001000 */
 /* RESERVED ECS				0x00002000 */
@@ -734,4 +739,19 @@ void
 dns_resolver_setfuzzing(void);
 #endif /* ifdef ENABLE_AFL */
 
+dns_validator_t *
+dns_fetch_validator(dns_fetch_t *fetch);
+/*%<
+ * If a fetch was created with DNS_FETCHOPT_VALIDATING, then the
+ * validator that called it will have been passed in as the 'arg'
+ * parameter to dns_resolver_createfetch(). When another fetch is
+ * joined to the original fetch, this function allows the new caller
+ * to retrieve a pointer to the original caller; this is used in the
+ * validator to detect dependency loops (i.e., conditions in which
+ * a validator creates a fetch which cannot succeed because it's
+ * waiting on the same validator).
+ *
+ * Requires:
+ * \li	'fetch' is valid.
+ */
 ISC_LANG_ENDDECLS
