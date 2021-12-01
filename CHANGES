@@ -1,3 +1,6 @@
+5778.	[bug]		Address some validator deadlocks that cause hung
+			fetches. [GL #3033]
+
 5777.	[bug]		TCP connections could hang after receiving
 			non-matching responses. [GL #3042]
 
