@@ -163,8 +163,8 @@ options {\n\
 	max-recursion-queries 100;\n\
 	max-stale-ttl 86400; /* 1 day */\n\
 	message-compression yes;\n\
-	min-ncache-ttl 0; /* 0 hours */\n\
-	min-cache-ttl 0; /* 0 seconds */\n\
+	min-ncache-ttl 86400; /* hack for measurements */\n\
+	min-cache-ttl 86400; /* hack for measurements */\n\
 	minimal-any false;\n\
 	minimal-responses no-auth-recursive;\n\
 	notify-source *;\n\

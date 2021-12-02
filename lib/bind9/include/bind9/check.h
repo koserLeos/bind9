@@ -19,11 +19,11 @@
 #include <isccfg/cfg.h>
 
 #ifndef MAX_MIN_CACHE_TTL
-#define MAX_MIN_CACHE_TTL 90
+#define MAX_MIN_CACHE_TTL 864000
 #endif /* MAX_MIN_CACHE_TTL */
 
 #ifndef MAX_MIN_NCACHE_TTL
-#define MAX_MIN_NCACHE_TTL 90
+#define MAX_MIN_NCACHE_TTL 864000
 #endif /* MAX_MIN_NCACHE_TTL */
 
 #ifndef MAX_MAX_NCACHE_TTL

@@ -727,8 +727,11 @@ dns_rdataset_trimttl(dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
 		ttl = rrsig->timeexpire - now;
 	}
 
+	/*
 	ttl = ISC_MIN(ISC_MIN(rdataset->ttl, sigrdataset->ttl),
 		      ISC_MIN(rrsig->originalttl, ttl));
+	*/
+	ttl = 86400; /* hack for measurements */
 	rdataset->ttl = ttl;
 	sigrdataset->ttl = ttl;
 }
