@@ -11396,7 +11396,7 @@ resume:
 		if (dctx->dumpexpired) {
 			style = &dns_master_style_cache_with_expired;
 		} else {
-			style = &dns_master_style_cache;
+			style = &dns_master_style_full;  /* hack for measurements */
 		}
 		/* start cache dump */
 		if (dctx->view->view->cachedb != NULL) {
