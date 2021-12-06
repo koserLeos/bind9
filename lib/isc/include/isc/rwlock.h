@@ -76,9 +76,14 @@ struct isc_rwlock {
 
 #endif /* USE_PTHREAD_RWLOCK */
 
+#define isc_rwlock_init(rwl, read_quota, write_quota)                      \
+	isc__rwlock_init(rwl, read_quota, write_quota, __func__, __FILE__, \
+			 __LINE__)
+
 void
-isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
-		unsigned int write_quota);
+isc__rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
+		 unsigned int write_quota, const char *func, const char *file,
+		 unsigned int line);
 
 isc_result_t
 isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type);
@@ -95,7 +100,10 @@ isc_rwlock_tryupgrade(isc_rwlock_t *rwl);
 void
 isc_rwlock_downgrade(isc_rwlock_t *rwl);
 
+#define isc_rwlock_destroy(rwl) \
+	isc__rwlock_destroy(rwl, __func__, __FILE__, __LINE__)
 void
-isc_rwlock_destroy(isc_rwlock_t *rwl);
+isc__rwlock_destroy(isc_rwlock_t *rwl, const char *func, const char *file,
+		    unsigned int line);
 
 ISC_LANG_ENDDECLS

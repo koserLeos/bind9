@@ -191,8 +191,9 @@ print_lock(const char *operation, isc_rwlock_t *rwl, isc_rwlocktype_t type) {
 #endif			/* ISC_RWLOCK_TRACE */
 
 void
-isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
-		unsigned int write_quota) {
+isc__rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
+		 unsigned int write_quota, const char *func, const char *file,
+		 unsigned int line) {
 	REQUIRE(rwl != NULL);
 
 	/*
@@ -221,12 +222,19 @@ isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
 	isc_condition_init(&rwl->readable);
 	isc_condition_init(&rwl->writeable);
 
+	fprintf(stderr, "rwlock:init %p func %s file %s line %u\n", rwl, func,
+		file, line);
+
 	rwl->magic = RWLOCK_MAGIC;
 }
 
 void
-isc_rwlock_destroy(isc_rwlock_t *rwl) {
+isc__rwlock_destroy(isc_rwlock_t *rwl, const char *func, const char *file,
+		    unsigned int line) {
 	REQUIRE(VALID_RWLOCK(rwl));
+
+	fprintf(stderr, "rwlock:destroy %p func %s file %s line %u\n", rwl,
+		func, file, line);
 
 	REQUIRE(atomic_load_acquire(&rwl->write_requests) ==
 			atomic_load_acquire(&rwl->write_completions) &&
