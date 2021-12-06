@@ -75,13 +75,6 @@
 
 static ISC_LIST(dns_dlzimplementation_t) dlz_implementations;
 static isc_rwlock_t dlz_implock;
-static isc_once_t once = ISC_ONCE_INIT;
-
-static void
-dlz_initialize(void) {
-	isc_rwlock_init(&dlz_implock, 0, 0);
-	ISC_LIST_INIT(dlz_implementations);
-}
 
 /*%
  * Searches the dlz_implementations list for a driver matching name.
@@ -157,12 +150,6 @@ dns_dlzcreate(isc_mem_t *mctx, const char *dlzname, const char *drivername,
 	dns_dlzimplementation_t *impinfo;
 	isc_result_t result;
 	dns_dlzdb_t *db = NULL;
-
-	/*
-	 * initialize the dlz_implementations list, this is guaranteed
-	 * to only really happen once.
-	 */
-	RUNTIME_CHECK(isc_once_do(&once, dlz_initialize) == ISC_R_SUCCESS);
 
 	/*
 	 * Performs checks to make sure data is as we expect it to be.
@@ -289,12 +276,6 @@ dns_dlzregister(const char *drivername, const dns_dlzmethods_t *methods,
 	REQUIRE(mctx != NULL);
 	REQUIRE(dlzimp != NULL && *dlzimp == NULL);
 
-	/*
-	 * initialize the dlz_implementations list, this is guaranteed
-	 * to only really happen once.
-	 */
-	RUNTIME_CHECK(isc_once_do(&once, dlz_initialize) == ISC_R_SUCCESS);
-
 	/* lock the dlz_implementations list so we can modify it. */
 	RWLOCK(&dlz_implock, isc_rwlocktype_write);
 
@@ -373,12 +354,6 @@ dns_dlzunregister(dns_dlzimplementation_t **dlzimp) {
 	 * Performs checks to make sure data is as we expect it to be.
 	 */
 	REQUIRE(dlzimp != NULL && *dlzimp != NULL);
-
-	/*
-	 * initialize the dlz_implementations list, this is guaranteed
-	 * to only really happen once.
-	 */
-	RUNTIME_CHECK(isc_once_do(&once, dlz_initialize) == ISC_R_SUCCESS);
 
 	dlz_imp = *dlzimp;
 
@@ -531,4 +506,21 @@ dns_dlz_ssumatch(dns_dlzdb_t *dlzdatabase, const dns_name_t *signer,
 	r = impl->methods->ssumatch(signer, name, tcpaddr, type, key,
 				    impl->driverarg, dlzdatabase->dbdata);
 	return (r);
+}
+
+void
+dns__dlz_initialize(void) ISC_CONSTRUCTOR;
+
+void
+dns__dlz_initialize(void) {
+	isc_rwlock_init(&dlz_implock, 0, 0);
+	ISC_LIST_INIT(dlz_implementations);
+}
+
+void
+dns__dlz_destroy(void) ISC_DESTRUCTOR;
+
+void
+dns__dlz_destroy(void) {
+	isc_rwlock_destroy(&dlz_implock);
 }
