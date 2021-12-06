@@ -379,6 +379,7 @@ nm_destroy(isc_nm_t **mgr0) {
 			isc_mem_put(mgr->mctx, ievent, sizeof(*ievent));
 		}
 		isc_condition_destroy(&worker->cond_prio);
+		isc_mutex_destroy(&worker->lock);
 
 		r = uv_loop_close(&worker->loop);
 		INSIST(r == 0);
