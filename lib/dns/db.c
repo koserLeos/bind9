@@ -60,23 +60,8 @@ struct dns_dbimplementation {
 
 static ISC_LIST(dns_dbimplementation_t) implementations;
 static isc_rwlock_t implock;
-static isc_once_t once = ISC_ONCE_INIT;
 
 static dns_dbimplementation_t rbtimp;
-
-static void
-initialize(void) {
-	isc_rwlock_init(&implock, 0, 0);
-
-	rbtimp.name = "rbt";
-	rbtimp.create = dns_rbtdb_create;
-	rbtimp.mctx = NULL;
-	rbtimp.driverarg = NULL;
-	ISC_LINK_INIT(&rbtimp, link);
-
-	ISC_LIST_INIT(implementations);
-	ISC_LIST_APPEND(implementations, &rbtimp, link);
-}
 
 static inline dns_dbimplementation_t *
 impfind(const char *name) {
@@ -101,8 +86,6 @@ dns_db_create(isc_mem_t *mctx, const char *db_type, const dns_name_t *origin,
 	      dns_dbtype_t type, dns_rdataclass_t rdclass, unsigned int argc,
 	      char *argv[], dns_db_t **dbp) {
 	dns_dbimplementation_t *impinfo;
-
-	RUNTIME_CHECK(isc_once_do(&once, initialize) == ISC_R_SUCCESS);
 
 	/*
 	 * Create a new database using implementation 'db_type'.
@@ -857,8 +840,6 @@ dns_db_register(const char *name, dns_dbcreatefunc_t create, void *driverarg,
 	REQUIRE(name != NULL);
 	REQUIRE(dbimp != NULL && *dbimp == NULL);
 
-	RUNTIME_CHECK(isc_once_do(&once, initialize) == ISC_R_SUCCESS);
-
 	RWLOCK(&implock, isc_rwlocktype_write);
 	imp = impfind(name);
 	if (imp != NULL) {
@@ -886,8 +867,6 @@ dns_db_unregister(dns_dbimplementation_t **dbimp) {
 	dns_dbimplementation_t *imp;
 
 	REQUIRE(dbimp != NULL && *dbimp != NULL);
-
-	RUNTIME_CHECK(isc_once_do(&once, initialize) == ISC_R_SUCCESS);
 
 	imp = *dbimp;
 	*dbimp = NULL;
@@ -1121,4 +1100,29 @@ dns_db_setgluecachestats(dns_db_t *db, isc_stats_t *stats) {
 	}
 
 	return (ISC_R_NOTIMPLEMENTED);
+}
+
+void
+initialize(void) ISC_CONSTRUCTOR;
+
+void
+initialize(void) {
+	isc_rwlock_init(&implock, 0, 0);
+
+	rbtimp.name = "rbt";
+	rbtimp.create = dns_rbtdb_create;
+	rbtimp.mctx = NULL;
+	rbtimp.driverarg = NULL;
+	ISC_LINK_INIT(&rbtimp, link);
+
+	ISC_LIST_INIT(implementations);
+	ISC_LIST_APPEND(implementations, &rbtimp, link);
+}
+
+void
+dns__db_shutdown(void) ISC_DESTRUCTOR;
+
+void
+dns__db_shutdown(void) {
+	isc_rwlock_destroy(&implock);
 }
