@@ -17,7 +17,6 @@ libnstest_la_SOURCES =		\
 	nstest.h
 
 check_PROGRAMS =		\
-	listenlist_test		\
 	notify_test		\
 	plugin_test		\
 	query_test
