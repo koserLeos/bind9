@@ -11,6 +11,11 @@
 
 /*! \file */
 
+#include <string.h>
+#include <uv.h>
+
+#include <openssl/crypto.h>
+
 #include <isc/bind9.h>
 #include <isc/lib.h>
 #include <isc/mem.h>
@@ -29,6 +34,100 @@
 /***
  *** Functions
  ***/
+
+static isc_mem_t *uv_mem = NULL;
+static isc_mem_t *openssl_mem = NULL;
+
+static void *
+uv_malloc(size_t size) {
+	return (isc_mem_allocate(uv_mem, size));
+}
+
+static void *
+uv_realloc(void *ptr, size_t size) {
+	return (isc_mem_reallocate(uv_mem, ptr, size));
+}
+
+static void *
+uv_calloc(size_t count, size_t size) {
+	/* FIXME: Check for overflow */
+	void *ptr = isc_mem_allocate(uv_mem, count * size);
+	memset(ptr, 0, count * size);
+
+	return (ptr);
+}
+
+static void
+uv_free(void *ptr) {
+	if (ptr == 0) {
+		return;
+	}
+	isc_mem_free(uv_mem, ptr);
+}
+
+static void
+isc__uv_initialize(void) {
+	isc_mem_create(&uv_mem);
+
+	RUNTIME_CHECK(uv_replace_allocator(uv_malloc, uv_realloc, uv_calloc,
+					   uv_free) == 0);
+}
+
+static void
+isc__uv_shutdown(void) {
+	uv_library_shutdown();
+	isc_mem_destroy(&uv_mem);
+}
+
+static void *
+openssl_malloc(size_t size, const char *file, int line) {
+#if ISC_MEM_TRACKLINES
+	return (isc__mem_allocate(openssl_mem, size, file, line));
+#else
+	UNUSED(file);
+	UNUSED(line);
+
+	return (isc_mem_allocate(openssl_mem, size));
+#endif
+}
+
+static void *
+openssl_realloc(void *ptr, size_t size, const char *file, int line) {
+#if ISC_MEM_TRACKLINES
+	return (isc__mem_reallocate(openssl_mem, ptr, size, file, line));
+#else
+	UNUSED(file);
+	UNUSED(line);
+	return (isc_mem_reallocate(openssl_mem, ptr, size));
+#endif
+}
+
+static void
+openssl_free(void *ptr, const char *file, int line) {
+	if (ptr == 0) {
+		return;
+	}
+#if ISC_MEM_TRACKLINES
+	isc__mem_free(openssl_mem, ptr, file, line);
+#else
+	UNUSED(file);
+	UNUSED(line);
+	isc_mem_free(openssl_mem, ptr);
+#endif
+}
+
+static void
+isc__openssl_initialize(void) {
+	isc_mem_create(&openssl_mem);
+
+	RUNTIME_CHECK(CRYPTO_set_mem_functions(openssl_malloc, openssl_realloc,
+					       openssl_free) == 1);
+}
+
+static void
+isc__openssl_shutdown(void) {
+	isc_mem_destroy(&openssl_mem);
+}
 
 void
 isc_lib_register(void) {
@@ -61,6 +160,8 @@ void
 isc__initialize(void) {
 	isc__mutex_initialize();
 	isc__mem_initialize();
+	isc__uv_initialize();
+	isc__openssl_initialize();
 	isc__tls_initialize();
 	isc__trampoline_initialize();
 }
@@ -69,6 +170,8 @@ void
 isc__shutdown(void) {
 	isc__trampoline_shutdown();
 	isc__tls_shutdown();
+	isc__openssl_shutdown();
+	isc__uv_shutdown();
 	isc__mem_shutdown();
 	isc__mutex_shutdown();
 }
