@@ -22,21 +22,8 @@
 
 ISC_LANG_BEGINDECLS
 
-/*!
- * Supply mutex attributes that enable deadlock detection
- * (helpful when debugging).  This is system dependent and
- * currently only supported on NetBSD.
- */
-#if ISC_MUTEX_DEBUG && defined(__NetBSD__) && defined(PTHREAD_MUTEX_ERRORCHECK)
-extern pthread_mutexattr_t isc__mutex_attrs;
-#define ISC__MUTEX_ATTRS &isc__mutex_attrs
-#else /* if ISC_MUTEX_DEBUG && defined(__NetBSD__) && \
-       * defined(PTHREAD_MUTEX_ERRORCHECK) */
-#define ISC__MUTEX_ATTRS NULL
-#endif /* if ISC_MUTEX_DEBUG && defined(__NetBSD__) && \
-	* defined(PTHREAD_MUTEX_ERRORCHECK) */
-
-/* XXX We could do fancier error handling... */
+/* DROPME */
+#define ISC_MUTEX_DEBUG 1
 
 /*!
  * Define ISC_MUTEX_PROFILE to turn on profiling of mutexes by line.  When
@@ -48,80 +35,84 @@ extern pthread_mutexattr_t isc__mutex_attrs;
 #define ISC_MUTEX_PROFILE 0
 #endif /* ifndef ISC_MUTEX_PROFILE */
 
-#if ISC_MUTEX_PROFILE
+#if defined(ISC_MUTEX_DEBUG)
+
+#if !defined(PTHREAD_MUTEX_ERRORCHECK)
+#error PTHREAD_MUTEX_ERRORCHECK must be defined
+#endif
+
+typedef pthread_mutex_t isc_mutex_t;
+
+#define isc_mutex_init(mp) \
+	isc_mutex_init_debug((mp), __func__, __FILE__, __LINE__)
+#define isc_mutex_destroy(mp) \
+	isc_mutex_destroy_debug((mp), __func__, __FILE__, __LINE__)
+void
+isc_mutex_init_debug(isc_mutex_t *mp, const char *func, const char *file,
+		     unsigned int line);
+
+void
+isc_mutex_destroy_debug(isc_mutex_t *mp, const char *func, const char *file,
+			unsigned int line);
+
+#elif ISC_MUTEX_PROFILE
+
 typedef struct isc_mutexstats isc_mutexstats_t;
 
 typedef struct {
 	pthread_mutex_t	  mutex; /*%< The actual mutex. */
 	isc_mutexstats_t *stats; /*%< Mutex statistics. */
 } isc_mutex_t;
-#else  /* if ISC_MUTEX_PROFILE */
-typedef pthread_mutex_t isc_mutex_t;
-#endif /* if ISC_MUTEX_PROFILE */
 
-#if ISC_MUTEX_PROFILE
 #define isc_mutex_init(mp) isc_mutex_init_profile((mp), __FILE__, __LINE__)
-#else /* if ISC_MUTEX_PROFILE */
-#if ISC_MUTEX_DEBUG && defined(PTHREAD_MUTEX_ERRORCHECK)
-#define isc_mutex_init(mp) isc_mutex_init_errcheck((mp))
-#else /* if ISC_MUTEX_DEBUG && defined(PTHREAD_MUTEX_ERRORCHECK) */
-#define isc_mutex_init(mp) isc__mutex_init((mp), __FILE__, __LINE__)
-void
-isc__mutex_init(isc_mutex_t *mp, const char *file, unsigned int line);
-#endif /* if ISC_MUTEX_DEBUG && defined(PTHREAD_MUTEX_ERRORCHECK) */
-#endif /* if ISC_MUTEX_PROFILE */
-
-#if ISC_MUTEX_PROFILE
-#define isc_mutex_lock(mp) isc_mutex_lock_profile((mp), __FILE__, __LINE__)
-#else /* if ISC_MUTEX_PROFILE */
-#define isc_mutex_lock(mp) \
-	((pthread_mutex_lock((mp)) == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED)
-#endif /* if ISC_MUTEX_PROFILE */
-
-#if ISC_MUTEX_PROFILE
-#define isc_mutex_unlock(mp) isc_mutex_unlock_profile((mp), __FILE__, __LINE__)
-#else /* if ISC_MUTEX_PROFILE */
-#define isc_mutex_unlock(mp) \
-	((pthread_mutex_unlock((mp)) == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED)
-#endif /* if ISC_MUTEX_PROFILE */
-
-#if ISC_MUTEX_PROFILE
-#define isc_mutex_trylock(mp)                                         \
-	((pthread_mutex_trylock((&(mp)->mutex)) == 0) ? ISC_R_SUCCESS \
-						      : ISC_R_LOCKBUSY)
-#else /* if ISC_MUTEX_PROFILE */
-#define isc_mutex_trylock(mp) \
-	((pthread_mutex_trylock((mp)) == 0) ? ISC_R_SUCCESS : ISC_R_LOCKBUSY)
-#endif /* if ISC_MUTEX_PROFILE */
-
-#if ISC_MUTEX_PROFILE
 #define isc_mutex_destroy(mp) \
 	RUNTIME_CHECK(pthread_mutex_destroy((&(mp)->mutex)) == 0)
-#else /* if ISC_MUTEX_PROFILE */
-#define isc_mutex_destroy(mp) RUNTIME_CHECK(pthread_mutex_destroy((mp)) == 0)
-#endif /* if ISC_MUTEX_PROFILE */
-
-#if ISC_MUTEX_PROFILE
-#define isc_mutex_stats(fp) isc_mutex_statsprofile(fp);
-#else /* if ISC_MUTEX_PROFILE */
-#define isc_mutex_stats(fp)
-#endif /* if ISC_MUTEX_PROFILE */
-
-#if ISC_MUTEX_PROFILE
 
 void
 isc_mutex_init_profile(isc_mutex_t *mp, const char *_file, int _line);
+
+#else
+
+typedef pthread_mutex_t isc_mutex_t;
+
+#define isc_mutex_init(mp)    isc__mutex_init((mp), __FILE__, __LINE__)
+void
+isc__mutex_init(isc_mutex_t *mp, const char *file, unsigned int line);
+#define isc_mutex_destroy(mp) RUNTIME_CHECK(pthread_mutex_destroy((mp)) == 0)
+
+#endif
+
+#if ISC_MUTEX_PROFILE
+
+#define isc_mutex_lock(mp) isc_mutex_lock_profile((mp), __FILE__, __LINE__)
 isc_result_t
 isc_mutex_lock_profile(isc_mutex_t *mp, const char *_file, int _line);
+
+#define isc_mutex_unlock(mp) isc_mutex_unlock_profile((mp), __FILE__, __LINE__)
 isc_result_t
 isc_mutex_unlock_profile(isc_mutex_t *mp, const char *_file, int _line);
 
+#define isc_mutex_trylock(mp)                                         \
+	((pthread_mutex_trylock((&(mp)->mutex)) == 0) ? ISC_R_SUCCESS \
+						      : ISC_R_LOCKBUSY)
+
+#define isc_mutex_stats(fp) isc_mutex_statsprofile(fp);
 void
 isc_mutex_statsprofile(FILE *fp);
-#endif /* ISC_MUTEX_PROFILE */
 
-void
-isc_mutex_init_errcheck(isc_mutex_t *mp);
+#else
+
+#define isc_mutex_lock(mp) \
+	((pthread_mutex_lock((mp)) == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED)
+#define isc_mutex_unlock(mp) \
+	((pthread_mutex_unlock((mp)) == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED)
+
+#define isc_mutex_trylock(mp) \
+	((pthread_mutex_trylock((mp)) == 0) ? ISC_R_SUCCESS : ISC_R_LOCKBUSY)
+
+#define isc_mutex_stats(fp)
+
+#endif
 
 ISC_LANG_ENDDECLS
 #endif /* ISC_MUTEX_H */
