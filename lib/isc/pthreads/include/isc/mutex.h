@@ -37,10 +37,6 @@ ISC_LANG_BEGINDECLS
 
 #if defined(ISC_MUTEX_DEBUG)
 
-#if !defined(PTHREAD_MUTEX_ERRORCHECK)
-#error PTHREAD_MUTEX_ERRORCHECK must be defined
-#endif
-
 typedef pthread_mutex_t isc_mutex_t;
 
 #define isc_mutex_init(mp) \

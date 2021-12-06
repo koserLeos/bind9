@@ -25,6 +25,8 @@
 #include <isc/string.h>
 #include <isc/util.h>
 
+#include "mutex_p.h"
+
 static pthread_mutexattr_t attr;
 static isc_once_t init_once = ISC_ONCE_INIT;
 static isc_once_t shut_once = ISC_ONCE_INIT;
@@ -34,7 +36,7 @@ static atomic_uint_fast32_t mutex_active = ATOMIC_VAR_INIT(0);
 static void
 mutex_initialize(void) {
 	RUNTIME_CHECK(pthread_mutexattr_init(&attr) == 0);
-#if defined(ISC_MUTEX_DEBUG)
+#if defined(ISC_MUTEX_DEBUG) && defined(PTHREAD_MUTEX_ERRORCHECK)
 	RUNTIME_CHECK(pthread_mutexattr_settype(&attr,
 						PTHREAD_MUTEX_ERRORCHECK) == 0);
 #elif defined(HAVE_PTHREAD_MUTEX_ADAPTIVE_NP)
