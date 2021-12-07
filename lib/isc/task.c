@@ -108,8 +108,6 @@ struct isc_task {
 	isc_eventlist_t on_shutdown;
 	unsigned int nevents;
 	unsigned int quantum;
-	isc_stdtime_t now;
-	isc_time_t tnow;
 	char name[16];
 	void *tag;
 	bool bound;
@@ -247,8 +245,6 @@ isc_task_create_bound(isc_taskmgr_t *manager, unsigned int quantum,
 	task->quantum = (quantum > 0) ? quantum : manager->default_quantum;
 	atomic_init(&task->shuttingdown, false);
 	atomic_init(&task->privileged, false);
-	task->now = 0;
-	isc_time_settoepoch(&task->tnow);
 	memset(task->name, 0, sizeof(task->name));
 	task->tag = NULL;
 	INIT_LINK(task, link);
@@ -784,26 +780,6 @@ isc_task_gettag(isc_task_t *task) {
 	return (task->tag);
 }
 
-void
-isc_task_getcurrenttime(isc_task_t *task, isc_stdtime_t *t) {
-	REQUIRE(VALID_TASK(task));
-	REQUIRE(t != NULL);
-
-	LOCK(&task->lock);
-	*t = task->now;
-	UNLOCK(&task->lock);
-}
-
-void
-isc_task_getcurrenttimex(isc_task_t *task, isc_time_t *t) {
-	REQUIRE(VALID_TASK(task));
-	REQUIRE(t != NULL);
-
-	LOCK(&task->lock);
-	*t = task->tnow;
-	UNLOCK(&task->lock);
-}
-
 isc_nm_t *
 isc_task_getnetmgr(isc_task_t *task) {
 	REQUIRE(VALID_TASK(task));
@@ -838,8 +814,6 @@ task_run(isc_task_t *task) {
 	task->state = task_state_running;
 	XTRACE("running");
 	XTRACE(task->name);
-	TIME_NOW(&task->tnow);
-	task->now = isc_time_seconds(&task->tnow);
 
 	while (true) {
 		if (!EMPTY(task->events)) {
