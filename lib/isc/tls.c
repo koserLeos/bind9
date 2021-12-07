@@ -123,8 +123,9 @@ tls_shutdown(void) {
 	REQUIRE(atomic_load(&init_done));
 	REQUIRE(!atomic_load(&shut_done));
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+	OPENSSL_cleanup();
+#else
 	CONF_modules_unload(1);
 	OBJ_cleanup();
 	EVP_cleanup();
