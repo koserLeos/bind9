@@ -21,9 +21,9 @@
 #include <isc/mem.h>
 #include <isc/util.h>
 
-#include "config.h"
 #include "mem_p.h"
 #include "mutex_p.h"
+#include "result_p.h"
 #include "tls_p.h"
 #include "trampoline_p.h"
 
@@ -164,10 +164,12 @@ isc__initialize(void) {
 	isc__openssl_initialize();
 	isc__tls_initialize();
 	isc__trampoline_initialize();
+	isc__result_initialize();
 }
 
 void
 isc__shutdown(void) {
+	isc__result_shutdown();
 	isc__trampoline_shutdown();
 	isc__tls_shutdown();
 	isc__openssl_shutdown();
