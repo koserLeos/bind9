@@ -20,6 +20,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#if defined(__FreeBSD__)
+#include <malloc_np.h>
+#include <stdlib.h>
+#elif defined(__linux)
+#include <jemalloc/jemalloc.h>
+#endif
+
 #ifdef HAVE_DNSTAP
 #include <fstrm.h>
 #endif
@@ -10840,15 +10847,24 @@ ns_listenelt_fromconfig(const cfg_obj_t *listener, const cfg_obj_t *config,
 	return (ISC_R_SUCCESS);
 }
 
+static void
+write_cb(void *cbopaque, const char *s) {
+	fprintf((FILE *)cbopaque, "%s", s);
+}
+
 isc_result_t
 named_server_dumpstats(named_server_t *server) {
-	isc_result_t result;
+	isc_result_t result = ISC_R_SUCCESS;
 	FILE *fp = NULL;
 
 	CHECKMF(isc_stdio_open(server->statsfile, "a", &fp),
 		"could not open statistics dump file", server->statsfile);
 
+#if defined(__FreeBSD_) || defined(__linux__)
+	malloc_stats_print(write_cb, fp, "Jg");
+#else
 	result = named_stats_dump(server, fp);
+#endif
 
 cleanup:
 	if (fp != NULL) {
