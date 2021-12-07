@@ -56,6 +56,11 @@ zone "example" {
 	allow-update { any; };
 };
 
+zone "notdelegated.example" {
+	type primary;
+	file "notdelegated.example.db";
+};
+
 zone "insecure.secure.example" {
 	type primary;
 	file "insecure.secure.example.db";

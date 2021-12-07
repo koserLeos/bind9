@@ -163,3 +163,6 @@ revkey			NS	ns.revkey
 ns.revkey		A	10.53.0.3
 
 dname-at-apex-nsec3	NS	ns3
+
+all-but-dnskey-signed-with-nonexistent-key-nsec3 NS ns.all-but-dnskey-signed-with-nonexistent-key-nsec3
+ns.all-but-dnskey-signed-with-nonexistent-key-nsec3 A 10.53.0.3

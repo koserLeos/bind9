@@ -46,6 +46,12 @@ zone "example" {
 	file "example.bk";
 };
 
+zone "notdelegated.example" {
+	type secondary;
+	primaries { 10.53.0.2; };
+	file "notdelegated.example.bk";
+};
+
 zone "secure.example" {
 	type primary;
 	file "secure.example.db.signed";
@@ -368,6 +374,11 @@ zone "too-many-iterations" {
 	type secondary;
 	primaries { 10.53.0.2; };
 	file "too-many-iterations.bk";
+};
+
+zone "all-but-dnskey-signed-with-nonexistent-key-nsec3.example" {
+	type primary;
+	file "all-but-dnskey-signed-with-nonexistent-key-nsec3.example.db";
 };
 
 include "siginterval.conf";

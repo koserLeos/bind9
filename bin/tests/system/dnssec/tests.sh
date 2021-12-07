@@ -4421,5 +4421,31 @@ n=$((n+1))
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
 
+echo_i "check for validation deadlock - NSEC3 zone with only DNSKEY correctly signed ($n)"
+ret=0
+nextpart ns4/named.run > /dev/null
+zone=all-but-dnskey-signed-with-nonexistent-key-nsec3.example
+pattern="validating [0123456789ABCDEFGHIJKLMNOPQRSTUV]*.$zone/DS:"
+pattern="$pattern fetch/validator loop detected: aborting validation"
+dig_with_opts xx.$zone A @10.53.0.4 > dig.out.ns4.test$n || ret=1
+grep "status: SERVFAIL" dig.out.ns4.test$n > /dev/null || ret=1
+nextpart ns4/named.run | grep "$pattern" > /dev/null || ret=1
+n=$((n+1))
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
+
+echo_i "check for validation deadlock - undelegated unsigned zone with CNAME to apex ($n)"
+ret=0
+zone=notdelegated.example
+nextpart ns4/named.run > /dev/null
+dig_with_opts www.$zone A @10.53.0.3 > dig.out.ns3.test$n || ret=1
+grep "status: NOERROR" dig.out.ns3.test$n > /dev/null || ret=1
+dig_with_opts www.$zone A @10.53.0.4 > dig.out.ns4.test$n || ret=1
+grep "status: SERVFAIL" dig.out.ns4.test$n > /dev/null || ret=1
+nextpart ns4/named.run | grep "aborting validation" || ret=1
+n=$((n+1))
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
+
 echo_i "exit status: $status"
 [ $status -eq 0 ] || exit 1

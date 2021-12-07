@@ -670,3 +670,28 @@ $DSFROMKEY "$dnskeyname.key" > "dsset-delegation.${zone}$TP"
 cat "$infile" "${kskname}.key" "${zskname}.key" "${keyname}.key" \
     "${dnskeyname}.key" "dsset-delegation.${zone}$TP" >"$zonefile"
 "$SIGNER" -P -o "$zone" "$zonefile" > /dev/null
+
+#
+# A NSEC3 zone which is signed but only has a valid DNSKEY RRSet.
+#
+zone=all-but-dnskey-signed-with-nonexistent-key-nsec3.example
+infile=all-but-dnskey-signed-with-nonexistent-key-nsec3.example.db.in
+zonefile=all-but-dnskey-signed-with-nonexistent-key-nsec3.example.db
+
+# these keys will be discarded
+kskname=$("$KEYGEN" -q -a "$DEFAULT_ALGORITHM" -3fk "$zone")
+zskname=$("$KEYGEN" -q -a "$DEFAULT_ALGORITHM" -3 "$zone")
+cat "$infile" "${kskname}.key" "${zskname}.key" >"$zonefile"
+"$SIGNER" -P -D -O full -3 - -o "$zone" "$zonefile" > /dev/null
+awk '$4 == "RRSIG" && $5 == "DNSKEY" { next }
+{ print }' "$zonefile.signed" > "$zonefile.badsigs"
+
+# these keys will be added to the final zone
+kskname=$("$KEYGEN" -q -a "$DEFAULT_ALGORITHM" -3fk "$zone")
+zskname=$("$KEYGEN" -q -a "$DEFAULT_ALGORITHM" -3 "$zone")
+cat "$infile" "${kskname}.key" "${zskname}.key" >"$zonefile"
+"$SIGNER" -P -D -O full -3 - -o "$zone" "$zonefile" > /dev/null
+awk ' $4 == "RRSIG" && $5 == "DNSKEY" { print }
+{ next }' "$zonefile.signed" > "$zonefile.goodsigs"
+echo '$INCLUDE "'"$zonefile.goodsigs"'"' >> "$zonefile"
+echo '$INCLUDE "'"$zonefile.badsigs"'"' >> "$zonefile"

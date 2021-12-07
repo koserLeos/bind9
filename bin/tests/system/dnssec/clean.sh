@@ -25,7 +25,6 @@ rm -f ./canonical?.*
 rm -f ./delv.out*
 rm -f ./delve.out*
 rm -f ./dig.out.*
-rm -f ./ns2/too-many-iterations.db
 rm -f ./dnssectools.out*
 rm -f ./dsfromkey.out.*
 rm -f ./keygen.err
@@ -52,7 +51,12 @@ rm -f ./ns2/cds.secure.db ./ns2/cds-x.secure.db
 rm -f ./ns2/in-addr.arpa.db
 rm -f ./ns2/nsec3chain-test.db
 rm -f ./ns2/single-nsec3.db
+rm -f ./ns2/too-many-iterations.db
 rm -f ./ns2/updatecheck-kskonly.secure.*
+rm -f ./ns3/NSEC ./ns3/NSEC3
+rm -f ./ns3/all-but-dnskey-signed-with-nonexistent-key-nsec3.example.db not removed
+rm -f ./ns3/all-but-dnskey-signed-with-nonexistent-key-nsec3.example.db.badsigs not removed
+rm -f ./ns3/all-but-dnskey-signed-with-nonexistent-key-nsec3.example.db.goodsigs not removed
 rm -f ./ns3/auto-nsec.example.db ./ns3/auto-nsec3.example.db
 rm -f ./ns3/badds.example.db
 rm -f ./ns3/dname-at-apex-nsec3.example.db
@@ -94,7 +98,6 @@ rm -f ./ns3/ttlpatch.example.db ./ns3/ttlpatch.example.db.signed
 rm -f ./ns3/ttlpatch.example.db.patched
 rm -f ./ns3/unsecure.example.db ./ns3/bogus.example.db ./ns3/keyless.example.db
 rm -f ./ns3/unsupported.managed.db.tmp ./ns3/unsupported.trusted.db.tmp
-rm -f ./ns3/NSEC ./ns3/NSEC3
 rm -f ./ns4/managed-keys.bind*
 rm -f ./ns4/named_dump.db*
 rm -f ./ns6/optout-tld.db
