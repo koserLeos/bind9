@@ -48,12 +48,20 @@
 
 /*
  * New versions of libuv support recvmmsg on unices.
- * Since recvbuf is only allocated per worker allocating a bigger one is not
- * that wasteful.
- * 20 here is UV__MMSG_MAXWIDTH taken from the current libuv source, nothing
- * will break if the original value changes.
+ *
+ * While in theory, the UDP message can be 64k, this would happen only rarely
+ * with UDP and the DNS message would be probably lost anyway due to the
+ * fragmentation.
+ *
+ * The most common MTU is slightly below 1500 (ethernet) and UV__MMSG_MAXWIDTH
+ * is currently 20 (taken from the current libuv source), so smallest but still
+ * useful buffer would be 30k.  To accomodate for a rare occurence of 64k UDP
+ * message, we make the RECV buffer same as SEND buffer.
+ *
+ * While this is only allocated once per worker, the memory usage is still
+ * wasteful on machines with many cores.
  */
-#define ISC_NETMGR_RECVBUF_SIZE (20 * 65536)
+#define ISC_NETMGR_RECVBUF_SIZE (sizeof(uint16_t) + UINT16_MAX)
 
 #define ISC_NETMGR_SENDBUF_SIZE (sizeof(uint16_t) + UINT16_MAX)
 
