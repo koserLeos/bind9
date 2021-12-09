@@ -2299,13 +2299,13 @@ AC_CHECK_FUNCS(setlocale)
 # [pairwise: --with-tuning=small, --without-tuning]
 AC_ARG_WITH([tuning],
 	    AS_HELP_STRING([--with-tuning=ARG],
-			   [Specify server tuning (default or small)]),
-	    [],[with_tuning=no])
+			   [Specify server tuning (default or large)]),
+	    [],[with_tuning=small])
 
 AS_CASE([$with_tuning],
-	[small],[AC_MSG_NOTICE(using small system tuning)],
-	[AC_DEFINE(TUNE_LARGE, 1, [Define to use default system tuning.])
-	 AC_MSG_NOTICE(using default system tuning)])
+	[large],[AC_DEFINE(TUNE_LARGE, 1, [Define to use default system tuning.])
+		 AC_MSG_NOTICE(using small system tuning)],
+	[AC_MSG_NOTICE(using default system tuning)])
 
 #
 # was --enable-querytrace specified?
