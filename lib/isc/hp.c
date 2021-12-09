@@ -45,6 +45,7 @@
 
 #include <inttypes.h>
 
+#include <isc/align.h>
 #include <isc/atomic.h>
 #include <isc/hp.h>
 #include <isc/mem.h>
@@ -53,14 +54,12 @@
 #include <isc/thread.h>
 #include <isc/util.h>
 
-#define HP_MAX_THREADS 128
+#define CACHELINE_SIZE 64
+
 static int isc__hp_max_threads = 1;
 #define HP_MAX_HPS     4 /* This is named 'K' in the HP paper */
-#define CLPAD	       (128 / sizeof(uintptr_t))
+#define CLPAD	       (CACHELINE_SIZE / sizeof(uintptr_t))
 #define HP_THRESHOLD_R 0 /* This is named 'R' in the HP paper */
-
-/* Maximum number of retired objects per thread */
-static int isc__hp_max_retired = HP_MAX_THREADS * HP_MAX_HPS;
 
 typedef struct retirelist {
 	int size;
@@ -69,10 +68,11 @@ typedef struct retirelist {
 
 struct isc_hp {
 	int max_hps;
+	int max_retired;
 	isc_mem_t *mctx;
-	atomic_uintptr_t **hp;
-	retirelist_t **rl;
 	isc_hp_deletefunc_t *deletefunc;
+	alignas(CACHELINE_SIZE) atomic_uintptr_t **hp;
+	alignas(CACHELINE_SIZE) retirelist_t **rl;
 };
 
 static inline int
@@ -89,7 +89,20 @@ isc_hp_init(int max_threads) {
 	}
 
 	isc__hp_max_threads = max_threads;
-	isc__hp_max_retired = max_threads * HP_MAX_HPS;
+}
+
+static size_t
+hp_clpad(size_t max_hps) {
+	size_t hp_size = max_hps * sizeof(atomic_uintptr_t);
+	size_t hp_padding = 0;
+	while (hp_size > CACHELINE_SIZE) {
+		hp_size -= CACHELINE_SIZE;
+	}
+	if (hp_size > 0) {
+		hp_padding = CACHELINE_SIZE / hp_size;
+	}
+
+	return (hp_size + hp_padding);
 }
 
 isc_hp_t *
@@ -103,23 +116,38 @@ isc_hp_new(isc_mem_t *mctx, size_t max_hps, isc_hp_deletefunc_t *deletefunc) {
 		max_hps = HP_MAX_HPS;
 	}
 
-	*hp = (isc_hp_t){ .max_hps = max_hps, .deletefunc = deletefunc };
+	*hp = (isc_hp_t){
+		.max_hps = max_hps,
+		.max_retired = isc__hp_max_threads * max_hps,
+		.deletefunc = deletefunc,
+	};
 
 	isc_mem_attach(mctx, &hp->mctx);
 
 	hp->hp = isc_mem_get(mctx, isc__hp_max_threads * sizeof(hp->hp[0]));
-	hp->rl = isc_mem_get(mctx, isc__hp_max_threads * sizeof(hp->rl[0]));
-
 	for (int i = 0; i < isc__hp_max_threads; i++) {
-		hp->hp[i] = isc_mem_get(mctx, CLPAD * 2 * sizeof(hp->hp[i][0]));
-		hp->rl[i] = isc_mem_get(mctx, sizeof(*hp->rl[0]));
-		*hp->rl[i] = (retirelist_t){ .size = 0 };
-
+		hp->hp[i] = isc_mem_get(mctx, hp_clpad(hp->max_hps));
 		for (int j = 0; j < hp->max_hps; j++) {
 			atomic_init(&hp->hp[i][j], 0);
 		}
-		hp->rl[i]->list = isc_mem_get(
-			hp->mctx, isc__hp_max_retired * sizeof(uintptr_t));
+	}
+
+	/*
+	 * It's not nice that we have a lot of empty space, but we need padding
+	 * to avoid false sharing.
+	 */
+	hp->rl = isc_mem_get(mctx,
+			     (isc__hp_max_threads * CLPAD) * sizeof(hp->rl[0]));
+
+	for (int i = 0; i < isc__hp_max_threads; i++) {
+		retirelist_t *rl;
+
+		rl = isc_mem_get(mctx, sizeof(*rl));
+		rl->size = 0;
+		rl->list = isc_mem_get(hp->mctx,
+				       hp->max_retired * sizeof(uintptr_t));
+
+		hp->rl[i * CLPAD] = rl;
 	}
 
 	return (hp);
@@ -128,19 +156,22 @@ isc_hp_new(isc_mem_t *mctx, size_t max_hps, isc_hp_deletefunc_t *deletefunc) {
 void
 isc_hp_destroy(isc_hp_t *hp) {
 	for (int i = 0; i < isc__hp_max_threads; i++) {
-		isc_mem_put(hp->mctx, hp->hp[i],
-			    CLPAD * 2 * sizeof(hp->hp[i][0]));
+		retirelist_t *rl = hp->rl[i * CLPAD];
 
-		for (int j = 0; j < hp->rl[i]->size; j++) {
-			void *data = (void *)hp->rl[i]->list[j];
+		for (int j = 0; j < rl->size; j++) {
+			void *data = (void *)rl->list[j];
 			hp->deletefunc(data);
 		}
-		isc_mem_put(hp->mctx, hp->rl[i]->list,
-			    isc__hp_max_retired * sizeof(uintptr_t));
-		isc_mem_put(hp->mctx, hp->rl[i], sizeof(*hp->rl[0]));
+		isc_mem_put(hp->mctx, rl->list,
+			    hp->max_retired * sizeof(uintptr_t));
+		isc_mem_put(hp->mctx, rl, sizeof(*rl));
+	}
+	for (int i = 0; i < isc__hp_max_threads; i++) {
+		isc_mem_put(hp->mctx, hp->hp[i], hp_clpad(hp->max_hps));
 	}
 	isc_mem_put(hp->mctx, hp->hp, isc__hp_max_threads * sizeof(hp->hp[0]));
-	isc_mem_put(hp->mctx, hp->rl, isc__hp_max_threads * sizeof(hp->rl[0]));
+	isc_mem_put(hp->mctx, hp->rl,
+		    (isc__hp_max_threads * CLPAD) * sizeof(hp->rl[0]));
 
 	isc_mem_putanddetach(&hp->mctx, hp, sizeof(*hp));
 }
@@ -182,15 +213,16 @@ isc_hp_protect_release(isc_hp_t *hp, int ihp, atomic_uintptr_t ptr) {
 
 void
 isc_hp_retire(isc_hp_t *hp, uintptr_t ptr) {
-	hp->rl[tid()]->list[hp->rl[tid()]->size++] = ptr;
-	INSIST(hp->rl[tid()]->size < isc__hp_max_retired);
+	retirelist_t *rl = hp->rl[tid() * CLPAD];
+	rl->list[rl->size++] = ptr;
+	INSIST(rl->size < hp->max_retired);
 
-	if (hp->rl[tid()]->size < HP_THRESHOLD_R) {
+	if (rl->size < HP_THRESHOLD_R) {
 		return;
 	}
 
-	for (int iret = 0; iret < hp->rl[tid()]->size; iret++) {
-		uintptr_t obj = hp->rl[tid()]->list[iret];
+	for (int iret = 0; iret < rl->size; iret++) {
+		uintptr_t obj = rl->list[iret];
 		bool can_delete = true;
 		for (int itid = 0; itid < isc__hp_max_threads && can_delete;
 		     itid++) {
@@ -203,11 +235,9 @@ isc_hp_retire(isc_hp_t *hp, uintptr_t ptr) {
 		}
 
 		if (can_delete) {
-			size_t bytes = (hp->rl[tid()]->size - iret) *
-				       sizeof(hp->rl[tid()]->list[0]);
-			memmove(&hp->rl[tid()]->list[iret],
-				&hp->rl[tid()]->list[iret + 1], bytes);
-			hp->rl[tid()]->size--;
+			size_t bytes = (rl->size - iret) * sizeof(rl->list[0]);
+			memmove(&rl->list[iret], &rl->list[iret + 1], bytes);
+			rl->size--;
 			hp->deletefunc((void *)obj);
 		}
 	}
