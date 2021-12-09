@@ -48,11 +48,11 @@
  * How many isc_nmhandles and isc_nm_uvreqs will we be
  * caching for reuse in a socket.
  */
-#define ISC_NM_HANDLES_MIN_STACK_SIZE 8
-#define ISC_NM_HANDLES_MAX_STACK_SIZE 32
+#define ISC_NM_HANDLES_MIN_STACK_SIZE 32
+#define ISC_NM_HANDLES_MAX_STACK_SIZE 1024
 
-#define ISC_NM_REQS_MIN_STACK_SIZE 8
-#define ISC_NM_REQS_MAX_STACK_SIZE 32
+#define ISC_NM_REQS_MIN_STACK_SIZE 32
+#define ISC_NM_REQS_MAX_STACK_SIZE 1024
 
 /*%
  * Shortcut index arrays to get access to statistics counters.
