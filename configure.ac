@@ -117,6 +117,13 @@ AC_ARG_ENABLE([fuzzing],
 	      [],
 	      [enable_fuzzing=no])
 
+# Enforce jemalloc
+AC_MSG_CHECKING([for jemalloc])
+PKG_CHECK_MODULES([JEMALLOC], [jemalloc])
+CFLAGS="$JEMALLOC_CFLAGS $CFLAGS"
+LDFLAGS="$JEMALLOC_LDFLAGS $LDFLAGS"
+LIBS="$JEMALLOC_LIBS $LIBS"
+
 AC_MSG_CHECKING([whether to enable fuzzing mode])
 AS_CASE([$enable_fuzzing],
 	[no],[AC_MSG_RESULT([no])],
