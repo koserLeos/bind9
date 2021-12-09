@@ -47,8 +47,11 @@
  * How many isc_nmhandles and isc_nm_uvreqs will we be
  * caching for reuse in a socket.
  */
-#define ISC_NM_HANDLES_STACK_SIZE 600
-#define ISC_NM_REQS_STACK_SIZE	  600
+#define ISC_NM_HANDLES_MIN_STACK_SIZE 32
+#define ISC_NM_HANDLES_MAX_STACK_SIZE 1024
+
+#define ISC_NM_REQS_MIN_STACK_SIZE 32
+#define ISC_NM_REQS_MAX_STACK_SIZE 1024
 
 /*%
  * Shortcut index arrays to get access to statistics counters.
@@ -1460,13 +1463,19 @@ isc___nmsocket_init(isc_nmsocket_t *sock, isc_nm_t *mgr, isc_nmsocket_type type,
 	REQUIRE(sock != NULL);
 	REQUIRE(mgr != NULL);
 
-	*sock = (isc_nmsocket_t){ .type = type,
-				  .fd = -1,
-				  .ah_size = 32,
-				  .inactivehandles = isc_astack_new(
-					  mgr->mctx, ISC_NM_HANDLES_STACK_SIZE),
-				  .inactivereqs = isc_astack_new(
-					  mgr->mctx, ISC_NM_REQS_STACK_SIZE) };
+	*sock = (isc_nmsocket_t){
+		.type = type,
+		.fd = -1,
+		.ah_size = 32,
+	};
+
+	sock->inactivehandles = isc_astack_new(mgr->mctx,
+					       ISC_NM_HANDLES_MIN_STACK_SIZE,
+					       ISC_NM_HANDLES_MAX_STACK_SIZE);
+
+	sock->inactivereqs = isc_astack_new(mgr->mctx,
+					    ISC_NM_REQS_MIN_STACK_SIZE,
+					    ISC_NM_REQS_MAX_STACK_SIZE);
 
 	if (iface != NULL) {
 		family = iface->type.sa.sa_family;
