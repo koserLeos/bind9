@@ -17,9 +17,10 @@
 #include <isc/types.h>
 
 isc_astack_t *
-isc_astack_new(isc_mem_t *mctx, size_t size);
+isc_astack_new(isc_mem_t *mctx, size_t min_size, size_t max_size);
 /*%<
- * Allocate and initialize a new array stack of size 'size'.
+ * Allocate and initialize a new bounded array stack.  Initially, min_size
+ * entries will be allocated, but would grow up to max_size entries.
  */
 
 void
