@@ -24,9 +24,9 @@ ISC_LANG_BEGINDECLS
 typedef pthread_mutex_t isc_mutex_t;
 
 void
-isc__mutex_init(isc_mutex_t *mp, const char *file, unsigned int line);
+isc_mutex_init_location(isc_mutex_t *mp, const char *file, unsigned int line);
 
-#define isc_mutex_init(mp) isc__mutex_init((mp), __FILE__, __LINE__)
+#define isc_mutex_init(mp) isc_mutex_init_location((mp), __FILE__, __LINE__)
 
 #define isc_mutex_lock(mp) \
 	((pthread_mutex_lock((mp)) == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED)

@@ -39,7 +39,7 @@ initialize_attr(void) {
 #endif /* HAVE_PTHREAD_MUTEX_ADAPTIVE_NP */
 
 void
-isc__mutex_init(isc_mutex_t *mp, const char *file, unsigned int line) {
+isc_mutex_init_location(isc_mutex_t *mp, const char *file, unsigned int line) {
 	int err;
 
 #ifdef HAVE_PTHREAD_MUTEX_ADAPTIVE_NP
