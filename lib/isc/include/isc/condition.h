@@ -23,9 +23,39 @@
 #include <isc/string.h>
 #include <isc/types.h>
 
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+
+typedef struct {
+	pthread_cond_t cond;
+	void	     *tracker;
+} isc_condition_t;
+
+void
+isc_condition_init_track(isc_condition_t *c);
+
+isc_result_t
+isc_condition_destroy_track(isc_condition_t *c);
+
+#define isc_condition_init(cond) isc_condition_init_track(cond)
+#define isc_condition_wait(cp, mp) \
+	isc__condition_wait(&(cp)->cond, &(mp)->mutex)
+#define isc_condition_signal(cp)    isc__condition_signal(&(cp)->cond)
+#define isc_condition_broadcast(cp) isc__condition_broadcast(&(cp)->cond)
+#define isc_condition_destroy(cp)   isc_condition_destroy_track(cp)
+
+#else /* ISC_TRACK_PTHREADS_OBJECTS */
+
 typedef pthread_cond_t isc_condition_t;
 
-#define isc_condition_init(cond)                                \
+#define isc_condition_init(cond)    isc__condition_init(cond)
+#define isc_condition_wait(cp, mp)  isc__condition_wait(cp, mp)
+#define isc_condition_signal(cp)    isc__condition_signal(cp)
+#define isc_condition_broadcast(cp) isc__condition_broadcast(cp)
+#define isc_condition_destroy(cp)   isc__condition_destroy(cp)
+
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
+
+#define isc__condition_init(cond)                               \
 	if (pthread_cond_init(cond, NULL) != 0) {               \
 		char isc_condition_strbuf[ISC_STRERRORSIZE];    \
 		strerror_r(errno, isc_condition_strbuf,         \
@@ -35,23 +65,17 @@ typedef pthread_cond_t isc_condition_t;
 				isc_condition_strbuf);          \
 	}
 
-#ifdef ISC_TRACK_PTHREADS_OBJECTS
-#define isc_condition_wait(cp, mp) isc__condition_wait(cp, &(mp)->mutex)
-#else /* ISC_TRACK_PTHREADS_OBJECTS */
-#define isc_condition_wait(cp, mp) isc__condition_wait(cp, mp)
-#endif /* ISC_TRACK_PTHREADS_OBJECTS */
-
 #define isc__condition_wait(cp, mp)                           \
 	((pthread_cond_wait((cp), (mp)) == 0) ? ISC_R_SUCCESS \
 					      : ISC_R_UNEXPECTED)
 
-#define isc_condition_signal(cp) \
+#define isc__condition_signal(cp) \
 	((pthread_cond_signal((cp)) == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED)
 
-#define isc_condition_broadcast(cp) \
+#define isc__condition_broadcast(cp) \
 	((pthread_cond_broadcast((cp)) == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED)
 
-#define isc_condition_destroy(cp) \
+#define isc__condition_destroy(cp) \
 	((pthread_cond_destroy((cp)) == 0) ? ISC_R_SUCCESS : ISC_R_UNEXPECTED)
 
 ISC_LANG_BEGINDECLS

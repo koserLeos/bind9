@@ -19,6 +19,24 @@
 #include <isc/time.h>
 #include <isc/util.h>
 
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+
+#include <stdlib.h>
+
+void
+isc_condition_init_track(isc_condition_t *c) {
+	isc__condition_init(&c->cond);
+	c->tracker = malloc(8);
+}
+
+isc_result_t
+isc_condition_destroy_track(isc_condition_t *c) {
+	free(c->tracker);
+	return (isc__condition_destroy(&c->cond));
+}
+
+#endif
+
 isc_result_t
 isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t) {
 	int presult;
@@ -50,7 +68,14 @@ isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t) {
 	ts.tv_nsec = (long)isc_time_nanoseconds(t);
 
 	do {
+		pthread_cond_t *cond;
 		pthread_mutex_t *mutex;
+
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+		cond = &c->cond;
+#else  /* ISC_TRACK_PTHREADS_OBJECTS */
+		cond = c;
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
 
 #ifdef ISC_TRACK_PTHREADS_OBJECTS
 		mutex = &m->mutex;
@@ -58,7 +83,7 @@ isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t) {
 		mutex = m;
 #endif /* ISC_TRACK_PTHREADS_OBJECTS */
 
-		presult = pthread_cond_timedwait(c, mutex, &ts);
+		presult = pthread_cond_timedwait(cond, mutex, &ts);
 		if (presult == 0) {
 			return (ISC_R_SUCCESS);
 		}
