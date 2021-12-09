@@ -24,6 +24,24 @@
 #include <isc/string.h>
 #include <isc/util.h>
 
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+
+#include <stdlib.h>
+
+void
+isc_mutex_init_track(isc_mutex_t *m) {
+	RUNTIME_CHECK(pthread_mutex_init(&m->mutex, NULL) == 0);
+	m->tracker = malloc(8);
+}
+
+void
+isc_mutex_destroy_track(isc_mutex_t *m) {
+	free(m->tracker);
+	RUNTIME_CHECK(pthread_mutex_destroy(&m->mutex) == 0);
+}
+
+#else /* ISC_TRACK_PTHREADS_OBJECTS */
+
 #ifdef HAVE_PTHREAD_MUTEX_ADAPTIVE_NP
 static bool attr_initialized = false;
 static pthread_mutexattr_t attr;
@@ -58,3 +76,5 @@ isc_mutex_init_location(isc_mutex_t *mp, const char *file, unsigned int line) {
 				strbuf);
 	}
 }
+
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */

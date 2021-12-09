@@ -35,7 +35,13 @@ typedef pthread_cond_t isc_condition_t;
 				isc_condition_strbuf);          \
 	}
 
-#define isc_condition_wait(cp, mp)                            \
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+#define isc_condition_wait(cp, mp) isc__condition_wait(cp, &(mp)->mutex)
+#else /* ISC_TRACK_PTHREADS_OBJECTS */
+#define isc_condition_wait(cp, mp) isc__condition_wait(cp, mp)
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
+
+#define isc__condition_wait(cp, mp)                           \
 	((pthread_cond_wait((cp), (mp)) == 0) ? ISC_R_SUCCESS \
 					      : ISC_R_UNEXPECTED)
 
