@@ -379,6 +379,8 @@ nm_teardown(void **state __attribute__((unused))) {
 	isc_refcount_destroy(&active_ssends);
 	isc_refcount_destroy(&active_sreads);
 
+	isc_quota_destroy(&listener_quota);
+
 	return (0);
 }
 
