@@ -27,25 +27,22 @@
 
 typedef struct isc_condition_tracker isc_condition_tracker_t;
 
-struct isc_condition_tracker {
-	ISC_LINK(isc_condition_tracker_t) link;
-};
-
 typedef struct {
-	pthread_cond_t cond;
+	pthread_cond_t		 cond;
 	isc_condition_tracker_t *tracker;
 } isc_condition_t;
 
 void
-isc_condition_init_track(isc_condition_t *c);
+isc_condition_init_track(isc_condition_t *c, const char *file, int line);
 
 isc_result_t
-isc_condition_destroy_track(isc_condition_t *c);
+isc_condition_destroy_track(isc_condition_t *);
 
 void
 isc_condition_check_track(void);
 
-#define isc_condition_init(cond) isc_condition_init_track(cond)
+#define isc_condition_init(cond) \
+	isc_condition_init_track(cond, __FILE__, __LINE__)
 #define isc_condition_wait(cp, mp) \
 	isc__condition_wait(&(cp)->cond, &(mp)->mutex)
 #define isc_condition_signal(cp)    isc__condition_signal(&(cp)->cond)

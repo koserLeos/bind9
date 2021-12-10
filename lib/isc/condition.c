@@ -24,14 +24,23 @@
 
 #include <stdlib.h>
 
+struct isc_condition_tracker {
+	ISC_LINK(isc_condition_tracker_t) link;
+	const char *file;
+	int line;
+};
+
 static pthread_mutex_t conditionslock = PTHREAD_MUTEX_INITIALIZER;
 static ISC_LIST(isc_condition_tracker_t) conditions = { NULL, NULL };
 
 void
-isc_condition_init_track(isc_condition_t *c) {
+isc_condition_init_track(isc_condition_t *c, const char *file, int line) {
 	isc__condition_init(&c->cond);
 
 	c->tracker = malloc(sizeof(*c->tracker));
+	INSIST(c->tracker != NULL);
+	c->tracker->file = file;
+	c->tracker->line = line;
 
 	pthread_mutex_lock(&conditionslock);
 	ISC_LIST_INITANDAPPEND(conditions, c->tracker, link);
@@ -56,7 +65,14 @@ void
 isc_condition_check_track(void) {
 	pthread_mutex_lock(&conditionslock);
 	if (!ISC_LIST_EMPTY(conditions)) {
-		fprintf(stderr, "leaked isc_condition_init\n");
+		isc_condition_tracker_t *t;
+		fprintf(stderr,
+			"isc_condition_init/isc_condition_destroy mismatch\n");
+		for (t = ISC_LIST_HEAD(conditions); t != NULL;
+		     t = ISC_LIST_NEXT(t, link)) {
+			fprintf(stderr, "condition %s:%d\n", t->file, t->line);
+		}
+
 		abort();
 	}
 	pthread_mutex_unlock(&conditionslock);
