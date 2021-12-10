@@ -1104,3 +1104,12 @@ dns_db_setgluecachestats(dns_db_t *db, isc_stats_t *stats) {
 
 	return (ISC_R_NOTIMPLEMENTED);
 }
+
+static void
+dns_db_destroyimplock(void) ISC_DESTRUCTOR;
+
+static void
+dns_db_destroyimplock(void) {
+	RUNTIME_CHECK(isc_once_do(&once, initialize) == ISC_R_SUCCESS);
+	isc_rwlock_destroy(&implock);
+}
