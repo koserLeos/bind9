@@ -984,6 +984,32 @@ unit:clang:asan:
     - job: clang:asan
       artifacts: true
 
+# Jobs to track pthread init/destroy Debian 10 "buster" (amd64)
+
+gcc:pthread-track:
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -DISC_TRACK_PTHREADS_OBJECTS"
+    EXTRA_CONFIGURE: "--with-libidn2 --enable-pthread-rwlock --without-jemalloc"
+  <<: *fedora_34_amd64_image
+  <<: *build_job
+
+system:gcc:pthread-track:
+  variables:
+  <<: *fedora_34_amd64_image
+  <<: *system_test_job
+  needs:
+    - job: gcc:pthread-track
+      artifacts: true
+
+unit:gcc:pthread-track:
+  variables:
+  <<: *fedora_34_amd64_image
+  <<: *unit_test_job
+  needs:
+    - job: gcc:pthread-track
+      artifacts: true
+
 # Jobs for TSAN builds on Debian 10 "buster" (amd64)
 
 gcc:tsan:
