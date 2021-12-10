@@ -532,3 +532,12 @@ dns_dlz_ssumatch(dns_dlzdb_t *dlzdatabase, const dns_name_t *signer,
 				    impl->driverarg, dlzdatabase->dbdata);
 	return (r);
 }
+
+static void
+dns_dlz_destroyimplock(void) ISC_DESTRUCTOR;
+
+static void
+dns_dlz_destroyimplock(void) {
+	RUNTIME_CHECK(isc_once_do(&once, dlz_initialize) == ISC_R_SUCCESS);
+	isc_rwlock_destroy(&dlz_implock);
+}
