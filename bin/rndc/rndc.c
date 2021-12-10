@@ -1082,6 +1082,7 @@ main(int argc, char **argv) {
 		fatal("isc_app_run() failed: %s", isc_result_totext(result));
 	}
 
+	isc_app_finish();
 	isc_task_detach(&rndc_task);
 	isc_managers_destroy(&netmgr, &taskmgr, NULL);
 
