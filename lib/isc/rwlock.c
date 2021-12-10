@@ -25,18 +25,62 @@
 #include <isc/rwlock.h>
 #include <isc/util.h>
 
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+
+#include <stdlib.h>
+
+struct isc_rwlock_tracker {
+	ISC_LINK(isc_rwlock_tracker_t) link;
+	const char *file;
+	int line;
+};
+
+static pthread_mutex_t rwlockslock = PTHREAD_MUTEX_INITIALIZER;
+static ISC_LIST(isc_rwlock_tracker_t) rwlocks = { NULL, NULL };
+
+void
+isc_rwlock_check_track(void) {
+	pthread_mutex_lock(&rwlockslock);
+	if (!ISC_LIST_EMPTY(rwlocks)) {
+		isc_rwlock_tracker_t *t;
+		fprintf(stderr,
+			"isc_rwlock_init/isc_rwlock_destroy mismatch\n");
+		for (t = ISC_LIST_HEAD(rwlocks); t != NULL;
+		     t = ISC_LIST_NEXT(t, link)) {
+			fprintf(stderr, "rwlock %s:%d\n", t->file, t->line);
+		}
+
+		abort();
+	}
+	pthread_mutex_unlock(&rwlockslock);
+}
+
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
+
 #if USE_PTHREAD_RWLOCK
 
 #include <errno.h>
 #include <pthread.h>
 
 void
-isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
-		unsigned int write_quota) {
+isc__rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
+		 unsigned int write_quota, const char *file, int line) {
 	UNUSED(read_quota);
 	UNUSED(write_quota);
 	REQUIRE(pthread_rwlock_init(&rwl->rwlock, NULL) == 0);
 	atomic_init(&rwl->downgrade, false);
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+	rwl->tracker = malloc(sizeof(*rwl->tracker));
+	INSIST(rwl->tracker != NULL);
+	rwl->tracker->file = file;
+	rwl->tracker->line = line;
+	pthread_mutex_lock(&rwlockslock);
+	ISC_LIST_INITANDAPPEND(rwlocks, rwl->tracker, link);
+	pthread_mutex_unlock(&rwlockslock);
+#else
+	UNUSED(file);
+	UNUSED(line);
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
 }
 
 isc_result_t
@@ -123,6 +167,15 @@ isc_rwlock_downgrade(isc_rwlock_t *rwl) {
 
 void
 isc_rwlock_destroy(isc_rwlock_t *rwl) {
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+	INSIST(rwl->tracker != NULL);
+	pthread_mutex_lock(&rwlockslock);
+	ISC_LIST_UNLINK(rwlocks, rwl->tracker, link);
+	pthread_mutex_unlock(&rwlockslock);
+	free(rwl->tracker);
+	rwl->tracker = NULL;
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
+
 	pthread_rwlock_destroy(&rwl->rwlock);
 }
 
@@ -191,8 +244,8 @@ print_lock(const char *operation, isc_rwlock_t *rwl, isc_rwlocktype_t type) {
 #endif			/* ISC_RWLOCK_TRACE */
 
 void
-isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
-		unsigned int write_quota) {
+isc__rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
+		 unsigned int write_quota, const char *file, int line) {
 	REQUIRE(rwl != NULL);
 
 	/*
@@ -221,6 +274,19 @@ isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
 	isc_condition_init(&rwl->readable);
 	isc_condition_init(&rwl->writeable);
 
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+	rwl->tracker = malloc(sizeof(*rwl->tracker));
+	INSIST(rwl->tracker != NULL);
+	rwl->tracker->file = file;
+	rwl->tracker->line = line;
+	pthread_mutex_lock(&rwlockslock);
+	ISC_LIST_INITANDAPPEND(rwlocks, rwl->tracker, link);
+	pthread_mutex_unlock(&rwlockslock);
+#else
+	UNUSED(file);
+	UNUSED(line);
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
+
 	rwl->magic = RWLOCK_MAGIC;
 }
 
@@ -232,6 +298,15 @@ isc_rwlock_destroy(isc_rwlock_t *rwl) {
 			atomic_load_acquire(&rwl->write_completions) &&
 		atomic_load_acquire(&rwl->cnt_and_flag) == 0 &&
 		rwl->readers_waiting == 0);
+
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+	INSIST(rwl->tracker != NULL);
+	pthread_mutex_lock(&rwlockslock);
+	ISC_LIST_UNLINK(rwlocks, rwl->tracker, link);
+	pthread_mutex_unlock(&rwlockslock);
+	free(rwl->tracker);
+	rwl->tracker = NULL;
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
 
 	rwl->magic = 0;
 	(void)isc_condition_destroy(&rwl->readable);

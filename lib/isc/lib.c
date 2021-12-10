@@ -12,8 +12,10 @@
 /*! \file */
 
 #include <isc/bind9.h>
+#include <isc/condition.h>
 #include <isc/mem.h>
 #include <isc/os.h>
+#include <isc/rwlock.h>
 #include <isc/tls.h>
 #include <isc/util.h>
 
@@ -48,4 +50,9 @@ isc__shutdown(void) {
 	isc__trampoline_shutdown();
 	isc__tls_shutdown();
 	isc__mem_shutdown();
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+	isc_mutex_check_track();
+	isc_rwlock_check_track();
+	isc_condition_check_track();
+#endif
 }

@@ -28,16 +28,54 @@
 
 #include <stdlib.h>
 
+struct isc_mutex_tracker {
+	ISC_LINK(isc_mutex_tracker_t) link;
+	const char *file;
+	int line;
+};
+
+static pthread_mutex_t mutexeslock = PTHREAD_MUTEX_INITIALIZER;
+static ISC_LIST(isc_mutex_tracker_t) mutexes = { NULL, NULL };
+
 void
-isc_mutex_init_track(isc_mutex_t *m) {
+isc_mutex_init_track(isc_mutex_t *m, const char *file, int line) {
 	RUNTIME_CHECK(pthread_mutex_init(&m->mutex, NULL) == 0);
-	m->tracker = malloc(8);
+
+	m->tracker = malloc(sizeof(*m->tracker));
+	INSIST(m->tracker != NULL);
+	m->tracker->file = file;
+	m->tracker->line = line;
+
+	pthread_mutex_lock(&mutexeslock);
+	ISC_LIST_INITANDAPPEND(mutexes, m->tracker, link);
+	pthread_mutex_unlock(&mutexeslock);
 }
 
 void
 isc_mutex_destroy_track(isc_mutex_t *m) {
+	INSIST(m->tracker != NULL);
+	pthread_mutex_lock(&mutexeslock);
+	ISC_LIST_UNLINK(mutexes, m->tracker, link);
+	pthread_mutex_unlock(&mutexeslock);
 	free(m->tracker);
+	m->tracker = NULL;
 	RUNTIME_CHECK(pthread_mutex_destroy(&m->mutex) == 0);
+}
+
+void
+isc_mutex_check_track(void) {
+	pthread_mutex_lock(&mutexeslock);
+	if (!ISC_LIST_EMPTY(mutexes)) {
+		isc_mutex_tracker_t *t;
+		fprintf(stderr, "isc_mutex_init/isc_mutext_destroy mismatch\n");
+		for (t = ISC_LIST_HEAD(mutexes); t != NULL;
+		     t = ISC_LIST_NEXT(t, link)) {
+			fprintf(stderr, "mutex %s:%d\n", t->file, t->line);
+		}
+
+		abort();
+	}
+	pthread_mutex_unlock(&mutexeslock);
 }
 
 #else /* ISC_TRACK_PTHREADS_OBJECTS */

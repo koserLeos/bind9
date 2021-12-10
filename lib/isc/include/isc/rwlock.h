@@ -28,12 +28,22 @@ typedef enum {
 	isc_rwlocktype_write
 } isc_rwlocktype_t;
 
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+typedef struct isc_rwlock_tracker isc_rwlock_tracker_t;
+
+void
+isc_rwlock_check_track(void);
+#endif
+
 #if USE_PTHREAD_RWLOCK
 #include <pthread.h>
 
 struct isc_rwlock {
 	pthread_rwlock_t rwlock;
 	atomic_bool	 downgrade;
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+	isc_rwlock_tracker_t *tracker;
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
 };
 
 #else /* USE_PTHREAD_RWLOCK */
@@ -71,14 +81,19 @@ struct isc_rwlock {
 	atomic_uint_fast32_t write_granted;
 
 	/* Unlocked. */
-	unsigned int write_quota;
+	unsigned int	      write_quota;
+#ifdef ISC_TRACK_PTHREADS_OBJECTS
+	isc_rwlock_tracker_t *tracker;
+#endif /* ISC_TRACK_PTHREADS_OBJECTS */
 };
 
 #endif /* USE_PTHREAD_RWLOCK */
 
+#define isc_rwlock_init(rwl, read_quota, write_quota) \
+	isc__rwlock_init(rwl, read_quota, write_quota, __FILE__, __LINE__)
 void
-isc_rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
-		unsigned int write_quota);
+isc__rwlock_init(isc_rwlock_t *rwl, unsigned int read_quota,
+		 unsigned int write_quota, const char *file, int line);
 
 isc_result_t
 isc_rwlock_lock(isc_rwlock_t *rwl, isc_rwlocktype_t type);

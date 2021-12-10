@@ -23,18 +23,23 @@ ISC_LANG_BEGINDECLS
 
 #ifdef ISC_TRACK_PTHREADS_OBJECTS
 
+typedef struct isc_mutex_tracker isc_mutex_tracker_t;
+
 typedef struct {
-	pthread_mutex_t mutex;
-	void	     *tracker;
+	pthread_mutex_t	     mutex;
+	isc_mutex_tracker_t *tracker;
 } isc_mutex_t;
 
 void
-isc_mutex_init_track(isc_mutex_t *m);
+isc_mutex_init_track(isc_mutex_t *m, const char *file, int line);
 
 void
 isc_mutex_destroy_track(isc_mutex_t *m);
 
-#define isc_mutex_init(mp)    isc_mutex_init_track(mp)
+void
+isc_mutex_check_track(void);
+
+#define isc_mutex_init(mp)    isc_mutex_init_track(mp, __FILE__, __LINE__)
 #define isc_mutex_lock(mp)    isc__mutex_lock(&(mp)->mutex)
 #define isc_mutex_unlock(mp)  isc__mutex_unlock(&(mp)->mutex)
 #define isc_mutex_trylock(mp) isc__mutex_trylock(&(mp)->mutex)

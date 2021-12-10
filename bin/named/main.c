@@ -27,7 +27,6 @@
 #include <isc/attributes.h>
 #include <isc/backtrace.h>
 #include <isc/commandline.h>
-#include <isc/condition.h>
 #include <isc/dir.h>
 #include <isc/file.h>
 #include <isc/hash.h>
@@ -1512,10 +1511,6 @@ main(int argc, char *argv[]) {
 	isc_app_finish();
 
 	named_os_closedevnull();
-
-#ifdef ISC_TRACK_PTHREADS_OBJECTS
-	isc_condition_check_track();
-#endif
 
 	named_os_shutdown();
 
