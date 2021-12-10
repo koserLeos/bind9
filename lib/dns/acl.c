@@ -563,6 +563,16 @@ initialize_action(void) {
 	isc_mutex_init(&insecure_prefix_lock);
 }
 
+static void
+cleanup_insecure_prefix_lock(void) ISC_DESTRUCTOR;
+
+static void
+cleanup_insecure_prefix_lock(void) {
+	RUNTIME_CHECK(isc_once_do(&insecure_prefix_once, initialize_action) ==
+		      ISC_R_SUCCESS);
+	isc_mutex_destroy(&insecure_prefix_lock);
+}
+
 /*
  * Called via isc_radix_process() to find IP table nodes that are
  * insecure.
