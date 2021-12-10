@@ -104,6 +104,7 @@ _teardown(void **state) {
 	UNUSED(state);
 
 	isc_test_end();
+	isc_mutex_destroy(&lock);
 	isc_condition_destroy(&cv);
 
 	return (0);
@@ -919,8 +920,6 @@ post_shutdown(void **state) {
 	atomic_init(&done, false);
 	event_type = 4;
 
-	isc_condition_init(&cv);
-
 	LOCK(&lock);
 
 	task = NULL;
@@ -1059,6 +1058,7 @@ test_purge(int sender, int type, int tag, int exp_purged) {
 	atomic_init(&done, false);
 	eventcnt = 0;
 
+	isc_condition_destroy(&cv);
 	isc_condition_init(&cv);
 
 	result = isc_task_create(taskmgr, 0, &task);
@@ -1353,8 +1353,6 @@ try_purgeevent(bool purgeable) {
 	atomic_init(&started, false);
 	atomic_init(&done, false);
 	eventcnt = 0;
-
-	isc_condition_init(&cv);
 
 	result = isc_task_create(taskmgr, 0, &task);
 	assert_int_equal(result, ISC_R_SUCCESS);
