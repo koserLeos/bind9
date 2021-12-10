@@ -504,6 +504,8 @@ destroy(dns_dtenv_t *env) {
 		isc_stats_detach(&env->stats);
 	}
 
+	isc_mutex_destroy(&env->reopen_lock);
+
 	isc_mem_putanddetach(&env->mctx, env, sizeof(*env));
 }
 
