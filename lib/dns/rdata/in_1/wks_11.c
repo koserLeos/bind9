@@ -34,10 +34,20 @@
 #define RRTYPE_WKS_ATTRIBUTES (0)
 
 static isc_mutex_t wks_lock;
+static isc_once_t wks_once = ISC_ONCE_INIT;
 
 static void
 init_lock(void) {
 	isc_mutex_init(&wks_lock);
+}
+
+static void
+cleanup_wks_lock(void) ISC_DESTRUCTOR;
+
+static void
+cleanup_wks_lock(void) {
+	RUNTIME_CHECK(isc_once_do(&wks_once, init_lock) == ISC_R_SUCCESS);
+	isc_mutex_destroy(&wks_lock);
 }
 
 static bool
@@ -68,7 +78,6 @@ mygetservbyname(const char *name, const char *proto, long *port) {
 
 static inline isc_result_t
 fromtext_in_wks(ARGS_FROMTEXT) {
-	static isc_once_t once = ISC_ONCE_INIT;
 	isc_token_t token;
 	isc_region_t region;
 	struct in_addr addr;
@@ -92,7 +101,7 @@ fromtext_in_wks(ARGS_FROMTEXT) {
 	UNUSED(rdclass);
 	UNUSED(callbacks);
 
-	RUNTIME_CHECK(isc_once_do(&once, init_lock) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_once_do(&wks_once, init_lock) == ISC_R_SUCCESS);
 
 	/*
 	 * IPv4 dotted quad.
