@@ -12,6 +12,7 @@
 /*! \file */
 
 #include <errno.h>
+#include <unistd.h>
 
 #include <isc/condition.h>
 #include <isc/strerr.h>
@@ -23,16 +24,42 @@
 
 #include <stdlib.h>
 
+static pthread_mutex_t conditionslock = PTHREAD_MUTEX_INITIALIZER;
+static ISC_LIST(isc_condition_tracker_t) conditions = { NULL, NULL };
+
 void
 isc_condition_init_track(isc_condition_t *c) {
 	isc__condition_init(&c->cond);
-	c->tracker = malloc(8);
+
+	c->tracker = malloc(sizeof(*c->tracker));
+
+	pthread_mutex_lock(&conditionslock);
+	ISC_LIST_INITANDAPPEND(conditions, c->tracker, link);
+	pthread_mutex_unlock(&conditionslock);
 }
 
 isc_result_t
 isc_condition_destroy_track(isc_condition_t *c) {
+	INSIST(c->tracker != NULL);
+
+	pthread_mutex_lock(&conditionslock);
+	ISC_LIST_UNLINK(conditions, c->tracker, link);
+	pthread_mutex_unlock(&conditionslock);
+
 	free(c->tracker);
+	c->tracker = NULL;
+
 	return (isc__condition_destroy(&c->cond));
+}
+
+void
+isc_condition_check_track(void) {
+	pthread_mutex_lock(&conditionslock);
+	if (!ISC_LIST_EMPTY(conditions)) {
+		fprintf(stderr, "leaked isc_condition_init\n");
+		abort();
+	}
+	pthread_mutex_unlock(&conditionslock);
 }
 
 #endif

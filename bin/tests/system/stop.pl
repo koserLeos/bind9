@@ -253,7 +253,7 @@ sub pid_file_exists {
 	if (send_signal(0, $pid) == 0) {
 		# XXX: on windows this is likely to result in a
 		# false positive, so don't bother reporting the error.
-		if (!defined($ENV{'CYGWIN'})) {
+		if (!defined($ENV{'CYGWIN'}) || $ENV{'CYGWIN'} eq "") {
 			print "I:$test:$server crashed on shutdown\n";
 			$errors = 1;
 		}

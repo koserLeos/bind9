@@ -25,9 +25,15 @@
 
 #ifdef ISC_TRACK_PTHREADS_OBJECTS
 
+typedef struct isc_condition_tracker isc_condition_tracker_t;
+
+struct isc_condition_tracker {
+	ISC_LINK(isc_condition_tracker_t) link;
+};
+
 typedef struct {
 	pthread_cond_t cond;
-	void	     *tracker;
+	isc_condition_tracker_t *tracker;
 } isc_condition_t;
 
 void
@@ -35,6 +41,9 @@ isc_condition_init_track(isc_condition_t *c);
 
 isc_result_t
 isc_condition_destroy_track(isc_condition_t *c);
+
+void
+isc_condition_check_track(void);
 
 #define isc_condition_init(cond) isc_condition_init_track(cond)
 #define isc_condition_wait(cp, mp) \
