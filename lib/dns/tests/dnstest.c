@@ -102,6 +102,7 @@ cleanup_managers(void) {
 
 	if (app_running) {
 		isc_app_finish();
+		app_running = false;
 	}
 }
 
@@ -128,6 +129,7 @@ dns_test_begin(FILE *logfile, bool start_managers) {
 
 	if (start_managers) {
 		CHECK(isc_app_start());
+		app_running = true;
 	}
 	if (debug_mem_record) {
 		isc_mem_debugging |= ISC_MEM_DEBUGRECORD;
