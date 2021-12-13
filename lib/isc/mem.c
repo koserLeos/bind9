@@ -62,6 +62,7 @@ LIBISC_EXTERNAL_DATA unsigned int isc_mem_defaultflags = ISC_MEMFLAG_DEFAULT;
 #define NUM_BASIC_BLOCKS  64 /*%< must be > 1 */
 #define TABLE_INCREMENT	  1024
 #define DEBUG_TABLE_COUNT 512U
+#define STATS_BUCKETS	  512U
 
 /*
  * Types.
@@ -105,10 +106,12 @@ typedef struct {
 } size_info;
 
 struct stats {
+	char *file;
 	unsigned long gets;
 	unsigned long totalgets;
 	unsigned long blocks;
 	unsigned long freefrags;
+	atomic_size_t inuse;
 };
 
 #define MEM_MAGIC	 ISC_MAGIC('M', 'e', 'm', 'C')
@@ -145,6 +148,7 @@ struct isc__mem {
 	size_t max_size;
 	bool checkfree;
 	struct stats *stats;
+	struct stats file_stats[STATS_BUCKETS];
 	isc_refcount_t references;
 	char name[16];
 	void *tag;
@@ -655,11 +659,29 @@ mem_put(isc__mem_t *ctx, void *mem, size_t size) {
 	(ctx->memfree)(mem);
 }
 
+static struct stats *
+stats_file_bucket(isc__mem_t *ctx, const char *file) {
+	uint32_t h = isc_hash32(file, strlen(file), false);
+	int idx = h % STATS_BUCKETS;
+
+	while (ctx->file_stats[idx].file != NULL &&
+	       strcmp(ctx->file_stats[idx].file, file) != 0)
+	{
+		idx = (idx + 1) % STATS_BUCKETS;
+	}
+
+	if (ctx->file_stats[idx].file == NULL) {
+		ctx->file_stats[idx].file = strdup(file);
+	}
+
+	return (&ctx->file_stats[idx]);
+}
+
 /*!
  * Update internal counters after a memory get.
  */
 static inline void
-mem_getstats(isc__mem_t *ctx, size_t size) {
+mem_getstats(isc__mem_t *ctx, size_t size FLARG) {
 	ctx->total += size;
 	ctx->inuse += size;
 
@@ -678,13 +700,17 @@ mem_getstats(isc__mem_t *ctx, size_t size) {
 	if (ctx->malloced > ctx->maxmalloced) {
 		ctx->maxmalloced = ctx->malloced;
 	}
+
+	UNUSED(line);
+	struct stats *stats = stats_file_bucket(ctx, file);
+	atomic_fetch_add_release(&stats->inuse, size);
 }
 
 /*!
  * Update internal counters after a memory put.
  */
 static inline void
-mem_putstats(isc__mem_t *ctx, void *ptr, size_t size) {
+mem_putstats(isc__mem_t *ctx, void *ptr, size_t size FLARG) {
 	UNUSED(ptr);
 
 	INSIST(ctx->inuse >= size);
@@ -701,6 +727,10 @@ mem_putstats(isc__mem_t *ctx, void *ptr, size_t size) {
 	size += 1;
 #endif /* if ISC_MEM_CHECKOVERRUN */
 	ctx->malloced -= size;
+
+	UNUSED(line);
+	struct stats *stats = stats_file_bucket(ctx, file);
+	atomic_fetch_sub_release(&stats->inuse, size);
 }
 
 /*
@@ -812,6 +842,10 @@ mem_create(isc_mem_t **ctxp, unsigned int flags) {
 	ctx->debuglist = NULL;
 	ctx->debuglistcnt = 0;
 #endif /* if ISC_MEM_TRACKLINES */
+	for (size_t i = 0; i < STATS_BUCKETS; i++) {
+		ctx->file_stats[i] = (struct stats){ 0 };
+		atomic_init(&ctx->file_stats[i].inuse, 0);
+	}
 	ISC_LIST_INIT(ctx->pools);
 	ctx->poolcnt = 0;
 	ctx->freelists = NULL;
@@ -876,6 +910,11 @@ destroy(isc__mem_t *ctx) {
 	ctx->common.magic = 0;
 
 	INSIST(ISC_LIST_EMPTY(ctx->pools));
+	for (i = 0; i < (size_t)STATS_BUCKETS; i++) {
+		if (ctx->file_stats[i].file != NULL) {
+			free(ctx->file_stats[i].file);
+		}
+	}
 
 #if ISC_MEM_TRACKLINES
 	if (ISC_UNLIKELY(ctx->debuglist != NULL)) {
@@ -1008,7 +1047,7 @@ isc___mem_putanddetach(isc_mem_t **ctxp, void *ptr, size_t size FLARG) {
 	if ((ctx->flags & ISC_MEMFLAG_INTERNAL) != 0) {
 		mem_putunlocked(ctx, ptr, size);
 	} else {
-		mem_putstats(ctx, ptr, size);
+		mem_putstats(ctx, ptr, size FLARG_PASS);
 		mem_put(ctx, ptr, size);
 	}
 	MCTXUNLOCK(ctx);
@@ -1065,7 +1104,7 @@ isc___mem_get(isc_mem_t *ctx0, size_t size FLARG) {
 		ptr = mem_get(ctx, size);
 		MCTXLOCK(ctx);
 		if (ptr != NULL) {
-			mem_getstats(ctx, size);
+			mem_getstats(ctx, size FLARG_PASS);
 		}
 	}
 
@@ -1127,7 +1166,7 @@ isc___mem_put(isc_mem_t *ctx0, void *ptr, size_t size FLARG) {
 	if ((ctx->flags & ISC_MEMFLAG_INTERNAL) != 0) {
 		mem_putunlocked(ctx, ptr, size);
 	} else {
-		mem_putstats(ctx, ptr, size);
+		mem_putstats(ctx, ptr, size FLARG_PASS);
 		mem_put(ctx, ptr, size);
 	}
 
@@ -1307,7 +1346,7 @@ isc___mem_allocate(isc_mem_t *ctx0, size_t size FLARG) {
 	MCTXLOCK(ctx);
 	si = mem_allocateunlocked((isc_mem_t *)ctx, size);
 	if (((ctx->flags & ISC_MEMFLAG_INTERNAL) == 0)) {
-		mem_getstats(ctx, si[-1].u.size);
+		mem_getstats(ctx, si[-1].u.size FLARG_PASS);
 	}
 
 	ADD_TRACE(ctx, si, si[-1].u.size, file, line);
@@ -1406,7 +1445,7 @@ isc___mem_free(isc_mem_t *ctx0, void *ptr FLARG) {
 	if ((ctx->flags & ISC_MEMFLAG_INTERNAL) != 0) {
 		mem_putunlocked(ctx, si, size);
 	} else {
-		mem_putstats(ctx, si, size);
+		mem_putstats(ctx, si, size FLARG_PASS);
 		mem_put(ctx, si, size);
 	}
 
@@ -1728,7 +1767,8 @@ isc_mempool_destroy(isc_mempool_t **mpctxp) {
 		if ((mctx->flags & ISC_MEMFLAG_INTERNAL) != 0) {
 			mem_putunlocked(mctx, item, mpctx->size);
 		} else {
-			mem_putstats(mctx, item, mpctx->size);
+			mem_putstats(mctx, item, mpctx->size, __FILE__,
+				     __LINE__);
 			mem_put(mctx, item, mpctx->size);
 		}
 	}
@@ -1838,7 +1878,8 @@ isc__mempool_get(isc_mempool_t *mpctx0 FLARG) {
 			} else {
 				item = mem_get(mctx, mpctx->size);
 				if (item != NULL) {
-					mem_getstats(mctx, mpctx->size);
+					mem_getstats(mctx,
+						     mpctx->size FLARG_PASS);
 				}
 			}
 			if (ISC_UNLIKELY(item == NULL)) {
@@ -1907,7 +1948,7 @@ isc__mempool_put(isc_mempool_t *mpctx0, void *mem FLARG) {
 		if ((mctx->flags & ISC_MEMFLAG_INTERNAL) != 0) {
 			mem_putunlocked(mctx, mem, mpctx->size);
 		} else {
-			mem_putstats(mctx, mem, mpctx->size);
+			mem_putstats(mctx, mem, mpctx->size FLARG_PASS);
 			mem_put(mctx, mem, mpctx->size);
 		}
 		MCTXUNLOCK(mctx);
@@ -2244,7 +2285,7 @@ json_renderctx(isc__mem_t *ctx, summarystat_t *summary, json_object *array) {
 	REQUIRE(summary != NULL);
 	REQUIRE(array != NULL);
 
-	json_object *ctxobj, *obj;
+	json_object *ctxobj, *obj, *fileobj, *filearray;
 	char buf[1024];
 
 	MCTXLOCK(ctx);
@@ -2270,6 +2311,30 @@ json_renderctx(isc__mem_t *ctx, summarystat_t *summary, json_object *array) {
 
 	ctxobj = json_object_new_object();
 	CHECKMEM(ctxobj);
+
+	filearray = json_object_new_array();
+	CHECKMEM(filearray);
+
+	for (int i = 0; i < (int)STATS_BUCKETS; i++) {
+		if (ctx->file_stats[i].file == NULL) {
+			continue;
+		}
+
+		fileobj = json_object_new_object();
+		CHECKMEM(fileobj);
+
+		obj = json_object_new_string(ctx->file_stats[i].file);
+		CHECKMEM(obj);
+		json_object_object_add(fileobj, "file", obj);
+
+		obj = json_object_new_int64(ctx->file_stats[i].inuse);
+		CHECKMEM(obj);
+		json_object_object_add(fileobj, "inuse", obj);
+
+		json_object_array_add(filearray, fileobj);
+	}
+
+	json_object_object_add(ctxobj, "files", filearray);
 
 	snprintf(buf, sizeof(buf), "%p", ctx);
 	obj = json_object_new_string(buf);
