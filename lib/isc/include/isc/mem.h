@@ -138,7 +138,7 @@ LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_defaultflags;
  */
 
 #ifndef ISC_MEM_USE_INTERNAL_MALLOC
-#define ISC_MEM_USE_INTERNAL_MALLOC 1
+#define ISC_MEM_USE_INTERNAL_MALLOC 0
 #endif
 
 /*
@@ -147,9 +147,9 @@ LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_defaultflags;
 #define ISC_MEMFLAG_NOLOCK	0x00000001	 /* no lock is necessary */
 #define ISC_MEMFLAG_INTERNAL	0x00000002	 /* use internal malloc */
 #if ISC_MEM_USE_INTERNAL_MALLOC
-#define ISC_MEMFLAG_DEFAULT 	ISC_MEMFLAG_INTERNAL
+#define ISC_MEMFLAG_DEFAULT	0
 #else
-#define ISC_MEMFLAG_DEFAULT 	0
+#define ISC_MEMFLAG_DEFAULT	0
 #endif
 
 
