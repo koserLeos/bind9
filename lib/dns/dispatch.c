@@ -2782,7 +2782,7 @@ dispatch_createudp(dns_dispatchmgr_t *mgr, isc_socketmgr_t *sockmgr,
 
 	disp->sepool = NULL;
 	isc_mem_create(&disp->sepool);
-	isc_mem_setname(disp->sepool, "disp_sepool");
+	isc_mem_setname(disp->sepool, "disp_sepool", NULL);
 
 	attributes &= ~DNS_DISPATCHATTR_TCP;
 	attributes |= DNS_DISPATCHATTR_UDP;
