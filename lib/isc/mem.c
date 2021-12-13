@@ -105,8 +105,10 @@ struct element {
 };
 
 struct stats {
+	char *file;
 	atomic_size_t gets;
 	atomic_size_t totalgets;
+	atomic_size_t inuse;
 };
 
 #define MEM_MAGIC	 ISC_MAGIC('M', 'e', 'm', 'C')
@@ -132,6 +134,7 @@ struct isc_mem {
 	isc_mutex_t lock;
 	bool checkfree;
 	struct stats stats[STATS_BUCKETS + 1];
+	struct stats file_stats[STATS_BUCKETS * 2];
 	isc_refcount_t references;
 	char name[16];
 	atomic_size_t total;
@@ -387,11 +390,29 @@ mem_realloc(isc_mem_t *ctx, void *old_ptr, size_t old_size, size_t new_size) {
 		 ? &ctx->stats[STATS_BUCKETS]        \
 		 : &ctx->stats[size / STATS_BUCKET_SIZE])
 
+static struct stats *
+stats_file_bucket(isc_mem_t *ctx, const char *file) {
+	uint32_t h = isc_hash32(file, strlen(file), false);
+	int idx = h % STATS_BUCKETS;
+
+	while (ctx->file_stats[idx].file != NULL &&
+	       strcmp(ctx->file_stats[idx].file, file) != 0)
+	{
+		idx = (idx + 1) % STATS_BUCKETS;
+	}
+
+	if (ctx->file_stats[idx].file == NULL) {
+		ctx->file_stats[idx].file = strdup(file);
+	}
+
+	return (&ctx->file_stats[idx]);
+}
+
 /*!
  * Update internal counters after a memory get.
  */
 static inline void
-mem_getstats(isc_mem_t *ctx, size_t size) {
+mem_getstats(isc_mem_t *ctx, size_t size FLARG) {
 	struct stats *stats = stats_bucket(ctx, size);
 
 	atomic_fetch_add_relaxed(&ctx->total, size);
@@ -400,6 +421,10 @@ mem_getstats(isc_mem_t *ctx, size_t size) {
 	atomic_fetch_add_relaxed(&stats->gets, 1);
 	atomic_fetch_add_relaxed(&stats->totalgets, 1);
 
+	UNUSED(line);
+	stats = stats_file_bucket(ctx, file);
+	atomic_fetch_add_release(&stats->inuse, size);
+
 	increment_malloced(ctx, size);
 }
 
@@ -407,7 +432,7 @@ mem_getstats(isc_mem_t *ctx, size_t size) {
  * Update internal counters after a memory put.
  */
 static inline void
-mem_putstats(isc_mem_t *ctx, void *ptr, size_t size) {
+mem_putstats(isc_mem_t *ctx, void *ptr, size_t size FLARG) {
 	struct stats *stats = stats_bucket(ctx, size);
 
 	UNUSED(ptr);
@@ -415,6 +440,10 @@ mem_putstats(isc_mem_t *ctx, void *ptr, size_t size) {
 	INSIST(atomic_fetch_sub_release(&ctx->inuse, size) >= size);
 
 	INSIST(atomic_fetch_sub_release(&stats->gets, 1) >= 1);
+
+	UNUSED(line);
+	stats = stats_file_bucket(ctx, file);
+	atomic_fetch_sub_release(&stats->inuse, size);
 
 	decrement_malloced(ctx, size);
 }
@@ -479,6 +508,9 @@ mem_create(isc_mem_t **ctxp, unsigned int flags) {
 		atomic_init(&ctx->stats[i].gets, 0);
 		atomic_init(&ctx->stats[i].totalgets, 0);
 	}
+	for (size_t i = 0; i < STATS_BUCKETS; i++) {
+		atomic_init(&ctx->file_stats[i].inuse, 0);
+	}
 	ISC_LIST_INIT(ctx->pools);
 
 #if ISC_MEM_TRACKLINES
@@ -521,6 +553,11 @@ destroy(isc_mem_t *ctx) {
 	ctx->magic = 0;
 
 	INSIST(ISC_LIST_EMPTY(ctx->pools));
+	for (i = 0; i < (size_t)STATS_BUCKETS; i++) {
+		if (ctx->file_stats[i].file != NULL) {
+			free(ctx->file_stats[i].file);
+		}
+	}
 
 #if ISC_MEM_TRACKLINES
 	if (ctx->debuglist != NULL) {
@@ -629,7 +666,7 @@ isc__mem_putanddetach(isc_mem_t **ctxp, void *ptr, size_t size FLARG) {
 
 	DELETE_TRACE(ctx, ptr, size, file, line);
 
-	mem_putstats(ctx, ptr, size);
+	mem_putstats(ctx, ptr, size FLARG_PASS);
 	mem_put(ctx, ptr, size);
 
 	if (isc_refcount_decrement(&ctx->references) == 1) {
@@ -752,7 +789,7 @@ isc__mem_get(isc_mem_t *ctx, size_t size FLARG) {
 
 	ptr = mem_get(ctx, size);
 
-	mem_getstats(ctx, size);
+	mem_getstats(ctx, size FLARG_PASS);
 	ADD_TRACE(ctx, ptr, size, file, line);
 
 	CALL_HI_WATER(ctx);
@@ -766,7 +803,7 @@ isc__mem_put(isc_mem_t *ctx, void *ptr, size_t size FLARG) {
 
 	DELETE_TRACE(ctx, ptr, size, file, line);
 
-	mem_putstats(ctx, ptr, size);
+	mem_putstats(ctx, ptr, size FLARG_PASS);
 	mem_put(ctx, ptr, size);
 
 	CALL_LO_WATER(ctx);
@@ -889,7 +926,7 @@ isc__mem_allocate(isc_mem_t *ctx, size_t size FLARG) {
 	/* Recalculate the real allocated size */
 	size = sallocx(ptr, 0);
 
-	mem_getstats(ctx, size);
+	mem_getstats(ctx, size FLARG_PASS);
 	ADD_TRACE(ctx, ptr, size, file, line);
 
 	CALL_HI_WATER(ctx);
@@ -909,11 +946,11 @@ isc__mem_reget(isc_mem_t *ctx, void *old_ptr, size_t old_size,
 		isc__mem_put(ctx, old_ptr, old_size FLARG_PASS);
 	} else {
 		DELETE_TRACE(ctx, old_ptr, old_size, file, line);
-		mem_putstats(ctx, old_ptr, old_size);
+		mem_putstats(ctx, old_ptr, old_size FLARG_PASS);
 
 		new_ptr = mem_realloc(ctx, old_ptr, old_size, new_size);
 
-		mem_getstats(ctx, new_size);
+		mem_getstats(ctx, new_size FLARG_PASS);
 		ADD_TRACE(ctx, new_ptr, new_size, file, line);
 
 		/*
@@ -942,14 +979,14 @@ isc__mem_reallocate(isc_mem_t *ctx, void *old_ptr, size_t new_size FLARG) {
 		size_t old_size = sallocx(old_ptr, 0);
 
 		DELETE_TRACE(ctx, old_ptr, old_size, file, line);
-		mem_putstats(ctx, old_ptr, old_size);
+		mem_putstats(ctx, old_ptr, old_size FLARG_PASS);
 
 		new_ptr = mem_realloc(ctx, old_ptr, old_size, new_size);
 
 		/* Recalculate the real allocated size */
 		new_size = sallocx(new_ptr, 0);
 
-		mem_getstats(ctx, new_size);
+		mem_getstats(ctx, new_size FLARG_PASS);
 		ADD_TRACE(ctx, new_ptr, new_size, file, line);
 
 		/*
@@ -974,7 +1011,7 @@ isc__mem_free(isc_mem_t *ctx, void *ptr FLARG) {
 
 	DELETE_TRACE(ctx, ptr, size, file, line);
 
-	mem_putstats(ctx, ptr, size);
+	mem_putstats(ctx, ptr, size FLARG_PASS);
 	mem_put(ctx, ptr, size);
 
 	CALL_LO_WATER(ctx);
@@ -1242,7 +1279,7 @@ isc__mempool_destroy(isc_mempool_t **restrict mpctxp FLARG) {
 		item = mpctx->items;
 		mpctx->items = item->next;
 
-		mem_putstats(mctx, item, mpctx->size);
+		mem_putstats(mctx, item, mpctx->size FLARG_PASS);
 		mem_put(mctx, item, mpctx->size);
 	}
 
@@ -1297,7 +1334,7 @@ isc__mempool_get(isc_mempool_t *restrict mpctx FLARG) {
 		 */
 		for (size_t i = 0; i < fillcount; i++) {
 			item = mem_get(mctx, mpctx->size);
-			mem_getstats(mctx, mpctx->size);
+			mem_getstats(mctx, mpctx->size FLARG_PASS);
 			item->next = mpctx->items;
 			mpctx->items = item;
 			mpctx->freecount++;
@@ -1339,7 +1376,7 @@ isc__mempool_put(isc_mempool_t *restrict mpctx, void *mem FLARG) {
 	 * If our free list is full, return this to the mctx directly.
 	 */
 	if (freecount >= freemax) {
-		mem_putstats(mctx, mem, mpctx->size);
+		mem_putstats(mctx, mem, mpctx->size FLARG_PASS);
 		mem_put(mctx, mem, mpctx->size);
 		return;
 	}
@@ -1623,7 +1660,7 @@ json_renderctx(isc_mem_t *ctx, summarystat_t *summary, json_object *array) {
 	REQUIRE(summary != NULL);
 	REQUIRE(array != NULL);
 
-	json_object *ctxobj, *obj;
+	json_object *ctxobj, *obj, *fileobj, *filearray;
 	char buf[1024];
 
 	MCTXLOCK(ctx);
@@ -1642,6 +1679,30 @@ json_renderctx(isc_mem_t *ctx, summarystat_t *summary, json_object *array) {
 
 	ctxobj = json_object_new_object();
 	CHECKMEM(ctxobj);
+
+	filearray = json_object_new_array();
+	CHECKMEM(filearray);
+
+	for (int i = 0; i < (int)STATS_BUCKETS; i++) {
+		if (ctx->file_stats[i].file == NULL) {
+			continue;
+		}
+
+		fileobj = json_object_new_object();
+		CHECKMEM(fileobj);
+
+		obj = json_object_new_string(ctx->file_stats[i].file);
+		CHECKMEM(obj);
+		json_object_object_add(fileobj, "file", obj);
+
+		obj = json_object_new_int64(ctx->file_stats[i].inuse);
+		CHECKMEM(obj);
+		json_object_object_add(fileobj, "inuse", obj);
+
+		json_object_array_add(filearray, fileobj);
+	}
+
+	json_object_object_add(ctxobj, "files", filearray);
 
 	snprintf(buf, sizeof(buf), "%p", ctx);
 	obj = json_object_new_string(buf);
