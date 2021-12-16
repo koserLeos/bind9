@@ -113,7 +113,7 @@ main(int argc, char **argv) {
 	}
 
 	if (strcmp(argv[1], "--have-fips-mode") == 0) {
-#ifdef HAVE_FIPS_MODE
+#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
 		return (0);
 #else  /* ifdef HAVE_FIPS_MODE */
 		return (1);

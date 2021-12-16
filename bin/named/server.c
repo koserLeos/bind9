@@ -118,6 +118,9 @@
 #ifdef HAVE_FIPS_MODE
 #include <openssl/crypto.h>
 #endif /* ifdef HAVE_FIPS_MODE */
+#ifdef HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS
+#include <openssl/evp.h>
+#endif
 
 #include <named/config.h>
 #include <named/control.h>
@@ -9723,11 +9726,17 @@ view_loaded(void *arg) {
 
 		named_os_started();
 
-#ifdef HAVE_FIPS_MODE
+#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
 		isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,
 			      NAMED_LOGMODULE_SERVER, ISC_LOG_NOTICE,
 			      "FIPS mode is %s",
-			      FIPS_mode() ? "enabled" : "disabled");
+#ifdef HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS
+			      EVP_default_properties_is_fips_enabled(NULL)
+#else
+			      FIPS_mode()
+#endif
+				      ? "enabled"
+				      : "disabled");
 #endif /* ifdef HAVE_FIPS_MODE */
 		atomic_store(&server->reload_status, NAMED_RELOAD_DONE);
 
