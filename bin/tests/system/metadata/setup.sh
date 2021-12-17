@@ -19,42 +19,42 @@ czone=child.parent.nil
 echo_i "generating keys"
 
 # active zsk
-zsk=`$KEYGEN -q -a rsasha1 $czone`
+zsk=`$KEYGEN -q -a rsasha256 $czone`
 echo $zsk > zsk.key
 
 # not yet published or active
-pending=`$KEYGEN -q -a rsasha1 -P none -A none $czone`
+pending=`$KEYGEN -q -a rsasha256 -P none -A none $czone`
 echo $pending > pending.key
 
 # published but not active
-standby=`$KEYGEN -q -a rsasha1 -A none $czone`
+standby=`$KEYGEN -q -a rsasha256 -A none $czone`
 echo $standby > standby.key
 
 # inactive
-inact=`$KEYGEN -q -a rsasha1 -P now-24h -A now-24h -I now $czone`
+inact=`$KEYGEN -q -a rsasha256 -P now-24h -A now-24h -I now $czone`
 echo $inact > inact.key
 
 # active ksk
-ksk=`$KEYGEN -q -a rsasha1 -fk $czone`
+ksk=`$KEYGEN -q -a rsasha256 -fk $czone`
 echo $ksk > ksk.key
 
 # published but not YET active; will be active in 15 seconds
-rolling=`$KEYGEN -q -a rsasha1 -fk $czone`
+rolling=`$KEYGEN -q -a rsasha256 -fk $czone`
 $SETTIME -A now+15s $rolling > /dev/null
 echo $rolling > rolling.key
 
 # revoked
-revoke1=`$KEYGEN -q -a rsasha1 -fk $czone`
+revoke1=`$KEYGEN -q -a rsasha256 -fk $czone`
 echo $revoke1 > prerev.key
 revoke2=`$REVOKE $revoke1`
 echo $revoke2 | sed -e 's#\./##' -e "s/\.key.*$//" > postrev.key
 
-pzsk=`$KEYGEN -q -a rsasha1 $pzone`
+pzsk=`$KEYGEN -q -a rsasha256 $pzone`
 echo $pzsk > parent.zsk.key
 
-pksk=`$KEYGEN -q -a rsasha1 -fk $pzone`
+pksk=`$KEYGEN -q -a rsasha256 -fk $pzone`
 echo $pksk > parent.ksk.key
 
-oldstyle=`$KEYGEN -Cq -a rsasha1 $pzone`
+oldstyle=`$KEYGEN -Cq -a rsasha256 $pzone`
 echo $oldstyle > oldstyle.key
 
