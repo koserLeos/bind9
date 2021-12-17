@@ -62,6 +62,9 @@
 #include <dns/types.h>
 
 #include "dst_internal.h"
+#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#define DNS_FIPS_MODE 1
+#endif
 
 #define DST_AS_STR(t) ((t).value.as_textregion.base)
 
@@ -195,7 +198,9 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 	UNUSED(engine);
 
 	memset(dst_t_func, 0, sizeof(dst_t_func));
+#ifndef DNS_FIPS_MODE
 	RETERR(dst__hmacmd5_init(&dst_t_func[DST_ALG_HMACMD5]));
+#endif
 	RETERR(dst__hmacsha1_init(&dst_t_func[DST_ALG_HMACSHA1]));
 	RETERR(dst__hmacsha224_init(&dst_t_func[DST_ALG_HMACSHA224]));
 	RETERR(dst__hmacsha256_init(&dst_t_func[DST_ALG_HMACSHA256]));
@@ -203,6 +208,7 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 	RETERR(dst__hmacsha512_init(&dst_t_func[DST_ALG_HMACSHA512]));
 	RETERR(dst__openssl_init(engine));
 	RETERR(dst__openssldh_init(&dst_t_func[DST_ALG_DH]));
+	/* RSASHA1 (NSEC3RSASHA1) is verify only in FIPS mode. */
 	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA1],
 				    DST_ALG_RSASHA1));
 	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_NSEC3RSASHA1],
