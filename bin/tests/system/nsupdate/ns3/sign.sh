@@ -17,8 +17,8 @@ zone=nsec3param.test.
 infile=nsec3param.test.db.in
 zonefile=nsec3param.test.db
 
-keyname1=`$KEYGEN -q -a NSEC3RSASHA1 -b 1024 -n zone -f KSK $zone`
-keyname2=`$KEYGEN -q -a NSEC3RSASHA1 -b 1024 -n zone $zone`
+keyname1=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone -f KSK $zone`
+keyname2=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone $zone`
 
 cat $infile $keyname1.key $keyname2.key >$zonefile
 
@@ -28,8 +28,8 @@ zone=dnskey.test.
 infile=dnskey.test.db.in
 zonefile=dnskey.test.db
 
-keyname1=`$KEYGEN -q -a RSASHA1 -b 1024 -n zone -f KSK $zone`
-keyname2=`$KEYGEN -q -a RSASHA1 -b 1024 -n zone $zone`
+keyname1=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone -f KSK $zone`
+keyname2=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone $zone`
 
 cat $infile $keyname1.key $keyname2.key >$zonefile
 
