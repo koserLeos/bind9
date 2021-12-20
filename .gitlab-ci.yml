@@ -630,12 +630,12 @@ gcc:fips:amd64:
     EXTRA_CONFIGURE: "--enable-dnstap --with-libidn2 --enable-fips-mode"
   <<: *oraclelinux_8fips_amd64_image
   <<: *build_job
-  <<: *schedules_tags_web_triggering_rules
+  #<<: *schedules_tags_web_triggering_rules
 
 system:gcc:fips:amd64:
   <<: *oraclelinux_8fips_amd64_image
   <<: *system_test_job
-  <<: *schedules_tags_web_triggering_rules
+  #<<: *schedules_tags_web_triggering_rules
   needs:
     - job: gcc:fips:amd64
       artifacts: true
@@ -644,7 +644,7 @@ system:gcc:fips:amd64:
 unit:gcc:fips:amd64:
   <<: *oraclelinux_8fips_amd64_image
   <<: *unit_test_job
-  <<: *schedules_tags_web_triggering_rules
+  #<<: *schedules_tags_web_triggering_rules
   needs:
     - job: gcc:fips:amd64
       artifacts: true
