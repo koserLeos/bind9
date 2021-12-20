@@ -174,6 +174,7 @@ sub handleUDP {
 				} else {
 					$tsig = Net::DNS::RR->new(
 							name => $key_name,
+							algorithm => "hmac-sha256.",
 							type => 'TSIG',
 							key  => $key_data);
 				}
@@ -390,6 +391,7 @@ sub handleTCP {
 				if ($Net::DNS::VERSION < 0.69) {
 					$tsig = Net::DNS::RR->new(
 						   "$key_name TSIG $key_data");
+					$tsig->algorithm = 'hmac-sha256.';
 				} elsif ($Net::DNS::VERSION >= 0.81 &&
 					 $continuation) {
 				} elsif ($Net::DNS::VERSION >= 0.75 &&
@@ -399,6 +401,7 @@ sub handleTCP {
 					$tsig = Net::DNS::RR->new(
 							name => $key_name,
 							type => 'TSIG',
+							algorithm => 'hmac-sha256.',
 							key  => $key_data);
 				}
 
