@@ -162,12 +162,14 @@ do
 	done
 	for z in bar. example. private.secure.example.
 	do
+		test $z = bar. && $FEATURETEST --have-fips-mode && continue
 		$DIG $DIGOPTS $z @10.53.0.2 nsec > dig.out.ns2.test$n || ret=1
 		grep "NS SOA" dig.out.ns2.test$n > /dev/null || ret=1
 	done
 	for z in bar. example. inacksk2.example. inacksk3.example \
 		 inaczsk2.example. inaczsk3.example noksk.example nozsk.example
 	do
+		test $z = bar. && $FEATURETEST --have-fips-mode && continue
 		$DIG $DIGOPTS $z @10.53.0.3 nsec > dig.out.ns3.test$n || ret=1
 		grep "NS SOA" dig.out.ns3.test$n > /dev/null || ret=1
 	done
@@ -188,6 +190,7 @@ do
 done
 for z in bar. example. private.secure.example.
 do
+	test $z = bar. && $FEATURETEST --have-fips-mode && continue
 	echo_i zone $z
 	$DIG $DIGOPTS $z @10.53.0.2 axfr | awk '$4 == "RRSIG" {print $9}' | sort | uniq -c | cat_i
 done
@@ -312,14 +315,17 @@ update add optout.example. 3600 NSEC3PARAM 1 1 10 BEEF
 send
 END
 
-# try to convert nsec.example; this should fail due to non-NSEC key
-echo_i "preset nsec3param in unsigned zone via nsupdate ($n)"
-$NSUPDATE > nsupdate.out 2>&1 <<END
+if ! $FEATURETEST --have-fips-mode
+then
+    # try to convert nsec.example; this should fail due to non-NSEC key
+    echo_i "preset nsec3param in unsigned zone via nsupdate ($n)"
+    $NSUPDATE > nsupdate.out 2>&1 <<END
 server 10.53.0.3 ${PORT}
 zone nsec.example.
 update add nsec.example. 3600 NSEC3PARAM 1 0 10 BEEF
 send
 END
+fi
 
 echo_i "checking for nsec3param in unsigned zone ($n)"
 ret=0
@@ -488,12 +494,15 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
 
-echo_i "checking NSEC->NSEC3 conversion failed with NSEC-only key ($n)"
-ret=0
-grep "failed: REFUSED" nsupdate.out > /dev/null || ret=1
-n=`expr $n + 1`
-if [ $ret != 0 ]; then echo_i "failed"; fi
-status=`expr $status + $ret`
+if ! $FEATURETEST --have-fips-mode
+then
+    echo_i "checking NSEC->NSEC3 conversion failed with NSEC-only key ($n)"
+    ret=0
+    grep "failed: REFUSED" nsupdate.out > /dev/null || ret=1
+    n=`expr $n + 1`
+    if [ $ret != 0 ]; then echo_i "failed"; fi
+    status=`expr $status + $ret`
+fi
 
 echo_i "checking NSEC3->NSEC conversion succeeded ($n)"
 ret=0
@@ -1143,13 +1152,16 @@ oldserial=`$DIG $DIGOPTS +short soa . @10.53.0.1 | awk '{print $3}'`
 ($RNDCCMD 10.53.0.1 loadkeys . 2>&1 | sed 's/^/ns1 /' | cat_i) || ret=1
 sleep 4
 
-echo_i "revoking key to duplicated key ID"
-$SETTIME -R now -K ns2 Kbar.+005+30676.key > settime.out.test$n.3 || ret=1
+if ! $FEATURETEST --have-fips-mode
+then
+    echo_i "revoking key to duplicated key ID"
+    $SETTIME -R now -K ns2 Kbar.+005+30676.key > settime.out.test$n.3 || ret=1
 
-($RNDCCMD 10.53.0.2 loadkeys bar. 2>&1 | sed 's/^/ns2 /' | cat_i) || ret=1
+    ($RNDCCMD 10.53.0.2 loadkeys bar. 2>&1 | sed 's/^/ns2 /' | cat_i) || ret=1
 
-echo_i "waiting for changes to take effect"
-sleep 5
+    echo_i "waiting for changes to take effect"
+    sleep 5
+fi
 
 echo_i "checking former standby key $newid is now active ($n)"
 ret=0
@@ -1171,14 +1183,20 @@ status=`expr $status + $ret`
 echo_i "checking that signing records have been marked as complete ($n)"
 ret=0
 checkprivate . 10.53.0.1 || ret=1
-checkprivate bar 10.53.0.2 || ret=1
+if ! $FEATURETEST --have-fips-mode
+then
+    checkprivate bar 10.53.0.2 || ret=1
+fi
 checkprivate example 10.53.0.2 0 type65280 || ret=1 # sig-signing-type 65280
 checkprivate private.secure.example 10.53.0.3 2 || ret=1 # pre-signed
 checkprivate nsec3.example 10.53.0.3 || ret=1
 checkprivate nsec3.nsec3.example 10.53.0.3 || ret=1
 checkprivate nsec3.optout.example 10.53.0.3 || ret=1
 checkprivate nsec3-to-nsec.example 10.53.0.3 2 || ret=1 # automatically removed
-checkprivate nsec.example 10.53.0.3 || ret=1
+if ! $FEATURETEST --have-fips-mode
+then
+    checkprivate nsec.example 10.53.0.3 || ret=1
+fi
 checkprivate oldsigs.example 10.53.0.3 2 || ret=1 # pre-signed
 checkprivate optout.example 10.53.0.3 || ret=1
 checkprivate optout.nsec3.example 10.53.0.3 || ret=1
@@ -1309,15 +1327,18 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
 
-echo_i "checking revoked key with duplicate key ID (failure expected) ($n)"
-lret=0
-id=30676
-$DIG $DIGOPTS +multi dnskey bar @10.53.0.2 > dig.out.ns2.test$n || lret=1
-grep '; key id = '"$id"'$' dig.out.ns2.test$n > /dev/null || lret=1
-$DIG $DIGOPTS dnskey bar @10.53.0.4 > dig.out.ns4.test$n || lret=1
-grep "flags:.*ad.*QUERY" dig.out.ns4.test$n > /dev/null || lret=1
-n=`expr $n + 1`
-if [ $lret != 0 ]; then echo_i "not yet implemented"; fi
+if ! $FEATURETEST --have-fips-mode
+then
+    echo_i "checking revoked key with duplicate key ID (failure expected) ($n)"
+    lret=0
+    id=30676
+    $DIG $DIGOPTS +multi dnskey bar @10.53.0.2 > dig.out.ns2.test$n || lret=1
+    grep '; key id = '"$id"'$' dig.out.ns2.test$n > /dev/null || lret=1
+    $DIG $DIGOPTS dnskey bar @10.53.0.4 > dig.out.ns4.test$n || lret=1
+    grep "flags:.*ad.*QUERY" dig.out.ns4.test$n > /dev/null || lret=1
+    n=`expr $n + 1`
+    if [ $lret != 0 ]; then echo_i "not yet implemented"; fi
+fi
 
 echo_i "checking key event timers are always set ($n)"
 # this is a regression test for a bug in which the next key event could

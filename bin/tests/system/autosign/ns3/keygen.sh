@@ -49,8 +49,8 @@ $DSFROMKEY $ksk.key > dsset-${zone}.
 #
 setup nsec3.nsec3.example
 cp $infile $zonefile
-ksk=`$KEYGEN -q -a $DEFAULT_ALGORITHM -3 -fk $zone 2> kg.out` || dumpit kg.out
-$KEYGEN -q -a $DEFAULT_ALGORITHM -3 $zone > kg.out 2>&1 || dumpit kg.out
+ksk=`$KEYGEN -q -a RSASHA256 -3 -fk $zone 2> kg.out` || dumpit kg.out
+$KEYGEN -q -a RSASHA256 -3 $zone > kg.out 2>&1 || dumpit kg.out
 $DSFROMKEY $ksk.key > dsset-${zone}.
 
 #
@@ -139,7 +139,7 @@ $DSFROMKEY $ksk.key > dsset-${zone}.
 setup rsasha256.example
 cp $infile $zonefile
 ksk=`$KEYGEN -q -a RSASHA256 -b 2048 -fk $zone 2> kg.out` || dumpit kg.out
-$KEYGEN -q -a RSASHA256 -b 1024 $zone > kg.out 2>&1 || dumpit kg.out
+$KEYGEN -q -a RSASHA256 -b 2048 $zone > kg.out 2>&1 || dumpit kg.out
 $DSFROMKEY $ksk.key > dsset-${zone}.
 
 #
@@ -148,17 +148,20 @@ $DSFROMKEY $ksk.key > dsset-${zone}.
 setup rsasha512.example
 cp $infile $zonefile
 ksk=`$KEYGEN -q -a RSASHA512 -b 2048 -fk $zone 2> kg.out` || dumpit kg.out
-$KEYGEN -q -a RSASHA512 -b 1024 $zone > kg.out 2>&1 || dumpit kg.out
+$KEYGEN -q -a RSASHA512 -b 2048 $zone > kg.out 2>&1 || dumpit kg.out
 $DSFROMKEY $ksk.key > dsset-${zone}.
 
 #
 # NSEC-only zone.
 #
-setup nsec.example
-cp $infile $zonefile
-ksk=`$KEYGEN -q -a RSASHA1 -fk $zone 2> kg.out` || dumpit kg.out
-$KEYGEN -q -a RSASHA1 $zone > kg.out 2>&1 || dumpit kg.out
-$DSFROMKEY $ksk.key > dsset-${zone}.
+if ! $FEATURETEST --have-fips-mode
+then
+    setup nsec.example
+    cp $infile $zonefile
+    ksk=`$KEYGEN -q -a RSASHA1 -fk $zone 2> kg.out` || dumpit kg.out
+    $KEYGEN -q -a RSASHA1 $zone > kg.out 2>&1 || dumpit kg.out
+    $DSFROMKEY $ksk.key > dsset-${zone}.
+fi
 
 #
 # Signature refresh test zone.  Signatures are set to expire long
@@ -182,7 +185,7 @@ mv $zonefile.signed $zonefile
 #
 setup nsec3-to-nsec.example
 $KEYGEN -q -a RSASHA512 -b 2048 -fk $zone > kg.out 2>&1 || dumpit kg.out
-$KEYGEN -q -a RSASHA512 -b 1024 $zone > kg.out 2>&1 || dumpit kg.out
+$KEYGEN -q -a RSASHA512 -b 2048 $zone > kg.out 2>&1 || dumpit kg.out
 $SIGNER -S -3 beef -A -o $zone -f $zonefile $infile > s.out || dumpit s.out
 
 #
