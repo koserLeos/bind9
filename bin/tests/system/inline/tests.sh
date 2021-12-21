@@ -1015,12 +1015,12 @@ n=`expr $n + 1`
 echo_i "testing adding external keys to a inline zone ($n)"
 ret=0
 $DIG $DIGOPTS @10.53.0.3 dnskey externalkey > dig.out.ns3.test$n
-for alg in 7 13
+for alg in 8 13
 do
    [ $alg = 13 -a ! -f checkecdsa ] && continue;
 
    case $alg in
-   7) echo_i "checking NSEC3RSASHA1";;
+   8) echo_i "checking RSASHA256";;
    13) echo_i "checking ECDSAP256SHA256";;
    *) echo_i "checking $alg";;
    esac
@@ -1149,8 +1149,8 @@ test ${soa1:-0} -ne ${soa2:-0} || ret=1
 $DIG $DIGOPTS @10.53.0.3 txt added.inactivezsk > dig.out.ns3.test$n || ret=1
 grep "ANSWER: 3," dig.out.ns3.test$n > /dev/null || ret=1
 grep "RRSIG" dig.out.ns3.test$n > /dev/null || ret=1
-grep "TXT 7 2" dig.out.ns3.test$n > /dev/null || ret=1
 grep "TXT 8 2" dig.out.ns3.test$n > /dev/null || ret=1
+grep "TXT 10 2" dig.out.ns3.test$n > /dev/null || ret=1
 
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
@@ -1162,28 +1162,28 @@ ret=0
 $DIG $DIGOPTS @10.53.0.3 axfr inactiveksk > dig.out.ns3.test$n
 
 #
-#  check that DNSKEY is signed with ZSK for algorithm 7
-#
-awk='$4 == "DNSKEY" && $5 == 256 && $7 == 7 { print }'
-zskid=`awk "${awk}" dig.out.ns3.test$n |
-       $DSFROMKEY -A -2 -f - inactiveksk | awk '{ print $4}' `
-grep "DNSKEY 7 1 [0-9]* [0-9]* [0-9]* ${zskid} " dig.out.ns3.test$n > /dev/null || ret=1
-awk='$4 == "DNSKEY" && $5 == 257 && $7 == 7 { print }'
-kskid=`awk "${awk}" dig.out.ns3.test$n |
-       $DSFROMKEY -2 -f - inactiveksk | awk '{ print $4}' `
-grep "DNSKEY 7 1 [0-9]* [0-9]* [0-9]* ${kskid} " dig.out.ns3.test$n > /dev/null && ret=1
-
-#
-#  check that DNSKEY is signed with KSK for algorithm 8
+#  check that DNSKEY is signed with ZSK for algorithm 8
 #
 awk='$4 == "DNSKEY" && $5 == 256 && $7 == 8 { print }'
 zskid=`awk "${awk}" dig.out.ns3.test$n |
        $DSFROMKEY -A -2 -f - inactiveksk | awk '{ print $4}' `
-grep "DNSKEY 8 1 [0-9]* [0-9]* [0-9]* ${zskid} " dig.out.ns3.test$n > /dev/null && ret=1
+grep "DNSKEY 8 1 [0-9]* [0-9]* [0-9]* ${zskid} " dig.out.ns3.test$n > /dev/null || ret=1
 awk='$4 == "DNSKEY" && $5 == 257 && $7 == 8 { print }'
 kskid=`awk "${awk}" dig.out.ns3.test$n |
        $DSFROMKEY -2 -f - inactiveksk | awk '{ print $4}' `
-grep "DNSKEY 8 1 [0-9]* [0-9]* [0-9]* ${kskid} " dig.out.ns3.test$n > /dev/null || ret=1
+grep "DNSKEY 8 1 [0-9]* [0-9]* [0-9]* ${kskid} " dig.out.ns3.test$n > /dev/null && ret=1
+
+#
+#  check that DNSKEY is signed with KSK for algorithm 10
+#
+awk='$4 == "DNSKEY" && $5 == 256 && $7 == 10 { print }'
+zskid=`awk "${awk}" dig.out.ns3.test$n |
+       $DSFROMKEY -A -2 -f - inactiveksk | awk '{ print $4}' `
+grep "DNSKEY 10 1 [0-9]* [0-9]* [0-9]* ${zskid} " dig.out.ns3.test$n > /dev/null && ret=1
+awk='$4 == "DNSKEY" && $5 == 257 && $7 == 10 { print }'
+kskid=`awk "${awk}" dig.out.ns3.test$n |
+       $DSFROMKEY -2 -f - inactiveksk | awk '{ print $4}' `
+grep "DNSKEY 10 1 [0-9]* [0-9]* [0-9]* ${kskid} " dig.out.ns3.test$n > /dev/null || ret=1
 
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
