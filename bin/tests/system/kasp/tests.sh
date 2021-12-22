@@ -865,28 +865,28 @@ dnssec_verify
 # Zone: inherit.kasp.
 #
 set_zone "inherit.kasp"
-set_policy "rsasha1" "3" "1234"
+set_policy "rsasha256" "3" "1234"
 set_server "ns3" "10.53.0.3"
 
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "ksk"
 set_keylifetime  "KEY1" "315360000"
-set_keyalgorithm "KEY1" "5" "RSASHA1" "2048"
+set_keyalgorithm "KEY1" "8" "RSASHA256" "2048"
 set_keysigning   "KEY1" "yes"
 set_zonesigning  "KEY1" "no"
 
 key_clear        "KEY2"
 set_keyrole      "KEY2" "zsk"
 set_keylifetime  "KEY2" "157680000"
-set_keyalgorithm "KEY2" "5" "RSASHA1" "2048"
+set_keyalgorithm "KEY2" "8" "RSASHA256" "2048"
 set_keysigning   "KEY2" "no"
 set_zonesigning  "KEY2" "yes"
 
 key_clear        "KEY3"
 set_keyrole      "KEY3" "zsk"
 set_keylifetime  "KEY3" "31536000"
-set_keyalgorithm "KEY3" "5" "RSASHA1" "2000"
+set_keyalgorithm "KEY3" "8" "RSASHA256" "2000"
 set_keysigning   "KEY3" "no"
 set_zonesigning  "KEY3" "yes"
 # KSK: DNSKEY, RRSIG (ksk) published. DS needs to wait.
