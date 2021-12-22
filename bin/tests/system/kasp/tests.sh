@@ -83,13 +83,13 @@ set_zonesigning  "KEY2" "no"
 
 set_keyrole      "KEY3" "zsk"
 set_keylifetime  "KEY3" "2592000"
-set_keyalgorithm "KEY3" "8" "RSASHA256" "1024"
+set_keyalgorithm "KEY3" "8" "RSASHA256" "2048"
 set_keysigning   "KEY3" "no"
 set_zonesigning  "KEY3" "yes"
 
 set_keyrole      "KEY4" "zsk"
 set_keylifetime  "KEY4" "16070400"
-set_keyalgorithm "KEY4" "8" "RSASHA256" "2000"
+set_keyalgorithm "KEY4" "8" "RSASHA256" "3072"
 set_keysigning   "KEY4" "no"
 set_zonesigning  "KEY4" "yes"
 
@@ -886,7 +886,7 @@ set_zonesigning  "KEY2" "yes"
 key_clear        "KEY3"
 set_keyrole      "KEY3" "zsk"
 set_keylifetime  "KEY3" "31536000"
-set_keyalgorithm "KEY3" "8" "RSASHA256" "2000"
+set_keyalgorithm "KEY3" "8" "RSASHA256" "3072"
 set_keysigning   "KEY3" "no"
 set_zonesigning  "KEY3" "yes"
 # KSK: DNSKEY, RRSIG (ksk) published. DS needs to wait.
@@ -1068,7 +1068,7 @@ set_server "ns3" "10.53.0.3"
 # Key properties.
 set_keyalgorithm "KEY1" "8" "RSASHA256" "2048"
 set_keyalgorithm "KEY2" "8" "RSASHA256" "2048"
-set_keyalgorithm "KEY3" "8" "RSASHA256" "2000"
+set_keyalgorithm "KEY3" "8" "RSASHA256" "3072"
 # Key timings and states same as above.
 
 check_keys
@@ -1088,7 +1088,7 @@ set_server "ns3" "10.53.0.3"
 # Key properties.
 set_keyalgorithm "KEY1" "10" "RSASHA512" "2048"
 set_keyalgorithm "KEY2" "10" "RSASHA512" "2048"
-set_keyalgorithm "KEY3" "10" "RSASHA512" "2000"
+set_keyalgorithm "KEY3" "10" "RSASHA512" "3072"
 # Key timings and states same as above.
 
 check_keys

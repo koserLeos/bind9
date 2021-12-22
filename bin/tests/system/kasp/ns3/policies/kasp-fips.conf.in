@@ -52,7 +52,7 @@ dnssec-policy "rsasha256" {
 	keys {
 		ksk key-directory lifetime P10Y algorithm 8;
 		zsk key-directory lifetime P5Y  algorithm 8;
-		zsk key-directory lifetime P1Y  algorithm 8 2000;
+		zsk key-directory lifetime P1Y  algorithm 8 3072;
 	};
 };
 
@@ -62,7 +62,7 @@ dnssec-policy "rsasha512" {
 	keys {
 		ksk key-directory lifetime P10Y algorithm 10;
 		zsk key-directory lifetime P5Y  algorithm 10;
-		zsk key-directory lifetime P1Y  algorithm 10 2000;
+		zsk key-directory lifetime P1Y  algorithm 10 3072;
 	};
 };
 
