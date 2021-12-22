@@ -42,14 +42,30 @@ U="UNRETENTIVE"
 #
 # Set up zones that will be initially signed.
 #
-for zn in default rsasha1 dnssec-keygen some-keys legacy-keys pregenerated \
-	  rumoured rsasha1-nsec3 rsasha256 rsasha512 ecdsa256 ecdsa384 \
+for zn in default dnssec-keygen some-keys legacy-keys pregenerated \
+	  rumoured rsasha256 rsasha512 ecdsa256 ecdsa384 \
 	  dynamic dynamic-inline-signing inline-signing \
 	  checkds-ksk checkds-doubleksk checkds-csk inherit unlimited \
 	  manual-rollover multisigner-model2
 do
 	setup "${zn}.kasp"
 	cp template.db.in "$zonefile"
+done
+
+#
+# Set up non FIPS compliant zones
+#
+for zn in rsasha1 rsasha1-nsec3
+do
+	if $FEATURETEST --have-fips-mode
+	then
+		# don't add to zones.
+		echo_i "setting up zone: $zone"
+		cp template.db.in "${zone}.kasp.db"
+	else
+		setup "${zn}.kasp"
+		cp template.db.in "$zonefile"
+	fi
 done
 
 if [ -f ../ed25519-supported.file ]; then
