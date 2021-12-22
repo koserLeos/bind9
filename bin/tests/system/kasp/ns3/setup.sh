@@ -120,9 +120,9 @@ zone="rumoured.kasp"
 Tpub="now"
 Tact="now+1d"
 keytimes="-P ${Tpub} -A ${Tact}"
-KSK=$($KEYGEN  -a RSASHA1 -f KSK  -L 1234 $keytimes $zone 2> keygen.out.$zone.1)
-ZSK1=$($KEYGEN -a RSASHA1 -b 2000 -L 1234 $keytimes $zone 2> keygen.out.$zone.2)
-ZSK2=$($KEYGEN -a RSASHA1         -L 1234 $keytimes $zone 2> keygen.out.$zone.3)
+KSK=$($KEYGEN  -a RSASHA256 -f KSK  -L 1234 $keytimes $zone 2> keygen.out.$zone.1)
+ZSK1=$($KEYGEN -a RSASHA256 -b 2000 -L 1234 $keytimes $zone 2> keygen.out.$zone.2)
+ZSK2=$($KEYGEN -a RSASHA256         -L 1234 $keytimes $zone 2> keygen.out.$zone.3)
 $SETTIME -s -g $O -k $R $Tpub -r $R $Tpub -d $H $Tpub  "$KSK"  > settime.out.$zone.1 2>&1
 $SETTIME -s -g $O -k $R $Tpub -z $R $Tpub              "$ZSK1" > settime.out.$zone.2 2>&1
 $SETTIME -s -g $O -k $R $Tpub -z $R $Tpub              "$ZSK2" > settime.out.$zone.2 2>&1

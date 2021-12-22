@@ -969,7 +969,7 @@ dnssec_verify
 #
 # There are three keys in rumoured state.
 set_zone "rumoured.kasp"
-set_policy "rsasha1" "3" "1234"
+set_policy "rsasha256" "3" "1234"
 set_server "ns3" "10.53.0.3"
 # Key properties, timings and states same as above.
 
