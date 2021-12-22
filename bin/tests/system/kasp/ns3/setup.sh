@@ -91,15 +91,15 @@ $KEYGEN -G -a RSASHA256 -f KSK  -L 1234 $zone > keygen.out.$zone.2 2>&1
 
 zone="legacy-keys.kasp"
 echo_i "setting up zone: $zone"
-ZSK=$($KEYGEN -a RSASHA1 -b 2048 -L 1234 $zone 2> keygen.out.$zone.1)
-KSK=$($KEYGEN -a RSASHA1 -f KSK  -L 1234 $zone 2> keygen.out.$zone.2)
+ZSK=$($KEYGEN -a RSASHA256 -b 2048 -L 1234 $zone 2> keygen.out.$zone.1)
+KSK=$($KEYGEN -a RSASHA256 -f KSK  -L 1234 $zone 2> keygen.out.$zone.2)
 echo $ZSK > legacy-keys.kasp.zsk
 echo $KSK > legacy-keys.kasp.ksk
 # Predecessor keys:
 Tact="now-9mo"
 Tret="now-3mo"
-ZSK=$($KEYGEN -a RSASHA1 -b 2048 -L 1234 $zone 2> keygen.out.$zone.3)
-KSK=$($KEYGEN -a RSASHA1 -f KSK  -L 1234 $zone 2> keygen.out.$zone.4)
+ZSK=$($KEYGEN -a RSASHA256 -b 2048 -L 1234 $zone 2> keygen.out.$zone.3)
+KSK=$($KEYGEN -a RSASHA256 -f KSK  -L 1234 $zone 2> keygen.out.$zone.4)
 $SETTIME -P $Tact -A $Tact -I $Tret -D $Tret "$ZSK"  > settime.out.$zone.1 2>&1
 $SETTIME -P $Tact -A $Tact -I $Tret -D $Tret "$KSK"  > settime.out.$zone.2 2>&1
 

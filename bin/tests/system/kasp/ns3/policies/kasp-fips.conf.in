@@ -41,8 +41,8 @@ dnssec-policy "migrate-to-dnssec-policy" {
 	dnskey-ttl 1234;
 
 	keys {
-		ksk key-directory lifetime P6M algorithm 5;
-		zsk key-directory lifetime P6M algorithm 5;
+		ksk key-directory lifetime P6M algorithm 8;
+		zsk key-directory lifetime P6M algorithm 8;
 	};
 };
 
