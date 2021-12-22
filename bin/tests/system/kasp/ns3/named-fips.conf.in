@@ -106,7 +106,7 @@ zone "insecure.kasp" {
 zone "dnssec-keygen.kasp" {
 	type primary;
 	file "dnssec-keygen.kasp.db";
-	dnssec-policy "rsasha1";
+	dnssec-policy "rsasha256";
 };
 
 /* A secondary zone with dnssec-policy. */

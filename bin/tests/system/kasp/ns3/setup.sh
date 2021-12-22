@@ -81,7 +81,7 @@ cp template.db.in $zonefile
 
 # Some of these zones already have keys.
 zone="dnssec-keygen.kasp"
-$KEYGEN -k rsasha1 -l policies/kasp.conf $zone > keygen.out.$zone.1 2>&1
+$KEYGEN -k rsasha256 -l policies/kasp.conf $zone > keygen.out.$zone.1 2>&1
 
 zone="some-keys.kasp"
 $KEYGEN -G -a RSASHA1 -b 2000 -L 1234 $zone > keygen.out.$zone.1 2>&1
