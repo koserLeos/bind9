@@ -101,8 +101,8 @@ $SETTIME -P $Tact -A $Tact -I $Tret -D $Tret "$ZSK"  > settime.out.$zone.1 2>&1
 $SETTIME -P $Tact -A $Tact -I $Tret -D $Tret "$KSK"  > settime.out.$zone.2 2>&1
 
 zone="pregenerated.kasp"
-$KEYGEN -G -k rsasha1 -l policies/kasp.conf $zone > keygen.out.$zone.1 2>&1
-$KEYGEN -G -k rsasha1 -l policies/kasp.conf $zone > keygen.out.$zone.2 2>&1
+$KEYGEN -G -k rsasha256 -l policies/kasp.conf $zone > keygen.out.$zone.1 2>&1
+$KEYGEN -G -k rsasha256 -l policies/kasp.conf $zone > keygen.out.$zone.2 2>&1
 
 zone="multisigner-model2.kasp"
 # Import the ZSK sets of the other providers into their DNSKEY RRset.

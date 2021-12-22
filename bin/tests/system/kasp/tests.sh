@@ -952,7 +952,7 @@ dnssec_verify
 # There are more pregenerated keys than needed, hence the number of keys is
 # six, not three.
 set_zone "pregenerated.kasp"
-set_policy "rsasha1" "6" "1234"
+set_policy "rsasha256" "6" "1234"
 set_server "ns3" "10.53.0.3"
 # Key properties, timings and states same as above.
 
