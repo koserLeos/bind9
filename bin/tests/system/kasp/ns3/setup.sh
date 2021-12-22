@@ -84,8 +84,8 @@ zone="dnssec-keygen.kasp"
 $KEYGEN -k rsasha256 -l policies/kasp.conf $zone > keygen.out.$zone.1 2>&1
 
 zone="some-keys.kasp"
-$KEYGEN -G -a RSASHA1 -b 2000 -L 1234 $zone > keygen.out.$zone.1 2>&1
-$KEYGEN -G -a RSASHA1 -f KSK  -L 1234 $zone > keygen.out.$zone.2 2>&1
+$KEYGEN -G -a RSASHA256 -b 2000 -L 1234 $zone > keygen.out.$zone.1 2>&1
+$KEYGEN -G -a RSASHA256 -f KSK  -L 1234 $zone > keygen.out.$zone.2 2>&1
 
 zone="legacy-keys.kasp"
 ZSK=$($KEYGEN -a RSASHA1 -b 2048 -L 1234 $zone 2> keygen.out.$zone.1)
