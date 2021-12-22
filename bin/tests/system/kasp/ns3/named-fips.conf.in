@@ -114,7 +114,7 @@ zone "secondary.kasp" {
 	type secondary;
 	primaries { 10.53.0.2; };
 	file "secondary.kasp.db";
-	dnssec-policy "rsasha1";
+	dnssec-policy "rsasha256";
 };
 
 /* A dynamic zone with dnssec-policy. */
