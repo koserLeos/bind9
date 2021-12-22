@@ -740,55 +740,58 @@ set_keytimes_algorithm_policy() {
 #
 # Zone: rsasha1.kasp.
 #
-set_zone "rsasha1.kasp"
-set_policy "rsasha1" "3" "1234"
-set_server "ns3" "10.53.0.3"
-# Key properties.
-key_clear        "KEY1"
-set_keyrole      "KEY1" "ksk"
-set_keylifetime  "KEY1" "315360000"
-set_keyalgorithm "KEY1" "5" "RSASHA1" "2048"
-set_keysigning   "KEY1" "yes"
-set_zonesigning  "KEY1" "no"
+if ! $FEATURETEST --have-fips-mode
+then
+	set_zone "rsasha1.kasp"
+	set_policy "rsasha1" "3" "1234"
+	set_server "ns3" "10.53.0.3"
+	# Key properties.
+	key_clear        "KEY1"
+	set_keyrole      "KEY1" "ksk"
+	set_keylifetime  "KEY1" "315360000"
+	set_keyalgorithm "KEY1" "5" "RSASHA1" "2048"
+	set_keysigning   "KEY1" "yes"
+	set_zonesigning  "KEY1" "no"
 
-key_clear        "KEY2"
-set_keyrole      "KEY2" "zsk"
-set_keylifetime  "KEY2" "157680000"
-set_keyalgorithm "KEY2" "5" "RSASHA1" "2048"
-set_keysigning   "KEY2" "no"
-set_zonesigning  "KEY2" "yes"
+	key_clear        "KEY2"
+	set_keyrole      "KEY2" "zsk"
+	set_keylifetime  "KEY2" "157680000"
+	set_keyalgorithm "KEY2" "5" "RSASHA1" "2048"
+	set_keysigning   "KEY2" "no"
+	set_zonesigning  "KEY2" "yes"
 
-key_clear        "KEY3"
-set_keyrole      "KEY3" "zsk"
-set_keylifetime  "KEY3" "31536000"
-set_keyalgorithm "KEY3" "5" "RSASHA1" "2000"
-set_keysigning   "KEY3" "no"
-set_zonesigning  "KEY3" "yes"
+	key_clear        "KEY3"
+	set_keyrole      "KEY3" "zsk"
+	set_keylifetime  "KEY3" "31536000"
+	set_keyalgorithm "KEY3" "5" "RSASHA1" "2000"
+	set_keysigning   "KEY3" "no"
+	set_zonesigning  "KEY3" "yes"
 
-# KSK: DNSKEY, RRSIG (ksk) published. DS needs to wait.
-# ZSK: DNSKEY, RRSIG (zsk) published.
-set_keystate "KEY1" "GOAL"         "omnipresent"
-set_keystate "KEY1" "STATE_DNSKEY" "rumoured"
-set_keystate "KEY1" "STATE_KRRSIG" "rumoured"
-set_keystate "KEY1" "STATE_DS"     "hidden"
+	# KSK: DNSKEY, RRSIG (ksk) published. DS needs to wait.
+	# ZSK: DNSKEY, RRSIG (zsk) published.
+	set_keystate "KEY1" "GOAL"         "omnipresent"
+	set_keystate "KEY1" "STATE_DNSKEY" "rumoured"
+	set_keystate "KEY1" "STATE_KRRSIG" "rumoured"
+	set_keystate "KEY1" "STATE_DS"     "hidden"
 
-set_keystate "KEY2" "GOAL"         "omnipresent"
-set_keystate "KEY2" "STATE_DNSKEY" "rumoured"
-set_keystate "KEY2" "STATE_ZRRSIG" "rumoured"
+	set_keystate "KEY2" "GOAL"         "omnipresent"
+	set_keystate "KEY2" "STATE_DNSKEY" "rumoured"
+	set_keystate "KEY2" "STATE_ZRRSIG" "rumoured"
 
-set_keystate "KEY3" "GOAL"         "omnipresent"
-set_keystate "KEY3" "STATE_DNSKEY" "rumoured"
-set_keystate "KEY3" "STATE_ZRRSIG" "rumoured"
-# Three keys only.
-key_clear "KEY4"
+	set_keystate "KEY3" "GOAL"         "omnipresent"
+	set_keystate "KEY3" "STATE_DNSKEY" "rumoured"
+	set_keystate "KEY3" "STATE_ZRRSIG" "rumoured"
+	# Three keys only.
+	key_clear "KEY4"
 
-check_keys
-check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
-set_keytimes_algorithm_policy
-check_keytimes
-check_apex
-check_subdomain
-dnssec_verify
+	check_keys
+	check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
+	set_keytimes_algorithm_policy
+	check_keytimes
+	check_apex
+	check_subdomain
+	dnssec_verify
+fi
 
 #
 # Zone: unsigned.kasp.
@@ -1036,22 +1039,25 @@ status=$((status+ret))
 #
 # Zone: rsasha1-nsec3.kasp.
 #
-set_zone "rsasha1-nsec3.kasp"
-set_policy "rsasha1-nsec3" "3" "1234"
-set_server "ns3" "10.53.0.3"
-# Key properties.
-set_keyalgorithm "KEY1" "7" "NSEC3RSASHA1" "2048"
-set_keyalgorithm "KEY2" "7" "NSEC3RSASHA1" "2048"
-set_keyalgorithm "KEY3" "7" "NSEC3RSASHA1" "2000"
-# Key timings and states same as above.
+if ! $FEATURETEST --have-fips-mode
+then
+	set_zone "rsasha1-nsec3.kasp"
+	set_policy "rsasha1-nsec3" "3" "1234"
+	set_server "ns3" "10.53.0.3"
+	# Key properties.
+	set_keyalgorithm "KEY1" "7" "NSEC3RSASHA1" "2048"
+	set_keyalgorithm "KEY2" "7" "NSEC3RSASHA1" "2048"
+	set_keyalgorithm "KEY3" "7" "NSEC3RSASHA1" "2000"
+	# Key timings and states same as above.
 
-check_keys
-check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
-set_keytimes_algorithm_policy
-check_keytimes
-check_apex
-check_subdomain
-dnssec_verify
+	check_keys
+	check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
+	set_keytimes_algorithm_policy
+	check_keytimes
+	check_apex
+	check_subdomain
+	dnssec_verify
+fi
 
 #
 # Zone: rsasha256.kasp.
