@@ -82,13 +82,6 @@ zone "manual-rollover.kasp" {
 	dnssec-policy "manual-rollover";
 };
 
-/* A primary zone with dnssec-policy, no keys created. */
-zone "rsasha1.kasp" {
-	type primary;
-	file "rsasha1.kasp.db";
-	dnssec-policy "rsasha1";
-};
-
 /* A zone that inherits dnssec-policy. */
 zone "inherit.kasp" {
 	type primary;
@@ -197,11 +190,6 @@ zone "multisigner-model2.kasp" {
 /*
  * Different algorithms.
  */
-zone "rsasha1-nsec3.kasp" {
-	type primary;
-	file "rsasha1-nsec3.kasp.db";
-	dnssec-policy "rsasha1-nsec3";
-};
 zone "rsasha256.kasp" {
 	type primary;
 	file "rsasha256.kasp.db";
