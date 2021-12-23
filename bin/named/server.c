@@ -8864,24 +8864,10 @@ load_configuration(const char *filename, named_server_t *server,
 		ns_listenlist_t *listenon = NULL;
 
 		clistenon = NULL;
-		/*
-		 * Even though listen-on is present in the default
-		 * configuration, this way is easier.
-		 */
-		if (options != NULL) {
-			(void)cfg_map_get(options, "listen-on", &clistenon);
-		}
-		if (clistenon != NULL) {
-			CHECK(listenlist_fromconfig(
-				clistenon, config, named_g_aclconfctx,
-				named_g_mctx, AF_INET, &listenon));
-		} else {
-			/*
-			 * Not specified, use default.
-			 */
-			CHECK(ns_listenlist_default(named_g_mctx, listen_port,
-						    -1, true, &listenon));
-		}
+		CHECK(named_config_get(maps, "listen-on", &clistenon));
+		CHECK(listenlist_fromconfig(clistenon, config,
+					       named_g_aclconfctx, named_g_mctx,
+					       AF_INET, &listenon));
 		if (listenon != NULL) {
 			ns_interfacemgr_setlistenon4(server->interfacemgr,
 						     listenon);
@@ -8895,20 +8881,10 @@ load_configuration(const char *filename, named_server_t *server,
 		const cfg_obj_t *clistenon = NULL;
 		ns_listenlist_t *listenon = NULL;
 
-		if (options != NULL) {
-			(void)cfg_map_get(options, "listen-on-v6", &clistenon);
-		}
-		if (clistenon != NULL) {
-			CHECK(listenlist_fromconfig(
-				clistenon, config, named_g_aclconfctx,
-				named_g_mctx, AF_INET6, &listenon));
-		} else {
-			/*
-			 * Not specified, use default.
-			 */
-			CHECK(ns_listenlist_default(named_g_mctx, listen_port,
-						    -1, true, &listenon));
-		}
+		CHECK(named_config_get(maps, "listen-on-v6", &clistenon));
+		CHECK(listenlist_fromconfig(clistenon, config,
+					       named_g_aclconfctx, named_g_mctx,
+					       AF_INET6, &listenon));
 		if (listenon != NULL) {
 			ns_interfacemgr_setlistenon6(server->interfacemgr,
 						     listenon);
