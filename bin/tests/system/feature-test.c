@@ -16,6 +16,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <openssl/opensslv.h>
+
 #include <isc/net.h>
 #include <isc/print.h>
 #include <isc/util.h>
@@ -40,6 +42,7 @@ usage(void) {
 	fprintf(stderr, "\t--enable-querytrace\n");
 	fprintf(stderr, "\t--gethostname\n");
 	fprintf(stderr, "\t--gssapi\n");
+	fprintf(stderr, "\t--have-fips-dh\n");
 	fprintf(stderr, "\t--have-fips-mode\n");
 	fprintf(stderr, "\t--have-geoip2\n");
 	fprintf(stderr, "\t--have-libxml2\n");
@@ -110,6 +113,18 @@ main(int argc, char **argv) {
 #else  /* HAVE_GSSAPI */
 		return (1);
 #endif /* HAVE_GSSAPI */
+	}
+
+	if (strcmp(argv[1], "--have-fips-dh") == 0) {
+#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+		return (0);
+#else
+		return (1);
+#endif
+#else  /* ifdef HAVE_FIPS_MODE */
+		return (0);
+#endif /* ifdef HAVE_FIPS_MODE */
 	}
 
 	if (strcmp(argv[1], "--have-fips-mode") == 0) {
