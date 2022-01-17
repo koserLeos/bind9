@@ -15052,10 +15052,12 @@ zone_shutdown(isc_task_t *task, isc_event_t *event) {
 	checkds_cancel(zone);
 
 	notify_cancel(zone);
+	UNLOCK_ZONE(zone);
 	if (zone->view != NULL) {
 		UNLOCK(&zone->view->lock);
 	}
 
+	LOCK_ZONE(zone);
 	forward_cancel(zone);
 
 	if (zone->timer != NULL) {
