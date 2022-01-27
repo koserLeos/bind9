@@ -93,6 +93,7 @@ integrity \
 ixfr \
 journal \
 kasp \
+keyfromlabel \
 keepalive \
 keymgr2kasp \
 legacy \
