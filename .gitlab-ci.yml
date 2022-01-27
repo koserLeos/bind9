@@ -7,6 +7,9 @@ variables:
   CI_REGISTRY_IMAGE: registry.gitlab.isc.org/isc-projects/images/bind9
   CCACHE_DIR: "/ccache"
   SOFTHSM2_CONF: "/var/tmp/softhsm2/softhsm2.conf"
+  OPENSSL_ENGINES: "/usr/lib/x86_64-linux-gnu/engines-1.1"
+  DEFAULT_OPENSSL_CONF: "/etc/ssl/openssl.cnf"
+  OPENSSL_CONF: "/var/tmp/etc/openssl.cnf"
 
   # VirtualBox driver needs to set build_dir to "/builds" in gitlab-runner.toml
   KYUA_RESULT: "$CI_PROJECT_DIR/kyua.results"
@@ -305,16 +308,11 @@ stages:
         sudo sh -x bin/tests/system/ifconfig.sh up;
       fi
 
-.setup_softhsm: &setup_softhsm
-    - export SLOT=$(sh -x bin/tests/prepare-softhsm2.sh)
-    - test -n "${SLOT}" && test "${SLOT}" -gt 0
-
 .system_test_common: &system_test_common
   <<: *default_triggering_rules
   stage: system
   before_script:
     - *setup_interfaces
-    - *setup_softhsm
   script:
     - ( cd bin/tests/system && make -j${TEST_PARALLEL_JOBS:-1} -k test V=1 )
     - test -s bin/tests/system/systests.output
@@ -371,8 +369,6 @@ stages:
 .unit_test_common: &unit_test_common
   <<: *default_triggering_rules
   stage: unit
-  before_script:
-    - *setup_softhsm
   script:
     - make unit
   after_script:
@@ -930,11 +926,14 @@ gcc:asan:
     CC: gcc
     CFLAGS: "${CFLAGS_COMMON} -fsanitize=address,undefined -DISC_MEM_USE_INTERNAL_MALLOC=0"
     LDFLAGS: "-fsanitize=address,undefined"
+    SOFTHSM2_MODULE: "/lib64/libsofthsm2.so"
     EXTRA_CONFIGURE: "--with-libidn2"
   <<: *fedora_35_amd64_image
   <<: *build_job
 
 system:gcc:asan:
+  variables:
+    SOFTHSM2_MODULE: "/lib64/libsofthsm2.so"
   <<: *fedora_35_amd64_image
   <<: *system_test_job
   needs:
@@ -978,12 +977,14 @@ gcc:tsan:
     CC: gcc
     CFLAGS: "${CFLAGS_COMMON} -fsanitize=thread -DISC_MEM_USE_INTERNAL_MALLOC=0"
     LDFLAGS: "-fsanitize=thread"
+    SOFTHSM2_MODULE: "/lib64/libsofthsm2.so"
     EXTRA_CONFIGURE: "--with-libidn2 --enable-pthread-rwlock"
   <<: *fedora_35_amd64_image
   <<: *build_job
 
 system:gcc:tsan:
   variables:
+    SOFTHSM2_MODULE: "/lib64/libsofthsm2.so"
     TSAN_OPTIONS: ${TSAN_OPTIONS_COMMON}
   <<: *fedora_35_amd64_image
   <<: *system_test_tsan_job
@@ -1406,7 +1407,6 @@ respdiff-third-party:
   script:
     - *configure
     - *setup_interfaces
-    - *setup_softhsm
     - make -j${BUILD_PARALLEL_JOBS:-1} -k all V=1
     - make DESTDIR="${INSTALL_PATH}" install
     - git clone --depth 1 https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.isc.org/isc-private/bind-qa.git
