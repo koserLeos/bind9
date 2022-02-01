@@ -224,7 +224,6 @@ isc__nm_async_udplisten(isc__networker_t *worker, isc__netievent_t *ev0) {
 #endif
 	r = uv_udp_init_ex(&worker->loop, &sock->uv_handle.udp, uv_init_flags);
 	if (r != 0) {
-		char strbuf[ISC_STRERRORSIZE];
 		isc_error_fatal(__FILE__, __LINE__, "uv_udp_init_ex failed: %s",
 				uv_strerror(errno));
 	}
