@@ -50,9 +50,9 @@ check_PROGRAMS +=	\
 
 doh_test_CPPFLAGS =	\
 	$(AM_CPPFLAGS)	\
+	$(OPENSSL_CFLAGS) \
 	$(LIBUV_CFLAGS)	\
-	$(LIBNGHTTP2_CFLAGS)	\
-	$(OPENSSL_CFLAGS)
+	$(LIBNGHTTP2_CFLAGS)
 
 doh_test_LDADD =	\
 	$(LDADD)	\
@@ -82,8 +82,8 @@ random_test_LDADD =	\
 
 netmgr_test_CPPFLAGS =	\
 	$(AM_CPPFLAGS)	\
-	$(LIBUV_CFLAGS)	\
 	$(OPENSSL_CFLAGS)
+	$(LIBUV_CFLAGS)
 
 netmgr_test_LDADD =	\
 	$(LDADD)	\
