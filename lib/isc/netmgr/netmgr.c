@@ -1160,7 +1160,6 @@ isc___nmsocket_attach(isc_nmsocket_t *sock, isc_nmsocket_t **target FLARG) {
 static void
 nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 	isc_nmhandle_t *handle = NULL;
-	isc__nm_uvreq_t *uvreq = NULL;
 
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(!isc__nmsocket_active(sock));
@@ -1228,11 +1227,6 @@ nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 
 	isc_astack_destroy(sock->inactivehandles);
 
-	while ((uvreq = isc_astack_pop(sock->inactivereqs)) != NULL) {
-		isc_mem_put(sock->mgr->mctx, uvreq, sizeof(*uvreq));
-	}
-
-	isc_astack_destroy(sock->inactivereqs);
 	sock->magic = 0;
 
 	isc_condition_destroy(&sock->scond);
@@ -1423,12 +1417,12 @@ isc___nmsocket_init(isc_nmsocket_t *sock, isc_nm_t *mgr, isc_nmsocket_type type,
 	REQUIRE(sock != NULL);
 	REQUIRE(mgr != NULL);
 
-	*sock = (isc_nmsocket_t){ .type = type,
-				  .fd = -1,
-				  .inactivehandles = isc_astack_new(
-					  mgr->mctx, ISC_NM_HANDLES_STACK_SIZE),
-				  .inactivereqs = isc_astack_new(
-					  mgr->mctx, ISC_NM_REQS_STACK_SIZE) };
+	*sock = (isc_nmsocket_t){
+		.type = type,
+		.fd = -1,
+		.inactivehandles = isc_astack_new(mgr->mctx,
+						  ISC_NM_HANDLES_STACK_SIZE),
+	};
 
 	if (iface != NULL) {
 		family = iface->type.sa.sa_family;
@@ -1560,8 +1554,9 @@ isc__nm_free_uvbuf(isc_nmsocket_t *sock, const uv_buf_t *buf) {
 
 static isc_nmhandle_t *
 alloc_handle(isc_nmsocket_t *sock) {
-	isc_nmhandle_t *handle = isc_mem_get(
-		sock->mgr->mctx, sizeof(isc_nmhandle_t) + sock->extrahandlesize);
+	isc_nmhandle_t *handle =
+		isc_mem_get(sock->mgr->mctx,
+			    sizeof(isc_nmhandle_t) + sock->extrahandlesize);
 
 	*handle = (isc_nmhandle_t){ .magic = NMHANDLE_MAGIC };
 #ifdef NETMGR_TRACE
@@ -2434,18 +2429,14 @@ isc_nmhandle_netmgr(isc_nmhandle_t *handle) {
 isc__nm_uvreq_t *
 isc___nm_uvreq_get(isc_nm_t *mgr, isc_nmsocket_t *sock FLARG) {
 	isc__nm_uvreq_t *req = NULL;
+	isc__networker_t *worker;
 
 	REQUIRE(VALID_NM(mgr));
 	REQUIRE(VALID_NMSOCK(sock));
+	REQUIRE(sock->tid >= 0 && sock->tid < sock->mgr->nworkers);
 
-	if (isc__nmsocket_active(sock)) {
-		/* Try to reuse one */
-		req = isc_astack_pop(sock->inactivereqs);
-	}
-
-	if (req == NULL) {
-		req = isc_mem_get(sock->mgr->mctx, sizeof(*req));
-	}
+	worker = &sock->mgr->workers[sock->tid];
+	req = isc_mem_get(worker->mctx, sizeof(*req));
 
 	*req = (isc__nm_uvreq_t){ .magic = 0 };
 	ISC_LINK_INIT(req, link);
@@ -2460,7 +2451,7 @@ void
 isc___nm_uvreq_put(isc__nm_uvreq_t **req0, isc_nmsocket_t *sock FLARG) {
 	isc__nm_uvreq_t *req = NULL;
 	isc_nmhandle_t *handle = NULL;
-	bool free = true;
+	isc__networker_t *worker;
 
 	REQUIRE(req0 != NULL);
 	REQUIRE(VALID_UVREQ(*req0));
@@ -2469,6 +2460,7 @@ isc___nm_uvreq_put(isc__nm_uvreq_t **req0, isc_nmsocket_t *sock FLARG) {
 	*req0 = NULL;
 
 	INSIST(sock == req->sock);
+	REQUIRE(sock->tid >= 0 && sock->tid < sock->mgr->nworkers);
 
 	req->magic = 0;
 
@@ -2479,15 +2471,8 @@ isc___nm_uvreq_put(isc__nm_uvreq_t **req0, isc_nmsocket_t *sock FLARG) {
 	handle = req->handle;
 	req->handle = NULL;
 
-#if !__SANITIZE_ADDRESS__ && !__SANITIZE_THREAD__
-	if (isc__nmsocket_active(sock) &&
-	    isc_astack_trypush(sock->inactivereqs, req)) {
-		free = false;
-	}
-#endif /* !__SANITIZE_ADDRESS__ && !__SANITIZE_THREAD__ */
-	if (free) {
-		isc_mem_put(sock->mgr->mctx, req, sizeof(*req));
-	}
+	worker = &sock->mgr->workers[sock->tid];
+	isc_mem_put(worker->mctx, req, sizeof(*req));
 
 	if (handle != NULL) {
 		isc__nmhandle_detach(&handle FLARG_PASS);
