@@ -201,6 +201,8 @@ typedef enum {
 	NETIEVENT_MAX = 4,
 } netievent_type_t;
 
+typedef struct isc__nm_uvreq isc__nm_uvreq_t;
+
 /*
  * Single network event loop worker.
  */
@@ -242,6 +244,11 @@ struct isc_nmhandle {
 	int magic;
 	isc_refcount_t references;
 
+	isc_mem_t *mctx;
+
+	/*% Extra data allocated at the end of each isc_nmhandle_t */
+	size_t extrahandlesize;
+
 	/*
 	 * The socket is not 'attached' in the traditional
 	 * reference-counting sense. Instead, we keep all handles in an
@@ -262,6 +269,8 @@ struct isc_nmhandle {
 	int backtrace_size;
 	LINK(isc_nmhandle_t) active_link;
 #endif
+	LINK(isc_nmhandle_t) link;
+
 	void *opaque;
 	char extra[];
 };
@@ -357,7 +366,6 @@ typedef union {
 #define UVREQ_MAGIC    ISC_MAGIC('N', 'M', 'U', 'R')
 #define VALID_UVREQ(t) ISC_MAGIC_VALID(t, UVREQ_MAGIC)
 
-typedef struct isc__nm_uvreq isc__nm_uvreq_t;
 struct isc__nm_uvreq {
 	int magic;
 	isc_nmsocket_t *sock;
@@ -1042,7 +1050,8 @@ struct isc_nmsocket {
 	 * 'spare' handles for that can be reused to avoid allocations,
 	 * for UDP.
 	 */
-	isc_astack_t *inactivehandles;
+	uint_fast32_t ih;
+	ISC_LIST(isc_nmhandle_t) inactivehandles;
 
 	/*%
 	 * Used to wait for TCP listening events to complete, and
@@ -1087,7 +1096,7 @@ struct isc_nmsocket {
 	/*%
 	 * Current number of active handles.
 	 */
-	atomic_int_fast32_t ah;
+	atomic_uint_fast32_t ah;
 
 	/*% Buffer for TCPDNS processing */
 	size_t buf_size;

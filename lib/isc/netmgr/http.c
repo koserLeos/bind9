@@ -1455,7 +1455,6 @@ isc_nm_httpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		req->cbarg = cbarg;
 		req->peer = *peer;
 		req->local = *local;
-		req->handle = isc__nmhandle_get(sock, &req->peer, &sock->iface);
 
 		if (isc__nm_in_netthread()) {
 			sock->tid = isc_nm_tid();

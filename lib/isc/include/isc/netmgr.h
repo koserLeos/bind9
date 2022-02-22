@@ -62,6 +62,8 @@ typedef void (*isc_nm_cb_t)(isc_nmhandle_t *handle, isc_result_t result,
  * 'eresult' the result of the event.
  * 'cbarg'  the callback argument passed to isc_nm_send(),
  *          isc_nm_tcp_connect(), or isc_nm_listentcp()
+ *
+ * NOTE: The handle is valid only when eresult == ISC_R_SUCCESS
  */
 
 typedef void (*isc_nm_opaquecb_t)(void *arg);

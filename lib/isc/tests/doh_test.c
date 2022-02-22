@@ -115,6 +115,7 @@ static isc_nm_http_endpoints_t *endpoints = NULL;
 #endif
 
 typedef struct csdata {
+	isc_mem_t *mctx;
 	isc_nm_recv_cb_t reply_cb;
 	void *cb_arg;
 	isc_region_t region;
@@ -124,14 +125,14 @@ static void
 connect_send_cb(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	csdata_t data;
 
-	REQUIRE(VALID_NMHANDLE(handle));
-
 	(void)atomic_fetch_sub(&active_cconnects, 1);
 	memmove(&data, arg, sizeof(data));
-	isc_mem_put(handle->sock->mgr->mctx, arg, sizeof(data));
+	isc_mem_put(data.mctx, arg, sizeof(data));
 	if (result != ISC_R_SUCCESS) {
 		goto error;
 	}
+
+	REQUIRE(VALID_NMHANDLE(handle));
 
 	result = isc__nm_http_request(handle, &data.region, data.reply_cb,
 				      data.cb_arg);
@@ -139,13 +140,13 @@ connect_send_cb(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 		goto error;
 	}
 
-	isc_mem_put(handle->sock->mgr->mctx, data.region.base,
-		    data.region.length);
+	isc_mem_put(data.mctx, data.region.base, data.region.length);
+	isc_mem_detach(&data.mctx);
 	return;
 error:
 	data.reply_cb(handle, result, NULL, data.cb_arg);
-	isc_mem_put(handle->sock->mgr->mctx, data.region.base,
-		    data.region.length);
+	isc_mem_put(data.mctx, data.region.base, data.region.length);
+	isc_mem_detach(&data.mctx);
 	if (result == ISC_R_TOOMANYOPENFILES) {
 		atomic_store(&slowdown, true);
 	} else {
@@ -166,6 +167,7 @@ connect_send_request(isc_nm_t *mgr, const char *uri, bool post,
 	memmove(copy.base, region->base, region->length);
 	data = isc_mem_get(mgr->mctx, sizeof(*data));
 	*data = (csdata_t){ .reply_cb = cb, .cb_arg = cbarg, .region = copy };
+	isc_mem_attach(mgr->mctx, &data->mctx);
 	if (tls) {
 		ctx = client_tlsctx;
 	}
@@ -700,12 +702,12 @@ doh_timeout_recovery_GET(void **state) {
 static void
 doh_receive_send_reply_cb(isc_nmhandle_t *handle, isc_result_t eresult,
 			  isc_region_t *region, void *cbarg) {
-	isc_nmhandle_t *thandle = NULL;
-	assert_non_null(handle);
 	UNUSED(region);
 
-	isc_nmhandle_attach(handle, &thandle);
 	if (eresult == ISC_R_SUCCESS) {
+		isc_nmhandle_t *thandle = NULL;
+		REQUIRE(VALID_NMHANDLE(handle));
+		isc_nmhandle_attach(handle, &thandle);
 		int_fast64_t sends = atomic_fetch_sub(&nsends, 1);
 		atomic_fetch_add(&csends, 1);
 		atomic_fetch_add(&creads, 1);
@@ -724,10 +726,10 @@ doh_receive_send_reply_cb(isc_nmhandle_t *handle, isc_result_t eresult,
 				assert_true(eresult == ISC_R_SUCCESS);
 			}
 		}
+		isc_nmhandle_detach(&thandle);
 	} else {
 		atomic_store(&was_error, true);
 	}
-	isc_nmhandle_detach(&thandle);
 }
 
 static isc_threadresult_t

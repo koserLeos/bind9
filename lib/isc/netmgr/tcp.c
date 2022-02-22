@@ -209,6 +209,9 @@ isc__nm_async_tcpconnect(isc__networker_t *worker, isc__netievent_t *ev0) {
 	REQUIRE(sock->type == isc_nm_tcpsocket);
 	REQUIRE(sock->parent == NULL);
 	REQUIRE(sock->tid == isc_nm_tid());
+	REQUIRE(req->handle == NULL);
+
+	req->handle = isc__nmhandle_get(sock, &req->peer, &sock->iface);
 
 	result = tcp_connect_direct(sock, req);
 	if (result != ISC_R_SUCCESS) {
@@ -324,7 +327,6 @@ isc_nm_tcpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	req->cbarg = cbarg;
 	req->peer = *peer;
 	req->local = *local;
-	req->handle = isc__nmhandle_get(sock, &req->peer, &sock->iface);
 
 	result = isc__nm_socket(sa_family, SOCK_STREAM, 0, &sock->fd);
 	if (result != ISC_R_SUCCESS) {
