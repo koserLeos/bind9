@@ -8,7 +8,6 @@ libisc_la_HEADERS =			\
 	include/isc/align.h		\
 	include/isc/app.h		\
 	include/isc/assertions.h	\
-	include/isc/astack.h		\
 	include/isc/atomic.h		\
 	include/isc/attributes.h	\
 	include/isc/backtrace.h		\
@@ -118,7 +117,6 @@ libisc_la_SOURCES =		\
 	aes.c			\
 	app.c			\
 	assertions.c		\
-	astack.c		\
 	backtrace.c		\
 	base32.c		\
 	base64.c		\

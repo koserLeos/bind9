@@ -19,7 +19,6 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#include <isc/astack.h>
 #include <isc/atomic.h>
 #include <isc/barrier.h>
 #include <isc/buffer.h>
