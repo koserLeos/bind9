@@ -1043,7 +1043,6 @@ struct isc_nmsocket {
 	 * for UDP.
 	 */
 	isc_astack_t *inactivehandles;
-	isc_astack_t *inactivereqs;
 
 	/*%
 	 * Used to wait for TCP listening events to complete, and
