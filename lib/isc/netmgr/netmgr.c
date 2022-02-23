@@ -1663,7 +1663,7 @@ isc___nmhandle_get(isc_nmsocket_t *sock, isc_sockaddr_t *peer,
 	 * exceeds number of active handles * 2; this will gradually cleanup the
 	 * unused handles after a spike on an active server.
 	 */
-	if (sock->ih > ah * 2) {
+	if (sock->ih > ah * 2 + 600) {
 		isc_nmhandle_t *tail = ISC_LIST_TAIL(sock->inactivehandles);
 		INSIST(tail != NULL);
 		sock->ih--;
