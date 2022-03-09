@@ -23,6 +23,11 @@ export TOP_SRCDIR=@abs_top_srcdir@
 # Provide TMPDIR variable for tests that need it.
 export TMPDIR=${TMPDIR:-/tmp}
 
+TEST_TOOL_PREFIX="@TEST_TOOL_PREFIX@"
+if [ -n "${TEST_TOOL_PREFIX}" ]; then
+	TEST_TOOL_PREFIX="${TEST_TOOL_PREFIX} "
+fi
+
 export ARPANAME=$TOP_BUILDDIR/bin/tools/arpaname
 export CDS=$TOP_BUILDDIR/bin/dnssec/dnssec-cds
 export CHECKCONF=$TOP_BUILDDIR/bin/check/named-checkconf
@@ -43,7 +48,7 @@ export JOURNALPRINT=$TOP_BUILDDIR/bin/tools/named-journalprint
 export KEYFRLAB=$TOP_BUILDDIR/bin/dnssec/dnssec-keyfromlabel
 export KEYGEN=$TOP_BUILDDIR/bin/dnssec/dnssec-keygen
 export MDIG=$TOP_BUILDDIR/bin/tools/mdig
-export NAMED=$TOP_BUILDDIR/bin/named/named
+export NAMED=${TEST_TOOL_PREFIX}${TOP_BUILDDIR}/bin/named/named
 export NSEC3HASH=$TOP_BUILDDIR/bin/tools/nsec3hash
 export NSLOOKUP=$TOP_BUILDDIR/bin/dig/nslookup
 export NSUPDATE=$TOP_BUILDDIR/bin/nsupdate/nsupdate

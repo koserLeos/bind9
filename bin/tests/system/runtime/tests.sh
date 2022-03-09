@@ -57,7 +57,7 @@ run_named() (
 	shift
 	if cd "$dir" > /dev/null 2>&1
 	then
-		"${NAMED}" "$@" ${NAMED_DEFAULT_ARGS} >> "$run" 2>&1 &
+		${NAMED} "$@" ${NAMED_DEFAULT_ARGS} >> "$run" 2>&1 &
 		echo $!
 	fi
 )

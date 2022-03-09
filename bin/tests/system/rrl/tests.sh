@@ -277,7 +277,7 @@ $DIG $DIGOPTS @$ns4 TXT big.tld4 > /dev/null 2>&1
 
 
 # check named doesn't start with a broken config
-$NAMED -D rrl-ns5 -gc broken.conf > broken.out 2>&1 &
+$NAMED -D rrl-ns5 -gc broken.conf > broken.out 2>&1 > named.rrl-ns5.run &
 sleep 2
 grep "min-table-size 1" broken.out > /dev/null || setret "min-table-size 0 was not changed to 1"
 
