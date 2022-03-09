@@ -204,6 +204,14 @@ AS_CASE([$enable_rr_chaos_mode],
 	  AC_MSG_RESULT([yes])
 	  TEST_TOOL_PREFIX="rr record -h"
 	],
+	[valgrind],[
+	  AC_MSG_RESULT([valgrind])
+	  TEST_TOOL_PREFIX="valgrind -q --gen-suppressions=all --num-callers=48 --fullpath-after= --log-file=named-$server-valgrind-%p.log --tool=memcheck --track-origins=yes --leak-check=full"
+	],
+	[helgrind],[
+	  AC_MSG_RESULT([helgrind])
+	  TEST_TOOL_PREFIX="valgrind -q --gen-suppressions=all --num-callers=48 --fullpath-after= --log-file=named-$server-valgrind-%p.log --tool=helgrind"
+	],
 	[
 	  AC_MSG_RESULT([yes, $enable_rr_chaos_mode])
 	  TEST_TOOL_PREFIX="$enable_rr_chaos_mode"
