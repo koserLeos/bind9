@@ -1687,8 +1687,7 @@ dns_catz_update_taskaction(isc_task_t *task, isc_event_t *event) {
 				 NULL, NULL, true);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	isc_event_free(&event);
-	result = isc_time_now(&zone->lastupdated);
-	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+	isc_time_now(&zone->lastupdated);
 	UNLOCK(&zone->catzs->lock);
 }
 

@@ -1489,7 +1489,8 @@ transition:
 					dns_lctx, DNS_LOGCATEGORY_DNSSEC,
 					DNS_LOGMODULE_DNSSEC, ISC_LOG_DEBUG(1),
 					"keymgr: time says no to %s %s type %s "
-					"state %s to state %s (wait %u "
+					"state %s to state %s (wait %" PRIu64
+					" "
 					"seconds)",
 					keymgr_keyrole(dkey->key), keystr,
 					keystatetags[i], keystatestrings[state],
@@ -1677,7 +1678,8 @@ keymgr_key_rollover(dns_kasp_key_t *kaspkey, dns_dnsseckey_t *active_key,
 					dns_lctx, DNS_LOGCATEGORY_DNSSEC,
 					DNS_LOGMODULE_DNSSEC, ISC_LOG_DEBUG(1),
 					"keymgr: new successor needed for "
-					"DNSKEY %s (%s) (policy %s) in %u "
+					"DNSKEY %s (%s) (policy %s) in %" PRIu64
+					" "
 					"seconds",
 					keystr, keymgr_keyrole(active_key->key),
 					dns_kasp_getname(kasp), (prepub - now));

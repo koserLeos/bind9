@@ -1176,11 +1176,7 @@ setup(void) {
 	/*
 	 * Record the server's startup time.
 	 */
-	result = isc_time_now(&named_g_boottime);
-	if (result != ISC_R_SUCCESS) {
-		named_main_earlyfatal("isc_time_now() failed: %s",
-				      isc_result_totext(result));
-	}
+	isc_time_now(&named_g_boottime);
 
 	result = create_managers();
 	if (result != ISC_R_SUCCESS) {

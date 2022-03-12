@@ -3466,7 +3466,7 @@ render_xsl(const char *url, isc_httpdurl_t *urlinfo, const char *querystring,
 		{
 			if (strncasecmp(line, if_modified_since,
 					strlen(if_modified_since)) == 0) {
-				time_t t1, t2;
+				uint64_t t1, t2;
 				line += strlen(if_modified_since);
 				result = isc_time_parsehttptimestamp(line,
 								     &when);
@@ -3474,16 +3474,8 @@ render_xsl(const char *url, isc_httpdurl_t *urlinfo, const char *querystring,
 					goto send;
 				}
 
-				result = isc_time_secondsastimet(&when, &t1);
-				if (result != ISC_R_SUCCESS) {
-					goto send;
-				}
-
-				result = isc_time_secondsastimet(
-					&urlinfo->loadtime, &t2);
-				if (result != ISC_R_SUCCESS) {
-					goto send;
-				}
+				t1 = isc_time_seconds(&when);
+				t2 = isc_time_seconds(&urlinfo->loadtime);
 
 				if (t1 < t2) {
 					goto send;

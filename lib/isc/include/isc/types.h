@@ -13,17 +13,17 @@
 
 #pragma once
 
-#include <isc/bind9.h>
-#include <isc/result.h>
-
 /*! \file isc/types.h
  * \brief
  * OS-specific types, from the OS-specific include directories.
  */
 #include <inttypes.h>
 #include <stdbool.h>
+#include <time.h>
 
+#include <isc/bind9.h>
 #include <isc/offset.h>
+#include <isc/result.h>
 
 /*
  * XXXDCL This is just for ISC_LIST and ISC_LINK, but gets all of the other

@@ -31,6 +31,7 @@
 #include "../time.c"
 
 #define NS_PER_S 1000000000 /*%< Nanoseconds per second. */
+#define MAX_N	 UINT64_MAX
 #define MAX_NS	 (NS_PER_S - 1)
 
 struct time_vectors {
@@ -44,12 +45,12 @@ const struct time_vectors vectors_add[8] = {
 	{ { 0, 0 }, { 0, 0 }, { 0, 0 }, ISC_R_SUCCESS },
 	{ { 0, MAX_NS }, { 0, MAX_NS }, { 1, MAX_NS - 1 }, ISC_R_SUCCESS },
 	{ { 0, NS_PER_S / 2 }, { 0, NS_PER_S / 2 }, { 1, 0 }, ISC_R_SUCCESS },
-	{ { UINT_MAX, MAX_NS }, { 0, 0 }, { UINT_MAX, MAX_NS }, ISC_R_SUCCESS },
-	{ { UINT_MAX, 0 }, { 0, MAX_NS }, { UINT_MAX, MAX_NS }, ISC_R_SUCCESS },
-	{ { UINT_MAX, 0 }, { 1, 0 }, { 0, 0 }, ISC_R_RANGE },
-	{ { UINT_MAX, MAX_NS }, { 0, 1 }, { 0, 0 }, ISC_R_RANGE },
-	{ { UINT_MAX / 2 + 1, NS_PER_S / 2 },
-	  { UINT_MAX / 2, NS_PER_S / 2 },
+	{ { MAX_N, MAX_NS }, { 0, 0 }, { MAX_N, MAX_NS }, ISC_R_SUCCESS },
+	{ { MAX_N, 0 }, { 0, MAX_NS }, { MAX_N, MAX_NS }, ISC_R_SUCCESS },
+	{ { MAX_N, 0 }, { 1, 0 }, { 0, 0 }, ISC_R_RANGE },
+	{ { MAX_N, MAX_NS }, { 0, 1 }, { 0, 0 }, ISC_R_RANGE },
+	{ { MAX_N / 2 + 1, NS_PER_S / 2 },
+	  { MAX_N / 2, NS_PER_S / 2 },
 	  { 0, 0 },
 	  ISC_R_RANGE },
 };
@@ -61,7 +62,7 @@ const struct time_vectors vectors_sub[7] = {
 	  { 0, MAX_NS },
 	  { 0, NS_PER_S / 2 + 1 },
 	  ISC_R_SUCCESS },
-	{ { UINT_MAX, MAX_NS }, { UINT_MAX, 0 }, { 0, MAX_NS }, ISC_R_SUCCESS },
+	{ { MAX_N, MAX_NS }, { MAX_N, 0 }, { 0, MAX_NS }, ISC_R_SUCCESS },
 	{ { 0, 0 }, { 1, 0 }, { 0, 0 }, ISC_R_RANGE },
 	{ { 0, 0 }, { 0, MAX_NS }, { 0, 0 }, ISC_R_RANGE },
 };
@@ -71,9 +72,25 @@ isc_time_add_test(void **state) {
 	UNUSED(state);
 
 	for (size_t i = 0; i < ARRAY_SIZE(vectors_add); i++) {
-		isc_time_t r = { UINT_MAX, UINT_MAX };
+		isc_time_t r = { MAX_N, MAX_N };
 		isc_result_t result = isc_time_add(&(vectors_add[i].a),
 						   &(vectors_add[i].b), &r);
+#if 0
+		fprintf(stderr, "a.sec = %" PRIu64 ", a.nsec = %" PRIu64 ", ",
+			(vectors_add[i].a).seconds,
+			(vectors_add[i].a).nanoseconds);
+
+		fprintf(stderr, "b.sec = %" PRIu64 ", b.nsec = %" PRIu64 ", ",
+			(vectors_add[i].b).seconds,
+			(vectors_add[i].b).nanoseconds);
+
+		fprintf(stderr, "sec = %" PRIu64 ", nsec = %" PRIu64 ", ",
+			r.seconds, r.nanoseconds);
+
+		fprintf(stderr, "result = %s, expected = %s\n",
+			isc_result_totext(result),
+			isc_result_totext(vectors_add[i].result));
+#endif
 		assert_int_equal(result, vectors_add[i].result);
 		if (result != ISC_R_SUCCESS) {
 			continue;
@@ -143,8 +160,7 @@ isc_time_parsehttptimestamp_test(void **state) {
 	UNUSED(state);
 
 	setenv("TZ", "America/Los_Angeles", 1);
-	result = isc_time_now(&t);
-	assert_int_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&t);
 
 	isc_time_formathttptimestamp(&t, buf, sizeof(buf));
 	result = isc_time_parsehttptimestamp(buf, &x);
@@ -155,15 +171,13 @@ isc_time_parsehttptimestamp_test(void **state) {
 /* print UTC in ISO8601 */
 static void
 isc_time_formatISO8601_test(void **state) {
-	isc_result_t result;
 	isc_time_t t;
 	char buf[64];
 
 	UNUSED(state);
 
 	setenv("TZ", "America/Los_Angeles", 1);
-	result = isc_time_now(&t);
-	assert_int_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&t);
 
 	/* check formatting: yyyy-mm-ddThh:mm:ssZ */
 	memset(buf, 'X', sizeof(buf));
@@ -191,15 +205,13 @@ isc_time_formatISO8601_test(void **state) {
 /* print UTC in ISO8601 with milliseconds */
 static void
 isc_time_formatISO8601ms_test(void **state) {
-	isc_result_t result;
 	isc_time_t t;
 	char buf[64];
 
 	UNUSED(state);
 
 	setenv("TZ", "America/Los_Angeles", 1);
-	result = isc_time_now(&t);
-	assert_int_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&t);
 
 	/* check formatting: yyyy-mm-ddThh:mm:ss.sssZ */
 	memset(buf, 'X', sizeof(buf));
@@ -228,15 +240,13 @@ isc_time_formatISO8601ms_test(void **state) {
 /* print UTC in ISO8601 with microseconds */
 static void
 isc_time_formatISO8601us_test(void **state) {
-	isc_result_t result;
 	isc_time_t t;
 	char buf[64];
 
 	UNUSED(state);
 
 	setenv("TZ", "America/Los_Angeles", 1);
-	result = isc_time_now_hires(&t);
-	assert_int_equal(result, ISC_R_SUCCESS);
+	isc_time_now_hires(&t);
 
 	/* check formatting: yyyy-mm-ddThh:mm:ss.ssssssZ */
 	memset(buf, 'X', sizeof(buf));
@@ -265,15 +275,13 @@ isc_time_formatISO8601us_test(void **state) {
 /* print local time in ISO8601 */
 static void
 isc_time_formatISO8601L_test(void **state) {
-	isc_result_t result;
 	isc_time_t t;
 	char buf[64];
 
 	UNUSED(state);
 
 	setenv("TZ", "America/Los_Angeles", 1);
-	result = isc_time_now(&t);
-	assert_int_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&t);
 
 	/* check formatting: yyyy-mm-ddThh:mm:ss */
 	memset(buf, 'X', sizeof(buf));
@@ -300,15 +308,13 @@ isc_time_formatISO8601L_test(void **state) {
 /* print local time in ISO8601 with milliseconds */
 static void
 isc_time_formatISO8601Lms_test(void **state) {
-	isc_result_t result;
 	isc_time_t t;
 	char buf[64];
 
 	UNUSED(state);
 
 	setenv("TZ", "America/Los_Angeles", 1);
-	result = isc_time_now(&t);
-	assert_int_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&t);
 
 	/* check formatting: yyyy-mm-ddThh:mm:ss.sss */
 	memset(buf, 'X', sizeof(buf));
@@ -336,15 +342,13 @@ isc_time_formatISO8601Lms_test(void **state) {
 /* print local time in ISO8601 with microseconds */
 static void
 isc_time_formatISO8601Lus_test(void **state) {
-	isc_result_t result;
 	isc_time_t t;
 	char buf[64];
 
 	UNUSED(state);
 
 	setenv("TZ", "America/Los_Angeles", 1);
-	result = isc_time_now_hires(&t);
-	assert_int_equal(result, ISC_R_SUCCESS);
+	isc_time_now_hires(&t);
 
 	/* check formatting: yyyy-mm-ddThh:mm:ss.ssssss */
 	memset(buf, 'X', sizeof(buf));
@@ -372,15 +376,13 @@ isc_time_formatISO8601Lus_test(void **state) {
 /* print UTC time as yyyymmddhhmmsssss */
 static void
 isc_time_formatshorttimestamp_test(void **state) {
-	isc_result_t result;
 	isc_time_t t;
 	char buf[64];
 
 	UNUSED(state);
 
 	setenv("TZ", "America/Los_Angeles", 1);
-	result = isc_time_now(&t);
-	assert_int_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&t);
 
 	/* check formatting: yyyymmddhhmmsssss */
 	memset(buf, 'X', sizeof(buf));

@@ -160,7 +160,7 @@ zonemgr_unreachable(void **state) {
 
 	UNUSED(state);
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 
 	result = dns_zonemgr_create(dt_mctx, taskmgr, timermgr, NULL,
 				    &myzonemgr);

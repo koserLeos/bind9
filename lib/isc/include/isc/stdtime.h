@@ -25,7 +25,7 @@
  * Applications that want maximum portability should not assume anything
  * about its size.
  */
-typedef uint32_t isc_stdtime_t;
+typedef uint64_t isc_stdtime_t;
 
 ISC_LANG_BEGINDECLS
 /* */
@@ -51,11 +51,6 @@ isc_stdtime_tostring(isc_stdtime_t t, char *out, size_t outlen);
  *	't' is a valid time.
  *	'out' is a valid pointer.
  *	'outlen' is at least 26.
- */
-
-#define isc_stdtime_convert32(t, t32p) (*(t32p) = t)
-/*
- * Convert the standard time to its 32-bit version.
  */
 
 ISC_LANG_ENDDECLS

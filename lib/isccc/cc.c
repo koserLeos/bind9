@@ -41,6 +41,7 @@
 #include <isc/print.h>
 #include <isc/result.h>
 #include <isc/safe.h>
+#include <isc/stdtime.h>
 
 #include <isccc/alist.h>
 #include <isccc/base64.h>
@@ -635,7 +636,7 @@ isccc_cc_fromwire(isccc_region_t *source, isccc_sexpr_t **alistp,
 
 static isc_result_t
 createmessage(uint32_t version, const char *from, const char *to,
-	      uint32_t serial, isccc_time_t now, isccc_time_t expires,
+	      uint32_t serial, isc_stdtime_t now, isc_stdtime_t expires,
 	      isccc_sexpr_t **alistp, bool want_expires) {
 	isccc_sexpr_t *alist, *_ctrl, *_data;
 	isc_result_t result;
@@ -698,8 +699,8 @@ bad:
 
 isc_result_t
 isccc_cc_createmessage(uint32_t version, const char *from, const char *to,
-		       uint32_t serial, isccc_time_t now, isccc_time_t expires,
-		       isccc_sexpr_t **alistp) {
+		       uint32_t serial, isc_stdtime_t now,
+		       isc_stdtime_t expires, isccc_sexpr_t **alistp) {
 	return (createmessage(version, from, to, serial, now, expires, alistp,
 			      true));
 }
@@ -710,14 +711,15 @@ isccc_cc_createack(isccc_sexpr_t *message, bool ok, isccc_sexpr_t **ackp) {
 	uint32_t serial;
 	isccc_sexpr_t *ack, *_ctrl;
 	isc_result_t result;
-	isccc_time_t t;
+	isc_stdtime_t t;
 
 	REQUIRE(ackp != NULL && *ackp == NULL);
 
 	_ctrl = isccc_alist_lookup(message, "_ctrl");
 	if (!isccc_alist_alistp(_ctrl) ||
 	    isccc_cc_lookupuint32(_ctrl, "_ser", &serial) != ISC_R_SUCCESS ||
-	    isccc_cc_lookupuint32(_ctrl, "_tim", &t) != ISC_R_SUCCESS)
+	    isccc_cc_lookupuint32(_ctrl, "_tim", (uint32_t *)&t) !=
+		    ISC_R_SUCCESS)
 	{
 		return (ISC_R_FAILURE);
 	}
@@ -786,8 +788,8 @@ isccc_cc_isreply(isccc_sexpr_t *message) {
 }
 
 isc_result_t
-isccc_cc_createresponse(isccc_sexpr_t *message, isccc_time_t now,
-			isccc_time_t expires, isccc_sexpr_t **alistp) {
+isccc_cc_createresponse(isccc_sexpr_t *message, isc_stdtime_t now,
+			isc_stdtime_t expires, isccc_sexpr_t **alistp) {
 	char *_frm, *_to, *type = NULL;
 	uint32_t serial;
 	isccc_sexpr_t *alist, *_ctrl, *_data;
@@ -929,7 +931,7 @@ symtab_undefine(char *key, unsigned int type, isccc_symvalue_t value,
 
 static bool
 symtab_clean(char *key, unsigned int type, isccc_symvalue_t value, void *arg) {
-	isccc_time_t *now;
+	isc_stdtime_t *now;
 
 	UNUSED(key);
 	UNUSED(type);
@@ -952,7 +954,7 @@ isccc_cc_createsymtab(isccc_symtab_t **symtabp) {
 }
 
 void
-isccc_cc_cleansymtab(isccc_symtab_t *symtab, isccc_time_t now) {
+isccc_cc_cleansymtab(isccc_symtab_t *symtab, isc_stdtime_t now) {
 	isccc_symtab_foreach(symtab, symtab_clean, &now);
 }
 
@@ -973,7 +975,7 @@ has_whitespace(const char *str) {
 
 isc_result_t
 isccc_cc_checkdup(isccc_symtab_t *symtab, isccc_sexpr_t *message,
-		  isccc_time_t now) {
+		  isc_stdtime_t now) {
 	const char *_frm;
 	const char *_to;
 	char *_ser = NULL, *_tim = NULL, *tmp;

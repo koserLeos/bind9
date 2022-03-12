@@ -263,7 +263,7 @@ isc_timer_create(isc_timermgr_t *manager, isc_timertype_t type,
 	 * Get current time.
 	 */
 	if (type != isc_timertype_inactive) {
-		TIME_NOW(&now);
+		isc_time_now(&now);
 	} else {
 		/*
 		 * We don't have to do this, but it keeps the compiler from
@@ -373,7 +373,7 @@ isc_timer_reset(isc_timer_t *timer, isc_timertype_t type,
 	 * Get current time.
 	 */
 	if (type != isc_timertype_inactive) {
-		TIME_NOW(&now);
+		isc_time_now(&now);
 	} else {
 		/*
 		 * We don't have to do this, but it keeps the compiler from
@@ -451,7 +451,7 @@ isc_timer_touch(isc_timer_t *timer) {
 	 * don't want to do.
 	 */
 
-	TIME_NOW(&now);
+	isc_time_now(&now);
 	result = isc_time_add(&now, &timer->interval, &timer->idle);
 
 	UNLOCK(&timer->lock);
@@ -601,7 +601,7 @@ run(void *uap) {
 
 	LOCK(&manager->lock);
 	while (!manager->done) {
-		TIME_NOW(&now);
+		isc_time_now(&now);
 
 		XTRACETIME("running", now);
 

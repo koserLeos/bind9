@@ -126,9 +126,8 @@ setup_test(isc_timertype_t timertype, isc_time_t *expires,
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	isc_mutex_lock(&lasttime_mx);
-	result = isc_time_now(&lasttime);
+	isc_time_now(&lasttime);
 	isc_mutex_unlock(&lasttime_mx);
-	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = isc_timer_create(timermgr, timertype, expires, interval, task,
 				  action, (void *)timertype, &timer);
@@ -217,8 +216,7 @@ ticktock(isc_task_t *task, isc_event_t *event) {
 			    expected_event_type, event->ev_type);
 	}
 
-	result = isc_time_now(&now);
-	subthread_assert_result_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&now);
 
 	isc_interval_set(&interval, seconds, nanoseconds);
 	isc_mutex_lock(&lasttime_mx);
@@ -243,8 +241,7 @@ ticktock(isc_task_t *task, isc_event_t *event) {
 	subthread_assert_result_equal(result, ISC_R_SUCCESS);
 
 	if (atomic_load(&eventcnt) == nevents) {
-		result = isc_time_now(&endtime);
-		subthread_assert_result_equal(result, ISC_R_SUCCESS);
+		isc_time_now(&endtime);
 		isc_timer_detach(&timer);
 		isc_task_shutdown(task);
 	}
@@ -311,8 +308,7 @@ test_idle(isc_task_t *task, isc_event_t *event) {
 		print_message("# tick %d\n", tick);
 	}
 
-	result = isc_time_now(&now);
-	subthread_assert_result_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&now);
 
 	isc_interval_set(&interval, seconds, nanoseconds);
 	isc_mutex_lock(&lasttime_mx);
@@ -385,8 +381,7 @@ test_reset(isc_task_t *task, isc_event_t *event) {
 	 * Check expired time.
 	 */
 
-	result = isc_time_now(&now);
-	subthread_assert_result_equal(result, ISC_R_SUCCESS);
+	isc_time_now(&now);
 
 	isc_interval_set(&interval, seconds, nanoseconds);
 	isc_mutex_lock(&lasttime_mx);

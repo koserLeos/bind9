@@ -405,7 +405,7 @@ rndc_recvnonce(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	isccc_region_t source;
 	uint32_t nonce;
 	isccc_sexpr_t *request = NULL;
-	isccc_time_t now;
+	isc_stdtime_t now;
 	isc_region_t r;
 	isccc_sexpr_t *data = NULL;
 	isc_buffer_t b;
@@ -504,7 +504,7 @@ rndc_connected(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	char socktext[ISC_SOCKADDR_FORMATSIZE];
 	isccc_sexpr_t *request = NULL;
 	isccc_sexpr_t *data = NULL;
-	isccc_time_t now;
+	isc_stdtime_t now;
 	isc_region_t r;
 	isc_buffer_t b;
 	isc_nmhandle_t *connhandle = NULL;

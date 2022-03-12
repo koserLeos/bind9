@@ -579,9 +579,9 @@ dump_key(dns_tsigkey_t *tkey, FILE *fp) {
 	dns_name_format(tkey->algorithm, algorithmstr, sizeof(algorithmstr));
 	result = dst_key_dump(tkey->key, tkey->mctx, &buffer, &length);
 	if (result == ISC_R_SUCCESS) {
-		fprintf(fp, "%s %s %u %u %s %.*s\n", namestr, creatorstr,
-			tkey->inception, tkey->expire, algorithmstr, length,
-			buffer);
+		fprintf(fp, "%s %s %" PRIu64 " %" PRIu64 " %s %.*s\n", namestr,
+			creatorstr, tkey->inception, tkey->expire, algorithmstr,
+			length, buffer);
 	}
 	if (buffer != NULL) {
 		isc_mem_put(tkey->mctx, buffer, length);

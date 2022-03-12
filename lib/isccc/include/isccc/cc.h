@@ -36,6 +36,7 @@
 
 #include <isc/buffer.h>
 #include <isc/lang.h>
+#include <isc/stdtime.h>
 
 #include <isccc/types.h>
 
@@ -76,8 +77,8 @@ isccc_cc_fromwire(isccc_region_t *source, isccc_sexpr_t **alistp,
 /*% Create Message */
 isc_result_t
 isccc_cc_createmessage(uint32_t version, const char *from, const char *to,
-		       uint32_t serial, isccc_time_t now, isccc_time_t expires,
-		       isccc_sexpr_t **alistp);
+		       uint32_t serial, isc_stdtime_t now,
+		       isc_stdtime_t expires, isccc_sexpr_t **alistp);
 
 /*% Create Acknowledgment */
 isc_result_t
@@ -93,8 +94,8 @@ isccc_cc_isreply(isccc_sexpr_t *message);
 
 /*% Create Response */
 isc_result_t
-isccc_cc_createresponse(isccc_sexpr_t *message, isccc_time_t now,
-			isccc_time_t expires, isccc_sexpr_t **alistp);
+isccc_cc_createresponse(isccc_sexpr_t *message, isc_stdtime_t now,
+			isc_stdtime_t expires, isccc_sexpr_t **alistp);
 
 /*% Define String */
 isccc_sexpr_t *
@@ -118,11 +119,11 @@ isccc_cc_createsymtab(isccc_symtab_t **symtabp);
 
 /*% Clean up Symbol Table */
 void
-isccc_cc_cleansymtab(isccc_symtab_t *symtab, isccc_time_t now);
+isccc_cc_cleansymtab(isccc_symtab_t *symtab, isc_stdtime_t now);
 
 /*% Check for Duplicates */
 isc_result_t
 isccc_cc_checkdup(isccc_symtab_t *symtab, isccc_sexpr_t *message,
-		  isccc_time_t now);
+		  isc_stdtime_t now);
 
 ISC_LANG_ENDDECLS

@@ -802,7 +802,7 @@ task_run(isc_task_t *task) {
 	task->state = task_state_running;
 	XTRACE("running");
 	XTRACE(task->name);
-	TIME_NOW(&task->tnow);
+	isc_time_now(&task->tnow);
 	task->now = isc_time_seconds(&task->tnow);
 
 	while (true) {

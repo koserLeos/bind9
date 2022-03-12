@@ -442,8 +442,9 @@ debug(const char *format, ...) {
 	if (debugging) {
 		fflush(stdout);
 		if (debugtiming) {
-			TIME_NOW(&t);
-			fprintf(stderr, "%u.%06u: ", isc_time_seconds(&t),
+			isc_time_now(&t);
+			fprintf(stderr, "%" PRIu64 ".%06" PRIu64 ": ",
+				isc_time_seconds(&t),
 				isc_time_nanoseconds(&t) / 1000);
 		}
 		va_start(args, format);
@@ -2867,9 +2868,9 @@ send_udp(dig_query_t *query) {
 	isc_buffer_usedregion(&query->sendbuf, &r);
 	debug("sending a request");
 	if (query->lookup->use_usec) {
-		TIME_NOW_HIRES(&query->time_sent);
+		isc_time_now_hires(&query->time_sent);
 	} else {
-		TIME_NOW(&query->time_sent);
+		isc_time_now(&query->time_sent);
 	}
 
 	isc_nmhandle_attach(query->handle, &query->sendhandle);
@@ -3190,9 +3191,9 @@ launch_next_query(dig_query_t *query) {
 		dig_query_t *sendquery = NULL;
 		debug("sending a request in launch_next_query");
 		if (query->lookup->use_usec) {
-			TIME_NOW_HIRES(&query->time_sent);
+			isc_time_now_hires(&query->time_sent);
 		} else {
-			TIME_NOW(&query->time_sent);
+			isc_time_now(&query->time_sent);
 		}
 
 		query_attach(query, &sendquery);
@@ -3616,9 +3617,9 @@ recv_done(isc_nmhandle_t *handle, isc_result_t eresult, isc_region_t *region,
 	}
 
 	if (query->lookup->use_usec) {
-		TIME_NOW_HIRES(&query->time_recv);
+		isc_time_now_hires(&query->time_recv);
 	} else {
-		TIME_NOW(&query->time_recv);
+		isc_time_now(&query->time_recv);
 	}
 
 	if (eresult == ISC_R_TIMEDOUT && !l->tcp_mode && l->retries > 1) {

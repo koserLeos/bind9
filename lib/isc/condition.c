@@ -23,46 +23,33 @@
 
 isc_result_t
 isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t) {
-	int presult;
-	isc_result_t result;
+	int r;
 	struct timespec ts;
 	char strbuf[ISC_STRERRORSIZE];
 
 	REQUIRE(c != NULL && m != NULL && t != NULL);
 
-	/*
-	 * POSIX defines a timespec's tv_sec as time_t.
-	 */
-	result = isc_time_secondsastimet(t, &ts.tv_sec);
-
-	/*
-	 * If we have a range error ts.tv_sec is most probably a signed
-	 * 32 bit value.  Set ts.tv_sec to INT_MAX.  This is a kludge.
-	 */
-	if (result == ISC_R_RANGE) {
+	ts.tv_sec = (time_t)isc_time_seconds(t);
+	if ((uint64_t)ts.tv_sec != isc_time_seconds(t)) {
 		ts.tv_sec = INT_MAX;
-	} else if (result != ISC_R_SUCCESS) {
-		return (result);
 	}
-
-	/*!
-	 * POSIX defines a timespec's tv_nsec as long.  isc_time_nanoseconds
-	 * ensures its return value is < 1 billion, which will fit in a long.
-	 */
-	ts.tv_nsec = (long)isc_time_nanoseconds(t);
+	ts.tv_nsec = (time_t)isc_time_nanoseconds(t);
 
 	do {
-		presult = pthread_cond_timedwait(c, m, &ts);
-		if (presult == 0) {
-			return (ISC_R_SUCCESS);
-		}
-		if (presult == ETIMEDOUT) {
-			return (ISC_R_TIMEDOUT);
-		}
-	} while (presult == EINTR);
+		r = pthread_cond_timedwait(c, m, &ts);
 
-	strerror_r(presult, strbuf, sizeof(strbuf));
-	UNEXPECTED_ERROR(__FILE__, __LINE__,
-			 "pthread_cond_timedwait() returned %s", strbuf);
-	return (ISC_R_UNEXPECTED);
+		switch (r) {
+		case 0:
+			return (ISC_R_SUCCESS);
+		case ETIMEDOUT:
+			return (ISC_R_TIMEDOUT);
+		case EINTR:
+			continue;
+		default:
+			strerror_r(r, strbuf, sizeof(strbuf));
+			isc_error_fatal(__FILE__, __LINE__,
+					"pthread_cond_timedwait() returned %s",
+					strbuf);
+		}
+	} while (true);
 }

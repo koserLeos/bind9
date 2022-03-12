@@ -115,9 +115,9 @@ dns_time64_from32(uint32_t value) {
 	isc_stdtime_get(&now);
 	start = (int64_t)now;
 	if (isc_serial_gt(value, now)) {
-		t = start + (value - now);
+		t = start + (value - (uint32_t)now);
 	} else {
-		t = start - (now - value);
+		t = start - ((uint32_t)now - value);
 	}
 
 	return (t);
