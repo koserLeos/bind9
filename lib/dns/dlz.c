@@ -454,7 +454,7 @@ dns_dlz_writeablezone(dns_view_t *view, dns_dlzdb_t *dlzdb,
 	INSIST(dupzone == NULL);
 
 	/* Create it */
-	result = dns_zone_create(&zone, view->mctx);
+	result = dns_zone_create(&zone, view->mctx, 0); /* FIXME */
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup;
 	}
