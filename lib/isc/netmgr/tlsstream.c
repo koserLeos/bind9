@@ -125,16 +125,18 @@ tls_senddone(isc_nmhandle_t *handle, isc_result_t eresult, void *cbarg) {
 		}
 	}
 
-	/* We are tying to avoid a memory allocation for small write
+	isc__networker_t *worker =
+		&handle->sock->mgr->workers[handle->sock->tid];
+	/* We are trying to avoid a memory allocation for small write
 	 * requests. See the mirroring code in the tls_send_outgoing()
 	 * function. */
 	if (send_req->data.length > sizeof(send_req->smallbuf)) {
-		isc_mem_put(handle->sock->mgr->mctx, send_req->data.base,
+		isc_mem_put(worker->mctx, send_req->data.base,
 			    send_req->data.length);
 	} else {
 		INSIST(&send_req->smallbuf[0] == send_req->data.base);
 	}
-	isc_mem_put(handle->sock->mgr->mctx, send_req, sizeof(*send_req));
+	isc_mem_put(worker->mctx, send_req, sizeof(*send_req));
 	tlssock->tlsstream.nsending--;
 
 	if (finish && eresult == ISC_R_SUCCESS) {
@@ -206,10 +208,10 @@ tls_failed_read_cb(isc_nmsocket_t *sock, const isc_result_t result) {
 
 static void
 async_tls_do_bio(isc_nmsocket_t *sock) {
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 	isc__netievent_tlsdobio_t *ievent =
-		isc__nm_get_netievent_tlsdobio(sock->mgr, sock);
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+		isc__nm_get_netievent_tlsdobio(worker, sock);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 static int
@@ -244,13 +246,15 @@ tls_send_outgoing(isc_nmsocket_t *sock, bool finish, isc_nmhandle_t *tlshandle,
 		pending = TLS_BUF_SIZE;
 	}
 
-	send_req = isc_mem_get(sock->mgr->mctx, sizeof(*send_req));
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+
+	send_req = isc_mem_get(worker->mctx, sizeof(*send_req));
 	*send_req = (isc_nmsocket_tls_send_req_t){ .finish = finish,
 						   .data.length = pending };
 
 	/* Let's try to avoid a memory allocation for small write requests */
 	if ((size_t)pending > sizeof(send_req->smallbuf)) {
-		send_req->data.base = isc_mem_get(sock->mgr->mctx, pending);
+		send_req->data.base = isc_mem_get(worker->mctx, pending);
 	} else {
 		send_req->data.base = &send_req->smallbuf[0];
 	}
@@ -726,9 +730,9 @@ isc__nm_tls_send(isc_nmhandle_t *handle, const isc_region_t *region,
 	/*
 	 * We need to create an event and pass it using async channel
 	 */
-	ievent = isc__nm_get_netievent_tlssend(sock->mgr, sock, uvreq);
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tlssend(worker, sock, uvreq);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 void
@@ -765,9 +769,9 @@ isc__nm_tls_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 	sock->recv_cb = cb;
 	sock->recv_cbarg = cbarg;
 
-	ievent = isc__nm_get_netievent_tlsstartread(sock->mgr, sock);
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tlsstartread(worker, sock);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 void
@@ -832,9 +836,9 @@ isc__nm_tls_close(isc_nmsocket_t *sock) {
 		return;
 	}
 
-	ievent = isc__nm_get_netievent_tlsclose(sock->mgr, sock);
-	isc__nm_maybe_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				     (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tlsclose(worker, sock);
+	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 void
@@ -963,7 +967,6 @@ tls_cancelread(isc_nmsocket_t *sock) {
 void
 isc__nm_tls_cancelread(isc_nmhandle_t *handle) {
 	isc_nmsocket_t *sock = NULL;
-	isc__netievent_tlscancel_t *ievent = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 
@@ -974,10 +977,10 @@ isc__nm_tls_cancelread(isc_nmhandle_t *handle) {
 	if (sock->tid == isc_nm_tid()) {
 		tls_cancelread(sock);
 	} else {
-		ievent = isc__nm_get_netievent_tlscancel(sock->mgr, sock,
-							 handle);
-		isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				       (isc__netievent_t *)ievent);
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+		isc__netievent_tlscancel_t *ievent =
+			isc__nm_get_netievent_tlscancel(worker, sock, handle);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 }
 

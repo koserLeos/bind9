@@ -686,6 +686,12 @@ isc_nm_getnworkers(const isc_nm_t *);
  * Return the number of active workers
  */
 
+isc_mem_t *
+isc_nm_getmctx(const isc_nm_t *netmgr, uint32_t tid);
+/*%<
+ * Return memory context associated with respective nm worker
+ */
+
 void
 isc_nmhandle_setwritetimeout(isc_nmhandle_t *handle, uint64_t write_timeout);
 

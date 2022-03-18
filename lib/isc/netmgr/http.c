@@ -1130,10 +1130,11 @@ http_send_outgoing(isc_nm_http_session_t *session, isc_nmhandle_t *httphandle,
 		 * FLUSH_HTTP_WRITE_BUFFER_AFTER bytes in the write buffer, we
 		 * will flush the buffer. */
 		if (cb != NULL) {
+			INSIST(VALID_NMHANDLE(httphandle));
+
 			isc__nm_uvreq_t *newcb = isc__nm_uvreq_get(
 				httphandle->sock->mgr, httphandle->sock);
 
-			INSIST(VALID_NMHANDLE(httphandle));
 			newcb->cb.send = cb;
 			newcb->cbarg = cbarg;
 			isc_nmhandle_attach(httphandle, &newcb->handle);
@@ -2129,12 +2130,15 @@ isc__nm_http_send(isc_nmhandle_t *handle, const isc_region_t *region,
 	isc_nmsocket_t *sock = NULL;
 	isc__netievent_httpsend_t *ievent = NULL;
 	isc__nm_uvreq_t *uvreq = NULL;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 
 	sock = handle->sock;
 
 	REQUIRE(VALID_NMSOCK(sock));
+
+	worker = &sock->mgr->workers[sock->tid];
 
 	uvreq = isc__nm_uvreq_get(sock->mgr, sock);
 	isc_nmhandle_attach(handle, &uvreq->handle);
@@ -2144,9 +2148,8 @@ isc__nm_http_send(isc_nmhandle_t *handle, const isc_region_t *region,
 	uvreq->uvbuf.base = (char *)region->base;
 	uvreq->uvbuf.len = region->length;
 
-	ievent = isc__nm_get_netievent_httpsend(sock->mgr, sock, uvreq);
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	ievent = isc__nm_get_netievent_httpsend(worker, sock, uvreq);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 static void
@@ -2676,10 +2679,10 @@ isc__nm_http_stoplistening(isc_nmsocket_t *sock) {
 	}
 
 	if (!isc__nm_in_netthread()) {
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 		isc__netievent_httpstop_t *ievent =
-			isc__nm_get_netievent_httpstop(sock->mgr, sock);
-		isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				       (isc__netievent_t *)ievent);
+			isc__nm_get_netievent_httpstop(worker, sock);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	} else {
 		REQUIRE(isc_nm_tid() == sock->tid);
 		isc__netievent_httpstop_t ievent = { .sock = sock };
@@ -2754,11 +2757,11 @@ isc__nm_http_close(isc_nmsocket_t *sock) {
 		return;
 	}
 
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 	isc__netievent_httpclose_t *ievent =
-		isc__nm_get_netievent_httpclose(sock->mgr, sock);
+		isc__nm_get_netievent_httpclose(worker, sock);
 
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 void

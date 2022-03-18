@@ -338,19 +338,18 @@ isc_nm_tcpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	(void)isc__nm_socket_min_mtu(sock->fd, sa_family);
 	(void)isc__nm_socket_tcp_maxseg(sock->fd, NM_MAXSEG);
 
-	ievent = isc__nm_get_netievent_tcpconnect(mgr, sock, req);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tcpconnect(worker, sock, req);
 
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
 		sock->tid = isc_nm_tid();
-		isc__nm_async_tcpconnect(&mgr->workers[sock->tid],
-					 (isc__netievent_t *)ievent);
-		isc__nm_put_netievent_tcpconnect(mgr, ievent);
+		isc__nm_async_tcpconnect(worker, (isc__netievent_t *)ievent);
+		isc__nm_put_netievent_tcpconnect(worker, ievent);
 	} else {
 		atomic_init(&sock->active, false);
 		sock->tid = isc_random_uniform(mgr->nworkers);
-		isc__nm_enqueue_ievent(&mgr->workers[sock->tid],
-				       (isc__netievent_t *)ievent);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 	LOCK(&sock->lock);
 	while (sock->result == ISC_R_UNSET) {
@@ -413,17 +412,17 @@ start_tcp_child(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nmsocket_t *sock,
 #endif
 	REQUIRE(csock->fd >= 0);
 
-	ievent = isc__nm_get_netievent_tcplisten(mgr, csock);
-	isc__nm_maybe_enqueue_ievent(&mgr->workers[tid],
-				     (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &mgr->workers[tid];
+	ievent = isc__nm_get_netievent_tcplisten(worker, csock);
+	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 static void
 enqueue_stoplistening(isc_nmsocket_t *sock) {
-	isc__netievent_tcpstop_t *ievent =
-		isc__nm_get_netievent_tcpstop(sock->mgr, sock);
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	isc__netievent_tcpstop_t *ievent = isc__nm_get_netievent_tcpstop(worker,
+									 sock);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 isc_result_t
@@ -728,7 +727,8 @@ isc__nm_tcp_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 				 : atomic_load(&sock->mgr->idle));
 	}
 
-	ievent = isc__nm_get_netievent_tcpstartread(sock->mgr, sock);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tcpstartread(worker, sock);
 
 	/*
 	 * This MUST be done asynchronously, no matter which thread we're
@@ -736,8 +736,7 @@ isc__nm_tcp_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 	 * isc_nm_read() again; if we tried to do that synchronously
 	 * we'd clash in processbuffer() and grow the stack indefinitely.
 	 */
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 
 	return;
 }
@@ -778,10 +777,10 @@ isc__nm_tcp_pauseread(isc_nmhandle_t *handle) {
 		return;
 	}
 
-	ievent = isc__nm_get_netievent_tcppauseread(sock->mgr, sock);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tcppauseread(worker, sock);
 
-	isc__nm_maybe_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				     (isc__netievent_t *)ievent);
+	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 
 	return;
 }
@@ -826,10 +825,10 @@ isc__nm_tcp_resumeread(isc_nmhandle_t *handle) {
 		return;
 	}
 
-	ievent = isc__nm_get_netievent_tcpstartread(sock->mgr, sock);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tcpstartread(worker, sock);
 
-	isc__nm_maybe_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				     (isc__netievent_t *)ievent);
+	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 void
@@ -905,9 +904,9 @@ quota_accept_cb(isc_quota_t *quota, void *sock0) {
 	/*
 	 * Create a tcpaccept event and pass it using the async channel.
 	 */
-	ievent = isc__nm_get_netievent_tcpaccept(sock->mgr, sock, quota);
-	isc__nm_maybe_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				     (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tcpaccept(worker, sock, quota);
+	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 /*
@@ -1068,9 +1067,9 @@ isc__nm_tcp_send(isc_nmhandle_t *handle, const isc_region_t *region,
 				 : atomic_load(&sock->mgr->idle));
 	}
 
-	ievent = isc__nm_get_netievent_tcpsend(sock->mgr, sock, uvreq);
-	isc__nm_maybe_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				     (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tcpsend(worker, sock, uvreq);
+	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 
 	return;
 }
@@ -1308,11 +1307,11 @@ isc__nm_tcp_close(isc_nmsocket_t *sock) {
 		/*
 		 * We need to create an event and pass it using async channel
 		 */
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 		isc__netievent_tcpclose_t *ievent =
-			isc__nm_get_netievent_tcpclose(sock->mgr, sock);
+			isc__nm_get_netievent_tcpclose(worker, sock);
 
-		isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				       (isc__netievent_t *)ievent);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 }
 
@@ -1396,9 +1395,9 @@ isc__nm_tcp_cancelread(isc_nmhandle_t *handle) {
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(sock->type == isc_nm_tcpsocket);
 
-	ievent = isc__nm_get_netievent_tcpcancel(sock->mgr, sock, handle);
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tcpcancel(worker, sock, handle);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 void

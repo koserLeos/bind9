@@ -132,17 +132,17 @@ start_udp_child(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nmsocket_t *sock,
 #endif
 	REQUIRE(csock->fd >= 0);
 
-	ievent = isc__nm_get_netievent_udplisten(mgr, csock);
+	ievent = isc__nm_get_netievent_udplisten(&mgr->workers[tid], csock);
 	isc__nm_maybe_enqueue_ievent(&mgr->workers[tid],
 				     (isc__netievent_t *)ievent);
 }
 
 static void
 enqueue_stoplistening(isc_nmsocket_t *sock) {
-	isc__netievent_udpstop_t *ievent =
-		isc__nm_get_netievent_udpstop(sock->mgr, sock);
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	isc__netievent_udpstop_t *ievent = isc__nm_get_netievent_udpstop(worker,
+									 sock);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 isc_result_t
@@ -377,19 +377,18 @@ isc_nm_routeconnect(isc_nm_t *mgr, isc_nm_cb_t cb, void *cbarg,
 		return (result);
 	}
 
-	event = isc__nm_get_netievent_routeconnect(mgr, sock, req);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	event = isc__nm_get_netievent_routeconnect(worker, sock, req);
 
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
 		sock->tid = isc_nm_tid();
-		isc__nm_async_routeconnect(&mgr->workers[sock->tid],
-					   (isc__netievent_t *)event);
-		isc__nm_put_netievent_routeconnect(mgr, event);
+		isc__nm_async_routeconnect(worker, (isc__netievent_t *)event);
+		isc__nm_put_netievent_routeconnect(worker, event);
 	} else {
 		atomic_init(&sock->active, false);
 		sock->tid = 0;
-		isc__nm_enqueue_ievent(&mgr->workers[sock->tid],
-				       (isc__netievent_t *)event);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 	}
 	LOCK(&sock->lock);
 	while (sock->result == ISC_R_UNSET) {
@@ -743,13 +742,13 @@ send:
 
 		isc__nm_async_udpsend(NULL, (isc__netievent_t *)&ievent);
 	} else {
+		isc__networker_t *worker = &sock->mgr->workers[rsock->tid];
 		isc__netievent_udpsend_t *ievent =
-			isc__nm_get_netievent_udpsend(sock->mgr, rsock);
+			isc__nm_get_netievent_udpsend(worker, rsock);
 		ievent->peer = *peer;
 		ievent->req = uvreq;
 
-		isc__nm_enqueue_ievent(&sock->mgr->workers[rsock->tid],
-				       (isc__netievent_t *)ievent);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 }
 
@@ -1020,19 +1019,18 @@ isc_nm_udpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 
 	(void)isc__nm_socket_min_mtu(sock->fd, sa_family);
 
-	event = isc__nm_get_netievent_udpconnect(mgr, sock, req);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	event = isc__nm_get_netievent_udpconnect(worker, sock, req);
 
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
 		sock->tid = isc_nm_tid();
-		isc__nm_async_udpconnect(&mgr->workers[sock->tid],
-					 (isc__netievent_t *)event);
-		isc__nm_put_netievent_udpconnect(mgr, event);
+		isc__nm_async_udpconnect(worker, (isc__netievent_t *)event);
+		isc__nm_put_netievent_udpconnect(worker, event);
 	} else {
 		atomic_init(&sock->active, false);
 		sock->tid = isc_random_uniform(mgr->nworkers);
-		isc__nm_enqueue_ievent(&mgr->workers[sock->tid],
-				       (isc__netievent_t *)event);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 	}
 	LOCK(&sock->lock);
 	while (sock->result == ISC_R_UNSET) {
@@ -1157,10 +1155,10 @@ isc__nm_udp_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 		isc__netievent_udpread_t ievent = { .sock = sock };
 		isc__nm_async_udpread(NULL, (isc__netievent_t *)&ievent);
 	} else {
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 		isc__netievent_udpread_t *ievent =
-			isc__nm_get_netievent_udpread(sock->mgr, sock);
-		isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				       (isc__netievent_t *)ievent);
+			isc__nm_get_netievent_udpread(worker, sock);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 }
 
@@ -1310,10 +1308,10 @@ isc__nm_udp_close(isc_nmsocket_t *sock) {
 	if (sock->tid == isc_nm_tid()) {
 		udp_close_direct(sock);
 	} else {
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 		isc__netievent_udpclose_t *ievent =
-			isc__nm_get_netievent_udpclose(sock->mgr, sock);
-		isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				       (isc__netievent_t *)ievent);
+			isc__nm_get_netievent_udpclose(worker, sock);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 }
 
@@ -1373,10 +1371,9 @@ isc__nm_udp_cancelread(isc_nmhandle_t *handle) {
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(sock->type == isc_nm_udpsocket);
 
-	ievent = isc__nm_get_netievent_udpcancel(sock->mgr, sock, handle);
-
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_udpcancel(worker, sock, handle);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 void

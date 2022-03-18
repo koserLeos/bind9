@@ -260,6 +260,9 @@ isc__netmgr_create(isc_mem_t *mctx, uint32_t workers, isc_nm_t **netmgrp) {
 			.id = i,
 		};
 
+		isc_mem_create(&worker->mctx);
+		isc_mem_setname(worker->mctx, "netmgr-worker");
+
 		r = uv_loop_init(&worker->loop);
 		UV_RUNTIME_CHECK(uv_loop_init, r);
 
@@ -274,8 +277,10 @@ isc__netmgr_create(isc_mem_t *mctx, uint32_t workers, isc_nm_t **netmgrp) {
 			ISC_LIST_INIT(worker->ievents[type].list);
 		}
 
-		worker->recvbuf = isc_mem_get(mctx, ISC_NETMGR_RECVBUF_SIZE);
-		worker->sendbuf = isc_mem_get(mctx, ISC_NETMGR_SENDBUF_SIZE);
+		worker->recvbuf = isc_mem_get(worker->mctx,
+					      ISC_NETMGR_RECVBUF_SIZE);
+		worker->sendbuf = isc_mem_get(worker->mctx,
+					      ISC_NETMGR_SENDBUF_SIZE);
 
 		/*
 		 * We need to do this here and not in nm_thread to avoid a
@@ -310,7 +315,7 @@ nm_destroy(isc_nm_t **mgr0) {
 
 	for (int i = 0; i < mgr->nworkers; i++) {
 		isc__networker_t *worker = &mgr->workers[i];
-		isc__netievent_t *event = isc__nm_get_netievent_stop(mgr);
+		isc__netievent_t *event = isc__nm_get_netievent_stop(worker);
 		isc__nm_enqueue_ievent(worker, event);
 	}
 
@@ -333,11 +338,13 @@ nm_destroy(isc_nm_t **mgr0) {
 			isc_mutex_destroy(&worker->ievents[type].lock);
 		}
 
-		isc_mem_put(mgr->mctx, worker->sendbuf,
+		isc_mem_put(worker->mctx, worker->sendbuf,
 			    ISC_NETMGR_SENDBUF_SIZE);
-		isc_mem_put(mgr->mctx, worker->recvbuf,
+		isc_mem_put(worker->mctx, worker->recvbuf,
 			    ISC_NETMGR_RECVBUF_SIZE);
 		isc_thread_join(worker->thread, NULL);
+
+		isc_mem_detach(&worker->mctx);
 	}
 
 	if (mgr->stats != NULL) {
@@ -358,8 +365,7 @@ nm_destroy(isc_nm_t **mgr0) {
 
 static void
 enqueue_pause(isc__networker_t *worker) {
-	isc__netievent_pause_t *event =
-		isc__nm_get_netievent_pause(worker->mgr);
+	isc__netievent_pause_t *event = isc__nm_get_netievent_pause(worker);
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 }
 
@@ -409,8 +415,7 @@ isc_nm_pause(isc_nm_t *mgr) {
 
 static void
 enqueue_resume(isc__networker_t *worker) {
-	isc__netievent_resume_t *event =
-		isc__nm_get_netievent_resume(worker->mgr);
+	isc__netievent_resume_t *event = isc__nm_get_netievent_resume(worker);
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 }
 
@@ -490,9 +495,9 @@ isc__netmgr_shutdown(isc_nm_t *mgr) {
 	REQUIRE(VALID_NM(mgr));
 
 	atomic_store(&mgr->closing, true);
-	for (int i = 0; i < mgr->nworkers; i++) {
+	for (size_t i = 0; i < (size_t)mgr->nworkers; i++) {
 		isc__netievent_t *event = NULL;
-		event = isc__nm_get_netievent_shutdown(mgr);
+		event = isc__nm_get_netievent_shutdown(&mgr->workers[i]);
 		isc__nm_enqueue_ievent(&mgr->workers[i], event);
 	}
 }
@@ -765,9 +770,9 @@ isc_nm_task_enqueue(isc_nm_t *nm, isc_task_t *task, int tid) {
 
 	if (isc_task_privileged(task)) {
 		event = (isc__netievent_t *)
-			isc__nm_get_netievent_privilegedtask(nm, task);
+			isc__nm_get_netievent_privilegedtask(worker, task);
 	} else {
-		event = (isc__netievent_t *)isc__nm_get_netievent_task(nm,
+		event = (isc__netievent_t *)isc__nm_get_netievent_task(worker,
 								       task);
 	}
 
@@ -833,19 +838,19 @@ drain_queue(isc__networker_t *worker, netievent_type_t type) {
  * process_queue() to stop, e.g. it's only used for the netievent that
  * stops/pauses processing the enqueued netievents.
  */
-#define NETIEVENT_CASE(type)                                               \
-	case netievent_##type: {                                           \
-		isc__nm_async_##type(worker, ievent);                      \
-		isc__nm_put_netievent_##type(                              \
-			worker->mgr, (isc__netievent_##type##_t *)ievent); \
-		return (true);                                             \
+#define NETIEVENT_CASE(type)                                          \
+	case netievent_##type: {                                      \
+		isc__nm_async_##type(worker, ievent);                 \
+		isc__nm_put_netievent_##type(                         \
+			worker, (isc__netievent_##type##_t *)ievent); \
+		return (true);                                        \
 	}
 
-#define NETIEVENT_CASE_NOMORE(type)                                \
-	case netievent_##type: {                                   \
-		isc__nm_async_##type(worker, ievent);              \
-		isc__nm_put_netievent_##type(worker->mgr, ievent); \
-		return (false);                                    \
+#define NETIEVENT_CASE_NOMORE(type)                           \
+	case netievent_##type: {                              \
+		isc__nm_async_##type(worker, ievent);         \
+		isc__nm_put_netievent_##type(worker, ievent); \
+		return (false);                               \
 	}
 
 static bool
@@ -972,8 +977,8 @@ process_queue(isc__networker_t *worker, netievent_type_t type) {
 }
 
 void *
-isc__nm_get_netievent(isc_nm_t *mgr, isc__netievent_type type) {
-	isc__netievent_storage_t *event = isc_mem_get(mgr->mctx,
+isc__nm_get_netievent(isc__networker_t *worker, isc__netievent_type type) {
+	isc__netievent_storage_t *event = isc_mem_get(worker->mctx,
 						      sizeof(*event));
 
 	*event = (isc__netievent_storage_t){ .ni.type = type };
@@ -982,8 +987,8 @@ isc__nm_get_netievent(isc_nm_t *mgr, isc__netievent_type type) {
 }
 
 void
-isc__nm_put_netievent(isc_nm_t *mgr, void *ievent) {
-	isc_mem_put(mgr->mctx, ievent, sizeof(isc__netievent_storage_t));
+isc__nm_put_netievent(isc__networker_t *worker, void *ievent) {
+	isc_mem_put(worker->mctx, ievent, sizeof(isc__netievent_storage_t));
 }
 
 NETIEVENT_SOCKET_DEF(tcpclose);
@@ -1554,9 +1559,10 @@ isc__nm_free_uvbuf(isc_nmsocket_t *sock, const uv_buf_t *buf) {
 
 static isc_nmhandle_t *
 alloc_handle(isc_nmsocket_t *sock) {
-	isc_nmhandle_t *handle =
-		isc_mem_get(sock->mgr->mctx,
-			    sizeof(isc_nmhandle_t) + sock->extrahandlesize);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+
+	isc_nmhandle_t *handle = isc_mem_get(
+		worker->mctx, sizeof(isc_nmhandle_t) + sock->extrahandlesize);
 
 	*handle = (isc_nmhandle_t){ .magic = NMHANDLE_MAGIC };
 #ifdef NETMGR_TRACE
@@ -1674,6 +1680,7 @@ isc_nmhandle_is_stream(isc_nmhandle_t *handle) {
 static void
 nmhandle_free(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
 	size_t extra = sock->extrahandlesize;
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 
 	isc_refcount_destroy(&handle->references);
 
@@ -1683,7 +1690,7 @@ nmhandle_free(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
 
 	*handle = (isc_nmhandle_t){ .magic = 0 };
 
-	isc_mem_put(sock->mgr->mctx, handle, sizeof(isc_nmhandle_t) + extra);
+	isc_mem_put(worker->mctx, handle, sizeof(isc_nmhandle_t) + extra);
 }
 
 static void
@@ -1733,16 +1740,16 @@ isc__nmhandle_detach(isc_nmhandle_t **handlep FLARG) {
 	if (sock->tid == isc_nm_tid() && sock->closehandle_cb == NULL) {
 		nmhandle_detach_cb(&handle FLARG_PASS);
 	} else {
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 		isc__netievent_detach_t *event =
-			isc__nm_get_netievent_detach(sock->mgr, sock);
+			isc__nm_get_netievent_detach(worker, sock);
 		/*
 		 * we are using implicit "attach" as the last reference
 		 * need to be destroyed explicitly in the async callback
 		 */
 		event->handle = handle;
 		FLARG_IEVENT_PASS(event);
-		isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				       (isc__netievent_t *)event);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 	}
 }
 
@@ -1792,9 +1799,11 @@ nmhandle_detach_cb(isc_nmhandle_t **handlep FLARG) {
 		if (sock->tid == isc_nm_tid()) {
 			sock->closehandle_cb(sock);
 		} else {
+			isc__networker_t *worker =
+				&sock->mgr->workers[sock->tid];
 			isc__netievent_close_t *event =
-				isc__nm_get_netievent_close(sock->mgr, sock);
-			isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
+				isc__nm_get_netievent_close(worker, sock);
+			isc__nm_enqueue_ievent(worker,
 					       (isc__netievent_t *)event);
 		}
 	}
@@ -1827,15 +1836,16 @@ isc_nmhandle_setdata(isc_nmhandle_t *handle, void *arg,
 void
 isc__nm_alloc_dnsbuf(isc_nmsocket_t *sock, size_t len) {
 	REQUIRE(len <= NM_BIG_BUF);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 
 	if (sock->buf == NULL) {
 		/* We don't have the buffer at all */
 		size_t alloc_len = len < NM_REG_BUF ? NM_REG_BUF : NM_BIG_BUF;
-		sock->buf = isc_mem_get(sock->mgr->mctx, alloc_len);
+		sock->buf = isc_mem_get(worker->mctx, alloc_len);
 		sock->buf_size = alloc_len;
 	} else {
 		/* We have the buffer but it's too small */
-		sock->buf = isc_mem_reget(sock->mgr->mctx, sock->buf,
+		sock->buf = isc_mem_reget(worker->mctx, sock->buf,
 					  sock->buf_size, NM_BIG_BUF);
 		sock->buf_size = NM_BIG_BUF;
 	}
@@ -2430,13 +2440,14 @@ isc___nm_uvreq_get(isc_nm_t *mgr, isc_nmsocket_t *sock FLARG) {
 	REQUIRE(VALID_NM(mgr));
 	REQUIRE(VALID_NMSOCK(sock));
 
-	if (sock != NULL && isc__nmsocket_active(sock)) {
+	if (isc__nmsocket_active(sock)) {
 		/* Try to reuse one */
 		req = isc_astack_pop(sock->inactivereqs);
 	}
 
 	if (req == NULL) {
-		req = isc_mem_get(mgr->mctx, sizeof(*req));
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+		req = isc_mem_get(worker->mctx, sizeof(*req));
 	}
 
 	*req = (isc__nm_uvreq_t){ .magic = 0 };
@@ -2452,6 +2463,7 @@ void
 isc___nm_uvreq_put(isc__nm_uvreq_t **req0, isc_nmsocket_t *sock FLARG) {
 	isc__nm_uvreq_t *req = NULL;
 	isc_nmhandle_t *handle = NULL;
+	bool free = true;
 
 	REQUIRE(req0 != NULL);
 	REQUIRE(VALID_UVREQ(*req0));
@@ -2471,13 +2483,15 @@ isc___nm_uvreq_put(isc__nm_uvreq_t **req0, isc_nmsocket_t *sock FLARG) {
 	req->handle = NULL;
 
 #if !__SANITIZE_ADDRESS__ && !__SANITIZE_THREAD__
-	if (!isc__nmsocket_active(sock) ||
-	    !isc_astack_trypush(sock->inactivereqs, req)) {
-		isc_mem_put(sock->mgr->mctx, req, sizeof(*req));
+	if (isc__nmsocket_active(sock) &&
+	    isc_astack_trypush(sock->inactivereqs, req)) {
+		free = false;
 	}
-#else  /* !__SANITIZE_ADDRESS__ && !__SANITIZE_THREAD__ */
-	isc_mem_put(sock->mgr->mctx, req, sizeof(*req));
 #endif /* !__SANITIZE_ADDRESS__ && !__SANITIZE_THREAD__ */
+	if (free) {
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+		isc_mem_put(worker->mctx, req, sizeof(*req));
+	}
 
 	if (handle != NULL) {
 		isc__nmhandle_detach(&handle FLARG_PASS);
@@ -2664,11 +2678,11 @@ isc__nm_connectcb(isc_nmsocket_t *sock, isc__nm_uvreq_t *uvreq,
 						      .result = eresult };
 		isc__nm_async_connectcb(NULL, (isc__netievent_t *)&ievent);
 	} else {
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 		isc__netievent_connectcb_t *ievent =
-			isc__nm_get_netievent_connectcb(sock->mgr, sock, uvreq,
+			isc__nm_get_netievent_connectcb(worker, sock, uvreq,
 							eresult);
-		isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				       (isc__netievent_t *)ievent);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 }
 
@@ -2706,10 +2720,10 @@ isc__nm_readcb(isc_nmsocket_t *sock, isc__nm_uvreq_t *uvreq,
 
 		isc__nm_async_readcb(NULL, (isc__netievent_t *)&ievent);
 	} else {
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 		isc__netievent_readcb_t *ievent = isc__nm_get_netievent_readcb(
-			sock->mgr, sock, uvreq, eresult);
-		isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-				       (isc__netievent_t *)ievent);
+			worker, sock, uvreq, eresult);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 }
 
@@ -2751,10 +2765,10 @@ isc__nm_sendcb(isc_nmsocket_t *sock, isc__nm_uvreq_t *uvreq,
 		return;
 	}
 
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 	isc__netievent_sendcb_t *ievent =
-		isc__nm_get_netievent_sendcb(sock->mgr, sock, uvreq, eresult);
-	isc__nm_enqueue_ievent(&sock->mgr->workers[sock->tid],
-			       (isc__netievent_t *)ievent);
+		isc__nm_get_netievent_sendcb(worker, sock, uvreq, eresult);
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
 void
@@ -3390,6 +3404,7 @@ isc__nm_after_work_cb(uv_work_t *req, int status) {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc__nm_work_t *work = uv_req_get_data((uv_req_t *)req);
 	isc_nm_t *netmgr = work->netmgr;
+	isc__networker_t *worker = &netmgr->workers[isc_nm_tid()];
 
 	if (status != 0) {
 		result = isc__nm_uverr2result(status);
@@ -3397,7 +3412,7 @@ isc__nm_after_work_cb(uv_work_t *req, int status) {
 
 	work->after_cb(work->data, result);
 
-	isc_mem_put(netmgr->mctx, work, sizeof(*work));
+	isc_mem_put(worker->mctx, work, sizeof(*work));
 
 	isc_nm_detach(&netmgr);
 }
@@ -3414,7 +3429,7 @@ isc_nm_work_offload(isc_nm_t *netmgr, isc_nm_workcb_t work_cb,
 
 	worker = &netmgr->workers[isc_nm_tid()];
 
-	work = isc_mem_get(netmgr->mctx, sizeof(*work));
+	work = isc_mem_get(worker->mctx, sizeof(*work));
 	*work = (isc__nm_work_t){
 		.cb = work_cb,
 		.after_cb = after_work_cb,
@@ -3566,6 +3581,13 @@ isc_nm_getnworkers(const isc_nm_t *netmgr) {
 	REQUIRE(VALID_NM(netmgr));
 
 	return (netmgr->nworkers);
+}
+
+isc_mem_t *
+isc_nm_getmctx(const isc_nm_t *netmgr, uint32_t tid) {
+	REQUIRE(VALID_NM(netmgr));
+
+	return (netmgr->workers[tid].mctx);
 }
 
 #ifdef NETMGR_TRACE
