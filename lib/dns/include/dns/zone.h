@@ -1480,16 +1480,6 @@ dns_zone_getredirecttype(dns_zone_t *zone);
  */
 
 void
-dns_zone_settask(dns_zone_t *zone, isc_task_t *task);
-/*%<
- * Give a zone a task to work with.  Any current task will be detached.
- *
- * Requires:
- *\li	'zone' to be valid.
- *\li	'task' to be valid.
- */
-
-void
 dns_zone_gettask(dns_zone_t *zone, isc_task_t **target);
 /*%<
  * Attach '*target' to the zone's task.
@@ -1783,7 +1773,7 @@ dns_zone_getdnsseckeys(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver,
 isc_result_t
 dns_zonemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 		   isc_timermgr_t *timermgr, isc_nm_t *netmgr,
-		   unsigned int workers, dns_zonemgr_t **zmgrp);
+		   dns_zonemgr_t **zmgrp);
 /*%<
  * Create a zone manager.
  *
