@@ -1216,7 +1216,8 @@ nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 	}
 
 	if (sock->buf != NULL) {
-		isc_mem_put(sock->mgr->mctx, sock->buf, sock->buf_size);
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+		isc_mem_put(worker->mctx, sock->buf, sock->buf_size);
 	}
 
 	if (sock->quota != NULL) {
@@ -1559,10 +1560,8 @@ isc__nm_free_uvbuf(isc_nmsocket_t *sock, const uv_buf_t *buf) {
 
 static isc_nmhandle_t *
 alloc_handle(isc_nmsocket_t *sock) {
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-
 	isc_nmhandle_t *handle = isc_mem_get(
-		worker->mctx, sizeof(isc_nmhandle_t) + sock->extrahandlesize);
+		sock->mgr->mctx, sizeof(isc_nmhandle_t) + sock->extrahandlesize);
 
 	*handle = (isc_nmhandle_t){ .magic = NMHANDLE_MAGIC };
 #ifdef NETMGR_TRACE
@@ -1680,7 +1679,6 @@ isc_nmhandle_is_stream(isc_nmhandle_t *handle) {
 static void
 nmhandle_free(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
 	size_t extra = sock->extrahandlesize;
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 
 	isc_refcount_destroy(&handle->references);
 
@@ -1690,7 +1688,7 @@ nmhandle_free(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
 
 	*handle = (isc_nmhandle_t){ .magic = 0 };
 
-	isc_mem_put(worker->mctx, handle, sizeof(isc_nmhandle_t) + extra);
+	isc_mem_put(sock->mgr->mctx, handle, sizeof(isc_nmhandle_t) + extra);
 }
 
 static void
@@ -2446,8 +2444,7 @@ isc___nm_uvreq_get(isc_nm_t *mgr, isc_nmsocket_t *sock FLARG) {
 	}
 
 	if (req == NULL) {
-		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-		req = isc_mem_get(worker->mctx, sizeof(*req));
+		req = isc_mem_get(sock->mgr->mctx, sizeof(*req));
 	}
 
 	*req = (isc__nm_uvreq_t){ .magic = 0 };
@@ -2489,8 +2486,7 @@ isc___nm_uvreq_put(isc__nm_uvreq_t **req0, isc_nmsocket_t *sock FLARG) {
 	}
 #endif /* !__SANITIZE_ADDRESS__ && !__SANITIZE_THREAD__ */
 	if (free) {
-		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-		isc_mem_put(worker->mctx, req, sizeof(*req));
+		isc_mem_put(sock->mgr->mctx, req, sizeof(*req));
 	}
 
 	if (handle != NULL) {

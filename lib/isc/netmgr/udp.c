@@ -1019,17 +1019,20 @@ isc_nm_udpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 
 	(void)isc__nm_socket_min_mtu(sock->fd, sa_family);
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-	event = isc__nm_get_netievent_udpconnect(worker, sock, req);
+	isc__networker_t *worker = NULL;
 
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
 		sock->tid = isc_nm_tid();
+		worker = &sock->mgr->workers[sock->tid];
+		event = isc__nm_get_netievent_udpconnect(worker, sock, req);
 		isc__nm_async_udpconnect(worker, (isc__netievent_t *)event);
 		isc__nm_put_netievent_udpconnect(worker, event);
 	} else {
 		atomic_init(&sock->active, false);
 		sock->tid = isc_random_uniform(mgr->nworkers);
+		worker = &sock->mgr->workers[sock->tid];
+		event = isc__nm_get_netievent_udpconnect(worker, sock, req);
 		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 	}
 	LOCK(&sock->lock);

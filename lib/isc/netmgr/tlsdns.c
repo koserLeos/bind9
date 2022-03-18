@@ -354,17 +354,20 @@ isc_nm_tlsdnsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	result = isc__nm_socket_connectiontimeout(sock->fd, 120 * 1000);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-	ievent = isc__nm_get_netievent_tlsdnsconnect(worker, sock, req);
+	isc__networker_t *worker = NULL;
 
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
 		sock->tid = isc_nm_tid();
+		worker = &sock->mgr->workers[sock->tid];
+		ievent = isc__nm_get_netievent_tlsdnsconnect(worker, sock, req);
 		isc__nm_async_tlsdnsconnect(worker, (isc__netievent_t *)ievent);
 		isc__nm_put_netievent_tlsdnsconnect(worker, ievent);
 	} else {
 		atomic_init(&sock->active, false);
 		sock->tid = isc_random_uniform(mgr->nworkers);
+		worker = &sock->mgr->workers[sock->tid];
+		ievent = isc__nm_get_netievent_tlsdnsconnect(worker, sock, req);
 		isc__nm_enqueue_ievent(&mgr->workers[sock->tid],
 				       (isc__netievent_t *)ievent);
 	}

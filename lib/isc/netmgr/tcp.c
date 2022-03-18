@@ -338,17 +338,20 @@ isc_nm_tcpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	(void)isc__nm_socket_min_mtu(sock->fd, sa_family);
 	(void)isc__nm_socket_tcp_maxseg(sock->fd, NM_MAXSEG);
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-	ievent = isc__nm_get_netievent_tcpconnect(worker, sock, req);
+	isc__networker_t *worker = NULL;
 
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
 		sock->tid = isc_nm_tid();
+		worker = &sock->mgr->workers[sock->tid];
+		ievent = isc__nm_get_netievent_tcpconnect(worker, sock, req);
 		isc__nm_async_tcpconnect(worker, (isc__netievent_t *)ievent);
 		isc__nm_put_netievent_tcpconnect(worker, ievent);
 	} else {
 		atomic_init(&sock->active, false);
 		sock->tid = isc_random_uniform(mgr->nworkers);
+		worker = &sock->mgr->workers[sock->tid];
+		ievent = isc__nm_get_netievent_tcpconnect(worker, sock, req);
 		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	}
 	LOCK(&sock->lock);
