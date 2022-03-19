@@ -363,7 +363,8 @@ find_http_cstream(int32_t stream_id, isc_nm_http_session_t *session) {
 
 static isc_result_t
 new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
-	isc_mem_t *mctx = sock->mgr->mctx;
+	int tid = sock->tid;
+	isc__networker_t *worker = &sock->mgr->workers[tid];
 	const char *uri = NULL;
 	bool post;
 	http_cstream_t *stream = NULL;
@@ -372,23 +373,24 @@ new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
 	uri = sock->h2.session->handle->sock->h2.connect.uri;
 	post = sock->h2.session->handle->sock->h2.connect.post;
 
-	stream = isc_mem_get(mctx, sizeof(http_cstream_t));
+	stream = isc_mem_get(worker->mctx, sizeof(http_cstream_t));
 	*stream = (http_cstream_t){ .stream_id = -1,
 				    .post = post,
-				    .uri = isc_mem_strdup(mctx, uri) };
+				    .uri = isc_mem_strdup(worker->mctx, uri) };
 	ISC_LINK_INIT(stream, link);
 
 	result = isc_url_parse(stream->uri, strlen(stream->uri), 0,
 			       &stream->up);
 	if (result != ISC_R_SUCCESS) {
-		isc_mem_free(mctx, stream->uri);
-		isc_mem_put(mctx, stream, sizeof(http_cstream_t));
+		isc_mem_free(worker->mctx, stream->uri);
+		isc_mem_put(worker->mctx, stream, sizeof(http_cstream_t));
 		return (result);
 	}
 
 	isc__nmsocket_attach(sock, &stream->httpsock);
 	stream->authoritylen = stream->up.field_data[ISC_UF_HOST].len;
-	stream->authority = isc_mem_get(mctx, stream->authoritylen + AUTHEXTRA);
+	stream->authority = isc_mem_get(worker->mctx,
+					stream->authoritylen + AUTHEXTRA);
 	memmove(stream->authority, &uri[stream->up.field_data[ISC_UF_HOST].off],
 		stream->up.field_data[ISC_UF_HOST].len);
 
@@ -410,7 +412,7 @@ new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
 			(size_t)(stream->up.field_data[ISC_UF_QUERY].len + 1);
 	}
 
-	stream->path = isc_mem_get(mctx, stream->pathlen);
+	stream->path = isc_mem_get(worker->mctx, stream->pathlen);
 	if (stream->up.field_set & (1 << ISC_UF_PATH)) {
 		memmove(stream->path,
 			&uri[stream->up.field_data[ISC_UF_PATH].off],
@@ -428,7 +430,7 @@ new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
 			stream->up.field_data[ISC_UF_QUERY].len);
 	}
 
-	isc_buffer_allocate(mctx, &stream->rbuf,
+	isc_buffer_allocate(worker->mctx, &stream->rbuf,
 			    INITIAL_DNS_MESSAGE_BUFFER_SIZE);
 	isc_buffer_setautorealloc(stream->rbuf, true);
 
@@ -1335,7 +1337,8 @@ transport_connect_cb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	isc_nmsocket_t *transp_sock = NULL;
 	isc_nm_http_session_t *session = NULL;
 	http_cstream_t *cstream = NULL;
-	isc_mem_t *mctx = NULL;
+	int tid;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMSOCK(http_sock));
 	REQUIRE(VALID_NMHANDLE(handle));
@@ -1344,7 +1347,8 @@ transport_connect_cb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 
 	REQUIRE(VALID_NMSOCK(transp_sock));
 
-	mctx = transp_sock->mgr->mctx;
+	tid = transp_sock->tid;
+	worker = &transp_sock->mgr->workers[tid];
 
 	INSIST(http_sock->h2.connect.uri != NULL);
 
@@ -1353,7 +1357,7 @@ transport_connect_cb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 		goto error;
 	}
 
-	new_session(mctx, http_sock->h2.connect.tlsctx, &session);
+	new_session(worker->mctx, http_sock->h2.connect.tlsctx, &session);
 	session->client = true;
 	transp_sock->h2.session = session;
 	http_sock->h2.connect.tlsctx = NULL;
@@ -1413,7 +1417,7 @@ error:
 	http_call_connect_cb(http_sock, session, result);
 
 	if (http_sock->h2.connect.uri != NULL) {
-		isc_mem_free(mctx, http_sock->h2.connect.uri);
+		isc_mem_free(worker->mctx, http_sock->h2.connect.uri);
 	}
 
 	isc__nmsocket_prep_destroy(http_sock);
@@ -1427,6 +1431,8 @@ isc_nm_httpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		   size_t extrahandlesize) {
 	isc_sockaddr_t local_interface;
 	isc_nmsocket_t *sock = NULL;
+	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
 	REQUIRE(cb != NULL);
@@ -1439,8 +1445,8 @@ isc_nm_httpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		local = &local_interface;
 	}
 
-	sock = isc_mem_get(mgr->mctx, sizeof(*sock));
-	isc__nmsocket_init(sock, mgr, isc_nm_httpsocket, local);
+	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	isc__nmsocket_init(sock, mgr, isc_nm_httpsocket, local, tid);
 
 	sock->extrahandlesize = extrahandlesize;
 	sock->connect_timeout = timeout;
@@ -1448,6 +1454,12 @@ isc_nm_httpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	sock->connect_cb = cb;
 	sock->connect_cbarg = cbarg;
 	atomic_init(&sock->client, true);
+
+	if (isc__nm_in_netthread()) {
+		sock->tid = isc_nm_tid();
+	} else {
+		sock->tid = isc_random_uniform(mgr->nworkers);
+	}
 
 	if (isc__nm_closing(sock)) {
 		isc__nm_uvreq_t *req = isc__nm_uvreq_get(mgr, sock);
@@ -1458,10 +1470,6 @@ isc_nm_httpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		req->local = *local;
 		req->handle = isc__nmhandle_get(sock, &req->peer, &sock->iface);
 
-		if (isc__nm_in_netthread()) {
-			sock->tid = isc_nm_tid();
-		}
-
 		isc__nmsocket_clearcb(sock);
 		isc__nm_connectcb(sock, req, ISC_R_SHUTTINGDOWN, true);
 		isc__nmsocket_prep_destroy(sock);
@@ -1469,8 +1477,8 @@ isc_nm_httpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		return;
 	}
 
-	sock->h2 = (isc_nmsocket_h2_t){ .connect.uri = isc_mem_strdup(mgr->mctx,
-								      uri),
+	sock->h2 = (isc_nmsocket_h2_t){ .connect.uri = isc_mem_strdup(
+						worker->mctx, uri),
 					.connect.post = post,
 					.connect.tlsctx = tlsctx };
 	ISC_LINK_INIT(&sock->h2, link);
@@ -1497,9 +1505,10 @@ static isc_result_t
 client_send(isc_nmhandle_t *handle, const isc_region_t *region) {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_nmsocket_t *sock = handle->sock;
-	isc_mem_t *mctx = sock->mgr->mctx;
 	isc_nm_http_session_t *session = sock->h2.session;
 	http_cstream_t *cstream = sock->h2.connect.cstream;
+	int tid = sock->tid;
+	isc__networker_t *worker = &sock->mgr->workers[tid];
 
 	REQUIRE(VALID_HTTP2_SESSION(handle->sock->h2.session));
 	REQUIRE(session->client);
@@ -1510,7 +1519,8 @@ client_send(isc_nmhandle_t *handle, const isc_region_t *region) {
 
 	if (cstream->post) {
 		/* POST */
-		isc_buffer_allocate(mctx, &cstream->postdata, region->length);
+		isc_buffer_allocate(worker->mctx, &cstream->postdata,
+				    region->length);
 		isc_buffer_putmem(cstream->postdata, region->base,
 				  region->length);
 	} else {
@@ -1523,7 +1533,7 @@ client_send(isc_nmhandle_t *handle, const isc_region_t *region) {
 		isc_region_t base64_region;
 		size_t base64_len = ((4 * data.length / 3) + 3) & ~3;
 
-		isc_buffer_allocate(mctx, &buf, base64_len);
+		isc_buffer_allocate(worker->mctx, &buf, base64_len);
 
 		result = isc_base64_totext(&data, -1, "", buf);
 		if (result != ISC_R_SUCCESS) {
@@ -1535,7 +1545,7 @@ client_send(isc_nmhandle_t *handle, const isc_region_t *region) {
 		INSIST(base64_region.length == base64_len);
 
 		base64url_data = isc__nm_base64_to_base64url(
-			mctx, (const char *)base64_region.base,
+			worker->mctx, (const char *)base64_region.base,
 			base64_region.length, &base64url_data_len);
 		isc_buffer_free(&buf);
 		if (base64url_data == NULL) {
@@ -1544,13 +1554,13 @@ client_send(isc_nmhandle_t *handle, const isc_region_t *region) {
 
 		/* len("?dns=") + len(path) + len(base64url) + len("\0") */
 		path_size = cstream->pathlen + base64url_data_len + 5 + 1;
-		cstream->GET_path = isc_mem_allocate(mctx, path_size);
+		cstream->GET_path = isc_mem_allocate(worker->mctx, path_size);
 		cstream->GET_path_len = (size_t)snprintf(
 			cstream->GET_path, path_size, "%.*s?dns=%s",
 			(int)cstream->pathlen, cstream->path, base64url_data);
 
 		INSIST(cstream->GET_path_len == (path_size - 1));
-		isc_mem_free(mctx, base64url_data);
+		isc_mem_free(worker->mctx, base64url_data);
 	}
 
 	cstream->sending = true;
@@ -1607,6 +1617,7 @@ server_on_begin_headers_callback(nghttp2_session *ngsession,
 				 const nghttp2_frame *frame, void *user_data) {
 	isc_nm_http_session_t *session = (isc_nm_http_session_t *)user_data;
 	isc_nmsocket_t *socket = NULL;
+	int tid = isc_nm_tid();
 
 	if (frame->hd.type != NGHTTP2_HEADERS ||
 	    frame->headers.cat != NGHTTP2_HCAT_REQUEST)
@@ -1621,9 +1632,9 @@ server_on_begin_headers_callback(nghttp2_session *ngsession,
 	}
 
 	socket = isc_mem_get(session->mctx, sizeof(isc_nmsocket_t));
-	isc__nmsocket_init(socket, session->serversocket->mgr,
-			   isc_nm_httpsocket,
-			   (isc_sockaddr_t *)&session->handle->sock->iface);
+	isc__nmsocket_init(
+		socket, session->serversocket->mgr, isc_nm_httpsocket,
+		(isc_sockaddr_t *)&session->handle->sock->iface, tid);
 	socket->peer = session->handle->sock->peer;
 	socket->h2 = (isc_nmsocket_h2_t){
 		.psock = socket,
@@ -1665,6 +1676,8 @@ server_handle_path_header(isc_nmsocket_t *socket, const uint8_t *value,
 	isc_nm_httphandler_t *handler = NULL;
 	const uint8_t *qstr = NULL;
 	size_t vlen = valuelen;
+	int tid = socket->tid;
+	isc__networker_t *worker = &socket->mgr->workers[tid];
 
 	qstr = memchr(value, '?', valuelen);
 	if (qstr != NULL) {
@@ -1672,13 +1685,13 @@ server_handle_path_header(isc_nmsocket_t *socket, const uint8_t *value,
 	}
 
 	if (socket->h2.request_path != NULL) {
-		isc_mem_free(socket->mgr->mctx, socket->h2.request_path);
+		isc_mem_free(worker->mctx, socket->h2.request_path);
 	}
-	socket->h2.request_path = isc_mem_strndup(
-		socket->mgr->mctx, (const char *)value, vlen + 1);
+	socket->h2.request_path =
+		isc_mem_strndup(worker->mctx, (const char *)value, vlen + 1);
 
 	if (!isc_nm_http_path_isvalid(socket->h2.request_path)) {
-		isc_mem_free(socket->mgr->mctx, socket->h2.request_path);
+		isc_mem_free(worker->mctx, socket->h2.request_path);
 		socket->h2.request_path = NULL;
 		return (ISC_HTTP_ERROR_BAD_REQUEST);
 	}
@@ -1690,7 +1703,7 @@ server_handle_path_header(isc_nmsocket_t *socket, const uint8_t *value,
 		socket->h2.cbarg = handler->cbarg;
 		socket->extrahandlesize = handler->extrahandlesize;
 	} else {
-		isc_mem_free(socket->mgr->mctx, socket->h2.request_path);
+		isc_mem_free(worker->mctx, socket->h2.request_path);
 		socket->h2.request_path = NULL;
 		return (ISC_HTTP_ERROR_NOT_FOUND);
 	}
@@ -1704,12 +1717,12 @@ server_handle_path_header(isc_nmsocket_t *socket, const uint8_t *value,
 			const size_t decoded_size = dns_value_len / 4 * 3;
 			if (decoded_size <= MAX_DNS_MESSAGE_SIZE) {
 				if (socket->h2.query_data != NULL) {
-					isc_mem_free(socket->mgr->mctx,
+					isc_mem_free(worker->mctx,
 						     socket->h2.query_data);
 				}
 				socket->h2.query_data =
 					isc__nm_base64url_to_base64(
-						socket->mgr->mctx, dns_value,
+						worker->mctx, dns_value,
 						dns_value_len,
 						&socket->h2.query_data_len);
 			} else {
@@ -2408,6 +2421,8 @@ httplisten_acceptcb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	isc_nmsocket_t *httplistensock = (isc_nmsocket_t *)cbarg;
 	isc_nm_http_session_t *session = NULL;
 	isc_nmsocket_t *listener = NULL, *httpserver = NULL;
+	int tid;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 	REQUIRE(VALID_NMSOCK(handle->sock));
@@ -2446,9 +2461,12 @@ httplisten_acceptcb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 		return (ISC_R_CANCELED);
 	}
 
+	tid = httplistensock->tid;
+	worker = &httplistensock->mgr->workers[tid];
+
 	http_transpost_tcp_nodelay(handle);
 
-	new_session(httplistensock->mgr->mctx, NULL, &session);
+	new_session(worker->mctx, NULL, &session);
 	session->max_concurrent_streams =
 		httplistensock->h2.max_concurrent_streams;
 	initialize_nghttp2_server_session(session);
@@ -2470,13 +2488,15 @@ isc_nm_listenhttp(isc_nm_t *mgr, isc_sockaddr_t *iface, int backlog,
 		  isc_nmsocket_t **sockp) {
 	isc_nmsocket_t *sock = NULL;
 	isc_result_t result;
+	int tid = 0;
+	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(!ISC_LIST_EMPTY(eps->handlers));
 	REQUIRE(!ISC_LIST_EMPTY(eps->handler_cbargs));
 	REQUIRE(atomic_load(&eps->in_use) == false);
 
-	sock = isc_mem_get(mgr->mctx, sizeof(*sock));
-	isc__nmsocket_init(sock, mgr, isc_nm_httplistener, iface);
+	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	isc__nmsocket_init(sock, mgr, isc_nm_httplistener, iface, tid);
 	sock->h2.max_concurrent_streams =
 		NGHTTP2_INITIAL_MAX_CONCURRENT_STREAMS;
 
@@ -2733,6 +2753,9 @@ http_close_direct(isc_nmsocket_t *sock) {
 void
 isc__nm_http_close(isc_nmsocket_t *sock) {
 	bool destroy = false;
+	isc__netievent_httpclose_t *ievent = NULL;
+	isc__networker_t *worker = NULL;
+
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(sock->type == isc_nm_httpsocket);
 	REQUIRE(!isc__nmsocket_active(sock));
@@ -2757,9 +2780,8 @@ isc__nm_http_close(isc_nmsocket_t *sock) {
 		return;
 	}
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-	isc__netievent_httpclose_t *ievent =
-		isc__nm_get_netievent_httpclose(worker, sock);
+	worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_httpclose(worker, sock);
 
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
@@ -3055,6 +3077,9 @@ isc__nm_http_initsocket(isc_nmsocket_t *sock) {
 
 void
 isc__nm_http_cleanup_data(isc_nmsocket_t *sock) {
+	int tid = sock->tid;
+	isc__networker_t *worker = &sock->mgr->workers[tid];
+
 	if ((sock->type == isc_nm_tcplistener ||
 	     sock->type == isc_nm_tlslistener) &&
 	    sock->h2.httpserver != NULL)
@@ -3072,12 +3097,12 @@ isc__nm_http_cleanup_data(isc_nmsocket_t *sock) {
 		}
 
 		if (sock->h2.request_path != NULL) {
-			isc_mem_free(sock->mgr->mctx, sock->h2.request_path);
+			isc_mem_free(worker->mctx, sock->h2.request_path);
 			sock->h2.request_path = NULL;
 		}
 
 		if (sock->h2.query_data != NULL) {
-			isc_mem_free(sock->mgr->mctx, sock->h2.query_data);
+			isc_mem_free(worker->mctx, sock->h2.query_data);
 			sock->h2.query_data = NULL;
 		}
 
@@ -3085,7 +3110,7 @@ isc__nm_http_cleanup_data(isc_nmsocket_t *sock) {
 
 		if (isc_buffer_base(&sock->h2.rbuf) != NULL) {
 			void *base = isc_buffer_base(&sock->h2.rbuf);
-			isc_mem_free(sock->mgr->mctx, base);
+			isc_mem_free(worker->mctx, base);
 			isc_buffer_initnull(&sock->h2.rbuf);
 		}
 	}
@@ -3097,7 +3122,7 @@ isc__nm_http_cleanup_data(isc_nmsocket_t *sock) {
 	    sock->h2.session != NULL)
 	{
 		if (sock->h2.connect.uri != NULL) {
-			isc_mem_free(sock->mgr->mctx, sock->h2.connect.uri);
+			isc_mem_free(worker->mctx, sock->h2.connect.uri);
 			sock->h2.connect.uri = NULL;
 		}
 		isc__nm_httpsession_detach(&sock->h2.session);

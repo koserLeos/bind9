@@ -162,8 +162,8 @@ isc__nm_dump_active(isc_nm_t *nm);
 	isc___nm_uvreq_get(req, sock, __FILE__, __LINE__, __func__)
 #define isc__nm_uvreq_put(req, sock) \
 	isc___nm_uvreq_put(req, sock, __FILE__, __LINE__, __func__)
-#define isc__nmsocket_init(sock, mgr, type, iface)                      \
-	isc___nmsocket_init(sock, mgr, type, iface, __FILE__, __LINE__, \
+#define isc__nmsocket_init(sock, mgr, type, iface, tid)                      \
+	isc___nmsocket_init(sock, mgr, type, iface, tid, __FILE__, __LINE__, \
 			    __func__)
 #define isc__nmsocket_put(sockp) \
 	isc___nmsocket_put(sockp, __FILE__, __LINE__, __func__)
@@ -186,8 +186,8 @@ isc__nm_dump_active(isc_nm_t *nm);
 #define FLARG_IEVENT_PASS(ievent)
 #define isc__nm_uvreq_get(req, sock) isc___nm_uvreq_get(req, sock)
 #define isc__nm_uvreq_put(req, sock) isc___nm_uvreq_put(req, sock)
-#define isc__nmsocket_init(sock, mgr, type, iface) \
-	isc___nmsocket_init(sock, mgr, type, iface)
+#define isc__nmsocket_init(sock, mgr, type, iface, tid) \
+	isc___nmsocket_init(sock, mgr, type, iface, tid)
 #define isc__nmsocket_put(sockp)	   isc___nmsocket_put(sockp)
 #define isc__nmsocket_attach(sock, target) isc___nmsocket_attach(sock, target)
 #define isc__nmsocket_detach(socketp)	   isc___nmsocket_detach(socketp)
@@ -709,7 +709,7 @@ typedef struct isc__nm_work {
 struct isc_nm {
 	int magic;
 	isc_refcount_t references;
-	isc_mem_t *mctx;
+	isc_mem_t *private_mctx;
 	int nworkers;
 	isc_mutex_t lock;
 	isc_condition_t wkstatecond;
@@ -1209,7 +1209,7 @@ isc___nm_uvreq_put(isc__nm_uvreq_t **req, isc_nmsocket_t *sock FLARG);
 
 void
 isc___nmsocket_init(isc_nmsocket_t *sock, isc_nm_t *mgr, isc_nmsocket_type type,
-		    isc_sockaddr_t *iface FLARG);
+		    isc_sockaddr_t *iface, int tid FLARG);
 /*%<
  * Initialize socket 'sock', attach it to 'mgr', and set it to type 'type'
  * and its interface to 'iface'.

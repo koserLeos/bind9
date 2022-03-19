@@ -42,7 +42,7 @@ isc_nm_timer_create(isc_nmhandle_t *handle, isc_nm_timer_cb cb, void *cbarg,
 	worker = &sock->mgr->workers[isc_nm_tid()];
 
 	/* TODO: per-loop object cache */
-	timer = isc_mem_get(sock->mgr->mctx, sizeof(*timer));
+	timer = isc_mem_get(worker->mctx, sizeof(*timer));
 	*timer = (isc_nm_timer_t){ .cb = cb, .cbarg = cbarg };
 	isc_refcount_init(&timer->references, 1);
 	isc_nmhandle_attach(handle, &timer->handle);
@@ -68,9 +68,10 @@ static void
 timer_destroy(uv_handle_t *uvhandle) {
 	isc_nm_timer_t *timer = uv_handle_get_data(uvhandle);
 	isc_nmhandle_t *handle = timer->handle;
-	isc_mem_t *mctx = timer->handle->sock->mgr->mctx;
+	isc_nmsocket_t *sock = handle->sock;
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 
-	isc_mem_put(mctx, timer, sizeof(*timer));
+	isc_mem_put(worker->mctx, timer, sizeof(*timer));
 
 	isc_nmhandle_detach(&handle);
 }

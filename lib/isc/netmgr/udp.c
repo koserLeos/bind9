@@ -115,14 +115,13 @@ start_udp_child(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nmsocket_t *sock,
 
 	csock = &sock->children[tid];
 
-	isc__nmsocket_init(csock, mgr, isc_nm_udpsocket, iface);
+	isc__nmsocket_init(csock, mgr, isc_nm_udpsocket, iface, tid);
 	csock->parent = sock;
 	csock->iface = sock->iface;
 	atomic_init(&csock->reading, true);
 	csock->recv_cb = sock->recv_cb;
 	csock->recv_cbarg = sock->recv_cbarg;
 	csock->extrahandlesize = sock->extrahandlesize;
-	csock->tid = tid;
 
 #if HAVE_SO_REUSEPORT_LB
 	UNUSED(fd);
@@ -153,18 +152,20 @@ isc_nm_listenudp(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nm_recv_cb_t cb,
 	size_t children_size = 0;
 	REQUIRE(VALID_NM(mgr));
 	uv_os_sock_t fd = -1;
+	uint32_t tid = 0;
+	isc__networker_t *worker = &mgr->workers[tid];
 
 	/*
 	 * We are creating mgr->nworkers duplicated sockets, one
 	 * socket for each worker thread.
 	 */
-	sock = isc_mem_get(mgr->mctx, sizeof(isc_nmsocket_t));
-	isc__nmsocket_init(sock, mgr, isc_nm_udplistener, iface);
+	sock = isc_mem_get(worker->mctx, sizeof(isc_nmsocket_t));
+	isc__nmsocket_init(sock, mgr, isc_nm_udplistener, iface, tid);
 
 	atomic_init(&sock->rchildren, 0);
 	sock->nchildren = mgr->nworkers;
 	children_size = sock->nchildren * sizeof(sock->children[0]);
-	sock->children = isc_mem_get(mgr->mctx, children_size);
+	sock->children = isc_mem_get(worker->mctx, children_size);
 	memset(sock->children, 0, children_size);
 
 	sock->recv_cb = cb;
@@ -172,7 +173,6 @@ isc_nm_listenudp(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nm_recv_cb_t cb,
 	sock->extrahandlesize = extrahandlesize;
 	sock->result = ISC_R_UNSET;
 
-	sock->tid = 0;
 	sock->fd = -1;
 
 #if !HAVE_SO_REUSEPORT_LB
@@ -347,11 +347,13 @@ isc_nm_routeconnect(isc_nm_t *mgr, isc_nm_cb_t cb, void *cbarg,
 	isc_nmsocket_t *sock = NULL;
 	isc__netievent_udpconnect_t *event = NULL;
 	isc__nm_uvreq_t *req = NULL;
+	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
 
-	sock = isc_mem_get(mgr->mctx, sizeof(*sock));
-	isc__nmsocket_init(sock, mgr, isc_nm_udpsocket, NULL);
+	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	isc__nmsocket_init(sock, mgr, isc_nm_udpsocket, NULL, tid);
 
 	sock->connect_cb = cb;
 	sock->connect_cbarg = cbarg;
@@ -367,9 +369,6 @@ isc_nm_routeconnect(isc_nm_t *mgr, isc_nm_cb_t cb, void *cbarg,
 
 	result = route_socket(&sock->fd);
 	if (result != ISC_R_SUCCESS) {
-		if (isc__nm_in_netthread()) {
-			sock->tid = isc_nm_tid();
-		}
 		isc__nmsocket_clearcb(sock);
 		isc__nm_connectcb(sock, req, result, true);
 		atomic_store(&sock->closed, true);
@@ -377,17 +376,14 @@ isc_nm_routeconnect(isc_nm_t *mgr, isc_nm_cb_t cb, void *cbarg,
 		return (result);
 	}
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 	event = isc__nm_get_netievent_routeconnect(worker, sock, req);
 
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
-		sock->tid = isc_nm_tid();
 		isc__nm_async_routeconnect(worker, (isc__netievent_t *)event);
 		isc__nm_put_netievent_routeconnect(worker, event);
 	} else {
 		atomic_init(&sock->active, false);
-		sock->tid = 0;
 		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 	}
 	LOCK(&sock->lock);
@@ -968,6 +964,8 @@ isc_nm_udpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	isc__netievent_udpconnect_t *event = NULL;
 	isc__nm_uvreq_t *req = NULL;
 	sa_family_t sa_family;
+	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
 	REQUIRE(local != NULL);
@@ -975,8 +973,8 @@ isc_nm_udpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 
 	sa_family = peer->type.sa.sa_family;
 
-	sock = isc_mem_get(mgr->mctx, sizeof(isc_nmsocket_t));
-	isc__nmsocket_init(sock, mgr, isc_nm_udpsocket, local);
+	sock = isc_mem_get(worker->mctx, sizeof(isc_nmsocket_t));
+	isc__nmsocket_init(sock, mgr, isc_nm_udpsocket, local, tid);
 
 	sock->connect_cb = cb;
 	sock->connect_cbarg = cbarg;
@@ -995,9 +993,6 @@ isc_nm_udpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 
 	result = isc__nm_socket(sa_family, SOCK_DGRAM, 0, &sock->fd);
 	if (result != ISC_R_SUCCESS) {
-		if (isc__nm_in_netthread()) {
-			sock->tid = isc_nm_tid();
-		}
 		isc__nmsocket_clearcb(sock);
 		isc__nm_connectcb(sock, req, result, true);
 		atomic_store(&sock->closed, true);
@@ -1019,20 +1014,14 @@ isc_nm_udpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 
 	(void)isc__nm_socket_min_mtu(sock->fd, sa_family);
 
-	isc__networker_t *worker = NULL;
+	event = isc__nm_get_netievent_udpconnect(worker, sock, req);
 
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
-		sock->tid = isc_nm_tid();
-		worker = &sock->mgr->workers[sock->tid];
-		event = isc__nm_get_netievent_udpconnect(worker, sock, req);
 		isc__nm_async_udpconnect(worker, (isc__netievent_t *)event);
 		isc__nm_put_netievent_udpconnect(worker, event);
 	} else {
 		atomic_init(&sock->active, false);
-		sock->tid = isc_random_uniform(mgr->nworkers);
-		worker = &sock->mgr->workers[sock->tid];
-		event = isc__nm_get_netievent_udpconnect(worker, sock, req);
 		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 	}
 	LOCK(&sock->lock);
@@ -1366,6 +1355,7 @@ void
 isc__nm_udp_cancelread(isc_nmhandle_t *handle) {
 	isc_nmsocket_t *sock = NULL;
 	isc__netievent_udpcancel_t *ievent = NULL;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 
@@ -1374,7 +1364,7 @@ isc__nm_udp_cancelread(isc_nmhandle_t *handle) {
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(sock->type == isc_nm_udpsocket);
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 	ievent = isc__nm_get_netievent_udpcancel(worker, sock, handle);
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }

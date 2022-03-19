@@ -219,7 +219,7 @@ isc__netmgr_create(isc_mem_t *mctx, uint32_t workers, isc_nm_t **netmgrp) {
 	mgr = isc_mem_get(mctx, sizeof(*mgr));
 	*mgr = (isc_nm_t){ .nworkers = workers };
 
-	isc_mem_attach(mctx, &mgr->mctx);
+	isc_mem_attach(mctx, &mgr->private_mctx);
 	isc_mutex_init(&mgr->lock);
 	isc_condition_init(&mgr->wkstatecond);
 	isc_condition_init(&mgr->wkpausecond);
@@ -358,9 +358,9 @@ nm_destroy(isc_nm_t **mgr0) {
 	isc_condition_destroy(&mgr->wkpausecond);
 	isc_mutex_destroy(&mgr->lock);
 
-	isc_mem_put(mgr->mctx, mgr->workers,
+	isc_mem_put(mgr->private_mctx, mgr->workers,
 		    mgr->nworkers * sizeof(isc__networker_t));
-	isc_mem_putanddetach(&mgr->mctx, mgr, sizeof(*mgr));
+	isc_mem_putanddetach(&mgr->private_mctx, mgr, sizeof(*mgr));
 }
 
 static void
@@ -1160,9 +1160,12 @@ isc___nmsocket_attach(isc_nmsocket_t *sock, isc_nmsocket_t **target FLARG) {
 static void
 nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 	isc_nmhandle_t *handle = NULL;
+	isc__networker_t *worker;
 
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(!isc__nmsocket_active(sock));
+
+	worker = &sock->mgr->workers[sock->tid];
 
 	NETMGR_TRACE_LOG("nmsocket_cleanup():%p->references = %" PRIuFAST32
 			 "\n",
@@ -1194,7 +1197,7 @@ nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 		/*
 		 * Now free them.
 		 */
-		isc_mem_put(sock->mgr->mctx, sock->children,
+		isc_mem_put(worker->mctx, sock->children,
 			    sock->nchildren * sizeof(*sock));
 		sock->children = NULL;
 		sock->nchildren = 0;
@@ -1215,7 +1218,6 @@ nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 	}
 
 	if (sock->buf != NULL) {
-		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 		isc_mem_put(worker->mctx, sock->buf, sock->buf_size);
 	}
 
@@ -1243,7 +1245,7 @@ nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 #endif
 	if (dofree) {
 		isc_nm_t *mgr = sock->mgr;
-		isc_mem_put(mgr->mctx, sock, sizeof(*sock));
+		isc_mem_put(worker->mctx, sock, sizeof(*sock));
 		isc_nm_detach(&mgr);
 	} else {
 		isc_nm_detach(&sock->mgr);
@@ -1411,16 +1413,21 @@ isc_nmsocket_close(isc_nmsocket_t **sockp) {
 
 void
 isc___nmsocket_init(isc_nmsocket_t *sock, isc_nm_t *mgr, isc_nmsocket_type type,
-		    isc_sockaddr_t *iface FLARG) {
+		    isc_sockaddr_t *iface, int tid FLARG) {
 	uint16_t family;
+	isc__networker_t *worker;
 
 	REQUIRE(sock != NULL);
 	REQUIRE(mgr != NULL);
+	REQUIRE(tid >= 0 && tid < mgr->nworkers);
+
+	worker = &mgr->workers[tid];
 
 	*sock = (isc_nmsocket_t){
 		.type = type,
 		.fd = -1,
-		.inactivehandles = isc_astack_new(mgr->mctx,
+		.tid = tid,
+		.inactivehandles = isc_astack_new(worker->mctx,
 						  ISC_NM_HANDLES_STACK_SIZE),
 	};
 
@@ -1554,9 +1561,9 @@ isc__nm_free_uvbuf(isc_nmsocket_t *sock, const uv_buf_t *buf) {
 
 static isc_nmhandle_t *
 alloc_handle(isc_nmsocket_t *sock) {
-	isc_nmhandle_t *handle =
-		isc_mem_get(sock->mgr->mctx,
-			    sizeof(isc_nmhandle_t) + sock->extrahandlesize);
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	isc_nmhandle_t *handle = isc_mem_get(
+		worker->mctx, sizeof(isc_nmhandle_t) + sock->extrahandlesize);
 
 	*handle = (isc_nmhandle_t){ .magic = NMHANDLE_MAGIC };
 #ifdef NETMGR_TRACE
@@ -1673,6 +1680,7 @@ isc_nmhandle_is_stream(isc_nmhandle_t *handle) {
 
 static void
 nmhandle_free(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 	size_t extra = sock->extrahandlesize;
 
 	isc_refcount_destroy(&handle->references);
@@ -1683,7 +1691,7 @@ nmhandle_free(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
 
 	*handle = (isc_nmhandle_t){ .magic = 0 };
 
-	isc_mem_put(sock->mgr->mctx, handle, sizeof(isc_nmhandle_t) + extra);
+	isc_mem_put(worker->mctx, handle, sizeof(isc_nmhandle_t) + extra);
 }
 
 static void

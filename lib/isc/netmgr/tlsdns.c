@@ -312,6 +312,8 @@ isc_nm_tlsdnsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	isc__netievent_tlsdnsconnect_t *ievent = NULL;
 	isc__nm_uvreq_t *req = NULL;
 	sa_family_t sa_family;
+	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
 	REQUIRE(local != NULL);
@@ -320,8 +322,8 @@ isc_nm_tlsdnsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 
 	sa_family = peer->type.sa.sa_family;
 
-	sock = isc_mem_get(mgr->mctx, sizeof(*sock));
-	isc__nmsocket_init(sock, mgr, isc_nm_tlsdnssocket, local);
+	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	isc__nmsocket_init(sock, mgr, isc_nm_tlsdnssocket, local, tid);
 
 	sock->extrahandlesize = extrahandlesize;
 	sock->connect_timeout = timeout;
@@ -354,20 +356,13 @@ isc_nm_tlsdnsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	result = isc__nm_socket_connectiontimeout(sock->fd, 120 * 1000);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
-	isc__networker_t *worker = NULL;
-
+	ievent = isc__nm_get_netievent_tlsdnsconnect(worker, sock, req);
 	if (isc__nm_in_netthread()) {
 		atomic_store(&sock->active, true);
-		sock->tid = isc_nm_tid();
-		worker = &sock->mgr->workers[sock->tid];
-		ievent = isc__nm_get_netievent_tlsdnsconnect(worker, sock, req);
 		isc__nm_async_tlsdnsconnect(worker, (isc__netievent_t *)ievent);
 		isc__nm_put_netievent_tlsdnsconnect(worker, ievent);
 	} else {
 		atomic_init(&sock->active, false);
-		sock->tid = isc_random_uniform(mgr->nworkers);
-		worker = &sock->mgr->workers[sock->tid];
-		ievent = isc__nm_get_netievent_tlsdnsconnect(worker, sock, req);
 		isc__nm_enqueue_ievent(&mgr->workers[sock->tid],
 				       (isc__netievent_t *)ievent);
 	}
@@ -381,10 +376,6 @@ isc_nm_tlsdnsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	return;
 
 failure:
-	if (isc__nm_in_netthread()) {
-		sock->tid = isc_nm_tid();
-	}
-
 	INSIST(atomic_compare_exchange_strong(&sock->connecting,
 					      &(bool){ true }, false));
 	isc__nmsocket_clearcb(sock);
@@ -422,8 +413,9 @@ start_tlsdns_child(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nmsocket_t *sock,
 		   uv_os_sock_t fd, int tid) {
 	isc__netievent_tlsdnslisten_t *ievent = NULL;
 	isc_nmsocket_t *csock = &sock->children[tid];
+	isc__networker_t *worker = &sock->mgr->workers[tid];
 
-	isc__nmsocket_init(csock, mgr, isc_nm_tlsdnssocket, iface);
+	isc__nmsocket_init(csock, mgr, isc_nm_tlsdnssocket, iface, tid);
 	csock->parent = sock;
 	csock->accept_cb = sock->accept_cb;
 	csock->accept_cbarg = sock->accept_cbarg;
@@ -431,7 +423,6 @@ start_tlsdns_child(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nmsocket_t *sock,
 	csock->recv_cbarg = sock->recv_cbarg;
 	csock->extrahandlesize = sock->extrahandlesize;
 	csock->backlog = sock->backlog;
-	csock->tid = tid;
 	csock->tls.ctx = sock->tls.ctx;
 
 	/*
@@ -449,7 +440,6 @@ start_tlsdns_child(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nmsocket_t *sock,
 #endif
 	REQUIRE(csock->fd >= 0);
 
-	isc__networker_t *worker = &mgr->workers[tid];
 	ievent = isc__nm_get_netievent_tlsdnslisten(worker, csock);
 	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
@@ -472,16 +462,18 @@ isc_nm_listentlsdns(isc_nm_t *mgr, isc_sockaddr_t *iface,
 	isc_nmsocket_t *sock = NULL;
 	size_t children_size = 0;
 	uv_os_sock_t fd = -1;
+	int tid = 0;
+	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
 
-	sock = isc_mem_get(mgr->mctx, sizeof(*sock));
-	isc__nmsocket_init(sock, mgr, isc_nm_tlsdnslistener, iface);
+	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	isc__nmsocket_init(sock, mgr, isc_nm_tlsdnslistener, iface, tid);
 
 	atomic_init(&sock->rchildren, 0);
 	sock->nchildren = mgr->nworkers;
 	children_size = sock->nchildren * sizeof(sock->children[0]);
-	sock->children = isc_mem_get(mgr->mctx, children_size);
+	sock->children = isc_mem_get(worker->mctx, children_size);
 	memset(sock->children, 0, children_size);
 
 	sock->result = ISC_R_UNSET;
@@ -495,7 +487,6 @@ isc_nm_listentlsdns(isc_nm_t *mgr, isc_sockaddr_t *iface,
 
 	sock->tls.ctx = sslctx;
 
-	sock->tid = 0;
 	sock->fd = -1;
 
 #if !HAVE_SO_REUSEPORT_LB
@@ -838,6 +829,7 @@ isc__nm_tlsdns_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 
 	isc_nmsocket_t *sock = handle->sock;
 	isc__netievent_tlsdnsread_t *ievent = NULL;
+	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 
 	REQUIRE(sock->type == isc_nm_tlsdnssocket);
 	REQUIRE(sock->statichandle == handle);
@@ -852,7 +844,6 @@ isc__nm_tlsdns_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 				 : atomic_load(&sock->mgr->idle));
 	}
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
 	ievent = isc__nm_get_netievent_tlsdnsread(worker, sock);
 
 	/*
@@ -1150,11 +1141,13 @@ tls_error(isc_nmsocket_t *sock, isc_result_t result) {
 
 static void
 free_senddata(isc_nmsocket_t *sock) {
+	isc__networker_t *worker = NULL;
+
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(sock->tls.senddata.base != NULL);
 	REQUIRE(sock->tls.senddata.length > 0);
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 
 	isc_mem_put(worker->mctx, sock->tls.senddata.base,
 		    sock->tls.senddata.length);
@@ -1321,6 +1314,7 @@ done:
 static void
 async_tlsdns_cycle(isc_nmsocket_t *sock) {
 	isc__netievent_tlsdnscycle_t *ievent = NULL;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMSOCK(sock));
 
@@ -1329,7 +1323,7 @@ async_tlsdns_cycle(isc_nmsocket_t *sock) {
 		return;
 	}
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 	ievent = isc__nm_get_netievent_tlsdnscycle(worker, sock);
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
@@ -1418,6 +1412,8 @@ free:
 static void
 quota_accept_cb(isc_quota_t *quota, void *sock0) {
 	isc_nmsocket_t *sock = (isc_nmsocket_t *)sock0;
+	isc__networker_t *worker = NULL;
+	isc__netievent_tlsdnsaccept_t *ievent = NULL;
 
 	REQUIRE(VALID_NMSOCK(sock));
 
@@ -1426,9 +1422,8 @@ quota_accept_cb(isc_quota_t *quota, void *sock0) {
 	 * channel.
 	 */
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-	isc__netievent_tlsdnsaccept_t *ievent =
-		isc__nm_get_netievent_tlsdnsaccept(worker, sock, quota);
+	worker = &sock->mgr->workers[sock->tid];
+	ievent = isc__nm_get_netievent_tlsdnsaccept(worker, sock, quota);
 	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
 
@@ -1453,16 +1448,20 @@ isc__nm_async_tlsdnsaccept(isc__networker_t *worker, isc__netievent_t *ev0) {
 static isc_result_t
 accept_connection(isc_nmsocket_t *ssock, isc_quota_t *quota) {
 	isc_nmsocket_t *csock = NULL;
-	isc__networker_t *worker = NULL;
 	int r;
 	isc_result_t result;
 	struct sockaddr_storage peer_ss;
 	struct sockaddr_storage local_ss;
 	isc_sockaddr_t local;
 	isc_nmhandle_t *handle = NULL;
+	int tid;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMSOCK(ssock));
 	REQUIRE(ssock->tid == isc_nm_tid());
+
+	tid = ssock->tid;
+	worker = &ssock->mgr->workers[tid];
 
 	if (isc__nmsocket_closing(ssock)) {
 		if (quota != NULL) {
@@ -1473,10 +1472,9 @@ accept_connection(isc_nmsocket_t *ssock, isc_quota_t *quota) {
 
 	REQUIRE(ssock->accept_cb != NULL);
 
-	csock = isc_mem_get(ssock->mgr->mctx, sizeof(isc_nmsocket_t));
+	csock = isc_mem_get(worker->mctx, sizeof(isc_nmsocket_t));
 	isc__nmsocket_init(csock, ssock->mgr, isc_nm_tlsdnssocket,
-			   &ssock->iface);
-	csock->tid = ssock->tid;
+			   &ssock->iface, tid);
 	csock->extrahandlesize = ssock->extrahandlesize;
 	isc__nmsocket_attach(ssock, &csock->server);
 	csock->accept_cb = ssock->accept_cb;
@@ -1485,8 +1483,6 @@ accept_connection(isc_nmsocket_t *ssock, isc_quota_t *quota) {
 	csock->recv_cbarg = ssock->recv_cbarg;
 	csock->quota = quota;
 	atomic_init(&csock->accepting, true);
-
-	worker = &csock->mgr->workers[csock->tid];
 
 	r = uv_tcp_init(&worker->loop, &csock->uv_handle.tcp);
 	UV_RUNTIME_CHECK(uv_tcp_init, r);
@@ -1625,6 +1621,7 @@ isc__nm_tlsdns_send(isc_nmhandle_t *handle, isc_region_t *region,
 	isc__netievent_tlsdnssend_t *ievent = NULL;
 	isc__nm_uvreq_t *uvreq = NULL;
 	isc_nmsocket_t *sock = NULL;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 
@@ -1650,7 +1647,7 @@ isc__nm_tlsdns_send(isc_nmhandle_t *handle, isc_region_t *region,
 				 : atomic_load(&sock->mgr->idle));
 	}
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 	ievent = isc__nm_get_netievent_tlsdnssend(worker, sock, uvreq);
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 	return;
@@ -2036,6 +2033,7 @@ void
 isc__nm_tlsdns_cancelread(isc_nmhandle_t *handle) {
 	isc_nmsocket_t *sock = NULL;
 	isc__netievent_tlsdnscancel_t *ievent = NULL;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 
@@ -2044,7 +2042,7 @@ isc__nm_tlsdns_cancelread(isc_nmhandle_t *handle) {
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(sock->type == isc_nm_tlsdnssocket);
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 	ievent = isc__nm_get_netievent_tlsdnscancel(worker, sock, handle);
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }

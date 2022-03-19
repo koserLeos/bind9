@@ -106,6 +106,8 @@ tls_senddone(isc_nmhandle_t *handle, isc_result_t eresult, void *cbarg) {
 		(isc_nmsocket_tls_send_req_t *)cbarg;
 	isc_nmsocket_t *tlssock = NULL;
 	bool finish = send_req->finish;
+	int tid;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 	REQUIRE(VALID_NMSOCK(handle->sock));
@@ -125,8 +127,8 @@ tls_senddone(isc_nmhandle_t *handle, isc_result_t eresult, void *cbarg) {
 		}
 	}
 
-	isc__networker_t *worker =
-		&handle->sock->mgr->workers[handle->sock->tid];
+	tid = handle->sock->tid;
+	worker = &handle->sock->mgr->workers[tid];
 	/* We are trying to avoid a memory allocation for small write
 	 * requests. See the mirroring code in the tls_send_outgoing()
 	 * function. */
@@ -221,6 +223,7 @@ tls_send_outgoing(isc_nmsocket_t *sock, bool finish, isc_nmhandle_t *tlshandle,
 	int pending;
 	int rv;
 	size_t len = 0;
+	isc__networker_t *worker = NULL;
 
 	if (inactive(sock)) {
 		if (cb != NULL) {
@@ -246,7 +249,7 @@ tls_send_outgoing(isc_nmsocket_t *sock, bool finish, isc_nmhandle_t *tlshandle,
 		pending = TLS_BUF_SIZE;
 	}
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 
 	send_req = isc_mem_get(worker->mctx, sizeof(*send_req));
 	*send_req = (isc_nmsocket_tls_send_req_t){ .finish = finish,
@@ -582,6 +585,8 @@ static isc_result_t
 tlslisten_acceptcb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	isc_nmsocket_t *tlslistensock = (isc_nmsocket_t *)cbarg;
 	isc_nmsocket_t *tlssock = NULL;
+	int tid;
+	isc__networker_t *worker = NULL;
 
 	/* If accept() was unsuccessful we can't do anything */
 	if (result != ISC_R_SUCCESS) {
@@ -593,12 +598,15 @@ tlslisten_acceptcb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	REQUIRE(VALID_NMSOCK(tlslistensock));
 	REQUIRE(tlslistensock->type == isc_nm_tlslistener);
 
+	tid = tlslistensock->tid;
+	worker = &tlslistensock->mgr->workers[tid];
+
 	/*
 	 * We need to create a 'wrapper' tlssocket for this connection.
 	 */
-	tlssock = isc_mem_get(handle->sock->mgr->mctx, sizeof(*tlssock));
+	tlssock = isc_mem_get(worker->mctx, sizeof(*tlssock));
 	isc__nmsocket_init(tlssock, handle->sock->mgr, isc_nm_tlssocket,
-			   &handle->sock->iface);
+			   &handle->sock->iface, tid);
 
 	/* We need to initialize SSL now to reference SSL_CTX properly */
 	tlssock->tlsstream.ctx = tlslistensock->tlsstream.ctx;
@@ -614,7 +622,6 @@ tlslisten_acceptcb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	isc_nmhandle_attach(handle, &tlssock->outerhandle);
 	tlssock->peer = handle->sock->peer;
 	tlssock->read_timeout = atomic_load(&handle->sock->mgr->init);
-	tlssock->tid = isc_nm_tid();
 
 	tlssock->tlsstream.ctx = tlslistensock->tlsstream.ctx;
 
@@ -634,12 +641,14 @@ isc_nm_listentls(isc_nm_t *mgr, isc_sockaddr_t *iface,
 	isc_result_t result;
 	isc_nmsocket_t *tlssock = NULL;
 	isc_nmsocket_t *tsock = NULL;
+	int tid = 0;
+	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
 
-	tlssock = isc_mem_get(mgr->mctx, sizeof(*tlssock));
+	tlssock = isc_mem_get(worker->mctx, sizeof(*tlssock));
 
-	isc__nmsocket_init(tlssock, mgr, isc_nm_tlslistener, iface);
+	isc__nmsocket_init(tlssock, mgr, isc_nm_tlslistener, iface, tid);
 	tlssock->result = ISC_R_UNSET;
 	tlssock->accept_cb = accept_cb;
 	tlssock->accept_cbarg = accept_cbarg;
@@ -707,6 +716,7 @@ isc__nm_tls_send(isc_nmhandle_t *handle, const isc_region_t *region,
 	isc__netievent_tlssend_t *ievent = NULL;
 	isc__nm_uvreq_t *uvreq = NULL;
 	isc_nmsocket_t *sock = NULL;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 	REQUIRE(VALID_NMSOCK(handle->sock));
@@ -730,7 +740,7 @@ isc__nm_tls_send(isc_nmhandle_t *handle, const isc_region_t *region,
 	/*
 	 * We need to create an event and pass it using async channel
 	 */
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 	ievent = isc__nm_get_netievent_tlssend(worker, sock, uvreq);
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
@@ -752,6 +762,7 @@ void
 isc__nm_tls_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 	isc__netievent_tlsstartread_t *ievent = NULL;
 	isc_nmsocket_t *sock = NULL;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
 
@@ -769,7 +780,7 @@ isc__nm_tls_read(isc_nmhandle_t *handle, isc_nm_recv_cb_t cb, void *cbarg) {
 	sock->recv_cb = cb;
 	sock->recv_cbarg = cbarg;
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 	ievent = isc__nm_get_netievent_tlsstartread(worker, sock);
 	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
@@ -827,6 +838,7 @@ tls_close_direct(isc_nmsocket_t *sock) {
 void
 isc__nm_tls_close(isc_nmsocket_t *sock) {
 	isc__netievent_tlsclose_t *ievent = NULL;
+	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(sock->type == isc_nm_tlssocket);
@@ -836,7 +848,7 @@ isc__nm_tls_close(isc_nmsocket_t *sock) {
 		return;
 	}
 
-	isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+	worker = &sock->mgr->workers[sock->tid];
 	ievent = isc__nm_get_netievent_tlsclose(worker, sock);
 	isc__nm_maybe_enqueue_ievent(worker, (isc__netievent_t *)ievent);
 }
@@ -887,6 +899,9 @@ isc_nm_tlsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		  isc_nm_cb_t cb, void *cbarg, SSL_CTX *ctx,
 		  unsigned int timeout, size_t extrahandlesize) {
 	isc_nmsocket_t *nsock = NULL;
+	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	isc__networker_t *worker = &mgr->workers[tid];
+
 #if defined(NETMGR_TRACE) && defined(NETMGR_TRACE_VERBOSE)
 	fprintf(stderr, "TLS: isc_nm_tlsconnect(): in net thread: %s\n",
 		isc__nm_in_netthread() ? "yes" : "no");
@@ -894,8 +909,8 @@ isc_nm_tlsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 
 	REQUIRE(VALID_NM(mgr));
 
-	nsock = isc_mem_get(mgr->mctx, sizeof(*nsock));
-	isc__nmsocket_init(nsock, mgr, isc_nm_tlssocket, local);
+	nsock = isc_mem_get(worker->mctx, sizeof(*nsock));
+	isc__nmsocket_init(nsock, mgr, isc_nm_tlssocket, local, tid);
 	nsock->extrahandlesize = extrahandlesize;
 	nsock->result = ISC_R_UNSET;
 	nsock->connect_cb = cb;
