@@ -1160,7 +1160,7 @@ isc___nmsocket_attach(isc_nmsocket_t *sock, isc_nmsocket_t **target FLARG) {
 static void
 nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 	isc_nmhandle_t *handle = NULL;
-	isc__networker_t *worker = NULL;
+	isc__networker_t *worker;
 
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(!isc__nmsocket_active(sock));
@@ -1758,7 +1758,6 @@ static void
 nmhandle_detach_cb(isc_nmhandle_t **handlep FLARG) {
 	isc_nmsocket_t *sock = NULL;
 	isc_nmhandle_t *handle = NULL;
-	isc__networker_t *worker = NULL;
 
 	REQUIRE(handlep != NULL);
 	REQUIRE(VALID_NMHANDLE(*handlep));
@@ -1780,15 +1779,13 @@ nmhandle_detach_cb(isc_nmhandle_t **handlep FLARG) {
 	sock = handle->sock;
 	handle->sock = NULL;
 
-	worker = &sock->mgr->workers[sock->tid];
-
 	if (handle->doreset != NULL) {
 		handle->doreset(handle->opaque);
 	}
 
 #if HAVE_LIBNGHTTP2
 	if (sock->type == isc_nm_httpsocket && handle->httpsession != NULL) {
-		isc__nm_httpsession_detach(worker->mctx, &handle->httpsession);
+		isc__nm_httpsession_detach(&handle->httpsession);
 	}
 #endif
 
@@ -1803,6 +1800,8 @@ nmhandle_detach_cb(isc_nmhandle_t **handlep FLARG) {
 		if (sock->tid == isc_nm_tid()) {
 			sock->closehandle_cb(sock);
 		} else {
+			isc__networker_t *worker =
+				&sock->mgr->workers[sock->tid];
 			isc__netievent_close_t *event =
 				isc__nm_get_netievent_close(worker, sock);
 			isc__nm_enqueue_ievent(worker,
