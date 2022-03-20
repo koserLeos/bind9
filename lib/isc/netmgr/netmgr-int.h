@@ -1768,7 +1768,7 @@ void
 isc__nm_httpsession_attach(isc_nm_http_session_t *source,
 			   isc_nm_http_session_t **targetp);
 void
-isc__nm_httpsession_detach(isc_nm_http_session_t **sessionp);
+isc__nm_httpsession_detach(isc_mem_t *mctx, isc_nm_http_session_t **sessionp);
 
 #endif
 

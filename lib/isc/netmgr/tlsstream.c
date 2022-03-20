@@ -10,7 +10,6 @@
  * See the COPYRIGHT file distributed with this work for additional
  * information regarding copyright ownership.
  */
-
 #include <errno.h>
 #include <libgen.h>
 #include <unistd.h>
@@ -585,7 +584,7 @@ static isc_result_t
 tlslisten_acceptcb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	isc_nmsocket_t *tlslistensock = (isc_nmsocket_t *)cbarg;
 	isc_nmsocket_t *tlssock = NULL;
-	int tid;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = NULL;
 
 	/* If accept() was unsuccessful we can't do anything */
@@ -598,7 +597,6 @@ tlslisten_acceptcb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	REQUIRE(VALID_NMSOCK(tlslistensock));
 	REQUIRE(tlslistensock->type == isc_nm_tlslistener);
 
-	tid = tlslistensock->tid;
 	worker = &tlslistensock->mgr->workers[tid];
 
 	/*

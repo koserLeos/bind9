@@ -127,7 +127,7 @@ connect_send_cb(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 
 	(void)atomic_fetch_sub(&active_cconnects, 1);
 	memmove(&data, arg, sizeof(data));
-	isc_mem_put(handle->sock->mgr->mctx, arg, sizeof(data));
+	isc_mem_put(test_mctx, arg, sizeof(data));
 	if (result != ISC_R_SUCCESS) {
 		goto error;
 	}
@@ -138,13 +138,11 @@ connect_send_cb(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 		goto error;
 	}
 
-	isc_mem_put(handle->sock->mgr->mctx, data.region.base,
-		    data.region.length);
+	isc_mem_put(test_mctx, data.region.base, data.region.length);
 	return;
 error:
 	data.reply_cb(handle, result, NULL, data.cb_arg);
-	isc_mem_put(handle->sock->mgr->mctx, data.region.base,
-		    data.region.length);
+	isc_mem_put(test_mctx, data.region.base, data.region.length);
 	if (result == ISC_R_TOOMANYOPENFILES) {
 		atomic_store(&slowdown, true);
 	} else {
@@ -160,10 +158,10 @@ connect_send_request(isc_nm_t *mgr, const char *uri, bool post,
 	csdata_t *data = NULL;
 	isc_tlsctx_t *ctx = NULL;
 
-	copy = (isc_region_t){ .base = isc_mem_get(mgr->mctx, region->length),
+	copy = (isc_region_t){ .base = isc_mem_get(test_mctx, region->length),
 			       .length = region->length };
 	memmove(copy.base, region->base, region->length);
-	data = isc_mem_get(mgr->mctx, sizeof(*data));
+	data = isc_mem_get(test_mctx, sizeof(*data));
 	*data = (csdata_t){ .reply_cb = cb, .cb_arg = cbarg, .region = copy };
 	if (tls) {
 		ctx = client_tlsctx;
