@@ -1061,12 +1061,6 @@ struct isc_nmsocket {
 	atomic_bool keepalive;
 
 	/*%
-	 * 'spare' handles for that can be reused to avoid allocations,
-	 * for UDP.
-	 */
-	isc_astack_t *inactivehandles;
-
-	/*%
 	 * Used to wait for TCP listening events to complete, and
 	 * for the number of running children to reach zero during
 	 * shutdown.

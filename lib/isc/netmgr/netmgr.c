@@ -1159,7 +1159,6 @@ isc___nmsocket_attach(isc_nmsocket_t *sock, isc_nmsocket_t **target FLARG) {
  */
 static void
 nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
-	isc_nmhandle_t *handle = NULL;
 	isc__networker_t *worker;
 
 	REQUIRE(VALID_NMSOCK(sock));
@@ -1213,10 +1212,6 @@ nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 		isc___nmsocket_detach(&sock->outer FLARG_PASS);
 	}
 
-	while ((handle = isc_astack_pop(sock->inactivehandles)) != NULL) {
-		nmhandle_free(sock, handle);
-	}
-
 	if (sock->buf != NULL) {
 		isc_mem_put(worker->mctx, sock->buf, sock->buf_size);
 	}
@@ -1226,8 +1221,6 @@ nmsocket_cleanup(isc_nmsocket_t *sock, bool dofree FLARG) {
 	}
 
 	sock->pquota = NULL;
-
-	isc_astack_destroy(sock->inactivehandles);
 
 	sock->magic = 0;
 
@@ -1415,20 +1408,15 @@ void
 isc___nmsocket_init(isc_nmsocket_t *sock, isc_nm_t *mgr, isc_nmsocket_type type,
 		    isc_sockaddr_t *iface, int tid FLARG) {
 	uint16_t family;
-	isc__networker_t *worker;
 
 	REQUIRE(sock != NULL);
 	REQUIRE(mgr != NULL);
 	REQUIRE(tid >= 0 && tid < mgr->nworkers);
 
-	worker = &mgr->workers[tid];
-
 	*sock = (isc_nmsocket_t){
 		.type = type,
 		.fd = -1,
 		.tid = tid,
-		.inactivehandles = isc_astack_new(worker->mctx,
-						  ISC_NM_HANDLES_STACK_SIZE),
 	};
 
 	if (iface != NULL) {
@@ -1581,14 +1569,7 @@ isc___nmhandle_get(isc_nmsocket_t *sock, isc_sockaddr_t *peer,
 
 	REQUIRE(VALID_NMSOCK(sock));
 
-	handle = isc_astack_pop(sock->inactivehandles);
-
-	if (handle == NULL) {
-		handle = alloc_handle(sock);
-	} else {
-		isc_refcount_init(&handle->references, 1);
-		INSIST(VALID_NMHANDLE(handle));
-	}
+	handle = alloc_handle(sock);
 
 	NETMGR_TRACE_LOG(
 		"isc__nmhandle_get():handle %p->references = %" PRIuFAST32 "\n",
@@ -1696,8 +1677,6 @@ nmhandle_free(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
 
 static void
 nmhandle_deactivate(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
-	bool reuse = false;
-
 	/*
 	 * We do all of this under lock to avoid races with socket
 	 * destruction.  We have to do this now, because at this point the
@@ -1711,14 +1690,7 @@ nmhandle_deactivate(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
 
 	INSIST(atomic_fetch_sub(&sock->ah, 1) > 0);
 
-#if !__SANITIZE_ADDRESS__ && !__SANITIZE_THREAD__
-	if (atomic_load(&sock->active)) {
-		reuse = isc_astack_trypush(sock->inactivehandles, handle);
-	}
-#endif /* !__SANITIZE_ADDRESS__ && !__SANITIZE_THREAD__ */
-	if (!reuse) {
-		nmhandle_free(sock, handle);
-	}
+	nmhandle_free(sock, handle);
 	UNLOCK(&sock->lock);
 }
 
