@@ -1731,10 +1731,6 @@ start_lookup(void) {
 	} else {
 		check_if_done();
 	}
-
-	if (keep != NULL) {
-		isc_nmhandle_detach(&keep);
-	}
 }
 
 /*%
@@ -4281,6 +4277,17 @@ onrun_callback(isc_task_t *task, isc_event_t *event) {
 	UNLOCK_LOOKUP;
 }
 
+void
+onshutdown_callback(isc_task_t *task, isc_event_t *event) {
+	UNUSED(task);
+
+	isc_event_free(&event);
+	if (keep != NULL) {
+		isc_nmhandle_detach(&keep);
+	}
+	cancel_all();
+}
+
 /*%
  * Make everything on the lookup queue go away.  Mainly used by the
  * SIGINT handler.
@@ -4333,7 +4340,6 @@ cancel_all(void) {
  */
 void
 destroy_libs(void) {
-	REQUIRE(keep == NULL);
 	debug("destroy_libs()");
 	if (global_task != NULL) {
 		debug("freeing task");

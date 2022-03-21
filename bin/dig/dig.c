@@ -2924,12 +2924,18 @@ dig_query_setup(bool is_batchfile, bool config_only, int argc, char **argv) {
 void
 dig_startup(void) {
 	isc_result_t result;
+	isc_event_t *event;
 
 	debug("dig_startup()");
 
 	result = isc_app_onrun(mctx, global_task, onrun_callback, NULL);
 	check_result(result, "isc_app_onrun");
 	isc_app_run();
+
+	event = isc_event_allocate(mctx, global_task, ISC_APPEVENT_SHUTDOWN,
+				   onshutdown_callback, NULL, sizeof(*event));
+
+	isc_task_sendto(global_task, &event, 0);
 }
 
 void
@@ -2946,7 +2952,6 @@ dig_shutdown(void) {
 		}
 		atomic_store(&batchname, 0);
 	}
-	cancel_all();
 	destroy_libs();
 	isc_app_finish();
 }
