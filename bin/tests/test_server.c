@@ -266,19 +266,19 @@ run(void) {
 
 	switch (protocol) {
 	case UDP:
-		result = isc_nm_listenudp(netmgr, &sockaddr, read_cb, NULL, 0,
-					  &sock);
+		result = isc_nm_listenudp(netmgr, 0, &sockaddr, read_cb, NULL,
+					  0, &sock);
 		break;
 	case TCP:
-		result = isc_nm_listentcpdns(netmgr, &sockaddr, read_cb, NULL,
-					     accept_cb, NULL, 0, 0, NULL,
+		result = isc_nm_listentcpdns(netmgr, 0, &sockaddr, read_cb,
+					     NULL, accept_cb, NULL, 0, 0, NULL,
 					     &sock);
 		break;
 	case DOT: {
 		isc_tlsctx_createserver(NULL, NULL, &tls_ctx);
 
-		result = isc_nm_listentlsdns(netmgr, &sockaddr, read_cb, NULL,
-					     accept_cb, NULL, 0, 0, NULL,
+		result = isc_nm_listentlsdns(netmgr, 0, &sockaddr, read_cb,
+					     NULL, accept_cb, NULL, 0, 0, NULL,
 					     tls_ctx, &sock);
 		break;
 	}
@@ -295,8 +295,9 @@ run(void) {
 			eps, ISC_NM_HTTP_DEFAULT_PATH, read_cb, NULL, 0);
 
 		if (result == ISC_R_SUCCESS) {
-			result = isc_nm_listenhttp(netmgr, &sockaddr, 0, NULL,
-						   tls_ctx, eps, 0, &sock);
+			result = isc_nm_listenhttp(netmgr, 0, &sockaddr, 0,
+						   NULL, tls_ctx, eps, 0,
+						   &sock);
 		}
 		isc_nm_http_endpoints_detach(&eps);
 	} break;

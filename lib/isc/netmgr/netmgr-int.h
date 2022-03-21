@@ -738,13 +738,14 @@ typedef struct isc__nm_work {
 #define NM_MAGIC    ISC_MAGIC('N', 'E', 'T', 'M')
 #define VALID_NM(t) ISC_MAGIC_VALID(t, NM_MAGIC)
 
-#define VALID_NM_TID(netmgr, tid) ((tid) >= 0 && (tid) < (netmgr)->nworkers)
+#define VALID_NM_TID(netmgr, tid) \
+	((tid) >= 0 && (uint32_t)(tid) < (netmgr)->nworkers)
 
 struct isc_nm {
 	int magic;
 	isc_refcount_t references;
 	isc_mem_t *private_mctx;
-	int nworkers;
+	uint32_t nworkers;
 	isc_mutex_t lock;
 	isc_condition_t wkstatecond;
 	isc_condition_t wkpausecond;
@@ -1024,7 +1025,7 @@ struct isc_nmsocket {
 
 	/*% Child sockets for multi-socket setups */
 	isc_nmsocket_t *children;
-	uint_fast32_t nchildren;
+	uint32_t nchildren;
 	isc_sockaddr_t iface;
 	isc_nmhandle_t *statichandle;
 	isc_nmhandle_t *outerhandle;

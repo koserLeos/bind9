@@ -422,7 +422,7 @@ enqueue_stoplistening(isc_nmsocket_t *sock) {
 }
 
 isc_result_t
-isc_nm_listentcp(isc_nm_t *mgr, isc_sockaddr_t *iface,
+isc_nm_listentcp(isc_nm_t *mgr, uint32_t workers, isc_sockaddr_t *iface,
 		 isc_nm_accept_cb_t accept_cb, void *accept_cbarg,
 		 size_t extrahandlesize, int backlog, isc_quota_t *quota,
 		 isc_nmsocket_t **sockp) {
@@ -440,7 +440,7 @@ isc_nm_listentcp(isc_nm_t *mgr, isc_sockaddr_t *iface,
 	isc__nmsocket_init(sock, mgr, isc_nm_tcplistener, iface, tid);
 
 	atomic_init(&sock->rchildren, 0);
-	sock->nchildren = mgr->nworkers;
+	sock->nchildren = (workers == 0) ? mgr->nworkers : workers;
 	children_size = sock->nchildren * sizeof(sock->children[0]);
 	sock->children = isc_mem_get(worker->mctx, children_size);
 	memset(sock->children, 0, children_size);

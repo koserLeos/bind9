@@ -1160,9 +1160,13 @@ add_listener(named_controls_t *cp, controllistener_t **listenerp,
 	}
 #endif
 
-	CHECK(isc_nm_listentcp(
-		named_g_netmgr, &listener->address, control_newconn, listener,
-		sizeof(controlconnection_t), 5, NULL, &listener->sock));
+	/*
+	 * The controlconf channel should run on a single thread (0).
+	 */
+	CHECK(isc_nm_listentcp(named_g_netmgr, 1, &listener->address,
+			       control_newconn, listener,
+			       sizeof(controlconnection_t), 5, NULL,
+			       &listener->sock));
 #if 0
 	/* XXX: no unix socket support yet */
 	if (type == isc_socktype_unix) {

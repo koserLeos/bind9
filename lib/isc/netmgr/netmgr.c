@@ -314,7 +314,7 @@ nm_destroy(isc_nm_t **mgr0) {
 
 	mgr->magic = 0;
 
-	for (int i = 0; i < mgr->nworkers; i++) {
+	for (size_t i = 0; i < mgr->nworkers; i++) {
 		isc__networker_t *worker = &mgr->workers[i];
 		isc__netievent_t *event = isc__nm_get_netievent_stop(worker);
 		isc__nm_enqueue_ievent(worker, event);
@@ -326,7 +326,7 @@ nm_destroy(isc_nm_t **mgr0) {
 	}
 	UNLOCK(&mgr->lock);
 
-	for (int i = 0; i < mgr->nworkers; i++) {
+	for (size_t i = 0; i < mgr->nworkers; i++) {
 		isc__networker_t *worker = &mgr->workers[i];
 		int r;
 
@@ -390,9 +390,9 @@ isc_nm_pause(isc_nm_t *mgr) {
 		REQUIRE(isc_nm_tid() == 0);
 	}
 
-	for (int i = 0; i < mgr->nworkers; i++) {
+	for (size_t i = 0; i < mgr->nworkers; i++) {
 		isc__networker_t *worker = &mgr->workers[i];
-		if (i == isc_nm_tid()) {
+		if (i == (size_t)isc_nm_tid()) {
 			isc__nm_async_pause(worker, NULL);
 		} else {
 			enqueue_pause(worker);
@@ -438,9 +438,9 @@ isc_nm_resume(isc_nm_t *mgr) {
 		drain_queue(&mgr->workers[isc_nm_tid()], NETIEVENT_PRIORITY);
 	}
 
-	for (int i = 0; i < mgr->nworkers; i++) {
+	for (size_t i = 0; i < mgr->nworkers; i++) {
 		isc__networker_t *worker = &mgr->workers[i];
-		if (i == isc_nm_tid()) {
+		if (i == (size_t)isc_nm_tid()) {
 			isc__nm_async_resume(worker, NULL);
 		} else {
 			enqueue_resume(worker);
@@ -1440,7 +1440,7 @@ isc___nmsocket_init(isc_nmsocket_t *sock, isc_nm_t *mgr, isc_nmsocket_type type,
 
 	REQUIRE(sock != NULL);
 	REQUIRE(mgr != NULL);
-	REQUIRE(tid >= 0 && tid < mgr->nworkers);
+	REQUIRE(tid >= 0 && (uint32_t)tid < mgr->nworkers);
 
 	*sock = (isc_nmsocket_t){
 		.type = type,
@@ -2425,7 +2425,7 @@ isc___nm_uvreq_get(isc_nm_t *mgr, isc_nmsocket_t *sock FLARG) {
 
 	REQUIRE(VALID_NM(mgr));
 	REQUIRE(VALID_NMSOCK(sock));
-	REQUIRE(sock->tid >= 0 && sock->tid < sock->mgr->nworkers);
+	REQUIRE(sock->tid >= 0 && (uint32_t)sock->tid < sock->mgr->nworkers);
 
 	worker = &sock->mgr->workers[sock->tid];
 	req = isc_mem_get(worker->mctx, sizeof(*req));
@@ -2452,7 +2452,7 @@ isc___nm_uvreq_put(isc__nm_uvreq_t **req0, isc_nmsocket_t *sock FLARG) {
 	*req0 = NULL;
 
 	INSIST(sock == req->sock);
-	REQUIRE(sock->tid >= 0 && sock->tid < sock->mgr->nworkers);
+	REQUIRE(sock->tid >= 0 && (uint32_t)sock->tid < sock->mgr->nworkers);
 
 	req->magic = 0;
 

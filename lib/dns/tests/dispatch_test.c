@@ -510,8 +510,9 @@ dispatch_timeout_tcp_response(void **state __attribute__((unused))) {
 					&tcp_server_addr, -1, &dispatch);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	result = isc_nm_listentcpdns(netmgr, &tcp_server_addr, noop_nameserver,
-				     NULL, accept_cb, NULL, 0, 0, NULL, &sock);
+	result = isc_nm_listentcpdns(netmgr, 0, &tcp_server_addr,
+				     noop_nameserver, NULL, accept_cb, NULL, 0,
+				     0, NULL, &sock);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	region.base = rbuf;
@@ -566,8 +567,8 @@ dispatch_tcp_response(void **state __attribute__((unused))) {
 					&tcp_server_addr, -1, &dispatch);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	result = isc_nm_listentcpdns(netmgr, &tcp_server_addr, nameserver, NULL,
-				     accept_cb, NULL, 0, 0, NULL, &sock);
+	result = isc_nm_listentcpdns(netmgr, 0, &tcp_server_addr, nameserver,
+				     NULL, accept_cb, NULL, 0, 0, NULL, &sock);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	region.base = rbuf;
@@ -625,7 +626,7 @@ dispatch_timeout_udp_response(void **state __attribute__((unused))) {
 					&dispatch);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	result = isc_nm_listenudp(netmgr, &udp_server_addr, noop_nameserver,
+	result = isc_nm_listenudp(netmgr, 0, &udp_server_addr, noop_nameserver,
 				  NULL, 0, &sock);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
@@ -682,8 +683,8 @@ dispatch_getnext(void **state) {
 	/*
 	 * Create a local udp nameserver on the loopback.
 	 */
-	result = isc_nm_listenudp(netmgr, &udp_server_addr, nameserver, NULL, 0,
-				  &sock);
+	result = isc_nm_listenudp(netmgr, 0, &udp_server_addr, nameserver, NULL,
+				  0, &sock);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	region.base = rbuf;
