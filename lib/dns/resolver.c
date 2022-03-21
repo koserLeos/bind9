@@ -533,7 +533,7 @@ struct dns_resolver {
 	isc_mutex_t lock;
 	isc_mutex_t primelock;
 	dns_rdataclass_t rdclass;
-	isc_nm_t *nm;
+	isc_nm_t *netmgr;
 	isc_timermgr_t *timermgr;
 	isc_taskmgr_t *taskmgr;
 	dns_view_t *view;
@@ -10193,7 +10193,7 @@ spillattimer_countdown(isc_task_t *task, isc_event_t *event) {
 
 isc_result_t
 dns_resolver_create(dns_view_t *view, isc_taskmgr_t *taskmgr,
-		    unsigned int ntasks, unsigned int ndisp, isc_nm_t *nm,
+		    unsigned int ndisp, isc_nm_t *netmgr,
 		    isc_timermgr_t *timermgr, unsigned int options,
 		    dns_dispatchmgr_t *dispatchmgr, dns_dispatch_t *dispatchv4,
 		    dns_dispatch_t *dispatchv6, dns_resolver_t **resp) {
@@ -10207,7 +10207,6 @@ dns_resolver_create(dns_view_t *view, isc_taskmgr_t *taskmgr,
 	 */
 
 	REQUIRE(DNS_VIEW_VALID(view));
-	REQUIRE(ntasks > 0);
 	REQUIRE(ndisp > 0);
 	REQUIRE(resp != NULL && *resp == NULL);
 	REQUIRE(dispatchmgr != NULL);
@@ -10216,7 +10215,7 @@ dns_resolver_create(dns_view_t *view, isc_taskmgr_t *taskmgr,
 	RTRACE("create");
 	res = isc_mem_get(view->mctx, sizeof(*res));
 	*res = (dns_resolver_t){ .rdclass = view->rdclass,
-				 .nm = nm,
+				 .netmgr = netmgr,
 				 .timermgr = timermgr,
 				 .taskmgr = taskmgr,
 				 .dispatchmgr = dispatchmgr,
@@ -10231,12 +10230,12 @@ dns_resolver_create(dns_view_t *view, isc_taskmgr_t *taskmgr,
 				 .query_timeout = DEFAULT_QUERY_TIMEOUT,
 				 .maxdepth = DEFAULT_RECURSION_DEPTH,
 				 .maxqueries = DEFAULT_MAX_QUERIES,
-				 .nbuckets = ntasks,
+				 .nbuckets = isc_nm_getnworkers(netmgr),
 				 .dhashbits = RES_DOMAIN_HASH_BITS,
 				 .querydscp4 = -1,
 				 .querydscp6 = -1 };
 
-	atomic_init(&res->activebuckets, ntasks);
+	atomic_init(&res->activebuckets, res->nbuckets);
 
 	isc_mem_attach(view->mctx, &res->mctx);
 
@@ -10257,13 +10256,13 @@ dns_resolver_create(dns_view_t *view, isc_taskmgr_t *taskmgr,
 	}
 
 	if (view->resstats != NULL) {
-		isc_stats_set(view->resstats, ntasks,
+		isc_stats_set(view->resstats, res->nbuckets,
 			      dns_resstatscounter_buckets);
 	}
 
 	res->buckets = isc_mem_get(view->mctx,
-				   ntasks * sizeof(res->buckets[0]));
-	for (uint32_t i = 0; i < ntasks; i++) {
+				   res->nbuckets * sizeof(res->buckets[0]));
+	for (uint32_t i = 0; i < res->nbuckets; i++) {
 		res->buckets[i] = (fctxbucket_t){ 0 };
 
 		isc_mutex_init(&res->buckets[i].lock);
@@ -10272,8 +10271,7 @@ dns_resolver_create(dns_view_t *view, isc_taskmgr_t *taskmgr,
 		 * Since we have a pool of tasks we bind them to task
 		 * queues to spread the load evenly
 		 */
-		result = isc_task_create_bound(taskmgr, 0,
-					       &res->buckets[i].task, i);
+		result = isc_task_create(taskmgr, 0, &res->buckets[i].task, i);
 		if (result != ISC_R_SUCCESS) {
 			isc_mutex_destroy(&res->buckets[i].lock);
 			goto cleanup_buckets;
@@ -10308,7 +10306,7 @@ dns_resolver_create(dns_view_t *view, isc_taskmgr_t *taskmgr,
 	isc_mutex_init(&res->lock);
 	isc_mutex_init(&res->primelock);
 
-	result = isc_task_create_bound(taskmgr, 0, &task, 0);
+	result = isc_task_create(taskmgr, 0, &task, 0);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup_primelock;
 	}
@@ -10342,7 +10340,7 @@ cleanup_primelock:
 		    HASHSIZE(res->dhashbits) * sizeof(zonebucket_t));
 
 cleanup_buckets:
-	for (size_t i = 0; i < ntasks; i++) {
+	for (size_t i = 0; i < res->nbuckets; i++) {
 		isc_mutex_destroy(&res->buckets[i].lock);
 		isc_task_shutdown(res->buckets[i].task);
 		isc_task_detach(&res->buckets[i].task);

@@ -118,7 +118,7 @@ setup_test(isc_timertype_t timertype, isc_interval_t *interval,
 
 	LOCK(&mx);
 
-	result = isc_task_create_bound(taskmgr, 0, &task, 0);
+	result = isc_task_create(taskmgr, 0, &task, 0);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = isc_task_onshutdown(task, shutdown, NULL);
@@ -508,13 +508,13 @@ purge(void **state) {
 	seconds = 1;
 	nanoseconds = 0;
 
-	result = isc_task_create_bound(taskmgr, 0, &task1, 0);
+	result = isc_task_create(taskmgr, 0, &task1, 0);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = isc_task_onshutdown(task1, shutdown_purge, NULL);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	result = isc_task_create_bound(taskmgr, 0, &task2, 0);
+	result = isc_task_create(taskmgr, 0, &task2, 0);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	isc_interval_set(&interval, seconds, 0);

@@ -152,12 +152,6 @@
 #define SIZE_AS_PERCENT ((size_t)-2)
 #endif /* ifndef SIZE_AS_PERCENT */
 
-#ifdef TUNE_LARGE
-#define RESOLVER_NTASKS_PERCPU 32
-#else
-#define RESOLVER_NTASKS_PERCPU 8
-#endif /* TUNE_LARGE */
-
 /* RFC7828 defines timeout as 16-bit value specified in units of 100
  * milliseconds, so the maximum and minimum advertised and keepalive
  * timeouts are capped by the data type (it's ~109 minutes)
@@ -4714,9 +4708,8 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist, cfg_obj_t *config,
 
 	ndisp = 4 * ISC_MIN(named_g_udpdisp, MAX_UDP_DISPATCH);
 	CHECK(dns_view_createresolver(
-		view, named_g_taskmgr, RESOLVER_NTASKS_PERCPU * named_g_cpus,
-		ndisp, named_g_netmgr, named_g_timermgr, resopts,
-		named_g_dispatchmgr, dispatch4, dispatch6));
+		view, named_g_taskmgr, ndisp, named_g_netmgr, named_g_timermgr,
+		resopts, named_g_dispatchmgr, dispatch4, dispatch6));
 
 	if (dscp4 == -1) {
 		dscp4 = named_g_dscp;
@@ -10024,7 +10017,7 @@ named_server_create(isc_mem_t *mctx, named_server_t **serverp) {
 	 * startup and shutdown of the server, as well as all exclusive
 	 * tasks.
 	 */
-	CHECKFATAL(isc_task_create_bound(named_g_taskmgr, 0, &server->task, 0),
+	CHECKFATAL(isc_task_create(named_g_taskmgr, 0, &server->task, 0),
 		   "creating server task");
 	isc_task_setname(server->task, "server", server);
 	isc_taskmgr_setexcltask(named_g_taskmgr, server->task);
