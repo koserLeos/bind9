@@ -286,7 +286,7 @@ dns_client_create(isc_mem_t *mctx, isc_appctx_t *actx, isc_taskmgr_t *taskmgr,
 
 	isc_mutex_init(&client->lock);
 
-	result = isc_task_create(client->taskmgr, 0, &client->task);
+	result = isc_task_create_bound(client->taskmgr, 0, &client->task, 0);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup_lock;
 	}

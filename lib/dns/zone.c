@@ -18827,7 +18827,7 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_taskmgr_t *taskmgr,
 	isc_rwlock_init(&zmgr->urlock, 0, 0);
 
 	/* Create a single task for queueing of SOA queries. */
-	result = isc_task_create(taskmgr, 1, &zmgr->task);
+	result = isc_task_create_bound(taskmgr, 1, &zmgr->task, 0);
 	if (result != ISC_R_SUCCESS) {
 		goto free_urlock;
 	}

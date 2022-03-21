@@ -2935,7 +2935,7 @@ dig_startup(void) {
 	event = isc_event_allocate(mctx, global_task, ISC_APPEVENT_SHUTDOWN,
 				   onshutdown_callback, NULL, sizeof(*event));
 
-	isc_task_sendto(global_task, &event, 0);
+	isc_task_send(global_task, &event);
 }
 
 void
