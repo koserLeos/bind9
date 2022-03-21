@@ -295,7 +295,7 @@ isc_nm_tcpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	isc_nmsocket_t *sock = NULL;
 	isc__netievent_tcpconnect_t *ievent = NULL;
 	isc__nm_uvreq_t *req = NULL;
-	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 	sa_family_t sa_family;
 
@@ -430,10 +430,11 @@ isc_nm_listentcp(isc_nm_t *mgr, isc_sockaddr_t *iface,
 	isc_nmsocket_t *sock = NULL;
 	size_t children_size = 0;
 	uv_os_sock_t fd = -1;
-	int tid = 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
+	REQUIRE(isc__nm_in_netthread());
 
 	sock = isc_mem_get(worker->mctx, sizeof(*sock));
 	isc__nmsocket_init(sock, mgr, isc_nm_tcplistener, iface, tid);
@@ -940,13 +941,12 @@ accept_connection(isc_nmsocket_t *ssock, isc_quota_t *quota) {
 	struct sockaddr_storage ss;
 	isc_sockaddr_t local;
 	isc_nmhandle_t *handle = NULL;
-	int tid;
-	isc__networker_t *worker = NULL;
+	int tid = isc_nm_tid();
+	isc__networker_t *worker;
 
 	REQUIRE(VALID_NMSOCK(ssock));
 	REQUIRE(ssock->tid == isc_nm_tid());
 
-	tid = ssock->tid;
 	worker = &ssock->mgr->workers[tid];
 
 	if (isc__nmsocket_closing(ssock)) {

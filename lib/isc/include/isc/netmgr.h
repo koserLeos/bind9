@@ -718,3 +718,12 @@ isc_nm_timer_start(isc_nm_timer_t *, uint64_t);
 
 void
 isc_nm_timer_stop(isc_nm_timer_t *);
+
+/*
+ * Simple jobs related functions
+ */
+
+typedef void (*isc_nm_run_cb)(void *data);
+
+void
+isc_nm_run(isc_nm_t *netmgr, isc_nm_run_cb cb, void *cbarg, int tid);

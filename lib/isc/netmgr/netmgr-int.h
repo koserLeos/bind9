@@ -335,6 +335,7 @@ typedef enum isc__netievent_type {
 
 	netievent_task,
 	netievent_privilegedtask,
+	netievent_run,
 
 	/*
 	 * event type values higher than this will be treated
@@ -640,6 +641,37 @@ typedef struct isc__netievent__task {
 		isc__nm_put_netievent(worker, ievent);                         \
 	}
 
+typedef struct isc__netievent_run {
+	isc__netievent_type type;
+	ISC_LINK(isc__netievent_t) link;
+	isc_nm_run_cb cb;
+	void *cbarg;
+} isc__netievent_run_t;
+
+#define NETIEVENT_RUN_DECL(type)                                          \
+	isc__netievent_##type##_t *isc__nm_get_netievent_##type(          \
+		isc__networker_t *worker, isc_nm_run_cb cb, void *cbarg); \
+	void isc__nm_put_netievent_##type(isc__networker_t *worker,       \
+					  isc__netievent_##type##_t *ievent);
+
+#define NETIEVENT_RUN_DEF(type)                                                \
+	isc__netievent_##type##_t *isc__nm_get_netievent_##type(               \
+		isc__networker_t *worker, isc_nm_run_cb cb, void *cbarg) {     \
+		isc__netievent_##type##_t *ievent =                            \
+			isc__nm_get_netievent(worker, netievent_##type);       \
+		ievent->cb = cb;                                               \
+		ievent->cbarg = cbarg;                                         \
+                                                                               \
+		return (ievent);                                               \
+	}                                                                      \
+                                                                               \
+	void isc__nm_put_netievent_##type(isc__networker_t *worker,            \
+					  isc__netievent_##type##_t *ievent) { \
+		ievent->cb = NULL;                                             \
+		ievent->cbarg = NULL;                                          \
+		isc__nm_put_netievent(worker, ievent);                         \
+	}
+
 typedef struct isc__netievent_udpsend {
 	NETIEVENT__SOCKET;
 	isc_sockaddr_t peer;
@@ -705,6 +737,8 @@ typedef struct isc__nm_work {
  */
 #define NM_MAGIC    ISC_MAGIC('N', 'E', 'T', 'M')
 #define VALID_NM(t) ISC_MAGIC_VALID(t, NM_MAGIC)
+
+#define VALID_NM_TID(netmgr, tid) ((tid) >= 0 && (tid) < (netmgr)->nworkers)
 
 struct isc_nm {
 	int magic;
@@ -2026,6 +2060,8 @@ NETIEVENT_DECL(stop);
 
 NETIEVENT_TASK_DECL(task);
 NETIEVENT_TASK_DECL(privilegedtask);
+
+NETIEVENT_RUN_DECL(run);
 
 void
 isc__nm_udp_failed_read_cb(isc_nmsocket_t *sock, isc_result_t result);

@@ -152,7 +152,7 @@ isc_nm_listenudp(isc_nm_t *mgr, isc_sockaddr_t *iface, isc_nm_recv_cb_t cb,
 	size_t children_size = 0;
 	REQUIRE(VALID_NM(mgr));
 	uv_os_sock_t fd = -1;
-	uint32_t tid = 0;
+	uint32_t tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 	/*
@@ -347,7 +347,7 @@ isc_nm_routeconnect(isc_nm_t *mgr, isc_nm_cb_t cb, void *cbarg,
 	isc_nmsocket_t *sock = NULL;
 	isc__netievent_udpconnect_t *event = NULL;
 	isc__nm_uvreq_t *req = NULL;
-	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
@@ -417,7 +417,6 @@ isc__nm_async_udplisten(isc__networker_t *worker, isc__netievent_t *ev0) {
 	isc_result_t result = ISC_R_UNSET;
 
 	REQUIRE(VALID_NMSOCK(ievent->sock));
-	REQUIRE(ievent->sock->tid == isc_nm_tid());
 	REQUIRE(VALID_NMSOCK(ievent->sock->parent));
 
 	sock = ievent->sock;
@@ -676,13 +675,13 @@ void
 isc__nm_udp_send(isc_nmhandle_t *handle, const isc_region_t *region,
 		 isc_nm_cb_t cb, void *cbarg) {
 	isc_nmsocket_t *sock = handle->sock;
-	isc_nmsocket_t *rsock = NULL;
 	isc_sockaddr_t *peer = &handle->peer;
 	isc__nm_uvreq_t *uvreq = NULL;
 	uint32_t maxudp = atomic_load(&sock->mgr->maxudp);
-	int ntid;
+	isc__netievent_udpsend_t ievent;
 
 	INSIST(sock->type == isc_nm_udpsocket);
+	REQUIRE(sock->tid == isc_nm_tid());
 
 	/*
 	 * We're simulating a firewall blocking UDP packets bigger than
@@ -697,31 +696,7 @@ isc__nm_udp_send(isc_nmhandle_t *handle, const isc_region_t *region,
 		return;
 	}
 
-	if (atomic_load(&sock->client)) {
-		/*
-		 * When we are sending from the client socket, we directly use
-		 * the socket provided.
-		 */
-		rsock = sock;
-		goto send;
-	} else {
-		/*
-		 * When we are sending from the server socket, we either use the
-		 * socket associated with the network thread we are in, or we
-		 * use the thread from the socket associated with the handle.
-		 */
-		INSIST(sock->parent != NULL);
-
-		if (isc__nm_in_netthread()) {
-			ntid = isc_nm_tid();
-		} else {
-			ntid = sock->tid;
-		}
-		rsock = &sock->parent->children[ntid];
-	}
-
-send:
-	uvreq = isc__nm_uvreq_get(rsock->mgr, rsock);
+	uvreq = isc__nm_uvreq_get(sock->mgr, sock);
 	uvreq->uvbuf.base = (char *)region->base;
 	uvreq->uvbuf.len = region->length;
 
@@ -730,22 +705,13 @@ send:
 	uvreq->cb.send = cb;
 	uvreq->cbarg = cbarg;
 
-	if (isc_nm_tid() == rsock->tid) {
-		REQUIRE(rsock->tid == isc_nm_tid());
-		isc__netievent_udpsend_t ievent = { .sock = rsock,
-						    .req = uvreq,
-						    .peer = *peer };
+	ievent = (isc__netievent_udpsend_t){
+		.sock = sock,
+		.req = uvreq,
+		.peer = *peer,
+	};
 
-		isc__nm_async_udpsend(NULL, (isc__netievent_t *)&ievent);
-	} else {
-		isc__networker_t *worker = &sock->mgr->workers[rsock->tid];
-		isc__netievent_udpsend_t *ievent =
-			isc__nm_get_netievent_udpsend(worker, rsock);
-		ievent->peer = *peer;
-		ievent->req = uvreq;
-
-		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)ievent);
-	}
+	isc__nm_async_udpsend(NULL, (isc__netievent_t *)&ievent);
 }
 
 /*

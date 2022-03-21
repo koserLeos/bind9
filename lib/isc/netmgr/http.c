@@ -1338,10 +1338,12 @@ transport_connect_cb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	isc_nm_http_session_t *session = NULL;
 	http_cstream_t *cstream = NULL;
 	int tid = isc_nm_tid();
-	isc__networker_t *worker = &http_sock->mgr->workers[tid];
+	isc__networker_t *worker;
 
 	REQUIRE(VALID_NMSOCK(http_sock));
 	REQUIRE(VALID_NMHANDLE(handle));
+
+	worker = &http_sock->mgr->workers[tid];
 
 	transp_sock = handle->sock;
 
@@ -1428,7 +1430,7 @@ isc_nm_httpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		   size_t extrahandlesize) {
 	isc_sockaddr_t local_interface;
 	isc_nmsocket_t *sock = NULL;
-	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
@@ -2477,7 +2479,7 @@ isc_nm_listenhttp(isc_nm_t *mgr, isc_sockaddr_t *iface, int backlog,
 		  isc_nmsocket_t **sockp) {
 	isc_nmsocket_t *sock = NULL;
 	isc_result_t result;
-	int tid = 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(!ISC_LIST_EMPTY(eps->handlers));
@@ -2518,7 +2520,6 @@ isc_nm_listenhttp(isc_nm_t *mgr, isc_sockaddr_t *iface, int backlog,
 
 	sock->nchildren = sock->outer->nchildren;
 	sock->result = ISC_R_UNSET;
-	sock->tid = 0;
 	sock->fd = (uv_os_sock_t)-1;
 
 	atomic_store(&sock->listening, true);
@@ -3066,7 +3067,7 @@ isc__nm_http_initsocket(isc_nmsocket_t *sock) {
 
 void
 isc__nm_http_cleanup_data(isc_nmsocket_t *sock) {
-	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &sock->mgr->workers[tid];
 
 	if ((sock->type == isc_nm_tcplistener ||

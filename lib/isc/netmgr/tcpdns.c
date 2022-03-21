@@ -259,7 +259,7 @@ isc_nm_tcpdnsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 	isc__netievent_tcpdnsconnect_t *ievent = NULL;
 	isc__nm_uvreq_t *req = NULL;
 	sa_family_t sa_family;
-	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
@@ -393,7 +393,7 @@ isc_nm_listentcpdns(isc_nm_t *mgr, isc_sockaddr_t *iface,
 	isc_nmsocket_t *sock = NULL;
 	size_t children_size = 0;
 	uv_os_sock_t fd = -1;
-	int tid = 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
@@ -933,13 +933,12 @@ accept_connection(isc_nmsocket_t *ssock, isc_quota_t *quota) {
 	struct sockaddr_storage local_ss;
 	isc_sockaddr_t local;
 	isc_nmhandle_t *handle = NULL;
-	int tid;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMSOCK(ssock));
 	REQUIRE(ssock->tid == isc_nm_tid());
 
-	tid = ssock->tid;
 	worker = &ssock->mgr->workers[tid];
 
 	if (isc__nmsocket_closing(ssock)) {

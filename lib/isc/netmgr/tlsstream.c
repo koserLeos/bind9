@@ -105,7 +105,7 @@ tls_senddone(isc_nmhandle_t *handle, isc_result_t eresult, void *cbarg) {
 		(isc_nmsocket_tls_send_req_t *)cbarg;
 	isc_nmsocket_t *tlssock = NULL;
 	bool finish = send_req->finish;
-	int tid;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = NULL;
 
 	REQUIRE(VALID_NMHANDLE(handle));
@@ -126,7 +126,6 @@ tls_senddone(isc_nmhandle_t *handle, isc_result_t eresult, void *cbarg) {
 		}
 	}
 
-	tid = handle->sock->tid;
 	worker = &handle->sock->mgr->workers[tid];
 	/* We are trying to avoid a memory allocation for small write
 	 * requests. See the mirroring code in the tls_send_outgoing()
@@ -639,7 +638,7 @@ isc_nm_listentls(isc_nm_t *mgr, isc_sockaddr_t *iface,
 	isc_result_t result;
 	isc_nmsocket_t *tlssock = NULL;
 	isc_nmsocket_t *tsock = NULL;
-	int tid = 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 	REQUIRE(VALID_NM(mgr));
@@ -897,7 +896,7 @@ isc_nm_tlsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		  isc_nm_cb_t cb, void *cbarg, SSL_CTX *ctx,
 		  unsigned int timeout, size_t extrahandlesize) {
 	isc_nmsocket_t *nsock = NULL;
-	int tid = isc__nm_in_netthread() ? isc_nm_tid() : 0;
+	int tid = isc_nm_tid();
 	isc__networker_t *worker = &mgr->workers[tid];
 
 #if defined(NETMGR_TRACE) && defined(NETMGR_TRACE_VERBOSE)

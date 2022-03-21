@@ -183,6 +183,7 @@ nmhandle_detach_cb(isc_nmhandle_t **handlep FLARG);
 
 int
 isc_nm_tid(void) {
+	REQUIRE(isc__nm_in_netthread());
 	return (isc__nm_tid_v);
 }
 
@@ -764,7 +765,8 @@ void
 isc_nm_task_enqueue(isc_nm_t *nm, isc_task_t *task, int tid) {
 	isc__netievent_t *event = NULL;
 	isc__networker_t *worker = NULL;
-	REQUIRE(tid >= 0 && tid < nm->nworkers);
+
+	REQUIRE(VALID_NM_TID(nm, tid));
 
 	worker = &nm->workers[tid];
 
@@ -777,6 +779,20 @@ isc_nm_task_enqueue(isc_nm_t *nm, isc_task_t *task, int tid) {
 	}
 
 	isc__nm_enqueue_ievent(worker, event);
+}
+
+void
+isc_nm_run(isc_nm_t *netmgr, isc_nm_run_cb cb, void *cbarg, int tid) {
+	isc__netievent_run_t *event = NULL;
+	isc__networker_t *worker = NULL;
+
+	REQUIRE(VALID_NM_TID(netmgr, tid));
+
+	worker = &netmgr->workers[tid];
+
+	event = isc__nm_get_netievent_run(worker, cb, cbarg);
+
+	isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 }
 
 #define isc__nm_async_privilegedtask(worker, ev0) \
@@ -801,6 +817,15 @@ isc__nm_async_task(isc__networker_t *worker, isc__netievent_t *ev0) {
 		INSIST(0);
 		ISC_UNREACHABLE();
 	}
+}
+
+static void
+isc__nm_async_run(isc__networker_t *worker, isc__netievent_t *ev0) {
+	isc__netievent_run_t *ievent = (isc__netievent_run_t *)ev0;
+
+	UNUSED(worker);
+
+	ievent->cb(ievent->cbarg);
 }
 
 static void
@@ -863,6 +888,8 @@ process_netievent(isc__networker_t *worker, isc__netievent_t *ievent) {
 
 		NETIEVENT_CASE(privilegedtask);
 		NETIEVENT_CASE(task);
+
+		NETIEVENT_CASE(run);
 
 		NETIEVENT_CASE(udpconnect);
 		NETIEVENT_CASE(udplisten);
@@ -1054,6 +1081,8 @@ NETIEVENT_DEF(stop);
 
 NETIEVENT_TASK_DEF(task);
 NETIEVENT_TASK_DEF(privilegedtask);
+
+NETIEVENT_RUN_DEF(run);
 
 void
 isc__nm_maybe_enqueue_ievent(isc__networker_t *worker,
@@ -1710,20 +1739,9 @@ isc__nmhandle_detach(isc_nmhandle_t **handlep FLARG) {
 	 * ensure correct ordering of the isc__nm_process_sock_buffer().
 	 */
 	sock = handle->sock;
-	if (sock->tid == isc_nm_tid() && sock->closehandle_cb == NULL) {
-		nmhandle_detach_cb(&handle FLARG_PASS);
-	} else {
-		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
-		isc__netievent_detach_t *event =
-			isc__nm_get_netievent_detach(worker, sock);
-		/*
-		 * we are using implicit "attach" as the last reference
-		 * need to be destroyed explicitly in the async callback
-		 */
-		event->handle = handle;
-		FLARG_IEVENT_PASS(event);
-		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
-	}
+	INSIST(sock->tid == isc_nm_tid());
+
+	nmhandle_detach_cb(&handle FLARG_PASS);
 }
 
 static void
@@ -1769,16 +1787,10 @@ nmhandle_detach_cb(isc_nmhandle_t **handlep FLARG) {
 	 * call it now, or schedule it to run asynchronously.
 	 */
 	if (sock->closehandle_cb != NULL) {
-		if (sock->tid == isc_nm_tid()) {
-			sock->closehandle_cb(sock);
-		} else {
-			isc__networker_t *worker =
-				&sock->mgr->workers[sock->tid];
-			isc__netievent_close_t *event =
-				isc__nm_get_netievent_close(worker, sock);
-			isc__nm_enqueue_ievent(worker,
-					       (isc__netievent_t *)event);
-		}
+		isc__networker_t *worker = &sock->mgr->workers[sock->tid];
+		isc__netievent_close_t *event =
+			isc__nm_get_netievent_close(worker, sock);
+		isc__nm_enqueue_ievent(worker, (isc__netievent_t *)event);
 	}
 
 	if (handle == sock->statichandle) {

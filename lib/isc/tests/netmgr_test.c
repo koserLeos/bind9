@@ -672,7 +672,9 @@ mock_listenudp_uv_udp_recv_start(void **state __attribute__((unused))) {
 }
 
 static void
-mock_udpconnect_uv_udp_open(void **state __attribute__((unused))) {
+mock_udpconnect_uv_udp_open_cb(void *arg) {
+	UNUSED(arg);
+
 	WILL_RETURN(uv_udp_open, UV_ENOMEM);
 
 	connect_readcb = NULL;
@@ -685,7 +687,15 @@ mock_udpconnect_uv_udp_open(void **state __attribute__((unused))) {
 }
 
 static void
-mock_udpconnect_uv_udp_bind(void **state __attribute__((unused))) {
+mock_udpconnect_uv_udp_open(void **state __attribute__((unused))) {
+	isc_nm_run(connect_nm, mock_udpconnect_uv_udp_open_cb, NULL,
+		   isc_random_uniform(isc_nm_getnworkers(connect_nm)));
+}
+
+static void
+mock_udpconnect_uv_udp_bind_cb(void *arg) {
+	UNUSED(arg);
+
 	WILL_RETURN(uv_udp_bind, UV_ENOMEM);
 
 	connect_readcb = NULL;
@@ -695,6 +705,12 @@ mock_udpconnect_uv_udp_bind(void **state __attribute__((unused))) {
 	isc__netmgr_shutdown(connect_nm);
 
 	RESET_RETURN;
+}
+
+static void
+mock_udpconnect_uv_udp_bind(void **state __attribute__((unused))) {
+	isc_nm_run(connect_nm, mock_udpconnect_uv_udp_bind_cb, NULL,
+		   isc_random_uniform(isc_nm_getnworkers(connect_nm)));
 }
 
 #if UV_VERSION_HEX >= UV_VERSION(1, 27, 0)
