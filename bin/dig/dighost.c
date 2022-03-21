@@ -1731,6 +1731,10 @@ start_lookup(void) {
 	} else {
 		check_if_done();
 	}
+
+	if (keep != NULL) {
+		isc_nmhandle_detach(&keep);
+	}
 }
 
 /*%
@@ -4329,9 +4333,7 @@ cancel_all(void) {
  */
 void
 destroy_libs(void) {
-	if (keep != NULL) {
-		isc_nmhandle_detach(&keep);
-	}
+	REQUIRE(keep == NULL);
 	debug("destroy_libs()");
 	if (global_task != NULL) {
 		debug("freeing task");
