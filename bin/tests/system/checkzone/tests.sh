@@ -169,7 +169,7 @@ status=$((status+ret))
 
 echo_i "checking that delegating nameserver below DNAME is reported even with occulted address record present ($n)"
 ret=0
-$CHECKZONE example.com zones/delegating-ns-address-below-dname.db > test.out.$n 2>&1 || ret=1
+$CHECKZONE example.com zones/delegating-ns-address-below-dname.db > test.out.$n 2>&1 && ret=1
 grep "is below a DNAME" test.out.$n >/dev/null || ret=1
 n=$((n+1))
 if [ $ret != 0 ]; then echo_i "failed"; fi
