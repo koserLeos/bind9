@@ -1540,6 +1540,7 @@ fctx_cancelqueries(fetchctx_t *fctx, bool no_response, bool age_untried) {
 	}
 }
 
+#if 0
 static void
 fcount_logspill(fetchctx_t *fctx, fctxcount_t *counter) {
 	char dbuf[DNS_NAME_FORMATSIZE];
@@ -1657,6 +1658,20 @@ fcount_decr(fetchctx_t *fctx) {
 
 	UNLOCK(&dbucket->lock);
 }
+#else
+static isc_result_t
+fcount_incr(fetchctx_t *fctx, bool force) {
+	UNUSED(fctx);
+	UNUSED(force);
+	return (ISC_R_SUCCESS);
+}
+
+static void
+fcount_decr(fetchctx_t *fctx) {
+	UNUSED(fctx);
+}
+
+#endif
 
 static inline void
 fctx_sendevents(fetchctx_t *fctx, isc_result_t result, int line) {
