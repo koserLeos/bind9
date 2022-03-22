@@ -1,3 +1,9 @@
+5857.	[func]		Missing glue records and address records for SRV record
+			in primary zone files is now fatal at load time.
+			Additionally glue records that refer to CNAMES,
+			including below DNAMES, is now fatal at load time.
+			[GL #3218]
+
 5856.	[bug]		The "starting maxtime timer" message related to outgoing
 			zone transfers was incorrectly logged at the ERROR level
 			instead of DEBUG(1). [GL #3208]

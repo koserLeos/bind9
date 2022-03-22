@@ -2998,8 +2998,7 @@ zone_check_srv(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 		dns_zone_log(zone, level,
 			     "%s/SRV '%s' has no address records (A or AAAA)",
 			     ownerbuf, namebuf);
-		/* XXX950 make fatal for 9.5.0. */
-		return (true);
+		return ((level == ISC_LOG_WARNING) ? true : false);
 	}
 
 	if (result == DNS_R_CNAME) {
@@ -3164,21 +3163,18 @@ zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 				(void)(zone->checkns)(zone, name, owner, &a,
 						      &aaaa);
 			}
-			/* XXX950 make fatal for 9.5.0. */
-			/* answer = false; */
+			answer = (level == ISC_LOG_ERROR) ? false : true;
 		}
 	} else if (result == DNS_R_CNAME) {
 		dns_zone_log(zone, level, "%s/NS '%s' is a CNAME (illegal)",
 			     ownerbuf, namebuf);
-		/* XXX950 make fatal for 9.5.0. */
-		/* answer = false; */
+		answer = (level == ISC_LOG_ERROR) ? false : true;
 	} else if (result == DNS_R_DNAME) {
 		dns_name_format(foundname, altbuf, sizeof altbuf);
 		dns_zone_log(zone, level,
 			     "%s/NS '%s' is below a DNAME '%s' (illegal)",
 			     ownerbuf, namebuf, altbuf);
-		/* XXX950 make fatal for 9.5.0. */
-		/* answer = false; */
+		answer = (level == ISC_LOG_ERROR) ? false : true;
 	}
 
 	if (dns_rdataset_isassociated(&a)) {
