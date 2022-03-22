@@ -10764,7 +10764,7 @@ dns_resolver_createfetch(dns_resolver_t *res, const dns_name_t *name,
 	dns_resolver_attach(res, &fetch->res);
 	isc_mem_attach(res->mctx, &fetch->mctx);
 
-	bucketnum = dns_name_fullhash(name, false) % res->nbuckets;
+	bucketnum = isc_nm_tid();
 
 	LOCK(&res->lock);
 	spillat = res->spillat;
