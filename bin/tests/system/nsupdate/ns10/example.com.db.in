@@ -25,3 +25,5 @@ many.any.self-srv	SRV	0 0 0 notmachine.example.com.
 single.srv.self-srv	SRV	0 0 0 machine.example.com.
 many.srv.self-srv	SRV	0 0 0 machine.example.com.
 many.srv.self-srv	SRV	0 0 0 notmachine.example.com.
+machine.example.com.	A	192.0.2.1
+notmachine.example.com.	A	192.0.2.1
