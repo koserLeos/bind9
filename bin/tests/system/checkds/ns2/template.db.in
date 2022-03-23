@@ -22,17 +22,30 @@ $TTL 300
 ns2				A	10.53.0.2
 
 dspublished			NS	ns9.dspublished
+ns9.dspublished			A	10.53.0.9
 reference			NS	ns9.reference
+ns9.reference			A	10.53.0.9
 missing-dspublished		NS	ns9.missing-dspublished
+ns9.missing-dspublished		A	10.53.0.9
 bad-dspublished			NS	ns9.bad-dspublished
+ns9.bad-dspublished		A	10.53.0.9
 multiple-dspublished		NS	ns9.multiple-dspublished
+ns9.multiple-dspublished	A	10.53.0.9
 incomplete-dspublished		NS	ns9.incomplete-dspublished
+ns9.incomplete-dspublished	A	10.53.0.9
 bad2-dspublished		NS	ns9.bad2-dspublished
+ns9.bad2-dspublished		A	10.53.0.9
 
 dswithdrawn			NS	ns9.dswithdrawn
+ns9.dswithdrawn			A	10.53.0.9
 missing-dswithdrawn		NS	ns9.missing-dswithdrawn
+ns9.missing-dswithdrawn		A	10.53.0.9
 bad-dswithdrawn			NS	ns9.bad-dswithdrawn
+ns9.bad-dswithdrawn		A	10.53.0.9
 multiple-dswithdrawn		NS	ns9.multiple-dswithdrawn
+ns9.multiple-dswithdrawn	A	10.53.0.9
 incomplete-dswithdrawn		NS	ns9.incomplete-dswithdrawn
+ns9.incomplete-dswithdrawn	A	10.53.0.9
 bad2-dswithdrawn		NS	ns9.bad2-dswithdrawn
+ns9.bad2-dswithdrawn		A	10.53.0.9
 
