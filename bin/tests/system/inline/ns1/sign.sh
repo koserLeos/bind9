@@ -16,8 +16,8 @@
 zone=.
 rm -f K.+*+*.key
 rm -f K.+*+*.private
-keyname=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone $zone`
-keyname=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone -f KSK $zone`
+keyname=$($KEYGEN -q -a $DEFAULT_ALGORITHM -b $DEFAULT_BITS -n zone $zone)
+keyname=$($KEYGEN -q -a $DEFAULT_ALGORITHM -b $DEFAULT_BITS -n zone -f KSK $zone)
 $SIGNER -S -x -T 1200 -o ${zone} root.db > signer.out
 [ $? = 0 ] || cat signer.out
 
