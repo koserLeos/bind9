@@ -46,6 +46,7 @@ libisc_la_HEADERS =			\
 	include/isc/lex.h		\
 	include/isc/list.h		\
 	include/isc/log.h		\
+	include/isc/loop.h		\
 	include/isc/magic.h		\
 	include/isc/managers.h		\
 	include/isc/md.h		\
@@ -78,6 +79,7 @@ libisc_la_HEADERS =			\
 	include/isc/rwlock.h		\
 	include/isc/safe.h		\
 	include/isc/serial.h		\
+	include/isc/signal.h\
 	include/isc/siphash.h		\
 	include/isc/sockaddr.h		\
 	include/isc/stat.h		\
@@ -151,6 +153,7 @@ libisc_la_SOURCES =		\
 	lex.c			\
 	lib.c			\
 	log.c			\
+	loop.c			\
 	managers.c		\
 	md.c			\
 	mem.c			\
@@ -181,6 +184,7 @@ libisc_la_SOURCES =		\
 	rwlock.c		\
 	safe.c			\
 	serial.c		\
+	signal.c		\
 	siphash.c		\
 	sockaddr.c		\
 	stats.c			\

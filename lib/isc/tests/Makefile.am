@@ -25,6 +25,7 @@ check_PROGRAMS =	\
 	hmac_test	\
 	ht_test		\
 	lex_test	\
+	loop_test	\
 	md_test		\
 	mem_test	\
 	netaddr_test	\
@@ -69,6 +70,14 @@ hmac_test_CPPFLAGS =	\
 hmac_test_LDADD =	\
 	$(LDADD)	\
 	$(OPENSSL_LIBS)
+
+loop_test_CPPFLAGS =	\
+	$(AM_CPPFLAGS)	\
+	$(LIBUV_CFLAGS)
+
+loop_test_LDADD =	\
+	$(LDADD)	\
+	$(LIBUV_LIBS)
 
 md_test_CPPFLAGS =	\
 	$(AM_CPPFLAGS)	\
