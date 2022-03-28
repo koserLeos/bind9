@@ -33,7 +33,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <isc/app.h>
 #include <isc/atomic.h>
 #include <isc/attributes.h>
 #include <isc/base32.h>
@@ -43,6 +42,7 @@
 #include <isc/file.h>
 #include <isc/hash.h>
 #include <isc/hex.h>
+#include <isc/loop.h>
 #include <isc/managers.h>
 #include <isc/md.h>
 #include <isc/mem.h>
@@ -145,6 +145,7 @@ static unsigned int nverified = 0, nverifyfailed = 0;
 static const char *directory = NULL, *dsdir = NULL;
 static isc_mutex_t namelock, statslock;
 static isc_nm_t *netmgr = NULL;
+static isc_loopmgr_t *loopmgr = NULL;
 static isc_taskmgr_t *taskmgr = NULL;
 static dns_db_t *gdb;		  /* The database */
 static dns_dbversion_t *gversion; /* The database version */
@@ -156,7 +157,6 @@ static dns_iterations_t nsec3iter = 10U;
 static unsigned char saltbuf[255];
 static unsigned char *gsalt = saltbuf;
 static size_t salt_length = 0;
-static isc_task_t *main_task = NULL;
 static unsigned int ntasks = 0;
 static atomic_bool shuttingdown;
 static atomic_bool finished;
@@ -1584,7 +1584,7 @@ signapex(void) {
  * lock.
  */
 static void
-assignwork(isc_task_t *task, isc_task_t *worker) {
+assignwork(isc_task_t *worker) {
 	dns_fixedname_t *fname;
 	dns_name_t *name;
 	dns_dbnode_t *node;
@@ -1604,8 +1604,7 @@ assignwork(isc_task_t *task, isc_task_t *worker) {
 	if (atomic_load(&finished)) {
 		ended++;
 		if (ended == ntasks) {
-			isc_task_detach(&task);
-			isc_app_shutdown();
+			isc_loopmgr_shutdown(loopmgr);
 		}
 		goto unlock;
 	}
@@ -1679,13 +1678,12 @@ assignwork(isc_task_t *task, isc_task_t *worker) {
 	if (!found) {
 		ended++;
 		if (ended == ntasks) {
-			isc_task_detach(&task);
-			isc_app_shutdown();
+			isc_loopmgr_shutdown(loopmgr);
 		}
 		isc_mem_put(mctx, fname, sizeof(dns_fixedname_t));
 		goto unlock;
 	}
-	sevent = (sevent_t *)isc_event_allocate(mctx, task, SIGNER_EVENT_WORK,
+	sevent = (sevent_t *)isc_event_allocate(mctx, worker, SIGNER_EVENT_WORK,
 						sign, NULL, sizeof(sevent_t));
 
 	sevent->node = node;
@@ -1699,28 +1697,23 @@ unlock:
  * Start a worker task
  */
 static void
-startworker(isc_task_t *task, isc_event_t *event) {
-	isc_task_t *worker;
-
-	worker = (isc_task_t *)event->ev_arg;
-	assignwork(task, worker);
-	isc_event_free(&event);
+startworker(void *arg) {
+	isc_task_t *worker = arg;
+	assignwork(worker);
 }
 
 /*%
  * Write a node to the output file, and restart the worker task.
  */
 static void
-writenode(isc_task_t *task, isc_event_t *event) {
-	isc_task_t *worker;
+writenode(isc_task_t *worker, isc_event_t *event) {
 	sevent_t *sevent = (sevent_t *)event;
 
-	worker = (isc_task_t *)event->ev_sender;
 	dumpnode(dns_fixedname_name(sevent->fname), sevent->node);
 	cleannode(gdb, gversion, sevent->node);
 	dns_db_detachnode(gdb, &sevent->node);
 	isc_mem_put(mctx, sevent->fname, sizeof(dns_fixedname_t));
-	assignwork(task, worker);
+	assignwork(worker);
 	isc_event_free(&event);
 }
 
@@ -1728,7 +1721,7 @@ writenode(isc_task_t *task, isc_event_t *event) {
  *  Sign a database node.
  */
 static void
-sign(isc_task_t *task, isc_event_t *event) {
+sign(isc_task_t *worker, isc_event_t *event) {
 	dns_fixedname_t *fname;
 	dns_dbnode_t *node;
 	sevent_t *sevent, *wevent;
@@ -1739,12 +1732,12 @@ sign(isc_task_t *task, isc_event_t *event) {
 	isc_event_free(&event);
 
 	signname(node, dns_fixedname_name(fname));
-	wevent = (sevent_t *)isc_event_allocate(mctx, task, SIGNER_EVENT_WRITE,
-						writenode, NULL,
-						sizeof(sevent_t));
+	wevent = (sevent_t *)isc_event_allocate(mctx, worker,
+						SIGNER_EVENT_WRITE, writenode,
+						NULL, sizeof(sevent_t));
 	wevent->node = node;
 	wevent->fname = fname;
-	isc_task_send(main_task, ISC_EVENT_PTR(&wevent));
+	isc_task_send(worker, ISC_EVENT_PTR(&wevent));
 }
 
 /*%
@@ -3388,8 +3381,6 @@ main(int argc, char *argv[]) {
 
 	masterstyle = &dns_master_style_explicitttl;
 
-	check_result(isc_app_start(), "isc_app_start");
-
 	isc_mem_create(&mctx);
 
 	isc_commandline_errprint = false;
@@ -3706,7 +3697,7 @@ main(int argc, char *argv[]) {
 	}
 
 	if (ntasks == 0) {
-		ntasks = isc_os_ncpus() * 2;
+		ntasks = isc_os_ncpus();
 	}
 	vbprintf(4, "using %d cpus\n", ntasks);
 
@@ -4000,12 +3991,6 @@ main(int argc, char *argv[]) {
 
 	isc_managers_create(mctx, ntasks, 0, &netmgr, &taskmgr, NULL);
 
-	main_task = NULL;
-	result = isc_task_create(taskmgr, 0, &main_task);
-	if (result != ISC_R_SUCCESS) {
-		fatal("failed to create task: %s", isc_result_totext(result));
-	}
-
 	tasks = isc_mem_get(mctx, ntasks * sizeof(isc_task_t *));
 	for (i = 0; i < (int)ntasks; i++) {
 		tasks[i] = NULL;
@@ -4017,6 +4002,8 @@ main(int argc, char *argv[]) {
 	}
 
 	isc_mutex_init(&namelock);
+
+	loopmgr = isc_loopmgr_new(mctx, ntasks);
 
 	if (printstats) {
 		isc_mutex_init(&statslock);
@@ -4030,20 +4017,16 @@ main(int argc, char *argv[]) {
 		 * There is more work to do.  Spread it out over multiple
 		 * processors if possible.
 		 */
-		for (i = 0; i < (int)ntasks; i++) {
-			result = isc_app_onrun(mctx, main_task, startworker,
+		for (i = 0; i < (int)loopmgr->nloops; i++) {
+			isc_loop_schedule_ctor(&loopmgr->loops[i], startworker,
 					       tasks[i]);
-			if (result != ISC_R_SUCCESS) {
-				fatal("failed to start task: %s",
-				      isc_result_totext(result));
-			}
 		}
-		(void)isc_app_run();
+
+		isc_loopmgr_run(loopmgr);
+
 		if (!atomic_load(&finished)) {
 			fatal("process aborted by user");
 		}
-	} else {
-		isc_task_detach(&main_task);
 	}
 	atomic_store(&shuttingdown, true);
 	for (i = 0; i < (int)ntasks; i++) {
@@ -4130,9 +4113,10 @@ main(int argc, char *argv[]) {
 	if (verbose > 10) {
 		isc_mem_stats(mctx, stdout);
 	}
-	isc_mem_destroy(&mctx);
 
-	(void)isc_app_finish();
+	isc_loopmgr_destroy(&loopmgr);
+
+	isc_mem_destroy(&mctx);
 
 	if (printstats) {
 		TIME_NOW(&timer_finish);
