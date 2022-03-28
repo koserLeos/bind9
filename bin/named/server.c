@@ -27,7 +27,6 @@
 #endif
 
 #include <isc/aes.h>
-#include <isc/app.h>
 #include <isc/attributes.h>
 #include <isc/base64.h>
 #include <isc/commandline.h>
@@ -38,6 +37,7 @@
 #include <isc/hmac.h>
 #include <isc/httpd.h>
 #include <isc/lex.h>
+#include <isc/loop.h>
 #include <isc/meminfo.h>
 #include <isc/nonce.h>
 #include <isc/parseint.h>
@@ -46,6 +46,7 @@
 #include <isc/refcount.h>
 #include <isc/resource.h>
 #include <isc/result.h>
+#include <isc/signal.h>
 #include <isc/siphash.h>
 #include <isc/stat.h>
 #include <isc/stats.h>
@@ -9966,6 +9967,15 @@ run_server(isc_task_t *task, isc_event_t *event) {
 #endif /* ifdef ENABLE_AFL */
 }
 
+static void
+launch_server(void *arg) {
+	named_server_t *server = arg;
+	isc_event_t *event = isc_event_allocate(named_g_mctx, server->task,
+						NAMED_EVENT_RUN, run_server,
+						server, sizeof(*event));
+	isc_task_send(server->task, &event);
+}
+
 void
 named_server_flushonshutdown(named_server_t *server, bool flush) {
 	REQUIRE(NAMED_SERVER_VALID(server));
@@ -9982,8 +9992,9 @@ shutdown_server(isc_task_t *task, isc_event_t *event) {
 	bool flush = server->flushonshutdown;
 	named_cache_t *nsc;
 
-	UNUSED(task);
 	INSIST(task == server->task);
+
+	isc_event_free(&event);
 
 	/*
 	 * We need to shutdown the interface before going
@@ -10066,8 +10077,23 @@ shutdown_server(isc_task_t *task, isc_event_t *event) {
 	isc_task_endexclusive(server->task);
 
 	isc_task_detach(&server->task);
+}
 
-	isc_event_free(&event);
+static void
+close_server(void *arg) {
+	named_server_t *server = arg;
+
+	/*
+	 * Cleanup loopmgr resources directly, because shuttingdown the server
+	 * happens on async task
+	 */
+	isc_signal_stop(server->sighup);
+	isc_signal_free(server->sighup);
+
+	isc_event_t *event = isc_event_allocate(
+		named_g_mctx, server->task, NAMED_EVENT_SHUTDOWN,
+		shutdown_server, server, sizeof(*event));
+	isc_task_send(server->task, &event);
 }
 
 /*%
@@ -10176,11 +10202,15 @@ named_server_create(isc_mem_t *mctx, named_server_t **serverp) {
 	server->sctx->fuzznotify = named_fuzz_notify;
 #endif /* ifdef ENABLE_AFL */
 
-	CHECKFATAL(isc_task_onshutdown(server->task, shutdown_server, server),
-		   "isc_task_onshutdown");
-	CHECKFATAL(
-		isc_app_onrun(named_g_mctx, server->task, run_server, server),
-		"isc_app_onrun");
+	isc_loop_schedule_ctor(isc_loopmgr_default_loop(named_g_loopmgr),
+			       launch_server, server);
+
+	isc_loop_schedule_dtor(isc_loopmgr_default_loop(named_g_loopmgr),
+			       close_server, server);
+
+	/* Add SIGHUP reload handler  */
+	server->sighup = isc_signal_new(
+		named_g_loopmgr, named_server_reloadwanted, server, SIGHUP);
 
 	server->interface_timer = NULL;
 	server->heartbeat_timer = NULL;
@@ -10497,7 +10527,11 @@ named_server_reload(isc_task_t *task, isc_event_t *event) {
 }
 
 void
-named_server_reloadwanted(named_server_t *server) {
+named_server_reloadwanted(void *arg, int signum) {
+	named_server_t *server = arg;
+
+	REQUIRE(signum == SIGHUP);
+
 	isc_event_t *event = isc_event_allocate(
 		named_g_mctx, server, NAMED_EVENT_RELOAD, named_server_reload,
 		NULL, sizeof(isc_event_t));

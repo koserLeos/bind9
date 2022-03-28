@@ -157,7 +157,7 @@ shutdown_cb(uv_async_t *handle) {
 	uv_close((uv_handle_t *)&loop->shutdown, NULL);
 	uv_close((uv_handle_t *)&loop->pause, NULL);
 
-	job = ISC_LIST_HEAD(loop->dtors);
+	job = ISC_LIST_TAIL(loop->dtors);
 	while (job != NULL) {
 		int r;
 		isc_job_t *next = ISC_LIST_NEXT(job, link);
@@ -263,6 +263,12 @@ isc__loop_schedule(isc_loop_t *loop, int when, isc_job_cb cb, void *cbarg) {
 	UV_RUNTIME_CHECK(uv_idle_init, r);
 	uv_handle_set_data((uv_handle_t *)&job->idle, job);
 
+	/*
+	 * The ISC_LIST_PREPEND is counterintuitive here, but actually, the
+	 * uv_idle_start() puts the item on the HEAD of the internal list, so we
+	 * want to store items here in reverse order, so on the uv_loop, they
+	 * are scheduled in the correct order
+	 */
 	switch (when) {
 	case isc_loop_ctor:
 		ISC_LIST_PREPEND(loop->ctors, job, link);

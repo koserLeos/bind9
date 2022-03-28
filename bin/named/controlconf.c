@@ -16,7 +16,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#include <isc/app.h>
 #include <isc/base64.h>
 #include <isc/buffer.h>
 #include <isc/event.h>
@@ -49,6 +48,7 @@
 #include <named/config.h>
 #include <named/control.h>
 #include <named/log.h>
+#include <named/main.h>
 #include <named/server.h>
 
 typedef struct controlkey controlkey_t;
@@ -226,7 +226,7 @@ control_senddone(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	conn->sending = false;
 
 	if (conn->result == ISC_R_SHUTTINGDOWN) {
-		isc_app_shutdown();
+		isc_loopmgr_shutdown(named_g_loopmgr);
 		goto cleanup_sendhandle;
 	}
 

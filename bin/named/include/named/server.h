@@ -21,6 +21,7 @@
 #include <isc/log.h>
 #include <isc/magic.h>
 #include <isc/quota.h>
+#include <isc/signal.h>
 #include <isc/sockaddr.h>
 #include <isc/tls.h>
 #include <isc/types.h>
@@ -37,11 +38,13 @@
 
 #include <named/types.h>
 
-#define NAMED_EVENTCLASS    ISC_EVENTCLASS(0x4E43)
-#define NAMED_EVENT_RELOAD  (NAMED_EVENTCLASS + 0)
-#define NAMED_EVENT_DELZONE (NAMED_EVENTCLASS + 1)
-#define NAMED_EVENT_COMMAND (NAMED_EVENTCLASS + 2)
-#define NAMED_EVENT_TATSEND (NAMED_EVENTCLASS + 3)
+#define NAMED_EVENTCLASS     ISC_EVENTCLASS(0x4E43)
+#define NAMED_EVENT_RELOAD   (NAMED_EVENTCLASS + 0)
+#define NAMED_EVENT_DELZONE  (NAMED_EVENTCLASS + 1)
+#define NAMED_EVENT_COMMAND  (NAMED_EVENTCLASS + 2)
+#define NAMED_EVENT_TATSEND  (NAMED_EVENTCLASS + 3)
+#define NAMED_EVENT_RUN	     (NAMED_EVENTCLASS + 4)
+#define NAMED_EVENT_SHUTDOWN (NAMED_EVENTCLASS + 5)
 
 /*%
  * Name server state.  Better here than in lots of separate global variables.
@@ -115,6 +118,8 @@ struct named_server {
 
 	isc_tlsctx_cache_t *tlsctx_server_cache;
 	isc_tlsctx_cache_t *tlsctx_client_cache;
+
+	isc_signal_t *sighup;
 };
 
 #define NAMED_SERVER_MAGIC    ISC_MAGIC('S', 'V', 'E', 'R')
@@ -135,7 +140,7 @@ named_server_destroy(named_server_t **serverp);
  */
 
 void
-named_server_reloadwanted(named_server_t *server);
+named_server_reloadwanted(void *arg, int signum);
 /*%<
  * Inform a server that a reload is wanted.  This function
  * may be called asynchronously, from outside the server's task.

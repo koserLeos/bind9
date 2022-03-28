@@ -18,6 +18,7 @@
 #include <stdbool.h>
 
 #include <isc/log.h>
+#include <isc/loop.h>
 #include <isc/net.h>
 #include <isc/netmgr.h>
 #include <isc/rwlock.h>
@@ -50,6 +51,7 @@ EXTERN isc_mem_t *named_g_mctx		      INIT(NULL);
 EXTERN unsigned int named_g_cpus	      INIT(0);
 EXTERN unsigned int named_g_udpdisp	      INIT(0);
 EXTERN isc_taskmgr_t *named_g_taskmgr	      INIT(NULL);
+EXTERN isc_loopmgr_t *named_g_loopmgr	      INIT(NULL);
 EXTERN dns_dispatchmgr_t *named_g_dispatchmgr INIT(NULL);
 EXTERN unsigned int named_g_cpus_detected     INIT(1);
 
