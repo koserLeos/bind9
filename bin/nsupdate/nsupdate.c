@@ -966,9 +966,7 @@ get_addresses(char *host, in_port_t port, isc_sockaddr_t *sockaddr,
 	int count = 0;
 	isc_result_t result;
 
-	isc_app_block();
 	result = bind9_getaddresses(host, port, sockaddr, naddrs, &count);
-	isc_app_unblock();
 	if (result != ISC_R_SUCCESS) {
 		error("couldn't get address for '%s': %s", host,
 		      isc_result_totext(result));
@@ -2254,7 +2252,6 @@ get_next_command(void) {
 	char cmdlinebuf[MAXCMD];
 	char *cmdline = NULL, *ptr = NULL;
 
-	isc_app_block();
 	if (interactive) {
 		cmdline = ptr = readline("> ");
 		if (ptr != NULL && *ptr != 0) {
@@ -2263,7 +2260,6 @@ get_next_command(void) {
 	} else {
 		cmdline = fgets(cmdlinebuf, MAXCMD, input);
 	}
-	isc_app_unblock();
 
 	if (cmdline != NULL) {
 		char *tmp = cmdline;

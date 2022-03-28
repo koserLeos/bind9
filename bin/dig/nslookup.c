@@ -805,10 +805,8 @@ do_next_command(char *input) {
 	} else if ((strcasecmp(ptr, "server") == 0) ||
 		   (strcasecmp(ptr, "lserver") == 0))
 	{
-		isc_app_block();
 		set_nameserver(arg);
 		check_ra = false;
-		isc_app_unblock();
 		show_settings(true, true);
 	} else if (strcasecmp(ptr, "exit") == 0) {
 		in_use = false;
@@ -829,7 +827,6 @@ get_next_command(void) {
 	char cmdlinebuf[COMMSIZE];
 	char *cmdline, *ptr = NULL;
 
-	isc_app_block();
 	if (interactive) {
 		cmdline = ptr = readline("> ");
 		if (ptr != NULL && *ptr != 0) {
@@ -838,7 +835,6 @@ get_next_command(void) {
 	} else {
 		cmdline = fgets(cmdlinebuf, COMMSIZE, stdin);
 	}
-	isc_app_unblock();
 	if (cmdline == NULL) {
 		in_use = false;
 	} else {
