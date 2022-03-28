@@ -64,7 +64,6 @@ dns_dispatchmgr_t *dispatchmgr = NULL;
 ns_clientmgr_t *clientmgr = NULL;
 ns_interfacemgr_t *interfacemgr = NULL;
 ns_server_t *sctx = NULL;
-bool app_running = false;
 bool debug_mem_record = true;
 static atomic_bool run_managers = false;
 
@@ -202,10 +201,6 @@ cleanup_managers(void) {
 	isc_managers_destroy(netmgr == NULL ? NULL : &netmgr,
 			     taskmgr == NULL ? NULL : &taskmgr,
 			     timermgr == NULL ? NULL : &timermgr);
-
-	if (app_running) {
-		isc_app_finish();
-	}
 }
 
 static void
@@ -280,7 +275,6 @@ ns_test_begin(FILE *logfile, bool start_managers) {
 					isc_resource_openfiles, files);
 			}
 		}
-		CHECK(isc_app_start());
 	}
 	if (debug_mem_record) {
 		isc_mem_debugging |= ISC_MEM_DEBUGRECORD;
