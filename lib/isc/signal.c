@@ -23,6 +23,7 @@ isc_signal_new(isc_loopmgr_t *loopmgr, isc_signal_cb cb, void *cbarg,
 	isc_loop_t *loop = NULL;
 	isc_signal_t *signal = NULL;
 	isc_mem_t *mctx = NULL;
+	int r;
 
 	loop = DEFAULT_LOOP(loopmgr);
 
@@ -36,7 +37,7 @@ isc_signal_new(isc_loopmgr_t *loopmgr, isc_signal_cb cb, void *cbarg,
 		.signum = signum,
 	};
 
-	int r = uv_signal_init(&loop->loop, &signal->signal);
+	r = uv_signal_init(&loop->loop, &signal->signal);
 	UV_RUNTIME_CHECK(uv_signal_init, r);
 
 	uv_handle_set_data((uv_handle_t *)&signal->signal, signal);

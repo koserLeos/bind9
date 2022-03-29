@@ -41,9 +41,7 @@ static void
 ignore_signal(int sig, void (*handler)(int)) {
 	struct sigaction sa;
 
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = handler;
-
+	sa = (struct sigaction){ .sa_handler = handler };
 	if (sigfillset(&sa.sa_mask) != 0 || sigaction(sig, &sa, NULL) < 0) {
 		char strbuf[ISC_STRERRORSIZE];
 		strerror_r(errno, strbuf, sizeof(strbuf));
@@ -240,6 +238,7 @@ static void
 isc__loop_schedule(isc_loop_t *loop, int when, isc_job_cb cb, void *cbarg) {
 	isc_job_t *job = NULL;
 	isc_loopmgr_t *loopmgr;
+	int r;
 
 	REQUIRE(VALID_LOOP(loop));
 
@@ -259,7 +258,7 @@ isc__loop_schedule(isc_loop_t *loop, int when, isc_job_cb cb, void *cbarg) {
 
 	isc_mem_attach(loop->mctx, &job->mctx);
 
-	int r = uv_idle_init(&loop->loop, &job->idle);
+	r = uv_idle_init(&loop->loop, &job->idle);
 	UV_RUNTIME_CHECK(uv_idle_init, r);
 	uv_handle_set_data((uv_handle_t *)&job->idle, job);
 
