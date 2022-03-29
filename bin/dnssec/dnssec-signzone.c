@@ -1698,7 +1698,7 @@ unlock:
  */
 static void
 startworker(void *arg) {
-	isc_task_t *worker = arg;
+	isc_task_t *worker = (isc_task_t *)arg;
 	assignwork(worker);
 }
 
@@ -4065,11 +4065,6 @@ main(int argc, char *argv[]) {
 		check_result(result, "dns_master_dumptostream3");
 	}
 
-	isc_mutex_destroy(&namelock);
-	if (printstats) {
-		isc_mutex_destroy(&statslock);
-	}
-
 	if (!output_stdout) {
 		result = isc_stdio_close(outfp);
 		check_result(result, "isc_stdio_close");
@@ -4122,7 +4117,9 @@ main(int argc, char *argv[]) {
 		TIME_NOW(&timer_finish);
 		print_stats(&timer_start, &timer_finish, &sign_start,
 			    &sign_finish);
+		isc_mutex_destroy(&statslock);
 	}
+	isc_mutex_destroy(&namelock);
 
 	return (vresult == ISC_R_SUCCESS ? 0 : 1);
 }
