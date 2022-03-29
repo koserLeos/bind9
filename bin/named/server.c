@@ -10516,7 +10516,6 @@ named_server_reload(isc_task_t *task, isc_event_t *event) {
 	named_server_t *server = (named_server_t *)event->ev_sender;
 
 	INSIST(task == server->task);
-	UNUSED(task);
 
 	isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,
 		      NAMED_LOGMODULE_SERVER, ISC_LOG_INFO,
@@ -10528,7 +10527,7 @@ named_server_reload(isc_task_t *task, isc_event_t *event) {
 
 void
 named_server_reloadwanted(void *arg, int signum) {
-	named_server_t *server = arg;
+	named_server_t *server = (named_server_t *)arg;
 
 	REQUIRE(signum == SIGHUP);
 
