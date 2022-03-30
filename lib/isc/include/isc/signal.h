@@ -12,10 +12,12 @@
  */
 
 #include <stdlib.h>
-#include <uv.h>
 
 #include <isc/lang.h>
 #include <isc/loop.h>
+
+#define DEFAULT_LOOP(loopmgr) (&(loopmgr)->loops[0])
+#define CURRENT_LOOP(loopmgr) (&(loopmgr)->loops[isc__loopmgr_tid_v])
 
 ISC_LANG_BEGINDECLS
 

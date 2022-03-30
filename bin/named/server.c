@@ -16,6 +16,7 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/stat.h>

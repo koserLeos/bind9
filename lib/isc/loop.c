@@ -31,6 +31,9 @@
 #include <isc/thread.h>
 #include <isc/util.h>
 
+#include "loop_p.h"
+#include "netmgr/uv-compat.h"
+
 /**
  * Private
  */

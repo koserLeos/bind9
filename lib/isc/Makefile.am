@@ -152,6 +152,7 @@ libisc_la_SOURCES =		\
 	lib.c			\
 	log.c			\
 	loop.c			\
+	loop_p.h		\
 	managers.c		\
 	md.c			\
 	mem.c			\
