@@ -17,13 +17,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include <isc/app.h>
 #include <isc/atomic.h>
 #include <isc/attributes.h>
 #include <isc/buffer.h>
 #include <isc/commandline.h>
 #include <isc/file.h>
 #include <isc/log.h>
+#include <isc/loop.h>
 #include <isc/managers.h>
 #include <isc/mem.h>
 #include <isc/net.h>
@@ -61,6 +61,7 @@ bool verbose;
 
 static isc_nm_t *netmgr = NULL;
 static isc_taskmgr_t *taskmgr = NULL;
+static isc_loopmgr_t *loopmgr = NULL;
 static isc_task_t *rndc_task = NULL;
 
 static const char *admin_conffile = NULL;
@@ -307,7 +308,7 @@ rndc_senddone(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	    atomic_load_acquire(&recvs) == 0)
 	{
 		shuttingdown = true;
-		isc_app_shutdown();
+		isc_loopmgr_shutdown(loopmgr);
 	}
 }
 
@@ -392,7 +393,7 @@ rndc_recvdone(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	    atomic_fetch_sub_release(&recvs, 1) == 1)
 	{
 		shuttingdown = true;
-		isc_app_shutdown();
+		isc_loopmgr_shutdown(loopmgr);
 	}
 }
 
@@ -601,10 +602,8 @@ rndc_startconnect(isc_sockaddr_t *addr) {
 }
 
 static void
-rndc_start(isc_task_t *task, isc_event_t *event) {
-	isc_event_free(&event);
-
-	UNUSED(task);
+rndc_start(void *arg) {
+	UNUSED(arg);
 
 	currentaddr = 0;
 	rndc_startconnect(&serveraddrs[currentaddr]);
@@ -914,11 +913,6 @@ main(int argc, char **argv) {
 	isc_sockaddr_any(&local4);
 	isc_sockaddr_any6(&local6);
 
-	result = isc_app_start();
-	if (result != ISC_R_SUCCESS) {
-		fatal("isc_app_start() failed: %s", isc_result_totext(result));
-	}
-
 	isc_commandline_errprint = false;
 
 	preparse_args(argc, argv);
@@ -1074,14 +1068,14 @@ main(int argc, char **argv) {
 		get_addresses(servername, (in_port_t)remoteport);
 	}
 
-	DO("post event", isc_app_onrun(rndc_mctx, rndc_task, rndc_start, NULL));
+	loopmgr = isc_loopmgr_new(rndc_mctx, 1);
 
-	result = isc_app_run();
-	if (result != ISC_R_SUCCESS) {
-		fatal("isc_app_run() failed: %s", isc_result_totext(result));
-	}
+	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr), rndc_start,
+			       rndc_task);
+	isc_loopmgr_run(loopmgr);
 
 	isc_task_detach(&rndc_task);
+	isc_loopmgr_destroy(&loopmgr);
 	isc_managers_destroy(&netmgr, &taskmgr, NULL);
 
 	/*
