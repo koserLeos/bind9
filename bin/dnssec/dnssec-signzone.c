@@ -143,7 +143,7 @@ static bool snset = false;
 static unsigned int nsigned = 0, nretained = 0, ndropped = 0;
 static unsigned int nverified = 0, nverifyfailed = 0;
 static const char *directory = NULL, *dsdir = NULL;
-static isc_mutex_t namelock, statslock;
+static isc_mutex_t namelock, statslock, writelock;
 static isc_nm_t *netmgr = NULL;
 static isc_loopmgr_t *loopmgr = NULL;
 static isc_taskmgr_t *taskmgr = NULL;
@@ -1709,12 +1709,14 @@ static void
 writenode(isc_task_t *task, isc_event_t *event) {
 	sevent_t *sevent = (sevent_t *)event;
 
+	LOCK(&writelock);
 	dumpnode(dns_fixedname_name(sevent->fname), sevent->node);
 	cleannode(gdb, gversion, sevent->node);
 	dns_db_detachnode(gdb, &sevent->node);
 	isc_mem_put(mctx, sevent->fname, sizeof(dns_fixedname_t));
 	assignwork(task);
 	isc_event_free(&event);
+	UNLOCK(&writelock);
 }
 
 /*%
@@ -4002,6 +4004,7 @@ main(int argc, char *argv[]) {
 	}
 
 	isc_mutex_init(&namelock);
+	isc_mutex_init(&writelock);
 
 	loopmgr = isc_loopmgr_new(mctx, ntasks);
 
@@ -4120,6 +4123,7 @@ main(int argc, char *argv[]) {
 		isc_mutex_destroy(&statslock);
 	}
 	isc_mutex_destroy(&namelock);
+	isc_mutex_destroy(&writelock);
 
 	return (vresult == ISC_R_SUCCESS ? 0 : 1);
 }
