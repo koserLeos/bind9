@@ -77,7 +77,9 @@ isc__loopmgr_shutdown(isc_loopmgr_t *loopmgr) {
 
 void
 isc_loopmgr_shutdown(isc_loopmgr_t *loopmgr) {
-	/* Invoked from non-default loop, just pass the signal */
+	REQUIRE(VALID_LOOPMGR(loopmgr));
+
+	/* If invoked from non-default loop, just pass the signal */
 	if (DEFAULT_LOOP(loopmgr) != CURRENT_LOOP(loopmgr)) {
 		kill(getpid(), SIGTERM);
 		return;

@@ -17,6 +17,7 @@
 #include <uv.h>
 
 #include <isc/barrier.h>
+#include <isc/lang.h>
 #include <isc/mem.h>
 #include <isc/refcount.h>
 #include <isc/result.h>
@@ -122,44 +123,126 @@ struct isc_loopmgr {
 #define DEFAULT_LOOP(loopmgr) (&(loopmgr)->loops[0])
 #define CURRENT_LOOP(loopmgr) (&(loopmgr)->loops[isc__loopmgr_tid_v])
 
+ISC_LANG_BEGINDECLS
+
 isc_loopmgr_t *
-isc_loopmgr_new(isc_mem_t *, uint32_t);
+isc_loopmgr_new(isc_mem_t *mctx, uint32_t nloops);
+/*%<
+ * Create a loop manager supporting 'nloops' loops.
+ *
+ * Requires:
+ *\li	'nloops' is greater than 0.
+ */
 
 void
-isc_loopmgr_destroy(isc_loopmgr_t **);
+isc_loopmgr_destroy(isc_loopmgr_t **loopmgrp);
+/*%<
+ * Destroy the loop manager pointed to by 'loopmgrp'.
+ *
+ * Requires:
+ *\li	'loopmgr' points to a valid loop manager.
+ */
 
 void
-isc_loopmgr_shutdown(isc_loopmgr_t *);
-
-isc_loop_t *
-isc_loopmgr_getloop(isc_loopmgr_t *);
+isc_loopmgr_shutdown(isc_loopmgr_t *loopmgr);
+/*%<
+ * Request shutdown of the loop manager 'loopmgr'.
+ *
+ * This will stop all signal handlers and send shutdown events to
+ * all active loops. As a final action on shutting down, each loop
+ * will run the function (or functions) set by isc_loopmgr_schedule_dtor()
+ * or isc_loop_schedule_dtor().
+ *
+ * Requires:
+ *\li	'loopmgr' is a valid loop manager.
+ */
 
 int
 isc_loopmgr_tid(void);
+/*%<
+ * Returns the thread ID of the currently-running loop (or
+ * ISC_LOOPMGR_TID_UNKNOWN if not running in a loop manager loop).
+ */
 
 void
-isc_loopmgr_run(isc_loopmgr_t *);
+isc_loopmgr_run(isc_loopmgr_t *loopmgr);
+/*%<
+ * Run the loops in 'loopmgr'. Each loop will start by running the
+ * function (or functions) set by isc_loopmgr_schedule_ctor() or
+ * isc_loop_schedule_ctor().
+ *
+ * Requires:
+ *\li	'loopmgr' is a valid loop manager.
+ */
 
 void
-isc_loopmgr_pause(isc_loopmgr_t *);
+isc_loopmgr_pause(isc_loopmgr_t *loopmgr);
+/*%<
+ * Send pause events to all running loops in 'loopmgr' (except the
+ * current one if called from one of the loops). All paused loops will
+ * wait utnil isc_loopmgr_resume() is called before continuing.
+ *
+ * Requires:
+ *\li	'loopmgr' is a valid loop manager.
+ */
 
 void
-isc_loopmgr_resume(isc_loopmgr_t *);
-
-void
-isc_loopmgr_schedule_ctor(isc_loopmgr_t *, isc_job_cb, void *);
-
-void
-isc_loopmgr_schedule_dtor(isc_loopmgr_t *, isc_job_cb, void *);
+isc_loopmgr_resume(isc_loopmgr_t *loopmgr);
+/*%<
+ * Send resume events to all paused loops in 'loopmgr'.
+ *
+ * Requires:
+ *\li	'loopmgr' is a valid loop manager.
+ */
 
 void
 isc_loop_schedule_ctor(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
-
 void
 isc_loop_schedule_dtor(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
+/*%<
+ * Schedule actions to be run when starting, and when shutting down,
+ * one of the loops in a loop manager.
+ *
+ * Requires:
+ *\li	'loop' is a valid loop.
+ *\li	The loop manager associated with 'loop' is paused or has not
+ *	yet been started.
+ */
 
 void
-isc_loop_mem_attach(isc_loop_t *loop, isc_mem_t **mctx);
+isc_loopmgr_schedule_ctor(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
+void
+isc_loopmgr_schedule_dtor(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
+/*%<
+ * Schedule actions to be run when starting, and when shutting down,
+ * *all* of the loops in loopmgr.
+ *
+ * This is the same as running isc_loop_schedule_ctor() or
+ * isc_loop_schedule_dtor() on each of the loops in turn.
+ *
+ * Requires:
+ *\li	'loopmgr' is a valid loop manager.
+ *\li	'loopmgr' is paused or has not yet been started.
+ */
+
+void
+isc_loop_mem_attach(isc_loop_t *loop, isc_mem_t **mctxp);
+/*%<
+ * Attach to a memory context that was created for 'loop' when
+ *
+ * Requires:
+ *\li	'loop' is a valid loop.
+ *\li	'mctxp' is not NULL, and *mctxp is NULL.
+ */
 
 isc_loop_t *
 isc_loopmgr_default_loop(isc_loopmgr_t *loopmgr);
+/*%<
+ * Returns the default loop for the 'loopmgr' (which is
+ * 'loopmgr->loops[0]').
+ *
+ * Requires:
+ *\li	'loopmgr' is a valid loop manager.
+ */
+
+ISC_LANG_ENDDECLS
