@@ -29,7 +29,6 @@
 #define UNIT_TESTING
 #include <cmocka.h>
 
-#include <isc/app.h>
 #include <isc/buffer.h>
 #include <isc/file.h>
 #include <isc/hash.h>

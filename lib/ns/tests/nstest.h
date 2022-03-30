@@ -61,7 +61,6 @@ extern dns_dispatchmgr_t *dispatchmgr;
 extern ns_clientmgr_t *clientmgr;
 extern ns_interfacemgr_t *interfacemgr;
 extern ns_server_t *sctx;
-extern bool app_running;
 extern bool debug_mem_record;
 
 #ifdef NETMGR_TRACE

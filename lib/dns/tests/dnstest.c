@@ -28,7 +28,6 @@
 #define UNIT_TESTING
 #include <cmocka.h>
 
-#include <isc/app.h>
 #include <isc/buffer.h>
 #include <isc/file.h>
 #include <isc/hash.h>
@@ -68,10 +67,11 @@ isc_mem_t *dt_mctx = NULL;
 isc_log_t *lctx = NULL;
 isc_nm_t *netmgr = NULL;
 isc_taskmgr_t *taskmgr = NULL;
+isc_loopmgr_t *loopmgr = NULL;
 isc_task_t *maintask = NULL;
 isc_timermgr_t *timermgr = NULL;
 dns_zonemgr_t *zonemgr = NULL;
-bool app_running = false;
+bool loop_running = false;
 int ncpus;
 bool debug_mem_record = true;
 
@@ -98,13 +98,13 @@ cleanup_managers(void) {
 		isc_task_destroy(&maintask);
 	}
 
+	if (loop_running) {
+		isc_loopmgr_destroy(&loopmgr);
+	}
+
 	isc_managers_destroy(netmgr == NULL ? NULL : &netmgr,
 			     taskmgr == NULL ? NULL : &taskmgr,
 			     timermgr == NULL ? NULL : &timermgr);
-
-	if (app_running) {
-		isc_app_finish();
-	}
 }
 
 static isc_result_t
@@ -128,9 +128,6 @@ dns_test_begin(FILE *logfile, bool start_managers) {
 	INSIST(!test_running);
 	test_running = true;
 
-	if (start_managers) {
-		CHECK(isc_app_start());
-	}
 	if (debug_mem_record) {
 		isc_mem_debugging |= ISC_MEM_DEBUGRECORD;
 	}

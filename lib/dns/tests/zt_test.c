@@ -25,9 +25,9 @@
 #define UNIT_TESTING
 #include <cmocka.h>
 
-#include <isc/app.h>
 #include <isc/atomic.h>
 #include <isc/buffer.h>
+#include <isc/loop.h>
 #include <isc/print.h>
 #include <isc/task.h>
 #include <isc/timer.h>
@@ -87,7 +87,7 @@ load_done(dns_zt_t *zt, dns_zone_t *zone, isc_task_t *task) {
 	UNUSED(task);
 
 	atomic_store(done, true);
-	isc_app_shutdown();
+	isc_loopmgr_shutdown(loopmgr);
 	return (ISC_R_SUCCESS);
 }
 
@@ -96,29 +96,22 @@ all_done(void *arg) {
 	atomic_bool *done = (atomic_bool *)arg;
 
 	atomic_store(done, true);
-	isc_app_shutdown();
+	isc_loopmgr_shutdown(loopmgr);
 	return (ISC_R_SUCCESS);
 }
 
 static void
-start_zt_asyncload(isc_task_t *task, isc_event_t *event) {
-	struct args *args = (struct args *)(event->ev_arg);
-
-	UNUSED(task);
+start_zt_asyncload(void *arg) {
+	struct args *args = (struct args *)arg;
 
 	dns_zt_asyncload(args->arg1, false, all_done, args->arg2);
-
-	isc_event_free(&event);
 }
 
 static void
-start_zone_asyncload(isc_task_t *task, isc_event_t *event) {
-	struct args *args = (struct args *)(event->ev_arg);
-
-	UNUSED(task);
+start_zone_asyncload(void *arg) {
+	struct args *args = (struct args *)arg;
 
 	dns_zone_asyncload(args->arg1, args->arg3, load_done, args->arg2);
-	isc_event_free(&event);
 }
 
 /* apply a function to a zone table */
@@ -202,9 +195,13 @@ asyncload_zone(void **state) {
 	args.arg1 = zone;
 	args.arg2 = &done;
 	args.arg3 = false;
-	isc_app_onrun(dt_mctx, maintask, start_zone_asyncload, &args);
 
-	isc_app_run();
+	loopmgr = isc_loopmgr_new(dt_mctx, 1);
+	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr),
+			       start_zone_asyncload, &args);
+	isc_loopmgr_run(loopmgr);
+	isc_loopmgr_destroy(&loopmgr);
+
 	while (dns__zone_loadpending(zone) && i++ < 5000) {
 		dns_test_nap(1000);
 	}
@@ -224,9 +221,12 @@ asyncload_zone(void **state) {
 	args.arg1 = zone;
 	args.arg2 = &done;
 	args.arg3 = true;
-	isc_app_onrun(dt_mctx, maintask, start_zone_asyncload, &args);
 
-	isc_app_run();
+	loopmgr = isc_loopmgr_new(dt_mctx, 1);
+	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr),
+			       start_zone_asyncload, &args);
+	isc_loopmgr_run(loopmgr);
+	isc_loopmgr_destroy(&loopmgr);
 
 	while (dns__zone_loadpending(zone) && i++ < 5000) {
 		dns_test_nap(1000);
@@ -241,9 +241,12 @@ asyncload_zone(void **state) {
 	args.arg1 = zone;
 	args.arg2 = &done;
 	args.arg3 = false;
-	isc_app_onrun(dt_mctx, maintask, start_zone_asyncload, &args);
 
-	isc_app_run();
+	loopmgr = isc_loopmgr_new(dt_mctx, 1);
+	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr),
+			       start_zone_asyncload, &args);
+	isc_loopmgr_run(loopmgr);
+	isc_loopmgr_destroy(&loopmgr);
 
 	while (dns__zone_loadpending(zone) && i++ < 5000) {
 		dns_test_nap(1000);
@@ -316,9 +319,13 @@ asyncload_zt(void **state) {
 
 	args.arg1 = zt;
 	args.arg2 = &done;
-	isc_app_onrun(dt_mctx, maintask, start_zt_asyncload, &args);
 
-	isc_app_run();
+	loopmgr = isc_loopmgr_new(dt_mctx, 1);
+	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr),
+			       start_zt_asyncload, &args);
+	isc_loopmgr_run(loopmgr);
+	isc_loopmgr_destroy(&loopmgr);
+
 	while (!atomic_load(&done) && i++ < 5000) {
 		dns_test_nap(1000);
 	}

@@ -21,6 +21,7 @@
 #include <isc/buffer.h>
 #include <isc/hash.h>
 #include <isc/log.h>
+#include <isc/loop.h>
 #include <isc/mem.h>
 #include <isc/result.h>
 #include <isc/string.h>
@@ -47,11 +48,12 @@ typedef struct {
 extern isc_mem_t *dt_mctx;
 extern isc_log_t *lctx;
 extern isc_taskmgr_t *taskmgr;
+extern isc_loopmgr_t *loopmgr;
 extern isc_task_t *maintask;
 extern isc_timermgr_t *timermgr;
 extern isc_nm_t *netmgr;
 extern dns_zonemgr_t *zonemgr;
-extern bool app_running;
+extern bool loop_running;
 extern int ncpus;
 extern bool debug_mem_record;
 
