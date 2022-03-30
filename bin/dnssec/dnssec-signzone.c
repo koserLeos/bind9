@@ -4020,9 +4020,14 @@ main(int argc, char *argv[]) {
 		 * There is more work to do.  Spread it out over multiple
 		 * processors if possible.
 		 */
-		for (i = 0; i < (int)loopmgr->nloops; i++) {
-			isc_loop_schedule_ctor(&loopmgr->loops[i], startworker,
-					       tasks[i]);
+		for (i = 0; i < (int)ntasks; i++) {
+			/*
+			 * We can't use isc_loopmgr_schedule_ctor() here
+			 * because each loop gets a different task.
+			 */
+			isc_loop_schedule_ctor(
+				isc_loopmgr_default_loop(loopmgr), startworker,
+				tasks[i]);
 		}
 
 		isc_loopmgr_run(loopmgr);
