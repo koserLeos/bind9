@@ -81,25 +81,41 @@ isc_loopmgr_run(isc_loopmgr_t *loopmgr);
  * Requires:
  *\li	'loopmgr' is a valid loop manager.
  */
+void
+isc_loop_runjob(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
+/*%<
+ * Schedule a single job to run in 'loop' in the next iteration
+ * of uv_run(): 'cb' will be called with argument 'cbarg'.
+ *
+ * Requires:
+ *\li	'loop' is a valid loop.
+ *\li	'loop' is the currently running loop, or the loop manager
+ *	associated with 'loop' is paused or has not yet been started.
+ */
 
 void
 isc_loopmgr_pause(isc_loopmgr_t *loopmgr);
 /*%<
- * Send pause events to all running loops in 'loopmgr' (except the
- * current one if called from one of the loops). All paused loops will
- * wait utnil isc_loopmgr_resume() is called before continuing.
+ * Send pause events to all running loops in 'loopmgr' except the
+ * current one. This can only be called from a running loop.
+ * All the paused loops will wait until isc_loopmgr_resume() is
+ * run in the calling loop before continuing.
  *
  * Requires:
  *\li	'loopmgr' is a valid loop manager.
+ *\li	We are in a running loop.
  */
 
 void
 isc_loopmgr_resume(isc_loopmgr_t *loopmgr);
 /*%<
- * Send resume events to all paused loops in 'loopmgr'.
+ * Send resume events to all paused loops in 'loopmgr'. This can
+ * only be called by a running loop (which must therefore be the
+ * loop that called isc_loopmgr_pause()).
  *
  * Requires:
  *\li	'loopmgr' is a valid loop manager.
+ *\li	We are in a running loop.
  */
 
 void

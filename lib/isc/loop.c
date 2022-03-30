@@ -371,6 +371,36 @@ isc_loopmgr_teardown(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg) {
 }
 
 void
+isc_loop_runjob(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
+	isc_loopmgr_t *loopmgr = NULL;
+	isc_job_t *job = NULL;
+	int r;
+
+	REQUIRE(VALID_LOOP(loop));
+
+	loopmgr = loop->loopmgr;
+
+	REQUIRE(loop->tid == isc__loopmgr_tid_v ||
+		!atomic_load(&loopmgr->running) ||
+		atomic_load(&loopmgr->paused));
+
+	job = isc_mem_get(loop->mctx, sizeof(*job));
+	*job = (isc_job_t){
+		.cb = cb,
+		.cbarg = cbarg,
+	};
+
+	isc_mem_attach(loop->mctx, &job->mctx);
+
+	r = uv_idle_init(&loop->loop, &job->idle);
+	UV_RUNTIME_CHECK(uv_idle_init, r);
+	uv_handle_set_data((uv_handle_t *)&job->idle, job);
+
+	r = uv_idle_start(&job->idle, isc__job_cb);
+	UV_RUNTIME_CHECK(uv_idle_start, r);
+}
+
+void
 isc_loopmgr_run(isc_loopmgr_t *loopmgr) {
 	REQUIRE(VALID_LOOPMGR(loopmgr));
 	RUNTIME_CHECK(atomic_compare_exchange_strong(&loopmgr->running,
@@ -396,6 +426,7 @@ isc_loopmgr_run(isc_loopmgr_t *loopmgr) {
 void
 isc_loopmgr_pause(isc_loopmgr_t *loopmgr) {
 	REQUIRE(VALID_LOOPMGR(loopmgr));
+	REQUIRE(isc__loopmgr_tid_v != ISC_LOOPMGR_TID_UNKNOWN);
 
 	for (size_t i = 0; i < loopmgr->nloops; i++) {
 		isc_loop_t *loop = &loopmgr->loops[i];
@@ -415,6 +446,7 @@ isc_loopmgr_pause(isc_loopmgr_t *loopmgr) {
 void
 isc_loopmgr_resume(isc_loopmgr_t *loopmgr) {
 	REQUIRE(VALID_LOOPMGR(loopmgr));
+	REQUIRE(isc__loopmgr_tid_v != ISC_LOOPMGR_TID_UNKNOWN);
 
 	RUNTIME_CHECK(atomic_compare_exchange_strong(&loopmgr->paused,
 						     &(bool){ true }, false));
