@@ -461,12 +461,11 @@ isc_loopmgr_destroy(isc_loopmgr_t **loopmgrp) {
 	isc_mem_putanddetach(&loopmgr->mctx, loopmgr, sizeof(*loopmgr));
 }
 
-void
-isc_loop_mem_attach(isc_loop_t *loop, isc_mem_t **mctxp) {
+isc_mem_t *
+isc_loop_getmctx(isc_loop_t *loop) {
 	REQUIRE(VALID_LOOP(loop));
-	REQUIRE(mctxp != NULL && *mctxp == NULL);
 
-	isc_mem_attach(loop->mctx, mctxp);
+	return (loop->mctx);
 }
 
 isc_loop_t *

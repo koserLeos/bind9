@@ -25,20 +25,18 @@ isc_signal_new(isc_loopmgr_t *loopmgr, isc_signal_cb cb, void *cbarg,
 	       int signum) {
 	isc_loop_t *loop = NULL;
 	isc_signal_t *signal = NULL;
-	isc_mem_t *mctx = NULL;
 	int r;
 
 	loop = DEFAULT_LOOP(loopmgr);
 
-	isc_loop_mem_attach(loop, &mctx);
-
-	signal = isc_mem_get(mctx, sizeof(*signal));
+	signal = isc_mem_get(isc_loop_getmctx(loop), sizeof(*signal));
 	*signal = (isc_signal_t){
-		.mctx = mctx,
 		.cb = cb,
 		.cbarg = cbarg,
 		.signum = signum,
 	};
+
+	isc_mem_attach(isc_loop_getmctx(loop), &signal->mctx);
 
 	r = uv_signal_init(&loop->loop, &signal->signal);
 	UV_RUNTIME_CHECK(uv_signal_init, r);

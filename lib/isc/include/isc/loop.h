@@ -132,14 +132,14 @@ isc_loopmgr_teardown(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
  *\li	'loopmgr' is paused or has not yet been started.
  */
 
-void
-isc_loop_mem_attach(isc_loop_t *loop, isc_mem_t **mctxp);
+isc_mem_t *
+isc_loop_getmctx(isc_loop_t *loop);
 /*%<
- * Attach to a memory context that was created for 'loop' when
+ * Return a pointer to the a memory context that was created for
+ * 'loop' when it was initialized.
  *
  * Requires:
  *\li	'loop' is a valid loop.
- *\li	'mctxp' is not NULL, and *mctxp is NULL.
  */
 
 isc_loop_t *
