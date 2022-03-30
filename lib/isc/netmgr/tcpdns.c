@@ -33,9 +33,9 @@
 #include <isc/stdtime.h>
 #include <isc/thread.h>
 #include <isc/util.h>
+#include <isc/uv.h>
 
 #include "netmgr-int.h"
-#include "uv-compat.h"
 
 static atomic_uint_fast32_t last_tcpdnsquota_log = 0;
 

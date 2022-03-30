@@ -17,6 +17,8 @@
 
 #include <isc/barrier.h>
 #include <isc/lang.h>
+#include <isc/loop.h>
+#include <isc/magic.h>
 #include <isc/mem.h>
 #include <isc/refcount.h>
 #include <isc/result.h>
@@ -43,6 +45,15 @@ struct isc_job {
 	isc_job_cb cb;
 	void *cbarg;
 	LINK(isc_job_t) link;
+};
+
+struct isc_work {
+	uv_work_t work;
+	isc_loop_t *loop;
+	isc_work_cb work_cb;
+	isc_after_work_cb after_work_cb;
+	isc_job_t *cancel_job;
+	void *cbarg;
 };
 
 struct isc_loop {
@@ -99,10 +110,3 @@ struct isc_loopmgr {
 	/* per-thread objects */
 	isc_loop_t *loops;
 };
-
-/* FIXME: Deduplicate with netmgr-int.h */
-#define UV_RUNTIME_CHECK(func, ret)                                           \
-	if (ret != 0) {                                                       \
-		isc_error_fatal(__FILE__, __LINE__, "%s failed: %s\n", #func, \
-				uv_strerror(ret));                            \
-	}

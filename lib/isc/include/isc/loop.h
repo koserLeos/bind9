@@ -29,6 +29,11 @@ typedef struct isc_signal isc_signal_t;
 
 typedef void (*isc_signal_cb)(void *, int);
 
+typedef struct isc_work isc_work_t;
+
+typedef void (*isc_work_cb)(void *arg);
+typedef void (*isc_after_work_cb)(void *arg, isc_result_t result);
+
 #define ISC_LOOPMGR_TID_UNKNOWN UINT32_MAX
 
 ISC_LANG_BEGINDECLS
@@ -118,9 +123,9 @@ isc_loopmgr_resume(isc_loopmgr_t *loopmgr);
  *\li	We are in a running loop.
  */
 
-void
+isc_job_t *
 isc_loop_setup(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
-void
+isc_job_t *
 isc_loop_teardown(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
 /*%<
  * Schedule actions to be run when starting, and when shutting down,
@@ -131,6 +136,11 @@ isc_loop_teardown(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
  *\li	The loop manager associated with 'loop' is paused or has not
  *	yet been started.
  */
+
+void
+isc_loop_nosetup(isc_loop_t *loop, isc_job_t *job);
+void
+isc_loop_noteardown(isc_loop_t *loop, isc_job_t *job);
 
 void
 isc_loopmgr_setup(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);

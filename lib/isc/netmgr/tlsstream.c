@@ -36,10 +36,10 @@
 #include <isc/stdtime.h>
 #include <isc/thread.h>
 #include <isc/util.h>
+#include <isc/uv.h>
 
 #include "../openssl_shim.h"
 #include "netmgr-int.h"
-#include "uv-compat.h"
 
 #define TLS_BUF_SIZE (UINT16_MAX)
 

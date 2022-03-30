@@ -30,9 +30,9 @@
 #include <isc/strerr.h>
 #include <isc/thread.h>
 #include <isc/util.h>
+#include <isc/uv.h>
 
 #include "loop_p.h"
-#include "netmgr/uv-compat.h"
 
 /**
  * Private
@@ -240,6 +240,30 @@ enum {
 };
 
 static void
+isc__loop_deschedule(isc_loop_t *loop, int when, isc_job_t *job) {
+	switch (when) {
+	case isc_loop_ctor:
+		ISC_LIST_DEQUEUE(loop->setup_jobs, job, link);
+		break;
+	case isc_loop_dtor:
+		ISC_LIST_DEQUEUE(loop->teardown_jobs, job, link);
+		break;
+	default:
+		UNREACHABLE();
+	}
+}
+
+void
+isc_loop_nosetup(isc_loop_t *loop, isc_job_t *job) {
+	isc__loop_deschedule(loop, isc_loop_ctor, job);
+}
+
+void
+isc_loop_noteardown(isc_loop_t *loop, isc_job_t *job) {
+	isc__loop_deschedule(loop, isc_loop_dtor, job);
+}
+
+static isc_job_t *
 isc__loop_schedule(isc_loop_t *loop, int when, isc_job_cb cb, void *cbarg) {
 	isc_job_t *job = NULL;
 	isc_loopmgr_t *loopmgr;
@@ -283,6 +307,7 @@ isc__loop_schedule(isc_loop_t *loop, int when, isc_job_cb cb, void *cbarg) {
 	default:
 		UNREACHABLE();
 	}
+	return (job);
 }
 
 /**
@@ -337,14 +362,14 @@ isc_loopmgr_new(isc_mem_t *mctx, uint32_t nloops) {
 	return (loopmgr);
 }
 
-void
+isc_job_t *
 isc_loop_setup(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
-	isc__loop_schedule(loop, isc_loop_ctor, cb, cbarg);
+	return (isc__loop_schedule(loop, isc_loop_ctor, cb, cbarg));
 }
 
-void
+isc_job_t *
 isc_loop_teardown(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
-	isc__loop_schedule(loop, isc_loop_dtor, cb, cbarg);
+	return (isc__loop_schedule(loop, isc_loop_dtor, cb, cbarg));
 }
 
 static void

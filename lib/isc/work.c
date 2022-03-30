@@ -38,7 +38,16 @@ isc__after_work_cb(uv_work_t *req, int status) {
 
 	work->after_work_cb(work->cbarg, result);
 
-	isc_mem_put(work->mctx, work, sizeof(*work));
+	isc_loop_noteardown(work->loop, work->cancel_job);
+
+	isc_mem_put(work->loop->mctx, work, sizeof(*work));
+}
+
+static void
+isc__work_cancel(void *arg) {
+	isc_work_t *work = (isc_work_t *)arg;
+	int r = uv_cancel((uv_req_t *)&work->work);
+	UV_RUNTIME_CHECK(uv_cancel, r);
 }
 
 void
@@ -53,15 +62,17 @@ isc_queue_work(isc_loop_t *loop, isc_work_cb work_cb,
 
 	work = isc_mem_get(loop->mctx, sizeof(*work));
 	*work = (isc_work_t){
+		.loop = loop,
 		.work_cb = work_cb,
 		.after_work_cb = after_work_cb,
 		.cbarg = cbarg,
 	};
-	isc_mem_attach(loop->mctx, &work->mctx);
 
 	uv_req_set_data((uv_req_t *)&work->work, work);
 
 	r = uv_queue_work(&loop->loop, &work->work, isc__work_cb,
 			  isc__after_work_cb);
 	UV_RUNTIME_CHECK(uv_queue_work, r);
+
+	work->cancel_job = isc_loop_teardown(loop, isc__work_cancel, work);
 }

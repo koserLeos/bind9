@@ -37,8 +37,7 @@
 #include <isc/thread.h>
 #include <isc/tls.h>
 #include <isc/util.h>
-
-#include "uv-compat.h"
+#include <isc/uv.h>
 
 #define ISC_NETMGR_TID_UNKNOWN -1
 

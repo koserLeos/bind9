@@ -39,12 +39,12 @@
 #include <isc/thread.h>
 #include <isc/tls.h>
 #include <isc/util.h>
+#include <isc/uv.h>
 
 #include "netmgr-int.h"
 #include "netmgr_p.h"
 #include "openssl_shim.h"
 #include "trampoline_p.h"
-#include "uv-compat.h"
 
 /*%
  * How many isc_nmhandles and isc_nm_uvreqs will we be

@@ -37,14 +37,13 @@
 #include <isc/refcount.h>
 #include <isc/sockaddr.h>
 #include <isc/thread.h>
+#include <isc/uv.h>
 
 #include "uv_wrap.h"
 #define KEEP_BEFORE
 
 #include "../netmgr/http.c"
 #include "../netmgr/netmgr-int.h"
-#include "../netmgr/uv-compat.c"
-#include "../netmgr/uv-compat.h"
 #include "../netmgr_p.h"
 #include "isctest.h"
 

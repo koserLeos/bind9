@@ -26,11 +26,10 @@
 #include <uv.h>
 
 #include <isc/atomic.h>
+#include <isc/uv.h>
 
 #define UNIT_TESTING
 #include <cmocka.h>
-
-#include "../netmgr/uv-compat.h"
 
 /* uv_udp_t */
 

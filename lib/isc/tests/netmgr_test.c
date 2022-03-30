@@ -30,14 +30,13 @@
 #include <isc/sockaddr.h>
 #include <isc/thread.h>
 #include <isc/util.h>
+#include <isc/uv.h>
 
 #include "uv_wrap.h"
 #define KEEP_BEFORE
 
 #include "../netmgr/netmgr-int.h"
 #include "../netmgr/udp.c"
-#include "../netmgr/uv-compat.c"
-#include "../netmgr/uv-compat.h"
 #include "../netmgr_p.h"
 #include "isctest.h"
 

@@ -29,9 +29,9 @@
 #include <isc/sockaddr.h>
 #include <isc/thread.h>
 #include <isc/util.h>
+#include <isc/uv.h>
 
 #include "netmgr-int.h"
-#include "uv-compat.h"
 
 #ifdef HAVE_NET_ROUTE_H
 #include <net/route.h>

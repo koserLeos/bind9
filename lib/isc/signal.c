@@ -16,9 +16,9 @@
 
 #include <isc/loop.h>
 #include <isc/signal.h>
+#include <isc/uv.h>
 
 #include "loop_p.h"
-#include "netmgr/uv-compat.h"
 
 isc_signal_t *
 isc_signal_new(isc_loopmgr_t *loopmgr, isc_signal_cb cb, void *cbarg,
