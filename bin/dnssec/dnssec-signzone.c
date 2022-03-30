@@ -1584,11 +1584,11 @@ signapex(void) {
  * lock.
  */
 static void
-assignwork(isc_task_t *worker) {
-	dns_fixedname_t *fname;
-	dns_name_t *name;
-	dns_dbnode_t *node;
-	sevent_t *sevent;
+assignwork(isc_task_t *task) {
+	dns_fixedname_t *fname = NULL;
+	dns_name_t *name = NULL;
+	dns_dbnode_t *node = NULL;
+	sevent_t *sevent = NULL;
 	dns_rdataset_t nsec;
 	bool found;
 	isc_result_t result;
@@ -1683,12 +1683,12 @@ assignwork(isc_task_t *worker) {
 		isc_mem_put(mctx, fname, sizeof(dns_fixedname_t));
 		goto unlock;
 	}
-	sevent = (sevent_t *)isc_event_allocate(mctx, worker, SIGNER_EVENT_WORK,
+	sevent = (sevent_t *)isc_event_allocate(mctx, task, SIGNER_EVENT_WORK,
 						sign, NULL, sizeof(sevent_t));
 
 	sevent->node = node;
 	sevent->fname = fname;
-	isc_task_send(worker, ISC_EVENT_PTR(&sevent));
+	isc_task_send(task, ISC_EVENT_PTR(&sevent));
 unlock:
 	UNLOCK(&namelock);
 }
@@ -1698,22 +1698,22 @@ unlock:
  */
 static void
 startworker(void *arg) {
-	isc_task_t *worker = (isc_task_t *)arg;
-	assignwork(worker);
+	isc_task_t *task = (isc_task_t *)arg;
+	assignwork(task);
 }
 
 /*%
  * Write a node to the output file, and restart the worker task.
  */
 static void
-writenode(isc_task_t *worker, isc_event_t *event) {
+writenode(isc_task_t *task, isc_event_t *event) {
 	sevent_t *sevent = (sevent_t *)event;
 
 	dumpnode(dns_fixedname_name(sevent->fname), sevent->node);
 	cleannode(gdb, gversion, sevent->node);
 	dns_db_detachnode(gdb, &sevent->node);
 	isc_mem_put(mctx, sevent->fname, sizeof(dns_fixedname_t));
-	assignwork(worker);
+	assignwork(task);
 	isc_event_free(&event);
 }
 
@@ -1721,7 +1721,7 @@ writenode(isc_task_t *worker, isc_event_t *event) {
  *  Sign a database node.
  */
 static void
-sign(isc_task_t *worker, isc_event_t *event) {
+sign(isc_task_t *task, isc_event_t *event) {
 	dns_fixedname_t *fname;
 	dns_dbnode_t *node;
 	sevent_t *sevent, *wevent;
@@ -1732,12 +1732,12 @@ sign(isc_task_t *worker, isc_event_t *event) {
 	isc_event_free(&event);
 
 	signname(node, dns_fixedname_name(fname));
-	wevent = (sevent_t *)isc_event_allocate(mctx, worker,
-						SIGNER_EVENT_WRITE, writenode,
-						NULL, sizeof(sevent_t));
+	wevent = (sevent_t *)isc_event_allocate(mctx, task, SIGNER_EVENT_WRITE,
+						writenode, NULL,
+						sizeof(sevent_t));
 	wevent->node = node;
 	wevent->fname = fname;
-	isc_task_send(worker, ISC_EVENT_PTR(&wevent));
+	isc_task_send(task, ISC_EVENT_PTR(&wevent));
 }
 
 /*%
