@@ -396,18 +396,15 @@ isc_loopmgr_teardown(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg) {
 }
 
 void
-isc_loop_runjob(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
-	isc_loopmgr_t *loopmgr = NULL;
+isc_loopmgr_runjob(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg) {
+	isc_loop_t *loop = NULL;
 	isc_job_t *job = NULL;
 	int r;
 
-	REQUIRE(VALID_LOOP(loop));
+	REQUIRE(VALID_LOOPMGR(loopmgr));
+	REQUIRE(isc__loopmgr_tid_v != ISC_LOOPMGR_TID_UNKNOWN);
 
-	loopmgr = loop->loopmgr;
-
-	REQUIRE(loop->tid == isc__loopmgr_tid_v ||
-		!atomic_load(&loopmgr->running) ||
-		atomic_load(&loopmgr->paused));
+	loop = &loopmgr->loops[isc__loopmgr_tid_v];
 
 	job = isc_mem_get(loop->mctx, sizeof(*job));
 	*job = (isc_job_t){

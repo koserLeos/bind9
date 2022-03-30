@@ -87,15 +87,16 @@ isc_loopmgr_run(isc_loopmgr_t *loopmgr);
  *\li	'loopmgr' is a valid loop manager.
  */
 void
-isc_loop_runjob(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
+isc_loopmgr_runjob(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
 /*%<
- * Schedule a single job to run in 'loop' in the next iteration
- * of uv_run(): 'cb' will be called with argument 'cbarg'.
+ * Schedule a single job in the currently running loop. On the next
+ * iteration of uv_run(), 'cb' will be called with argument 'cbarg'.
+ * (Note that this can only be called once per iteration; if a job was
+ * already scheduled it will be replaced with this one.)
  *
  * Requires:
  *\li	'loop' is a valid loop.
- *\li	'loop' is the currently running loop, or the loop manager
- *	associated with 'loop' is paused or has not yet been started.
+ *\li	We are in a running loop.
  */
 
 void

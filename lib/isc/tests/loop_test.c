@@ -99,9 +99,39 @@ static void
 isc_loopmgr_test(void **state) {
 	isc_loopmgr_t *loopmgr = *state;
 
-	isc_loopmgr_setup(loopmgr, count, loopmgr);
+	atomic_store(&scheduled, 0);
 
+	isc_loopmgr_setup(loopmgr, count, loopmgr);
 	isc_loop_setup(DEFAULT_LOOP(loopmgr), shutdown_loopmgr, loopmgr);
+
+	isc_loopmgr_run(loopmgr);
+
+	assert_int_equal(atomic_load(&scheduled), loopmgr->nloops);
+}
+
+static void
+count2(void *arg) {
+	isc_loopmgr_t *loopmgr = (isc_loopmgr_t *)arg;
+
+	atomic_fetch_add(&scheduled, 1);
+	if (isc_loopmgr_tid() == 0) {
+		isc_loopmgr_runjob(loopmgr, shutdown_loopmgr, loopmgr);
+	}
+}
+
+static void
+runjob(void *arg) {
+	isc_loopmgr_t *loopmgr = (isc_loopmgr_t *)arg;
+	isc_loopmgr_runjob(loopmgr, count2, loopmgr);
+}
+
+static void
+isc_loopmgr_runjob_test(void **state) {
+	isc_loopmgr_t *loopmgr = *state;
+
+	atomic_store(&scheduled, 0);
+
+	isc_loopmgr_setup(loopmgr, runjob, loopmgr);
 
 	isc_loopmgr_run(loopmgr);
 
@@ -175,6 +205,9 @@ main(void) {
 		cmocka_unit_test_setup_teardown(isc_loopmgr_test, setup_loopmgr,
 						teardown_loopmgr),
 		cmocka_unit_test_setup_teardown(isc_loopmgr_pause_test,
+						setup_loopmgr,
+						teardown_loopmgr),
+		cmocka_unit_test_setup_teardown(isc_loopmgr_runjob_test,
 						setup_loopmgr,
 						teardown_loopmgr),
 		cmocka_unit_test_setup_teardown(isc_loopmgr_sigint_test,
