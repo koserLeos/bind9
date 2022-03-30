@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <isc/app.h>
 #include <isc/attributes.h>
 #include <isc/buffer.h>
 #include <isc/commandline.h>
@@ -53,7 +52,6 @@ static bool interactive;
 static bool in_use = false;
 static char defclass[MXRD] = "IN";
 static char deftype[MXRD] = "A";
-static isc_event_t *global_event = NULL;
 static int query_error = 1, print_error = 0;
 
 static char domainopt[DNS_NAME_MAXTEXT];
@@ -113,7 +111,7 @@ static const char *rtypetext[] = {
 #define N_KNOWN_RRTYPES (sizeof(rtypetext) / sizeof(rtypetext[0]))
 
 static void
-getinput(isc_task_t *task, isc_event_t *event);
+getinput(void *arg);
 
 static char *
 rcode_totext(dns_rcode_t rcode) {
@@ -134,16 +132,14 @@ rcode_totext(dns_rcode_t rcode) {
 
 static void
 query_finished(void) {
-	isc_event_t *event = global_event;
-
 	debug("dighost_shutdown()");
 
 	if (!in_use) {
-		isc_app_shutdown();
+		isc_loopmgr_shutdown(loopmgr);
 		return;
 	}
 
-	isc_task_send(global_task, &event);
+	getinput(NULL);
 }
 
 static void
@@ -895,11 +891,9 @@ parse_args(int argc, char **argv) {
 }
 
 static void
-getinput(isc_task_t *task, isc_event_t *event) {
-	UNUSED(task);
-	if (global_event == NULL) {
-		global_event = event;
-	}
+getinput(void *arg) {
+	UNUSED(arg);
+
 	while (in_use) {
 		get_next_command();
 		if (ISC_LIST_HEAD(lookup_list) != NULL) {
@@ -907,13 +901,11 @@ getinput(isc_task_t *task, isc_event_t *event) {
 			return;
 		}
 	}
-	isc_app_shutdown();
+	isc_loopmgr_shutdown(loopmgr);
 }
 
 int
 main(int argc, char **argv) {
-	isc_result_t result;
-
 	interactive = isatty(0);
 
 	ISC_LIST_INIT(lookup_list);
@@ -927,9 +919,6 @@ main(int argc, char **argv) {
 	dighost_received = received;
 	dighost_trying = trying;
 	dighost_shutdown = query_finished;
-
-	result = isc_app_start();
-	check_result(result, "isc_app_start");
 
 	setup_libs();
 	progname = argv[0];
@@ -945,23 +934,20 @@ main(int argc, char **argv) {
 		set_search_domain(domainopt);
 	}
 	if (in_use) {
-		result = isc_app_onrun(mctx, global_task, onrun_callback, NULL);
+		isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr),
+				       run_loop, NULL);
 	} else {
-		result = isc_app_onrun(mctx, global_task, getinput, NULL);
+		isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr),
+				       getinput, NULL);
 	}
-	check_result(result, "isc_app_onrun");
 	in_use = !in_use;
 
-	(void)isc_app_run();
+	isc_loopmgr_run(loopmgr);
 
 	puts("");
 	debug("done, and starting to shut down");
-	if (global_event != NULL) {
-		isc_event_free(&global_event);
-	}
 	cancel_all();
 	destroy_libs();
-	isc_app_finish();
 
 	return (query_error | print_error);
 }

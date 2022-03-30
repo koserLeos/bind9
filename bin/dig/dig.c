@@ -19,9 +19,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include <isc/app.h>
 #include <isc/attributes.h>
 #include <isc/dir.h>
+#include <isc/loop.h>
 #include <isc/netaddr.h>
 #include <isc/parseint.h>
 #include <isc/print.h>
@@ -2902,14 +2902,14 @@ query_finished(void) {
 	char *bargv[16];
 
 	if (atomic_load(&batchname) == 0) {
-		isc_app_shutdown();
+		isc_loopmgr_shutdown(loopmgr);
 		return;
 	}
 
 	fflush(stdout);
 	if (feof(batchfp)) {
 		atomic_store(&batchname, 0);
-		isc_app_shutdown();
+		isc_loopmgr_shutdown(loopmgr);
 		if (batchfp != stdin) {
 			fclose(batchfp);
 		}
@@ -2927,7 +2927,7 @@ query_finished(void) {
 		if (batchfp != stdin) {
 			fclose(batchfp);
 		}
-		isc_app_shutdown();
+		isc_loopmgr_shutdown(loopmgr);
 		return;
 	}
 }
@@ -2993,8 +2993,6 @@ dig_comments(dig_lookup_t *lookup, const char *format, ...) {
 
 void
 dig_setup(int argc, char **argv) {
-	isc_result_t result;
-
 	ISC_LIST_INIT(lookup_list);
 	ISC_LIST_INIT(server_list);
 	ISC_LIST_INIT(search_list);
@@ -3012,9 +3010,6 @@ dig_setup(int argc, char **argv) {
 
 	progname = argv[0];
 	preparse_args(argc, argv);
-
-	result = isc_app_start();
-	check_result(result, "isc_app_start");
 
 	setup_libs();
 	setup_system(ipv4only, ipv6only);
@@ -3038,13 +3033,11 @@ dig_query_setup(bool is_batchfile, bool config_only, int argc, char **argv) {
 
 void
 dig_startup(void) {
-	isc_result_t result;
-
 	debug("dig_startup()");
 
-	result = isc_app_onrun(mctx, global_task, onrun_callback, NULL);
-	check_result(result, "isc_app_onrun");
-	isc_app_run();
+	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr), run_loop,
+			       NULL);
+	isc_loopmgr_run(loopmgr);
 }
 
 void
@@ -3063,7 +3056,6 @@ dig_shutdown(void) {
 	}
 	cancel_all();
 	destroy_libs();
-	isc_app_finish();
 }
 
 /*% Main processing routine for dig */

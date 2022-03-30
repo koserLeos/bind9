@@ -34,12 +34,12 @@
 #include <idn2.h>
 #endif /* HAVE_LIBIDN2 */
 
-#include <isc/app.h>
 #include <isc/base64.h>
 #include <isc/file.h>
 #include <isc/hex.h>
 #include <isc/lang.h>
 #include <isc/log.h>
+#include <isc/loop.h>
 #include <isc/managers.h>
 #include <isc/netaddr.h>
 #include <isc/netdb.h>
@@ -103,7 +103,7 @@ isc_mem_t *mctx = NULL;
 isc_log_t *lctx = NULL;
 isc_nm_t *netmgr = NULL;
 isc_taskmgr_t *taskmgr = NULL;
-isc_task_t *global_task = NULL;
+isc_loopmgr_t *loopmgr = NULL;
 isc_sockaddr_t localaddr;
 isc_refcount_t sendcount = 0;
 isc_refcount_t recvcount = 0;
@@ -1377,6 +1377,8 @@ setup_libs(void) {
 	isc_mem_create(&mctx);
 	isc_mem_setname(mctx, "dig");
 
+	loopmgr = isc_loopmgr_new(mctx, 1);
+
 	isc_log_create(mctx, &lctx, &logconfig);
 	isc_log_setcontext(lctx);
 	dns_log_init(lctx);
@@ -1388,10 +1390,6 @@ setup_libs(void) {
 	isc_log_setdebuglevel(lctx, 0);
 
 	isc_managers_create(mctx, 1, 0, &netmgr, &taskmgr, NULL);
-
-	result = isc_task_create(taskmgr, 0, &global_task);
-	check_result(result, "isc_task_create");
-	isc_task_setname(global_task, "dig", NULL);
 
 	result = dst_lib_init(mctx, NULL);
 	check_result(result, "dst_lib_init");
@@ -4449,10 +4447,18 @@ do_lookup(dig_lookup_t *lookup) {
  * Start everything in action upon task startup.
  */
 void
-onrun_callback(isc_task_t *task, isc_event_t *event) {
-	UNUSED(task);
+onrun_callback(void *arg) {
+	UNUSED(arg);
 
-	isc_event_free(&event);
+	LOCK_LOOKUP;
+	start_lookup();
+	UNLOCK_LOOKUP;
+}
+
+void
+run_loop(void *arg) {
+	UNUSED(arg);
+
 	LOCK_LOOKUP;
 	start_lookup();
 	UNLOCK_LOOKUP;
@@ -4514,10 +4520,6 @@ destroy_libs(void) {
 		isc_nmhandle_detach(&keep);
 	}
 	debug("destroy_libs()");
-	if (global_task != NULL) {
-		debug("freeing task");
-		isc_task_detach(&global_task);
-	}
 
 	isc_managers_destroy(&netmgr, &taskmgr, NULL);
 
@@ -4558,9 +4560,10 @@ destroy_libs(void) {
 	if (memdebugging != 0) {
 		isc_mem_stats(mctx, stderr);
 	}
-	if (mctx != NULL) {
-		isc_mem_destroy(&mctx);
-	}
+
+	isc_loopmgr_destroy(&loopmgr);
+
+	isc_mem_destroy(&mctx);
 }
 
 #ifdef HAVE_LIBIDN2
