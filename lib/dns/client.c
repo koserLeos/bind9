@@ -14,7 +14,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <isc/app.h>
 #include <isc/buffer.h>
 #include <isc/md.h>
 #include <isc/mem.h>
@@ -142,7 +141,6 @@ typedef struct resctx {
  */
 typedef struct resarg {
 	/* Unlocked */
-	isc_appctx_t *actx;
 	dns_client_t *client;
 	isc_mutex_t lock;
 

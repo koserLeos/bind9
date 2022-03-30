@@ -15,7 +15,6 @@
 
 #include <stdbool.h>
 
-#include <isc/app.h>
 #include <isc/condition.h>
 #include <isc/heap.h>
 #include <isc/log.h>

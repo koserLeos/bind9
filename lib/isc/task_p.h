@@ -69,7 +69,7 @@ isc__taskmgr_destroy(isc_taskmgr_t **managerp);
  *	complete.  An event action that wants to cause task manager shutdown
  *	should request some non-event action thread of execution to do the
  *	shutdown, e.g. by signaling a condition variable or using
- *	isc_app_shutdown().
+ *	isc_loopmgr_shutdown().
  *
  *\li	Task manager references are not reference counted, so the caller
  *	must ensure that no attempt will be made to use the manager after

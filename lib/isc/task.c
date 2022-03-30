@@ -21,7 +21,6 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-#include <isc/app.h>
 #include <isc/atomic.h>
 #include <isc/condition.h>
 #include <isc/event.h>

@@ -6,7 +6,6 @@ libisc_ladir = $(includedir)/isc
 libisc_la_HEADERS =			\
 	include/isc/aes.h		\
 	include/isc/align.h		\
-	include/isc/app.h		\
 	include/isc/assertions.h	\
 	include/isc/astack.h		\
 	include/isc/atomic.h		\
@@ -116,7 +115,6 @@ libisc_la_SOURCES =		\
 	netmgr/uv-compat.h	\
 	netmgr/uverr2result.c	\
 	aes.c			\
-	app.c			\
 	assertions.c		\
 	astack.c		\
 	backtrace.c		\

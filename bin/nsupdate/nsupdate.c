@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <isc/app.h>
 #include <isc/attributes.h>
 #include <isc/base64.h>
 #include <isc/buffer.h>
@@ -31,6 +30,7 @@
 #include <isc/hash.h>
 #include <isc/lex.h>
 #include <isc/log.h>
+#include <isc/loop.h>
 #include <isc/managers.h>
 #include <isc/mem.h>
 #include <isc/netmgr.h>
@@ -126,8 +126,8 @@ static bool tried_other_gsstsig = false;
 static bool local_only = false;
 static isc_nm_t *netmgr = NULL;
 static isc_taskmgr_t *taskmgr = NULL;
+static isc_loopmgr_t *loopmgr = NULL;
 static isc_task_t *global_task = NULL;
-static isc_event_t *global_event = NULL;
 static isc_log_t *glctx = NULL;
 static isc_mem_t *gmctx = NULL;
 static dns_dispatchmgr_t *dispatchmgr = NULL;
@@ -186,6 +186,9 @@ sendrequest(isc_sockaddr_t *destaddr, dns_message_t *msg,
 	    dns_request_t **request);
 static void
 send_update(dns_name_t *zonename, isc_sockaddr_t *primary);
+
+static void
+getinput(void *arg);
 
 noreturn static void
 fatal(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
@@ -2297,9 +2300,8 @@ user_interaction(void) {
 
 static void
 done_update(void) {
-	isc_event_t *event = global_event;
 	ddebug("done_update()");
-	isc_task_send(global_task, &event);
+	getinput(NULL);
 }
 
 static void
@@ -3308,9 +3310,6 @@ cleanup(void) {
 		dst_key_free(&sig0key);
 	}
 
-	ddebug("Destroying event");
-	isc_event_free(&global_event);
-
 #ifdef HAVE_GSSAPI
 	/*
 	 * Cleanup GSSAPI resources after taskmgr has been destroyed.
@@ -3350,40 +3349,32 @@ cleanup(void) {
 }
 
 static void
-getinput(isc_task_t *task, isc_event_t *event) {
+getinput(void *arg) {
 	bool more;
 
-	UNUSED(task);
+	UNUSED(arg);
 
 	if (shuttingdown) {
 		maybeshutdown();
 		return;
 	}
 
-	if (global_event == NULL) {
-		global_event = event;
-	}
-
 	reset_system();
 	more = user_interaction();
 	if (!more) {
-		isc_app_shutdown();
+		isc_loopmgr_shutdown(loopmgr);
 		return;
 	}
 	start_update();
-	return;
 }
 
 int
 main(int argc, char **argv) {
-	isc_result_t result;
 	style = &dns_master_style_debug;
 
 	input = stdin;
 
 	interactive = isatty(0);
-
-	isc_app_start();
 
 	if (isc_net_probeipv4() == ISC_R_SUCCESS) {
 		have_ipv4 = true;
@@ -3403,14 +3394,13 @@ main(int argc, char **argv) {
 
 	setup_system();
 
-	result = isc_app_onrun(gmctx, global_task, getinput, NULL);
-	check_result(result, "isc_app_onrun");
-
-	(void)isc_app_run();
+	loopmgr = isc_loopmgr_new(gmctx, 1);
+	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr), getinput,
+			       NULL);
+	isc_loopmgr_run(loopmgr);
+	isc_loopmgr_destroy(&loopmgr);
 
 	cleanup();
-
-	isc_app_finish();
 
 	if (seenerror) {
 		return (2);
