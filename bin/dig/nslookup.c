@@ -20,12 +20,14 @@
 #include <isc/buffer.h>
 #include <isc/commandline.h>
 #include <isc/event.h>
+#include <isc/loop.h>
 #include <isc/netaddr.h>
 #include <isc/parseint.h>
 #include <isc/print.h>
 #include <isc/string.h>
 #include <isc/task.h>
 #include <isc/util.h>
+#include <isc/work.h>
 
 #include <dns/byaddr.h>
 #include <dns/fixedname.h>
@@ -39,6 +41,9 @@
 
 #include "dighost.h"
 #include "readline.h"
+
+static char cmdlinebuf[COMMSIZE];
+static char *cmdline = NULL;
 
 static bool short_form = true, tcpmode = false, tcpmode_set = false,
 	    identify = false, stats = true, comments = true,
@@ -110,9 +115,6 @@ static const char *rtypetext[] = {
 
 #define N_KNOWN_RRTYPES (sizeof(rtypetext) / sizeof(rtypetext[0]))
 
-static void
-getinput(void *arg);
-
 static char *
 rcode_totext(dns_rcode_t rcode) {
 	static char buf[sizeof("?65535")];
@@ -128,18 +130,6 @@ rcode_totext(dns_rcode_t rcode) {
 		totext.consttext = rcodetext[rcode];
 	}
 	return (totext.deconsttext);
-}
-
-static void
-query_finished(void) {
-	debug("dighost_shutdown()");
-
-	if (!in_use) {
-		isc_loopmgr_shutdown(loopmgr);
-		return;
-	}
-
-	getinput(NULL);
 }
 
 static void
@@ -792,6 +782,8 @@ static void
 do_next_command(char *input) {
 	char *ptr, *arg, *last;
 
+	fprintf(stderr, "%s\n", __func__);
+
 	if ((ptr = strtok_r(input, " \t\r\n", &last)) == NULL) {
 		return;
 	}
@@ -806,6 +798,7 @@ do_next_command(char *input) {
 		show_settings(true, true);
 	} else if (strcasecmp(ptr, "exit") == 0) {
 		in_use = false;
+		fprintf(stderr, "%s, in_use = %d\n", __func__, in_use);
 	} else if (strcasecmp(ptr, "help") == 0 || strcasecmp(ptr, "?") == 0) {
 		printf("The '%s' command is not yet implemented.\n", ptr);
 	} else if (strcasecmp(ptr, "finger") == 0 ||
@@ -819,26 +812,33 @@ do_next_command(char *input) {
 }
 
 static void
-get_next_command(void) {
-	char cmdlinebuf[COMMSIZE];
-	char *cmdline, *ptr = NULL;
+readline_next_command(void *arg) {
+	char *ptr = NULL;
 
-	if (interactive) {
-		cmdline = ptr = readline("> ");
-		if (ptr != NULL && *ptr != 0) {
-			add_history(ptr);
-		}
-	} else {
-		cmdline = fgets(cmdlinebuf, COMMSIZE, stdin);
+	fprintf(stderr, "%s\n", __func__);
+
+	UNUSED(arg);
+
+	ptr = readline("> ");
+	if (ptr == NULL) {
+		return;
 	}
-	if (cmdline == NULL) {
-		in_use = false;
-	} else {
-		do_next_command(cmdline);
+
+	if (*ptr != 0) {
+		add_history(ptr);
+		strlcpy(cmdlinebuf, ptr, COMMSIZE);
+		cmdline = cmdlinebuf;
 	}
-	if (ptr != NULL) {
-		free(ptr);
-	}
+	free(ptr);
+}
+
+static void
+fgets_next_command(void *arg) {
+	UNUSED(arg);
+
+	fprintf(stderr, "%s\n", __func__);
+
+	cmdline = fgets(cmdlinebuf, COMMSIZE, stdin);
 }
 
 noreturn static void
@@ -878,6 +878,8 @@ parse_args(int argc, char **argv) {
 			if (!have_lookup) {
 				have_lookup = true;
 				in_use = true;
+				fprintf(stderr, "%s, in_use = %d\n", __func__,
+					in_use);
 				addlookup(argv[0]);
 			} else {
 				if (argv[1] != NULL) {
@@ -891,17 +893,54 @@ parse_args(int argc, char **argv) {
 }
 
 static void
-getinput(void *arg) {
+process_next_command(void *arg, isc_result_t result) {
 	UNUSED(arg);
 
-	while (in_use) {
-		get_next_command();
-		if (ISC_LIST_HEAD(lookup_list) != NULL) {
-			start_lookup();
-			return;
-		}
+	fprintf(stderr, "%s\n", __func__);
+
+	if (result == ISC_R_SUCCESS && cmdline != NULL) {
+		do_next_command(cmdline);
 	}
-	isc_loopmgr_shutdown(loopmgr);
+
+	if (ISC_LIST_HEAD(lookup_list) != NULL) {
+		fprintf(stderr, "%s\n", "start_lookup");
+		isc_loopmgr_runjob(loopmgr, run_loop, NULL);
+		return;
+	}
+
+	cmdline = NULL;
+	in_use = false;
+	fprintf(stderr, "%s, in_use = %d\n", __func__, in_use);
+}
+
+static void
+start_next_command(void) {
+	isc_loop_t *loop = isc_loopmgr_mainloop(loopmgr);
+
+	fprintf(stderr, "%s, in_use = %d\n", __func__, in_use);
+	debug("dighost_shutdown()");
+
+	if (!in_use) {
+		isc_loopmgr_shutdown(loopmgr);
+		return;
+	}
+
+	isc_loopmgr_pause(loopmgr);
+	if (interactive) {
+		isc_queue_work(loop, readline_next_command,
+			       process_next_command, loop);
+	} else {
+		isc_queue_work(loop, fgets_next_command, process_next_command,
+			       loop);
+	}
+	isc_loopmgr_resume(loopmgr);
+}
+
+static void
+read_loop(void *arg) {
+	UNUSED(arg);
+
+	start_next_command();
 }
 
 int
@@ -918,7 +957,7 @@ main(int argc, char **argv) {
 	dighost_printmessage = printmessage;
 	dighost_received = received;
 	dighost_trying = trying;
-	dighost_shutdown = query_finished;
+	dighost_shutdown = start_next_command;
 
 	setup_libs();
 	progname = argv[0];
@@ -936,7 +975,7 @@ main(int argc, char **argv) {
 	if (in_use) {
 		isc_loopmgr_setup(loopmgr, run_loop, NULL);
 	} else {
-		isc_loopmgr_setup(loopmgr, getinput, NULL);
+		isc_loopmgr_setup(loopmgr, read_loop, NULL);
 	}
 	in_use = !in_use;
 
