@@ -11,12 +11,10 @@
  * information regarding copyright ownership.
  */
 
-#include "uv-compat.h"
 #include <unistd.h>
 
 #include <isc/util.h>
-
-#include "netmgr-int.h"
+#include <isc/uv.h>
 
 #if UV_VERSION_HEX < UV_VERSION(1, 27, 0)
 int
@@ -60,6 +58,50 @@ uv_tcp_close_reset(uv_tcp_t *handle, uv_close_cb close_cb) {
 }
 #endif /* UV_VERSION_HEX < UV_VERSION(1, 32, 0) */
 
+#define setsockopt_on(socket, level, name) \
+	setsockopt(socket, level, name, &(int){ 1 }, sizeof(int))
+
+static isc_result_t
+isc__socket_freebind(uv_os_sock_t fd, sa_family_t sa_family) {
+	/*
+	 * Set the IP_FREEBIND (or equivalent option) on the uv_handle.
+	 */
+#ifdef IP_FREEBIND
+	UNUSED(sa_family);
+	if (setsockopt_on(fd, IPPROTO_IP, IP_FREEBIND) == -1) {
+		return (ISC_R_FAILURE);
+	}
+	return (ISC_R_SUCCESS);
+#elif defined(IP_BINDANY) || defined(IPV6_BINDANY)
+	if (sa_family == AF_INET) {
+#if defined(IP_BINDANY)
+		if (setsockopt_on(fd, IPPROTO_IP, IP_BINDANY) == -1) {
+			return (ISC_R_FAILURE);
+		}
+		return (ISC_R_SUCCESS);
+#endif
+	} else if (sa_family == AF_INET6) {
+#if defined(IPV6_BINDANY)
+		if (setsockopt_on(fd, IPPROTO_IPV6, IPV6_BINDANY) == -1) {
+			return (ISC_R_FAILURE);
+		}
+		return (ISC_R_SUCCESS);
+#endif
+	}
+	return (ISC_R_NOTIMPLEMENTED);
+#elif defined(SO_BINDANY)
+	UNUSED(sa_family);
+	if (setsockopt_on(fd, SOL_SOCKET, SO_BINDANY) == -1) {
+		return (ISC_R_FAILURE);
+	}
+	return (ISC_R_SUCCESS);
+#else
+	UNUSED(fd);
+	UNUSED(sa_family);
+	return (ISC_R_NOTIMPLEMENTED);
+#endif
+}
+
 int
 isc_uv_udp_freebind(uv_udp_t *handle, const struct sockaddr *addr,
 		    unsigned int flags) {
@@ -73,7 +115,7 @@ isc_uv_udp_freebind(uv_udp_t *handle, const struct sockaddr *addr,
 
 	r = uv_udp_bind(handle, addr, flags);
 	if (r == UV_EADDRNOTAVAIL &&
-	    isc__nm_socket_freebind(fd, addr->sa_family) == ISC_R_SUCCESS)
+	    isc__socket_freebind(fd, addr->sa_family) == ISC_R_SUCCESS)
 	{
 		/*
 		 * Retry binding with IP_FREEBIND (or equivalent option) if the
@@ -125,7 +167,7 @@ isc_uv_tcp_freebind(uv_tcp_t *handle, const struct sockaddr *addr,
 
 	r = isc__uv_tcp_bind_now(handle, addr, flags);
 	if (r == UV_EADDRNOTAVAIL &&
-	    isc__nm_socket_freebind(fd, addr->sa_family) == ISC_R_SUCCESS)
+	    isc__socket_freebind(fd, addr->sa_family) == ISC_R_SUCCESS)
 	{
 		/*
 		 * Retry binding with IP_FREEBIND (or equivalent option) if the
@@ -137,4 +179,86 @@ isc_uv_tcp_freebind(uv_tcp_t *handle, const struct sockaddr *addr,
 	}
 
 	return (r);
+}
+
+/*%
+ * Convert a libuv error value into an isc_result_t.  The
+ * list of supported error values is not complete; new users
+ * of this function should add any expected errors that are
+ * not already there.
+ */
+isc_result_t
+isc___nm_uverr2result(int uverr, bool dolog, const char *file,
+		      unsigned int line, const char *func) {
+	switch (uverr) {
+	case 0:
+		return (ISC_R_SUCCESS);
+	case UV_ENOTDIR:
+	case UV_ELOOP:
+	case UV_EINVAL: /* XXX sometimes this is not for files */
+	case UV_ENAMETOOLONG:
+	case UV_EBADF:
+		return (ISC_R_INVALIDFILE);
+	case UV_ENOENT:
+		return (ISC_R_FILENOTFOUND);
+	case UV_EAGAIN:
+		return (ISC_R_NOCONN);
+	case UV_EACCES:
+	case UV_EPERM:
+		return (ISC_R_NOPERM);
+	case UV_EEXIST:
+		return (ISC_R_FILEEXISTS);
+	case UV_EIO:
+		return (ISC_R_IOERROR);
+	case UV_ENOMEM:
+		return (ISC_R_NOMEMORY);
+	case UV_ENFILE:
+	case UV_EMFILE:
+		return (ISC_R_TOOMANYOPENFILES);
+	case UV_ENOSPC:
+		return (ISC_R_DISCFULL);
+	case UV_EPIPE:
+	case UV_ECONNRESET:
+	case UV_ECONNABORTED:
+		return (ISC_R_CONNECTIONRESET);
+	case UV_ENOTCONN:
+		return (ISC_R_NOTCONNECTED);
+	case UV_ETIMEDOUT:
+		return (ISC_R_TIMEDOUT);
+	case UV_ENOBUFS:
+		return (ISC_R_NORESOURCES);
+	case UV_EAFNOSUPPORT:
+		return (ISC_R_FAMILYNOSUPPORT);
+	case UV_ENETDOWN:
+		return (ISC_R_NETDOWN);
+	case UV_EHOSTDOWN:
+		return (ISC_R_HOSTDOWN);
+	case UV_ENETUNREACH:
+		return (ISC_R_NETUNREACH);
+	case UV_EHOSTUNREACH:
+		return (ISC_R_HOSTUNREACH);
+	case UV_EADDRINUSE:
+		return (ISC_R_ADDRINUSE);
+	case UV_EADDRNOTAVAIL:
+		return (ISC_R_ADDRNOTAVAIL);
+	case UV_ECONNREFUSED:
+		return (ISC_R_CONNREFUSED);
+	case UV_ECANCELED:
+		return (ISC_R_CANCELED);
+	case UV_EOF:
+		return (ISC_R_EOF);
+	case UV_EMSGSIZE:
+		return (ISC_R_MAXSIZE);
+	case UV_ENOTSUP:
+		return (ISC_R_FAMILYNOSUPPORT);
+	default:
+		if (dolog) {
+			UNEXPECTED_ERROR(
+				file, line,
+				"unable to convert libuv "
+				"error code in %s to isc_result: %d: %s",
+				func, uverr, uv_strerror(uverr));
+		}
+		return (ISC_R_UNEXPECTED);
+	}
 }
