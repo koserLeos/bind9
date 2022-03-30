@@ -71,7 +71,6 @@ isc_loopmgr_t *loopmgr = NULL;
 isc_task_t *maintask = NULL;
 isc_timermgr_t *timermgr = NULL;
 dns_zonemgr_t *zonemgr = NULL;
-bool loop_running = false;
 int ncpus;
 bool debug_mem_record = true;
 
@@ -96,10 +95,6 @@ cleanup_managers(void) {
 	if (maintask != NULL) {
 		isc_task_shutdown(maintask);
 		isc_task_destroy(&maintask);
-	}
-
-	if (loop_running) {
-		isc_loopmgr_destroy(&loopmgr);
 	}
 
 	isc_managers_destroy(netmgr == NULL ? NULL : &netmgr,

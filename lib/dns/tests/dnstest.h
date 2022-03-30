@@ -53,7 +53,6 @@ extern isc_task_t *maintask;
 extern isc_timermgr_t *timermgr;
 extern isc_nm_t *netmgr;
 extern dns_zonemgr_t *zonemgr;
-extern bool loop_running;
 extern int ncpus;
 extern bool debug_mem_record;
 
