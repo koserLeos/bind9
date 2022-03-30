@@ -197,8 +197,7 @@ asyncload_zone(void **state) {
 	args.arg3 = false;
 
 	loopmgr = isc_loopmgr_new(dt_mctx, 1);
-	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), start_zone_asyncload,
-		       &args);
+	isc_loopmgr_setup(loopmgr, start_zone_asyncload, &args);
 	isc_loopmgr_run(loopmgr);
 	isc_loopmgr_destroy(&loopmgr);
 
@@ -223,8 +222,7 @@ asyncload_zone(void **state) {
 	args.arg3 = true;
 
 	loopmgr = isc_loopmgr_new(dt_mctx, 1);
-	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), start_zone_asyncload,
-		       &args);
+	isc_loopmgr_setup(loopmgr, start_zone_asyncload, &args);
 	isc_loopmgr_run(loopmgr);
 	isc_loopmgr_destroy(&loopmgr);
 
@@ -243,8 +241,7 @@ asyncload_zone(void **state) {
 	args.arg3 = false;
 
 	loopmgr = isc_loopmgr_new(dt_mctx, 1);
-	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), start_zone_asyncload,
-		       &args);
+	isc_loopmgr_setup(loopmgr, start_zone_asyncload, &args);
 	isc_loopmgr_run(loopmgr);
 	isc_loopmgr_destroy(&loopmgr);
 
@@ -321,8 +318,7 @@ asyncload_zt(void **state) {
 	args.arg2 = &done;
 
 	loopmgr = isc_loopmgr_new(dt_mctx, 1);
-	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), start_zt_asyncload,
-		       &args);
+	isc_loopmgr_setup(loopmgr, start_zt_asyncload, &args);
 	isc_loopmgr_run(loopmgr);
 	isc_loopmgr_destroy(&loopmgr);
 

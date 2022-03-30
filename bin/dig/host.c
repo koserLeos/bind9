@@ -910,7 +910,7 @@ main(int argc, char **argv) {
 		setup_text_key();
 	}
 
-	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), run_loop, NULL);
+	isc_loopmgr_setup(loopmgr, run_loop, NULL);
 	isc_loopmgr_run(loopmgr);
 
 	cancel_all();

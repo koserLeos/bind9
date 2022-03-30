@@ -1070,7 +1070,7 @@ main(int argc, char **argv) {
 
 	loopmgr = isc_loopmgr_new(rndc_mctx, 1);
 
-	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), rndc_start, rndc_task);
+	isc_loopmgr_setup(loopmgr, rndc_start, rndc_task);
 	isc_loopmgr_run(loopmgr);
 
 	isc_task_detach(&rndc_task);

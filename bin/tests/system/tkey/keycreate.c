@@ -245,7 +245,7 @@ main(int argc, char *argv[]) {
 	isc_buffer_add(&nonce, sizeof(noncedata));
 
 	loopmgr = isc_loopmgr_new(mctx, 1);
-	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), sendquery, task);
+	isc_loopmgr_setup(loopmgr, sendquery, task);
 	isc_loopmgr_run(loopmgr);
 	isc_loopmgr_destroy(&loopmgr);
 
