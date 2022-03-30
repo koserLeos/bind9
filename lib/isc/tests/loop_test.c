@@ -99,10 +99,9 @@ static void
 isc_loopmgr_test(void **state) {
 	isc_loopmgr_t *loopmgr = *state;
 
-	isc_loopmgr_schedule_ctor(loopmgr, count, loopmgr);
+	isc_loopmgr_setup(loopmgr, count, loopmgr);
 
-	isc_loop_schedule_ctor(DEFAULT_LOOP(loopmgr), shutdown_loopmgr,
-			       loopmgr);
+	isc_loop_setup(DEFAULT_LOOP(loopmgr), shutdown_loopmgr, loopmgr);
 
 	isc_loopmgr_run(loopmgr);
 
@@ -132,9 +131,8 @@ static void
 isc_loopmgr_pause_test(void **state) {
 	isc_loopmgr_t *loopmgr = *state;
 
-	isc_loop_schedule_ctor(DEFAULT_LOOP(loopmgr), pause_loopmgr, loopmgr);
-	isc_loop_schedule_ctor(DEFAULT_LOOP(loopmgr), shutdown_loopmgr,
-			       loopmgr);
+	isc_loop_setup(DEFAULT_LOOP(loopmgr), pause_loopmgr, loopmgr);
+	isc_loop_setup(DEFAULT_LOOP(loopmgr), shutdown_loopmgr, loopmgr);
 
 	isc_loopmgr_run(loopmgr);
 }
@@ -150,7 +148,7 @@ static void
 isc_loopmgr_sigint_test(void **state) {
 	isc_loopmgr_t *loopmgr = *state;
 
-	isc_loop_schedule_ctor(CURRENT_LOOP(loopmgr), send_sigint, loopmgr);
+	isc_loop_setup(CURRENT_LOOP(loopmgr), send_sigint, loopmgr);
 
 	isc_loopmgr_run(loopmgr);
 }
@@ -166,7 +164,7 @@ static void
 isc_loopmgr_sigterm_test(void **state) {
 	isc_loopmgr_t *loopmgr = *state;
 
-	isc_loop_schedule_ctor(CURRENT_LOOP(loopmgr), send_sigterm, loopmgr);
+	isc_loop_setup(CURRENT_LOOP(loopmgr), send_sigterm, loopmgr);
 
 	isc_loopmgr_run(loopmgr);
 }

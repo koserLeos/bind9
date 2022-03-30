@@ -274,8 +274,7 @@ main(int argc, char *argv[]) {
 	RUNCHECK(dns_view_create(mctx, 0, "_test", &view));
 
 	loopmgr = isc_loopmgr_new(mctx, 1);
-	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr), sendqueries,
-			       task);
+	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), sendqueries, task);
 	isc_loopmgr_run(loopmgr);
 	isc_loopmgr_destroy(&loopmgr);
 

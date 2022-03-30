@@ -4022,12 +4022,11 @@ main(int argc, char *argv[]) {
 		 */
 		for (i = 0; i < (int)ntasks; i++) {
 			/*
-			 * We can't use isc_loopmgr_schedule_ctor() here
+			 * We can't use isc_loopmgr_setup() here
 			 * because each loop gets a different task.
 			 */
-			isc_loop_schedule_ctor(
-				isc_loopmgr_default_loop(loopmgr), startworker,
-				tasks[i]);
+			isc_loop_setup(isc_loopmgr_mainloop(loopmgr),
+				       startworker, tasks[i]);
 		}
 
 		isc_loopmgr_run(loopmgr);

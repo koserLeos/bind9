@@ -2178,8 +2178,7 @@ main(int argc, char *argv[]) {
 	RUNCHECK(dns_view_create(mctx, 0, "_test", &view));
 
 	query = ISC_LIST_HEAD(queries);
-	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr), sendqueries,
-			       query);
+	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), sendqueries, query);
 
 	/*
 	 * Stall to the start of a new second.

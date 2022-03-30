@@ -3395,8 +3395,7 @@ main(int argc, char **argv) {
 	setup_system();
 
 	loopmgr = isc_loopmgr_new(gmctx, 1);
-	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr), getinput,
-			       NULL);
+	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), getinput, NULL);
 	isc_loopmgr_run(loopmgr);
 	isc_loopmgr_destroy(&loopmgr);
 

@@ -10203,11 +10203,11 @@ named_server_create(isc_mem_t *mctx, named_server_t **serverp) {
 	server->sctx->fuzznotify = named_fuzz_notify;
 #endif /* ifdef ENABLE_AFL */
 
-	isc_loop_schedule_ctor(isc_loopmgr_default_loop(named_g_loopmgr),
-			       launch_server, server);
+	isc_loop_setup(isc_loopmgr_mainloop(named_g_loopmgr), launch_server,
+		       server);
 
-	isc_loop_schedule_dtor(isc_loopmgr_default_loop(named_g_loopmgr),
-			       close_server, server);
+	isc_loop_teardown(isc_loopmgr_mainloop(named_g_loopmgr), close_server,
+			  server);
 
 	/* Add SIGHUP reload handler  */
 	server->sighup = isc_signal_new(

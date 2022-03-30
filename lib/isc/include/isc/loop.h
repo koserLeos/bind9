@@ -58,8 +58,8 @@ isc_loopmgr_shutdown(isc_loopmgr_t *loopmgr);
  *
  * This will stop all signal handlers and send shutdown events to
  * all active loops. As a final action on shutting down, each loop
- * will run the function (or functions) set by isc_loopmgr_schedule_dtor()
- * or isc_loop_schedule_dtor().
+ * will run the function (or functions) set by isc_loopmgr_teardown()
+ * or isc_loop_teardown().
  *
  * Requires:
  *\li	'loopmgr' is a valid loop manager.
@@ -76,8 +76,7 @@ void
 isc_loopmgr_run(isc_loopmgr_t *loopmgr);
 /*%<
  * Run the loops in 'loopmgr'. Each loop will start by running the
- * function (or functions) set by isc_loopmgr_schedule_ctor() or
- * isc_loop_schedule_ctor().
+ * function (or functions) set by isc_loopmgr_setup() or isc_loop_setup().
  *
  * Requires:
  *\li	'loopmgr' is a valid loop manager.
@@ -104,9 +103,9 @@ isc_loopmgr_resume(isc_loopmgr_t *loopmgr);
  */
 
 void
-isc_loop_schedule_ctor(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
+isc_loop_setup(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
 void
-isc_loop_schedule_dtor(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
+isc_loop_teardown(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
 /*%<
  * Schedule actions to be run when starting, and when shutting down,
  * one of the loops in a loop manager.
@@ -118,15 +117,15 @@ isc_loop_schedule_dtor(isc_loop_t *loop, isc_job_cb cb, void *cbarg);
  */
 
 void
-isc_loopmgr_schedule_ctor(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
+isc_loopmgr_setup(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
 void
-isc_loopmgr_schedule_dtor(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
+isc_loopmgr_teardown(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
 /*%<
  * Schedule actions to be run when starting, and when shutting down,
  * *all* of the loops in loopmgr.
  *
- * This is the same as running isc_loop_schedule_ctor() or
- * isc_loop_schedule_dtor() on each of the loops in turn.
+ * This is the same as running isc_loop_setup() or
+ * isc_loop_teardown() on each of the loops in turn.
  *
  * Requires:
  *\li	'loopmgr' is a valid loop manager.
@@ -144,10 +143,10 @@ isc_loop_mem_attach(isc_loop_t *loop, isc_mem_t **mctxp);
  */
 
 isc_loop_t *
-isc_loopmgr_default_loop(isc_loopmgr_t *loopmgr);
+isc_loopmgr_mainloop(isc_loopmgr_t *loopmgr);
 /*%<
- * Returns the default loop for the 'loopmgr' (which is
- * 'loopmgr->loops[0]').
+ * Returns the main loop for the 'loopmgr' (which is 'loopmgr->loops[0]',
+ * regardless of how many loops there are).
  *
  * Requires:
  *\li	'loopmgr' is a valid loop manager.

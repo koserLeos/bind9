@@ -934,11 +934,9 @@ main(int argc, char **argv) {
 		set_search_domain(domainopt);
 	}
 	if (in_use) {
-		isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr),
-				       run_loop, NULL);
+		isc_loop_setup(isc_loopmgr_mainloop(loopmgr), run_loop, NULL);
 	} else {
-		isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr),
-				       getinput, NULL);
+		isc_loop_setup(isc_loopmgr_mainloop(loopmgr), getinput, NULL);
 	}
 	in_use = !in_use;
 

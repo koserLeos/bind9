@@ -160,11 +160,11 @@ shutdown_cb(uv_async_t *handle) {
 	uv_close((uv_handle_t *)&loop->shutdown, NULL);
 	uv_close((uv_handle_t *)&loop->pause, NULL);
 
-	job = ISC_LIST_TAIL(loop->dtors);
+	job = ISC_LIST_TAIL(loop->teardown_jobs);
 	while (job != NULL) {
 		int r;
 		isc_job_t *next = ISC_LIST_NEXT(job, link);
-		ISC_LIST_UNLINK(loop->dtors, job, link);
+		ISC_LIST_UNLINK(loop->teardown_jobs, job, link);
 
 		r = uv_idle_start(&job->idle, isc__job_cb);
 		UV_RUNTIME_CHECK(uv_idle_start, r);
@@ -188,8 +188,8 @@ loop_init(isc_loop_t *loop) {
 
 	isc_mem_create(&loop->mctx);
 
-	ISC_LIST_INIT(loop->ctors);
-	ISC_LIST_INIT(loop->dtors);
+	ISC_LIST_INIT(loop->setup_jobs);
+	ISC_LIST_INIT(loop->teardown_jobs);
 }
 
 static void
@@ -197,10 +197,10 @@ loop_run(isc_loop_t *loop) {
 	int r;
 	isc_job_t *job;
 
-	job = ISC_LIST_HEAD(loop->ctors);
+	job = ISC_LIST_HEAD(loop->setup_jobs);
 	while (job != NULL) {
 		isc_job_t *next = ISC_LIST_NEXT(job, link);
-		ISC_LIST_UNLINK(loop->ctors, job, link);
+		ISC_LIST_UNLINK(loop->setup_jobs, job, link);
 
 		r = uv_idle_start(&job->idle, isc__job_cb);
 		UV_RUNTIME_CHECK(uv_idle_start, r);
@@ -275,10 +275,10 @@ isc__loop_schedule(isc_loop_t *loop, int when, isc_job_cb cb, void *cbarg) {
 	 */
 	switch (when) {
 	case isc_loop_ctor:
-		ISC_LIST_PREPEND(loop->ctors, job, link);
+		ISC_LIST_PREPEND(loop->setup_jobs, job, link);
 		break;
 	case isc_loop_dtor:
-		ISC_LIST_PREPEND(loop->dtors, job, link);
+		ISC_LIST_PREPEND(loop->teardown_jobs, job, link);
 		break;
 	default:
 		UNREACHABLE();
@@ -338,12 +338,12 @@ isc_loopmgr_new(isc_mem_t *mctx, uint32_t nloops) {
 }
 
 void
-isc_loop_schedule_ctor(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
+isc_loop_setup(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
 	isc__loop_schedule(loop, isc_loop_ctor, cb, cbarg);
 }
 
 void
-isc_loop_schedule_dtor(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
+isc_loop_teardown(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
 	isc__loop_schedule(loop, isc_loop_dtor, cb, cbarg);
 }
 
@@ -361,12 +361,12 @@ isc__loopmgr_schedule(isc_loopmgr_t *loopmgr, int when, isc_job_cb cb,
 }
 
 void
-isc_loopmgr_schedule_ctor(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg) {
+isc_loopmgr_setup(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg) {
 	isc__loopmgr_schedule(loopmgr, isc_loop_ctor, cb, cbarg);
 }
 
 void
-isc_loopmgr_schedule_dtor(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg) {
+isc_loopmgr_teardown(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg) {
 	isc__loopmgr_schedule(loopmgr, isc_loop_dtor, cb, cbarg);
 }
 
@@ -470,7 +470,7 @@ isc_loop_mem_attach(isc_loop_t *loop, isc_mem_t **mctxp) {
 }
 
 isc_loop_t *
-isc_loopmgr_default_loop(isc_loopmgr_t *loopmgr) {
+isc_loopmgr_mainloop(isc_loopmgr_t *loopmgr) {
 	REQUIRE(VALID_LOOPMGR(loopmgr));
 
 	return (DEFAULT_LOOP(loopmgr));

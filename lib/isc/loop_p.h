@@ -67,8 +67,8 @@ struct isc_loop {
 
 	/* Shutdown */
 	uv_async_t shutdown;
-	ISC_LIST(isc_job_t) ctors;
-	ISC_LIST(isc_job_t) dtors;
+	ISC_LIST(isc_job_t) setup_jobs;
+	ISC_LIST(isc_job_t) teardown_jobs;
 };
 
 /*

@@ -3035,8 +3035,7 @@ void
 dig_startup(void) {
 	debug("dig_startup()");
 
-	isc_loop_schedule_ctor(isc_loopmgr_default_loop(loopmgr), run_loop,
-			       NULL);
+	isc_loop_setup(isc_loopmgr_mainloop(loopmgr), run_loop, NULL);
 	isc_loopmgr_run(loopmgr);
 }
 
