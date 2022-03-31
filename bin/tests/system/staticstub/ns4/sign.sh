@@ -17,8 +17,8 @@ zone=sub.example
 infile=${zone}.db.in
 zonefile=${zone}.db
 
-keyname1=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone $zone`
-keyname2=`$KEYGEN -q -a RSASHA256 -b 2048 -f KSK -n zone $zone`
+keyname1=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -b ${DEFAULT_BITS} -n zone $zone)
+keyname2=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -b ${DEFAULT_BITS} -f KSK -n zone $zone)
 
 cat $infile $keyname1.key $keyname2.key > $zonefile
 
