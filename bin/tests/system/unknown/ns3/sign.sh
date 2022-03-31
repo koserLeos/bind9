@@ -16,5 +16,5 @@
 zone=example
 rm -f K${zone}.+*+*.key
 rm -f K${zone}.+*+*.private
-keyname=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone $zone`
-keyname=`$KEYGEN -q -a RSASHA256 -b 2048 -n zone -f KSK $zone`
+keyname=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -b ${DEFAULT_BITS} -n zone $zone)
+keyname=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -b ${DEFAULT_BITS} -n zone -f KSK $zone)
