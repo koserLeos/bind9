@@ -199,7 +199,7 @@ ns3	10	A	10.53.0.3
 EOF
 i=1
 while [ $i -le 300 ]; do
-    echo "host$i 10 IN NS ns.elsewhere"
+    echo "host$i 10 IN NS ns.elsewhere."
     i=$((i+1))
 done >> "$zonefile"
 key1=$("$KEYGEN" -q -a "$DEFAULT_ALGORITHM" -b "$DEFAULT_BITS" -n zone -f KSK "$zone")

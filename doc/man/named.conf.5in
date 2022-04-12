@@ -245,6 +245,7 @@ options {
           string ] [ tls string ]; ... } ] [ zone\-directory
           quoted_string ] [ in\-memory boolean ] [ min\-update\-interval
           duration ]; ... };
+      check\-delegation ( fail | warn | ignore );
       check\-dup\-records ( fail | warn | ignore );
       check\-integrity boolean;
       check\-mx ( fail | warn | ignore );
@@ -252,7 +253,7 @@ options {
       check\-names ( primary | master |
           secondary | slave | response ) (
           fail | warn | ignore );
-      check\-sibling boolean;
+      check\-sibling ( fail | warn | ignore | boolean );
       check\-spf ( warn | ignore );
       check\-srv\-cname ( fail | warn | ignore );
       check\-wildcard boolean;
@@ -714,6 +715,7 @@ view string [ class ] {
           string ] [ tls string ]; ... } ] [ zone\-directory
           quoted_string ] [ in\-memory boolean ] [ min\-update\-interval
           duration ]; ... };
+      check\-delegation ( fail | warn | ignore );
       check\-dup\-records ( fail | warn | ignore );
       check\-integrity boolean;
       check\-mx ( fail | warn | ignore );
@@ -721,7 +723,7 @@ view string [ class ] {
       check\-names ( primary | master |
           secondary | slave | response ) (
           fail | warn | ignore );
-      check\-sibling boolean;
+      check\-sibling ( fail | warn | ignore | boolean );
       check\-spf ( warn | ignore );
       check\-srv\-cname ( fail | warn | ignore );
       check\-wildcard boolean;
@@ -995,12 +997,13 @@ zone <string> [ <class> ] {
       alt\-transfer\-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ] [ dscp <integer> ];
       alt\-transfer\-source\-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ] [ dscp <integer> ];
       auto\-dnssec ( allow | maintain | off );
+      check\-delegation ( fail | warn | ignore );
       check\-dup\-records ( fail | warn | ignore );
       check\-integrity <boolean>;
       check\-mx ( fail | warn | ignore );
       check\-mx\-cname ( fail | warn | ignore );
       check\-names ( fail | warn | ignore );
-      check\-sibling <boolean>;
+      check\-sibling ( fail | warn | ignore | <boolean> );
       check\-spf ( warn | ignore );
       check\-srv\-cname ( fail | warn | ignore );
       check\-wildcard <boolean>;

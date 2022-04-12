@@ -44,7 +44,7 @@ dname02.example.	3600	IN	DNAME	dname-target.example.
 dname03.example.	3600	IN	DNAME	.
 doa01.example.		3600	IN	DOA	1234567890 1234567890 1 "image/gif" R0lGODlhKAAZAOMCAGZmZgBmmf///zOZzMz//5nM/zNmmWbM/5nMzMzMzACZ/////////////////////yH5BAEKAA8ALAAAAAAoABkAAATH8IFJK5U2a4337F5ogRkpnoCJrly7PrCKyh8c3HgAhzT35MDbbtO7/IJIHbGiOiaTxVTpSVWWLqNq1UVyapNS1wd3OAxug0LhnCubcVhsxysQnOt4ATpvvzHlFzl1AwODhWeFAgRpen5/UhheAYMFdUB4SFcpGEGGdQeCAqBBLTuSk30EeXd9pEsAbKGxjHqDSE0Sp6ixN4N1BJmbc7lIhmsBich1awPAjkY1SZR8bJWrz382SGqIBQQFQd4IsUTaX+ceuudPEQA7
 doa02.example.		3600	IN	DOA	0 1 2 "" aHR0cHM6Ly93d3cuaXNjLm9yZy8=
-ds01.example.		3600	IN	NS	ns42.example.
+ds01.example.		3600	IN	NS	ns43.example.
 ds01.example.		3600	IN	DS	12892 5 2 26584835CA80C81C91999F31CFAF2A0E89D4FF1C8FAFD0DDB31A85C7 19277C13
 ds02.example.		3600	IN	NS	ns43.example.
 ds02.example.		3600	IN	DS	12892 5 1 7AA4A3F416C2F2391FB7AB0D434F762CD62D1390
@@ -92,6 +92,7 @@ mr01.example.		3600	IN	MR	mrname.example.
 mr02.example.		3600	IN	MR	.
 mx01.example.		3600	IN	MX	10 mail.example.
 mx02.example.		3600	IN	MX	10 .
+old-slow-box.example.	3600	IN	A	192.0.2.1
 naptr01.example.	3600	IN	NAPTR	0 0 "" "" "" .
 naptr02.example.	3600	IN	NAPTR	65535 65535 "blurgh" "blorf" "blllbb" foo.
 nimloc01.example.	3600	IN	NIMLOC	1289AB
@@ -112,6 +113,7 @@ ninfo14.example.	3600	IN	NINFO	"foo;"
 ninfo15.example.	3600	IN	NINFO	"bar\\;"
 ns2.example.		3600	IN	A	10.53.0.2
 ns3.example.		3600	IN	A	10.53.0.3
+ns43.example.		3600	IN	A	192.0.2.1
 nsap-ptr01.example.	3600	IN	NSAP-PTR .
 nsap-ptr01.example.	3600	IN	NSAP-PTR foo.
 nsap01.example.		3600	IN	NSAP	0x47000580005a0000000001e133ffffff00016100

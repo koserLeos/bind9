@@ -1475,8 +1475,45 @@ named_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		obj = NULL;
 		result = named_config_get(maps, "check-sibling", &obj);
 		INSIST(result == ISC_R_SUCCESS && obj != NULL);
-		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKSIBLING,
-				   cfg_obj_asboolean(obj));
+		if (cfg_obj_isboolean(obj)) {
+			warn = false;
+			check = cfg_obj_asboolean(obj);
+		} else {
+			if (strcasecmp(cfg_obj_asstring(obj), "warn") == 0) {
+				warn = true;
+				check = true;
+			} else if (strcasecmp(cfg_obj_asstring(obj), "fail") ==
+				   0) {
+				warn = false;
+				check = true;
+			} else if (strcasecmp(cfg_obj_asstring(obj),
+					      "ignore") == 0) {
+				warn = false;
+				check = false;
+			} else {
+				UNREACHABLE();
+			}
+		}
+		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKSIBLING, check);
+		dns_zone_setoption(zone, DNS_ZONEOPT_WARNCHECKSIBLING, warn);
+
+		obj = NULL;
+		result = named_config_get(maps, "check-delegation", &obj);
+		INSIST(result == ISC_R_SUCCESS && obj != NULL);
+		if (strcasecmp(cfg_obj_asstring(obj), "warn") == 0) {
+			warn = true;
+			check = true;
+		} else if (strcasecmp(cfg_obj_asstring(obj), "fail") == 0) {
+			warn = false;
+			check = true;
+		} else if (strcasecmp(cfg_obj_asstring(obj), "ignore") == 0) {
+			warn = false;
+			check = false;
+		} else {
+			UNREACHABLE();
+		}
+		dns_zone_setoption(zone, DNS_ZONEOPT_CHECKDELEGATION, check);
+		dns_zone_setoption(zone, DNS_ZONEOPT_WARNDELEGATION, warn);
 
 		obj = NULL;
 		result = named_config_get(maps, "check-spf", &obj);

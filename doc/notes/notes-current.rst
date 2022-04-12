@@ -69,6 +69,13 @@ New Features
   should increase the responsiveness of ``named`` when RPZ updates are being
   applied after an RPZ zone has been successfully transfered.  :gl:`#3190`
 
+- Missing glue records and address records for SRV record in primary zone
+  files is now fatal at load time.  Additionally glue records that refer to
+  CNAMES, including below DNAMES, is now fatal at load time.  These
+  configuration errors have been logged for years and where scheduled to
+  be made fatal in BIND 9.5.0.  ``check-integrity no;`` can be used to disable
+  these checks. :gl:`#2318`
+
 Removed Features
 ~~~~~~~~~~~~~~~~
 

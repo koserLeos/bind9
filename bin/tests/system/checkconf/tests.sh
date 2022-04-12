@@ -107,6 +107,31 @@ do
 	status=`expr $status + $ret`
 done
 
+for load in load-*.conf
+do
+	n=`expr $n + 1`
+	ret=0
+	case $load in
+	load-ignore-*)
+		echo_i "checking that named-checkconf -z loads $load ($n)"
+		$CHECKCONF -z $load > checkconf.out$n 2>&1 || ret=1
+		test $(grep -v "loaded serial" checkconf.out$n | wc -l) == 0 || ret=1
+		;;
+	load-warn-*)
+		echo_i "checking that named-checkconf -z warns $load ($n)"
+		$CHECKCONF -z $load > checkconf.out$n 2>&1 || ret=1
+		test $(grep -v "loaded serial" checkconf.out$n | wc -l) != 0 || ret=1
+		;;
+	load-fail-*)
+		echo_i "checking that named-checkconf -z fails $load ($n)"
+		$CHECKCONF -z $load > checkconf.out$n 2>&1 && ret=1
+		test $(grep -v "bad zone" checkconf.out$n | wc -l) != 0 || ret=1
+		;;
+	esac
+	if [ $ret != 0 ]; then echo_i "failed"; ret=1; fi
+	status=`expr $status + $ret`
+done
+
 n=`expr $n + 1`
 echo_i "checking that ancient options report a fatal error ($n)"
 ret=0

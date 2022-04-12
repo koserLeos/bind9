@@ -2213,9 +2213,19 @@ Boolean Options
    If ``check-integrity`` is set, then fail, warn, or ignore SRV records
    that refer to CNAMES. The default is to ``warn``.
 
+``check-delegation``
+   If ``check-integrity`` is set, then check that there are address
+   records for the listed nameservers if the name is beneath the
+   parent zone's apex.  Report if a CNAME, covering DNAME, missing
+   address records or missing required glue records are detected.
+   ``check-sibling`` determines if missing sibling glue records are
+   reported or not.  Allowed values are ``fail``, ``warn``, and
+   ``ignore``.  The default is ``fail``.
+
 ``check-sibling``
-   When performing integrity checks, also check that sibling glue
-   exists. The default is ``yes``.
+   When performing delegation checks, also check that sibling glue
+   exists.  Allowed values are ``fail`` (``yes``), ``warn`` and
+   ``ignore`` (``no``).  The default is ``fail``.
 
 ``check-spf``
    If ``check-integrity`` is set, check that there is a TXT Sender

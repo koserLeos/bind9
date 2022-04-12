@@ -295,6 +295,25 @@ configure_zone(const char *vclass, const char *view, const cfg_obj_t *zconfig,
 	}
 
 	obj = NULL;
+	if (get_maps(maps, "check-delegation", &obj)) {
+		if (strcasecmp(cfg_obj_asstring(obj), "warn") == 0) {
+			zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+			zone_options |= DNS_ZONEOPT_WARNDELEGATION;
+		} else if (strcasecmp(cfg_obj_asstring(obj), "fail") == 0) {
+			zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+			zone_options &= ~DNS_ZONEOPT_WARNDELEGATION;
+		} else if (strcasecmp(cfg_obj_asstring(obj), "ignore") == 0) {
+			zone_options &= ~DNS_ZONEOPT_CHECKDELEGATION;
+			zone_options &= ~DNS_ZONEOPT_WARNDELEGATION;
+		} else {
+			UNREACHABLE();
+		}
+	} else {
+		zone_options |= DNS_ZONEOPT_CHECKDUPRR;
+		zone_options &= ~DNS_ZONEOPT_CHECKDUPRRFAIL;
+	}
+
+	obj = NULL;
 	if (get_maps(maps, "check-dup-records", &obj)) {
 		if (strcasecmp(cfg_obj_asstring(obj), "warn") == 0) {
 			zone_options |= DNS_ZONEOPT_CHECKDUPRR;
@@ -384,9 +403,24 @@ configure_zone(const char *vclass, const char *view, const cfg_obj_t *zconfig,
 	obj = NULL;
 	if (get_maps(maps, "check-sibling", &obj)) {
 		if (cfg_obj_asboolean(obj)) {
+			if (cfg_obj_asboolean(obj)) {
+				zone_options |= DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
+			} else {
+				zone_options &= ~DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
+			}
+		} else if (strcasecmp(cfg_obj_asstring(obj), "warn") == 0) {
 			zone_options |= DNS_ZONEOPT_CHECKSIBLING;
-		} else {
+			zone_options |= DNS_ZONEOPT_WARNCHECKSIBLING;
+		} else if (strcasecmp(cfg_obj_asstring(obj), "fail") == 0) {
+			zone_options |= DNS_ZONEOPT_CHECKSIBLING;
+			zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
+		} else if (strcasecmp(cfg_obj_asstring(obj), "ignore") == 0) {
 			zone_options &= ~DNS_ZONEOPT_CHECKSIBLING;
+			zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
+		} else {
+			UNREACHABLE();
 		}
 	}
 

@@ -30,6 +30,7 @@ options {
 zone "." {
 	type primary;
 	file "root.db";
+	check-integrity no;
 };
 
 zone "moves" {
