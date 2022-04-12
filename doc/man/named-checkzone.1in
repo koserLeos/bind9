@@ -83,11 +83,12 @@ This option specifies the class of the zone. If not specified, \fBIN\fP is assum
 .TP
 .B \-i mode
 This option performs post\-load zone integrity checks. Possible modes are
-\fBfull\fP (the default), \fBfull\-sibling\fP, \fBlocal\fP,
-\fBlocal\-sibling\fP, and \fBnone\fP\&.
+\fBfull\fP (the default), \fBwarn\fP, \fBfull\-sibling\fP, \fBwarn\-sibling\fP,
+\fBlocal\fP, \fBwarn\-local\fP, \fBlocal\-sibling\fP, \fBwarn\-local\-sibling\fP
+and \fBnone\fP\&.
 .sp
 Mode \fBfull\fP checks that MX records refer to A or AAAA records
-(both in\-zone and out\-of\-zone hostnames). Mode \fBlocal\fP only
+(both in\-zone and out\-of\-zone hostnames).  Mode \fBlocal\fP only
 checks MX records which refer to in\-zone hostnames.
 .sp
 Mode \fBfull\fP checks that SRV records refer to A or AAAA records
@@ -97,13 +98,22 @@ checks SRV records which refer to in\-zone hostnames.
 Mode \fBfull\fP checks that delegation NS records refer to A or AAAA
 records (both in\-zone and out\-of\-zone hostnames). It also checks that
 glue address records in the zone match those advertised by the child.
+.sp
+Mode \fBwarn\fP is like \fBfull\fP but emits warnings.
+.sp
 Mode \fBlocal\fP only checks NS records which refer to in\-zone
 hostnames or verifies that some required glue exists, i.e., when the
 name server is in a child zone.
 .sp
+Mode \fBwarn\-local\fP is like \fBlocal\fP but warnings are issued.
+.sp
 Modes \fBfull\-sibling\fP and \fBlocal\-sibling\fP disable sibling glue
-checks, but are otherwise the same as \fBfull\fP and \fBlocal\fP,
+checks, but are otherwise the same as \fBfull\fP and \fBlocal\fP
 respectively.
+.sp
+Modes \fBwarn\-sibling\fP and \fBwarn\-local\-sibling\fP are like
+\fBfull\-sibling\fP and \fBlocal\-sibling\fP respectively, but warnings
+are issued.
 .sp
 Mode \fBnone\fP disables the checks.
 .UNINDENT

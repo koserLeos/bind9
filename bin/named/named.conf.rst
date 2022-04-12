@@ -195,6 +195,7 @@ OPTIONS
   	    string ] [ tls string ]; ... } ] [ zone-directory
   	    quoted_string ] [ in-memory boolean ] [ min-update-interval
   	    duration ]; ... };
+  	check-delegation ( fail | warn | ignore );
   	check-dup-records ( fail | warn | ignore );
   	check-integrity boolean;
   	check-mx ( fail | warn | ignore );
@@ -202,7 +203,7 @@ OPTIONS
   	check-names ( primary | master |
   	    secondary | slave | response ) (
   	    fail | warn | ignore );
-  	check-sibling boolean;
+  	check-sibling ( fail | warn | ignore | boolean );
   	check-spf ( warn | ignore );
   	check-srv-cname ( fail | warn | ignore );
   	check-wildcard boolean;
@@ -628,6 +629,7 @@ VIEW
   	    string ] [ tls string ]; ... } ] [ zone-directory
   	    quoted_string ] [ in-memory boolean ] [ min-update-interval
   	    duration ]; ... };
+  	check-delegation ( fail | warn | ignore );
   	check-dup-records ( fail | warn | ignore );
   	check-integrity boolean;
   	check-mx ( fail | warn | ignore );
@@ -635,7 +637,7 @@ VIEW
   	check-names ( primary | master |
   	    secondary | slave | response ) (
   	    fail | warn | ignore );
-  	check-sibling boolean;
+  	check-sibling ( fail | warn | ignore | boolean );
   	check-spf ( warn | ignore );
   	check-srv-cname ( fail | warn | ignore );
   	check-wildcard boolean;

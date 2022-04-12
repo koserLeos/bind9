@@ -71,11 +71,12 @@ Options
 .. option:: -i mode
 
    This option performs post-load zone integrity checks. Possible modes are
-   ``full`` (the default), ``full-sibling``, ``local``,
-   ``local-sibling``, and ``none``.
+   ``full`` (the default), ``warn``, ``full-sibling``, ``warn-sibling``,
+   ``local``, ``warn-local``, ``local-sibling``, ``warn-local-sibling``
+   and ``none``.
 
    Mode ``full`` checks that MX records refer to A or AAAA records
-   (both in-zone and out-of-zone hostnames). Mode ``local`` only
+   (both in-zone and out-of-zone hostnames).  Mode ``local`` only
    checks MX records which refer to in-zone hostnames.
 
    Mode ``full`` checks that SRV records refer to A or AAAA records
@@ -85,13 +86,22 @@ Options
    Mode ``full`` checks that delegation NS records refer to A or AAAA
    records (both in-zone and out-of-zone hostnames). It also checks that
    glue address records in the zone match those advertised by the child.
+
+   Mode ``warn`` is like ``full`` but emits warnings.
+
    Mode ``local`` only checks NS records which refer to in-zone
    hostnames or verifies that some required glue exists, i.e., when the
    name server is in a child zone.
 
+   Mode ``warn-local`` is like ``local`` but warnings are issued.
+
    Modes ``full-sibling`` and ``local-sibling`` disable sibling glue
-   checks, but are otherwise the same as ``full`` and ``local``,
+   checks, but are otherwise the same as ``full`` and ``local``
    respectively.
+
+   Modes ``warn-sibling`` and ``warn-local-sibling`` are like
+   ``full-sibling`` and ``local-sibling`` respectively, but warnings
+   are issued.
 
    Mode ``none`` disables the checks.
 

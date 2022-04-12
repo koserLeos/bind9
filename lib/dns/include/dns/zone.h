@@ -63,41 +63,54 @@ typedef enum {
 } dns_zonestat_level_t;
 
 typedef enum {
-	DNS_ZONEOPT_MANYERRORS = 1 << 0,    /*%< return many errors on load */
-	DNS_ZONEOPT_IXFRFROMDIFFS = 1 << 1, /*%< calculate differences */
-	DNS_ZONEOPT_NOMERGE = 1 << 2,	    /*%< don't merge journal */
-	DNS_ZONEOPT_CHECKNS = 1 << 3,	    /*%< check if NS's are addresses */
-	DNS_ZONEOPT_FATALNS = 1 << 4,	    /*%< DNS_ZONEOPT_CHECKNS is fatal */
-	DNS_ZONEOPT_MULTIMASTER = 1 << 5,   /*%< this zone has multiple
-						 primaries */
-	DNS_ZONEOPT_USEALTXFRSRC = 1 << 6,  /*%< use alternate transfer sources
-					     */
-	DNS_ZONEOPT_CHECKNAMES = 1 << 7,    /*%< check-names */
-	DNS_ZONEOPT_CHECKNAMESFAIL = 1 << 8, /*%< fatal check-name failures */
-	DNS_ZONEOPT_CHECKWILDCARD = 1 << 9, /*%< check for internal wildcards */
-	DNS_ZONEOPT_CHECKMX = 1 << 10,	    /*%< check-mx */
-	DNS_ZONEOPT_CHECKMXFAIL = 1 << 11,  /*%< fatal check-mx failures */
-	DNS_ZONEOPT_CHECKINTEGRITY = 1 << 12, /*%< perform integrity checks */
-	DNS_ZONEOPT_CHECKSIBLING = 1 << 13, /*%< perform sibling glue checks */
-	DNS_ZONEOPT_NOCHECKNS = 1 << 14,    /*%< disable IN NS address checks */
-	DNS_ZONEOPT_WARNMXCNAME = 1 << 15,  /*%< warn on MX CNAME check */
-	DNS_ZONEOPT_IGNOREMXCNAME = 1 << 16,  /*%< ignore MX CNAME check */
-	DNS_ZONEOPT_WARNSRVCNAME = 1 << 17,   /*%< warn on SRV CNAME check */
-	DNS_ZONEOPT_IGNORESRVCNAME = 1 << 18, /*%< ignore SRV CNAME check */
-	DNS_ZONEOPT_UPDATECHECKKSK = 1 << 19, /*%< check dnskey KSK flag */
-	DNS_ZONEOPT_TRYTCPREFRESH = 1 << 20, /*%< try tcp refresh on udp failure
-					      */
-	DNS_ZONEOPT_NOTIFYTOSOA = 1 << 21,   /*%< Notify the SOA MNAME */
-	DNS_ZONEOPT_NSEC3TESTZONE = 1 << 22, /*%< nsec3-test-zone */
-	DNS_ZONEOPT_SECURETOINSECURE = 1 << 23, /*%< dnssec-secure-to-insecure
+	DNS_ZONEOPT_MANYERRORS = 1ULL << 0, /*%< return many errors on load */
+	DNS_ZONEOPT_IXFRFROMDIFFS = 1ULL << 1, /*%< calculate differences */
+	DNS_ZONEOPT_NOMERGE = 1ULL << 2,       /*%< don't merge journal */
+	DNS_ZONEOPT_CHECKNS = 1ULL << 3, /*%< check if NS's are addresses */
+	DNS_ZONEOPT_FATALNS = 1ULL << 4, /*%< DNS_ZONEOPT_CHECKNS is fatal */
+	DNS_ZONEOPT_MULTIMASTER = 1ULL << 5,	/*%< this zone has multiple
+						 * primaries
 						 */
-	DNS_ZONEOPT_DNSKEYKSKONLY = 1 << 24,	/*%< dnssec-dnskey-kskonly */
-	DNS_ZONEOPT_CHECKDUPRR = 1 << 25,	/*%< check-dup-records */
-	DNS_ZONEOPT_CHECKDUPRRFAIL = 1 << 26,	/*%< fatal check-dup-records
-						 * failures */
-	DNS_ZONEOPT_CHECKSPF = 1 << 27,		/*%< check SPF records */
-	DNS_ZONEOPT_CHECKTTL = 1 << 28,		/*%< check max-zone-ttl */
-	DNS_ZONEOPT_AUTOEMPTY = 1 << 29,	/*%< automatic empty zone */
+	DNS_ZONEOPT_USEALTXFRSRC = 1ULL << 6,	/*%< use alternate transfer
+						 * sources
+						 */
+	DNS_ZONEOPT_CHECKNAMES = 1ULL << 7,	/*%< check-names */
+	DNS_ZONEOPT_CHECKNAMESFAIL = 1ULL << 8, /*%< fatal check-name failures
+						 */
+	DNS_ZONEOPT_CHECKWILDCARD = 1ULL << 9, /*%< check for internal wildcards
+						*/
+	DNS_ZONEOPT_CHECKMX = 1ULL << 10,      /*%< check-mx */
+	DNS_ZONEOPT_CHECKMXFAIL = 1ULL << 11,  /*%< fatal check-mx failures */
+	DNS_ZONEOPT_CHECKINTEGRITY = 1ULL << 12, /*%< perform integrity checks
+						  */
+	DNS_ZONEOPT_CHECKSIBLING = 1ULL << 13, /*%< perform sibling glue checks
+						*/
+	DNS_ZONEOPT_NOCHECKNS = 1ULL << 14, /*%< disable IN NS address checks */
+	DNS_ZONEOPT_WARNMXCNAME = 1ULL << 15,	 /*%< warn on MX CNAME check */
+	DNS_ZONEOPT_IGNOREMXCNAME = 1ULL << 16,	 /*%< ignore MX CNAME check */
+	DNS_ZONEOPT_WARNSRVCNAME = 1ULL << 17,	 /*%< warn on SRV CNAME check */
+	DNS_ZONEOPT_IGNORESRVCNAME = 1ULL << 18, /*%< ignore SRV CNAME check */
+	DNS_ZONEOPT_UPDATECHECKKSK = 1ULL << 19, /*%< check dnskey KSK flag */
+	DNS_ZONEOPT_TRYTCPREFRESH = 1ULL << 20,	 /*%< try tcp refresh on udp
+						  * failure
+						  */
+	DNS_ZONEOPT_NOTIFYTOSOA = 1ULL << 21,	 /*%< Notify the SOA MNAME */
+	DNS_ZONEOPT_NSEC3TESTZONE = 1ULL << 22,	 /*%< nsec3-test-zone */
+	DNS_ZONEOPT_SECURETOINSECURE = 1ULL << 23, /*%<
+						    * dnssec-secure-to-insecure
+						    */
+	DNS_ZONEOPT_DNSKEYKSKONLY = 1ULL << 24,	   /*%< dnssec-dnskey-kskonly */
+	DNS_ZONEOPT_CHECKDUPRR = 1ULL << 25,	   /*%< check-dup-records */
+	DNS_ZONEOPT_CHECKDUPRRFAIL = 1ULL << 26,   /*%< fatal check-dup-records
+						    * failures
+						    */
+	DNS_ZONEOPT_CHECKSPF = 1ULL << 27,	   /*%< check SPF records */
+	DNS_ZONEOPT_CHECKTTL = 1ULL << 28,	   /*%< check max-zone-ttl */
+	DNS_ZONEOPT_AUTOEMPTY = 1ULL << 29,	   /*%< automatic empty zone */
+	DNS_ZONEOPT_CHECKDELEGATION = 1ULL << 30,  /*%< warn glue checks */
+	DNS_ZONEOPT_WARNDELEGATION = 1ULL << 31,   /*%< warn glue checks */
+	DNS_ZONEOPT_WARNCHECKSIBLING = 1ULL << 32, /*%< warn sibling glue checks
+						    */
 	DNS_ZONEOPT___MAX = UINT64_MAX, /* trick to make the ENUM 64-bit wide */
 } dns_zoneopt_t;
 

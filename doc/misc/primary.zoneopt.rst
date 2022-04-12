@@ -21,12 +21,13 @@
   	alt-transfer-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ] [ dscp <integer> ];
   	alt-transfer-source-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ] [ dscp <integer> ];
   	auto-dnssec ( allow | maintain | off );
+  	check-delegation ( fail | warn | ignore );
   	check-dup-records ( fail | warn | ignore );
   	check-integrity <boolean>;
   	check-mx ( fail | warn | ignore );
   	check-mx-cname ( fail | warn | ignore );
   	check-names ( fail | warn | ignore );
-  	check-sibling <boolean>;
+  	check-sibling ( fail | warn | ignore | <boolean> );
   	check-spf ( warn | ignore );
   	check-srv-cname ( fail | warn | ignore );
   	check-wildcard <boolean>;

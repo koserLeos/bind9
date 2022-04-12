@@ -180,32 +180,83 @@ main(int argc, char **argv) {
 
 		case 'i':
 			if (ARGCMP("full")) {
-				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY |
-						DNS_ZONEOPT_CHECKSIBLING;
+				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+				zone_options &= ~DNS_ZONEOPT_WARNDELEGATION;
+				zone_options |= DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
+				docheckmx = true;
+				docheckns = true;
+				dochecksrv = true;
+			} else if (ARGCMP("warn")) {
+				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+				zone_options |= DNS_ZONEOPT_WARNDELEGATION;
+				zone_options |= DNS_ZONEOPT_CHECKSIBLING;
+				zone_options |= DNS_ZONEOPT_WARNCHECKSIBLING;
 				docheckmx = true;
 				docheckns = true;
 				dochecksrv = true;
 			} else if (ARGCMP("full-sibling")) {
 				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+				zone_options &= ~DNS_ZONEOPT_WARNDELEGATION;
 				zone_options &= ~DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
+				docheckmx = true;
+				docheckns = true;
+				dochecksrv = true;
+			} else if (ARGCMP("warn-sibling")) {
+				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+				zone_options |= DNS_ZONEOPT_WARNDELEGATION;
+				zone_options &= ~DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
 				docheckmx = true;
 				docheckns = true;
 				dochecksrv = true;
 			} else if (ARGCMP("local")) {
 				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+				zone_options &= ~DNS_ZONEOPT_WARNDELEGATION;
 				zone_options |= DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
+				docheckmx = false;
+				docheckns = false;
+				dochecksrv = false;
+			} else if (ARGCMP("warn-local")) {
+				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+				zone_options |= DNS_ZONEOPT_WARNDELEGATION;
+				zone_options |= DNS_ZONEOPT_CHECKSIBLING;
+				zone_options |= DNS_ZONEOPT_WARNCHECKSIBLING;
 				docheckmx = false;
 				docheckns = false;
 				dochecksrv = false;
 			} else if (ARGCMP("local-sibling")) {
 				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+				zone_options &= ~DNS_ZONEOPT_WARNDELEGATION;
 				zone_options &= ~DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
+				docheckmx = false;
+				docheckns = false;
+				dochecksrv = false;
+			} else if (ARGCMP("warn-local-sibling")) {
+				zone_options |= DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options |= DNS_ZONEOPT_CHECKDELEGATION;
+				zone_options |= DNS_ZONEOPT_WARNDELEGATION;
+				zone_options &= ~DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
 				docheckmx = false;
 				docheckns = false;
 				dochecksrv = false;
 			} else if (ARGCMP("none")) {
 				zone_options &= ~DNS_ZONEOPT_CHECKINTEGRITY;
+				zone_options &= ~DNS_ZONEOPT_CHECKDELEGATION;
 				zone_options &= ~DNS_ZONEOPT_CHECKSIBLING;
+				zone_options &= ~DNS_ZONEOPT_WARNDELEGATION;
+				zone_options &= ~DNS_ZONEOPT_WARNCHECKSIBLING;
 				docheckmx = false;
 				docheckns = false;
 				dochecksrv = false;

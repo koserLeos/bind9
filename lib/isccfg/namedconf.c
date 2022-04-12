@@ -714,6 +714,20 @@ static cfg_type_t cfg_type_warn = {
 	cfg_doc_enum, &cfg_rep_string, &warn_enums
 };
 
+static isc_result_t
+parse_checkmodebool(cfg_parser_t *pctx, const cfg_type_t *type,
+		    cfg_obj_t **ret) {
+	return (cfg_parse_enum_or_other(pctx, type, &cfg_type_boolean, ret));
+}
+static void
+doc_checkmodebool(cfg_printer_t *pctx, const cfg_type_t *type) {
+	cfg_doc_enum_or_other(pctx, type, &cfg_type_boolean);
+}
+static cfg_type_t cfg_type_checkmodebool = {
+	"checkmodebool",   parse_checkmodebool, cfg_print_ustring,
+	doc_checkmodebool, &cfg_rep_string,	checkmode_enums
+};
+
 static cfg_tuplefielddef_t checknames_fields[] = {
 	{ "type", &cfg_type_checktype, 0 },
 	{ "mode", &cfg_type_checkmode, 0 },
@@ -2245,11 +2259,12 @@ static cfg_clausedef_t zone_clauses[] = {
 	  CFG_ZONE_PRIMARY | CFG_ZONE_SECONDARY | CFG_ZONE_MIRROR },
 	{ "auto-dnssec", &cfg_type_autodnssec,
 	  CFG_ZONE_PRIMARY | CFG_ZONE_SECONDARY },
+	{ "check-delegation", &cfg_type_checkmode, CFG_ZONE_PRIMARY },
 	{ "check-dup-records", &cfg_type_checkmode, CFG_ZONE_PRIMARY },
 	{ "check-integrity", &cfg_type_boolean, CFG_ZONE_PRIMARY },
 	{ "check-mx", &cfg_type_checkmode, CFG_ZONE_PRIMARY },
 	{ "check-mx-cname", &cfg_type_checkmode, CFG_ZONE_PRIMARY },
-	{ "check-sibling", &cfg_type_boolean, CFG_ZONE_PRIMARY },
+	{ "check-sibling", &cfg_type_checkmodebool, CFG_ZONE_PRIMARY },
 	{ "check-spf", &cfg_type_warn, CFG_ZONE_PRIMARY },
 	{ "check-srv-cname", &cfg_type_checkmode, CFG_ZONE_PRIMARY },
 	{ "check-wildcard", &cfg_type_boolean, CFG_ZONE_PRIMARY },

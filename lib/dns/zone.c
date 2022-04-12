@@ -3151,6 +3151,17 @@ zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 		if (result != DNS_R_DELEGATION || required ||
 		    DNS_ZONE_OPTION(zone, DNS_ZONEOPT_CHECKSIBLING))
 		{
+			if ((result != DNS_R_DELEGATION || required) &&
+			    DNS_ZONE_OPTION(zone, DNS_ZONEOPT_WARNDELEGATION))
+			{
+				level = ISC_LOG_WARNING;
+			} else if (DNS_ZONE_OPTION(zone,
+						   DNS_ZONEOPT_CHECKSIBLING) &&
+				   DNS_ZONE_OPTION(
+					   zone, DNS_ZONEOPT_WARNCHECKSIBLING))
+			{
+				level = ISC_LOG_WARNING;
+			}
 			dns_zone_log(zone, level,
 				     "%s/NS '%s' has no %s"
 				     "address records (A or AAAA)",
@@ -3166,10 +3177,16 @@ zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 			answer = (level == ISC_LOG_ERROR) ? false : true;
 		}
 	} else if (result == DNS_R_CNAME) {
+		if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_WARNDELEGATION)) {
+			level = ISC_LOG_WARNING;
+		}
 		dns_zone_log(zone, level, "%s/NS '%s' is a CNAME (illegal)",
 			     ownerbuf, namebuf);
 		answer = (level == ISC_LOG_ERROR) ? false : true;
 	} else if (result == DNS_R_DNAME) {
+		if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_WARNDELEGATION)) {
+			level = ISC_LOG_WARNING;
+		}
 		dns_name_format(foundname, altbuf, sizeof altbuf);
 		dns_zone_log(zone, level,
 			     "%s/NS '%s' is below a DNAME '%s' (illegal)",
@@ -3395,6 +3412,11 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 		 * Remember bottom of zone due to NS.
 		 */
 		dns_name_copy(name, bottom);
+
+		if (!DNS_ZONE_OPTION(zone, DNS_ZONEOPT_CHECKDELEGATION)) {
+			dns_rdataset_disassociate(&rdataset);
+			goto next;
+		}
 
 		result = dns_rdataset_first(&rdataset);
 		while (result == ISC_R_SUCCESS) {
