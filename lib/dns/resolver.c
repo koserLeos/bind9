@@ -68,7 +68,7 @@
 
 /* Detailed logging of fctx attach/detach */
 #ifndef FCTX_TRACE
-#undef FCTX_TRACE
+#define FCTX_TRACE
 #endif
 
 #ifdef WANT_QUERYTRACE
