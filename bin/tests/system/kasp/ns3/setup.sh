@@ -60,8 +60,8 @@ do
 	if $FEATURETEST --have-fips-mode
 	then
 		# don't add to zones.
-		echo_i "setting up zone: $zone"
-		cp template.db.in "${zone}.kasp.db"
+		echo_i "setting up zone: ${zn}.kasp"
+		cp template.db.in "${zn}.kasp.db"
 	else
 		setup "${zn}.kasp"
 		cp template.db.in "$zonefile"
