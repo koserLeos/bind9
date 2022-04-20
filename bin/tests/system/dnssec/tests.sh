@@ -4452,5 +4452,17 @@ n=$((n+1))
 if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
+# Check that named can be used as a forwarder when resolving named that
+# involve a server returning CNAME at the apex where the chain of trust
+# is broken at that name.
+echo_i "check that illegal cname-at-apex resolves via forwarder ($n)"
+ret=0
+dig_with_opts @10.53.0.9 cname-at-apex.example. A > dig.out.ns9.test$n || ret=1
+grep "flags: qr rd ra;" dig.out.ns9.test$n >/dev/null || ret=1
+grep "status: NXDOMAIN," dig.out.ns9.test$n >/dev/null || ret=1
+n=$((n+1))
+if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
 echo_i "exit status: $status"
 [ $status -eq 0 ] || exit 1
