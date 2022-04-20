@@ -1,3 +1,6 @@
+5866.	[func]		Handle zones that incorrectly return CNAME at the apex
+			when validating via a forwarder. [GL #3282]
+
 5865.	[func]		Make statistics channel and control channel listen
 			on a single network manager thread. [GL !6032]
 
