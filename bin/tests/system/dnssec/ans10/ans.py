@@ -63,6 +63,9 @@ def create_response(msg):
         else:
             r.answer.append(dns.rrset.from_text(qname, 300, IN, CNAME, "somewhere."))
         r.flags |= dns.flags.AA
+    elif lqname == "cname.cname-at-apex.example.":
+        r.answer.append(dns.rrset.from_text(qname, 300, IN, CNAME, "somewhere."))
+        r.flags |= dns.flags.AA
     else:
         if rrtype == A:
             now = datetime.today()
