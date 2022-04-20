@@ -102,6 +102,7 @@ rm -f ./ns4/named_dump.db*
 rm -f ./ns6/optout-tld.db
 rm -f ./ns7/multiple.example.bk ./ns7/nsec3.example.bk ./ns7/optout.example.bk
 rm -f ./ns7/split-rrsig.db ./ns7/split-rrsig.db.unsplit
+rm -f ./ns9/named_dump.db
 rm -f ./nsupdate.out*
 rm -f ./python.out.*
 rm -f ./rndc.out.*

@@ -4473,5 +4473,13 @@ n=$((n+1))
 if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
+echo_i "check that 'ds-cname' is added to the comments in named_dump.db ($n)"
+ret=0
+rndccmd 10.53.0.9 dumpdb 2>&1 | sed 's/^/ns9 /' | cat_i
+awk '/^;.* ds-cname/ { check = 1; found = 1; next } check { if (!match($0, /CNAME/)) result=1; check = 0 } END { if (!found) result = 1; exit result } ' ns9/named_dump.db || ret=1
+n=$((n+1))
+if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
 echo_i "exit status: $status"
 [ $status -eq 0 ] || exit 1
