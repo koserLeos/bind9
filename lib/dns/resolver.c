@@ -280,7 +280,7 @@ typedef enum {
 	fetchstate_init = 0, /*%< Start event has not run yet. */
 	fetchstate_active,
 	fetchstate_done /*%< FETCHDONE events posted. */
-} fetchstate;
+} fetchstate_t;
 
 typedef enum {
 	badns_unreachable = 0,
@@ -308,7 +308,7 @@ struct fetchctx {
 	isc_refcount_t references;
 
 	/*% Locked by appropriate bucket lock. */
-	fetchstate state;
+	atomic_uint_fast32_t state;
 	atomic_bool want_shutdown;
 	bool cloned;
 	bool spilled;
@@ -1747,15 +1747,20 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result, int line) {
 
 static void
 fctx_done(fetchctx_t *fctx, isc_result_t result, int line) {
-	dns_resolver_t *res;
+	dns_resolver_t *res = fctx->res;
 	bool no_response = false;
 	bool age_untried = false;
 
 	REQUIRE(line >= 0);
 
-	FCTXTRACE("done");
+	if (!atomic_compare_exchange_strong(
+		    &fctx->state, &(uint_fast32_t){ fetchstate_active },
+		    fetchstate_done))
+	{
+		return;
+	}
 
-	res = fctx->res;
+	FCTXTRACE("done");
 
 	if (result == ISC_R_SUCCESS) {
 		if (fctx->qmin_warning != ISC_R_SUCCESS) {
@@ -1788,7 +1793,6 @@ fctx_done(fetchctx_t *fctx, isc_result_t result, int line) {
 	fctx_stoptimer(fctx);
 
 	LOCK(&res->buckets[fctx->bucketnum].lock);
-	fctx->state = fetchstate_done;
 	FCTX_ATTR_CLR(fctx, FCTX_ATTR_ADDRWAIT);
 	fctx_sendevents(fctx, result, line);
 	fctx_shutdown(fctx);
@@ -4311,8 +4315,7 @@ fctx_destroy(fetchctx_t *fctx, bool exiting) {
 	bool bucket_empty = false;
 
 	REQUIRE(VALID_FCTX(fctx));
-	REQUIRE(fctx->state == fetchstate_done ||
-		fctx->state == fetchstate_init);
+	REQUIRE(atomic_load(&fctx->state) != fetchstate_active);
 	REQUIRE(ISC_LIST_EMPTY(fctx->events));
 	REQUIRE(ISC_LIST_EMPTY(fctx->queries));
 	REQUIRE(ISC_LIST_EMPTY(fctx->finds));
@@ -4410,7 +4413,7 @@ fctx_shutdown(fetchctx_t *fctx) {
 	 * the control event to tell the fetch we want it to
 	 * exit.
 	 */
-	if (fctx->state != fetchstate_init) {
+	if (atomic_load(&fctx->state) != fetchstate_init) {
 		FCTXTRACE("posting control event");
 		cevent = &fctx->control_event;
 		isc_task_send(fctx->res->buckets[fctx->bucketnum].task,
@@ -4421,9 +4424,9 @@ fctx_shutdown(fetchctx_t *fctx) {
 static void
 fctx_doshutdown(isc_task_t *task, isc_event_t *event) {
 	fetchctx_t *fctx = event->ev_arg;
-	dns_resolver_t *res;
+	dns_resolver_t *res = NULL;
 	unsigned int bucketnum;
-	dns_validator_t *validator;
+	dns_validator_t *validator = NULL;
 
 	REQUIRE(VALID_FCTX(fctx));
 
@@ -4471,12 +4474,13 @@ fctx_doshutdown(isc_task_t *task, isc_event_t *event) {
 
 	FCTX_ATTR_SET(fctx, FCTX_ATTR_SHUTTINGDOWN);
 
-	INSIST(fctx->state == fetchstate_active ||
-	       fctx->state == fetchstate_done);
+	INSIST(atomic_load(&fctx->state) != fetchstate_init);
 	INSIST(atomic_load_acquire(&fctx->want_shutdown));
 
-	if (fctx->state != fetchstate_done) {
-		fctx->state = fetchstate_done;
+	if (atomic_compare_exchange_strong(
+		    &fctx->state, &(uint_fast32_t){ fetchstate_active },
+		    fetchstate_done))
+	{
 		fctx_sendevents(fctx, ISC_R_CANCELED, __LINE__);
 		fctx_detach(&(fetchctx_t *){ fctx });
 	}
@@ -4504,7 +4508,7 @@ fctx_start(isc_task_t *task, isc_event_t *event) {
 
 	LOCK(&res->buckets[bucketnum].lock);
 
-	INSIST(fctx->state == fetchstate_init);
+	INSIST(atomic_load(&fctx->state) == fetchstate_init);
 	if (atomic_load_acquire(&fctx->want_shutdown)) {
 		/*
 		 * We haven't started this fctx yet, but we've been
@@ -4526,7 +4530,8 @@ fctx_start(isc_task_t *task, isc_event_t *event) {
 	/*
 	 * Normal fctx startup.
 	 */
-	fctx->state = fetchstate_active;
+	atomic_store(&fctx->state, fetchstate_active);
+
 	/*
 	 * Reset the control event for later use in shutting
 	 * down the fctx.
@@ -10563,7 +10568,7 @@ fctx_match(fetchctx_t *fctx, const dns_name_t *name, dns_rdatatype_t type,
 	/*
 	 * Don't match fetch contexts that are shutting down.
 	 */
-	if (fctx->cloned || fctx->state == fetchstate_done ||
+	if (fctx->cloned || atomic_load(&fctx->state) == fetchstate_done ||
 	    ISC_LIST_EMPTY(fctx->events))
 	{
 		return (false);
@@ -10845,10 +10850,9 @@ unlock:
 
 void
 dns_resolver_cancelfetch(dns_fetch_t *fetch) {
-	fetchctx_t *fctx;
-	dns_resolver_t *res;
-	dns_fetchevent_t *event, *next_event;
-	isc_task_t *etask;
+	fetchctx_t *fctx = NULL;
+	dns_resolver_t *res = NULL;
+	dns_fetchevent_t *event = NULL;
 
 	REQUIRE(DNS_FETCH_VALID(fetch));
 	fctx = fetch->private;
@@ -10864,8 +10868,8 @@ dns_resolver_cancelfetch(dns_fetch_t *fetch) {
 	 * to those for other fetches that have joined the same
 	 * fctx) and send it with result = ISC_R_CANCELED.
 	 */
-	event = NULL;
-	if (fctx->state != fetchstate_done) {
+	if (atomic_load(&fctx->state) != fetchstate_done) {
+		dns_fetchevent_t *next_event = NULL;
 		for (event = ISC_LIST_HEAD(fctx->events); event != NULL;
 		     event = next_event) {
 			next_event = ISC_LIST_NEXT(event, ev_link);
@@ -10876,7 +10880,7 @@ dns_resolver_cancelfetch(dns_fetch_t *fetch) {
 		}
 	}
 	if (event != NULL) {
-		etask = event->ev_sender;
+		isc_task_t *etask = event->ev_sender;
 		event->ev_sender = fctx;
 		event->result = ISC_R_CANCELED;
 		isc_task_sendanddetach(&etask, ISC_EVENT_PTR(&event));
@@ -10891,10 +10895,9 @@ dns_resolver_cancelfetch(dns_fetch_t *fetch) {
 
 void
 dns_resolver_destroyfetch(dns_fetch_t **fetchp) {
-	dns_fetch_t *fetch;
-	dns_resolver_t *res;
-	dns_fetchevent_t *event, *next_event;
-	fetchctx_t *fctx;
+	dns_fetch_t *fetch = NULL;
+	dns_resolver_t *res = NULL;
+	fetchctx_t *fctx = NULL;
 	unsigned int bucketnum;
 
 	REQUIRE(fetchp != NULL);
@@ -10914,7 +10917,8 @@ dns_resolver_destroyfetch(dns_fetch_t **fetchp) {
 	 * Sanity check: the caller should have gotten its event before
 	 * trying to destroy the fetch.
 	 */
-	if (fctx->state != fetchstate_done) {
+	if (atomic_load(&fctx->state) != fetchstate_done) {
+		dns_fetchevent_t *event = NULL, *next_event = NULL;
 		for (event = ISC_LIST_HEAD(fctx->events); event != NULL;
 		     event = next_event) {
 			next_event = ISC_LIST_NEXT(event, ev_link);
