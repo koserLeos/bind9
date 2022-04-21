@@ -240,6 +240,7 @@ typedef ISC_LIST(dns_rbtnode_t) rbtnodelist_t;
 /*%< Ancient - awaiting cleanup. */
 #define RDATASET_ATTR_ANCIENT	   0x2000
 #define RDATASET_ATTR_STALE_WINDOW 0x4000
+#define RDATASET_ATTR_DSCNAME	   0x8000
 
 /*
  * XXX
@@ -297,6 +298,9 @@ typedef ISC_LIST(dns_rbtnode_t) rbtnodelist_t;
 #define STATCOUNT(header)                              \
 	((atomic_load_acquire(&(header)->attributes) & \
 	  RDATASET_ATTR_STATCOUNT) != 0)
+#define DSCNAME(header)                                \
+	((atomic_load_acquire(&(header)->attributes) & \
+	  RDATASET_ATTR_DSCNAME) != 0)
 
 #define RDATASET_ATTR_GET(header, attribute) \
 	(atomic_load_acquire(&(header)->attributes) & attribute)
@@ -3023,6 +3027,9 @@ bind_rdataset(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node, rdatasetheader_t *header,
 	if (PREFETCH(header)) {
 		rdataset->attributes |= DNS_RDATASETATTR_PREFETCH;
 	}
+	if (DSCNAME(header)) {
+		rdataset->attributes |= DNS_RDATASETATTR_DSCNAME;
+	}
 
 	if (stale && !ancient) {
 		dns_ttl_t stale_ttl = header->rdh_ttl + rbtdb->serve_stale_ttl;
@@ -5009,7 +5016,8 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			if (header->type == type ||
 			    (type == dns_rdatatype_any &&
 			     RBTDB_RDATATYPE_BASE(header->type) != 0) ||
-			    (cname_ok && header->type == dns_rdatatype_cname))
+			    (cname_ok && header->type == dns_rdatatype_cname &&
+			     (type != dns_rdatatype_ds || DSCNAME(header))))
 			{
 				/*
 				 * We've found the answer.
@@ -6831,6 +6839,9 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 					      newheader);
 				return (result);
 			}
+		}
+		if ((rdataset->attributes & DNS_RDATASETATTR_DSCNAME) != 0) {
+			RDATASET_ATTR_SET(newheader, RDATASET_ATTR_DSCNAME);
 		}
 	}
 

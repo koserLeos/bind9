@@ -8801,6 +8801,9 @@ rctx_answer_cname(respctx_t *rctx) {
 	rctx->crdataset->attributes |= DNS_RDATASETATTR_CACHE;
 	rctx->crdataset->attributes |= DNS_RDATASETATTR_CHAINING;
 	rctx->crdataset->trust = rctx->trust;
+	if (fctx->type == dns_rdatatype_ds) {
+		rctx->crdataset->attributes |= DNS_RDATASETATTR_DSCNAME;
+	}
 
 	for (sigrdataset = ISC_LIST_HEAD(rctx->cname->list);
 	     sigrdataset != NULL;

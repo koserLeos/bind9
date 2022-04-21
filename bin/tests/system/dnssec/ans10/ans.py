@@ -32,6 +32,11 @@ def logquery(type, qname):
 
 ############################################################################
 # Respond to a DNS query.
+#
+# If QNAME == cname-at-apex.example then simulate a server that returns
+# a CNAME at the apex for all types other than NS and the NS RRset
+#
+# Otherwise:
 # SOA gets a unsigned response.
 # NS gets a unsigned response.
 # DNSKEY get a unsigned NODATA response.
@@ -41,6 +46,7 @@ def logquery(type, qname):
 def create_response(msg):
     m = dns.message.from_wire(msg)
     qname = m.question[0].name.to_text()
+    lqname = qname.lower()
     rrtype = m.question[0].rdtype
     typename = dns.rdatatype.to_text(rrtype)
 
@@ -50,23 +56,34 @@ def create_response(msg):
 
     r = dns.message.make_response(m)
     r.set_rcode(NOERROR)
-    if rrtype == A:
-        now = datetime.today()
-        expire = now + timedelta(days=30)
-        inception = now - timedelta(days=1)
-        rrsig = "A 13 2 60 " + expire.strftime("%Y%m%d%H%M%S") + " " + \
-            inception.strftime("%Y%m%d%H%M%S") + " 12345 " + qname + \
-            " gB+eISXAhSPZU2i/II0W9ZUhC2SCIrb94mlNvP5092WAeXxqN/vG43/1nmDl" + \
-	    "y2Qs7y5VCjSMOGn85bnaMoAc7w=="
-        r.answer.append(dns.rrset.from_text(qname, 1, IN, A, "10.53.0.10"))
-        r.answer.append(dns.rrset.from_text(qname, 1, IN, RRSIG, rrsig))
-    elif rrtype == NS:
-        r.answer.append(dns.rrset.from_text(qname, 1, IN, NS, "."))
-    elif rrtype == SOA:
-        r.answer.append(dns.rrset.from_text(qname, 1, IN, SOA, ". . 0 0 0 0 0"))
+    if lqname == "cname-at-apex.example.":
+        if rrtype == NS:
+            r.answer.append(dns.rrset.from_text(qname, 300, IN, NS, "ns.cname-at-apex.example."))
+            r.additional.append(dns.rrset.from_text("ns.cname-at-apex.example.", 300, IN, A, "10.53.0.10"))
+        else:
+            r.answer.append(dns.rrset.from_text(qname, 300, IN, CNAME, "somewhere."))
+        r.flags |= dns.flags.AA
+    elif lqname == "cname.cname-at-apex.example.":
+        r.answer.append(dns.rrset.from_text(qname, 300, IN, CNAME, "somewhere."))
+        r.flags |= dns.flags.AA
     else:
-        r.authority.append(dns.rrset.from_text(qname, 1, IN, SOA, ". . 0 0 0 0 0"))
-    r.flags |= dns.flags.AA
+        if rrtype == A:
+            now = datetime.today()
+            expire = now + timedelta(days=30)
+            inception = now - timedelta(days=1)
+            rrsig = "A 13 2 60 " + expire.strftime("%Y%m%d%H%M%S") + " " + \
+                inception.strftime("%Y%m%d%H%M%S") + " 12345 " + qname + \
+                " gB+eISXAhSPZU2i/II0W9ZUhC2SCIrb94mlNvP5092WAeXxqN/vG43/1nmDl" + \
+	        "y2Qs7y5VCjSMOGn85bnaMoAc7w=="
+            r.answer.append(dns.rrset.from_text(qname, 1, IN, A, "10.53.0.10"))
+            r.answer.append(dns.rrset.from_text(qname, 1, IN, RRSIG, rrsig))
+        elif rrtype == NS:
+            r.answer.append(dns.rrset.from_text(qname, 1, IN, NS, "."))
+        elif rrtype == SOA:
+            r.answer.append(dns.rrset.from_text(qname, 1, IN, SOA, ". . 0 0 0 0 0"))
+        else:
+            r.authority.append(dns.rrset.from_text(qname, 1, IN, SOA, ". . 0 0 0 0 0"))
+        r.flags |= dns.flags.AA
     return r
 
 def sigterm(signum, frame):

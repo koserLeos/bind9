@@ -4452,5 +4452,34 @@ n=$((n+1))
 if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
+# Check that named can be used as a forwarder when resolving named that
+# involve a server returning CNAME at the apex where the chain of trust
+# is broken at that name.
+echo_i "check that illegal cname-at-apex resolves via forwarder ($n)"
+ret=0
+dig_with_opts @10.53.0.9 cname-at-apex.example. A > dig.out.ns9.test$n || ret=1
+grep "flags: qr rd ra;" dig.out.ns9.test$n >/dev/null || ret=1
+grep "status: NXDOMAIN," dig.out.ns9.test$n >/dev/null || ret=1
+n=$((n+1))
+if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+echo_i "check that a DS lookup at a CNAME resolves via forwarder ($n)"
+ret=0
+dig_with_opts @10.53.0.9 cname.cname-at-apex.example. DS > dig.out.ns9.test$n || ret=1
+grep "flags: qr rd ra;" dig.out.ns9.test$n >/dev/null || ret=1
+grep "status: NXDOMAIN," dig.out.ns9.test$n >/dev/null || ret=1
+n=$((n+1))
+if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+echo_i "check that 'ds-cname' is added to the comments in named_dump.db ($n)"
+ret=0
+rndccmd 10.53.0.9 dumpdb 2>&1 | sed 's/^/ns9 /' | cat_i
+awk '/^;.* ds-cname/ { check = 1; found = 1; next } check { if (!match($0, /CNAME/)) result=1; check = 0 } END { if (!found) result = 1; exit result } ' ns9/named_dump.db || ret=1
+n=$((n+1))
+if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
 echo_i "exit status: $status"
 [ $status -eq 0 ] || exit 1

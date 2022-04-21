@@ -114,6 +114,9 @@ typedef struct dns_master_style dns_master_style_t;
 /*% Print expired cache entries. */
 #define DNS_STYLEFLAG_EXPIRED 0x200000000ULL
 
+/*% Report DSCNAME tagged CNAMES */
+#define DNS_STYLEFLAG_DSCNAME 0x400000000ULL
+
 ISC_LANG_BEGINDECLS
 
 /***

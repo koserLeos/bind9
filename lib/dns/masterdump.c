@@ -88,6 +88,8 @@ struct dns_master_style {
 #define STALE(r) (((r)->attributes & DNS_RDATASETATTR_STALE) != 0)
 /*% Does the rdataset 'r' contain an expired answer? */
 #define ANCIENT(r) (((r)->attributes & DNS_RDATASETATTR_ANCIENT) != 0)
+/*% Was the CNAME learnt from a DS response */
+#define DSCNAME(r) (((r)->attributes & DNS_RDATASETATTR_DSCNAME) != 0)
 
 /*%
  * Context structure for a masterfile dump in progress.
@@ -164,7 +166,8 @@ const dns_master_style_t dns_master_style_explicitttl = {
 const dns_master_style_t dns_master_style_cache = {
 	DNS_STYLEFLAG_OMIT_OWNER | DNS_STYLEFLAG_OMIT_CLASS |
 		DNS_STYLEFLAG_MULTILINE | DNS_STYLEFLAG_RRCOMMENT |
-		DNS_STYLEFLAG_TRUST | DNS_STYLEFLAG_NCACHE,
+		DNS_STYLEFLAG_TRUST | DNS_STYLEFLAG_NCACHE |
+		DNS_STYLEFLAG_DSCNAME,
 	24,
 	32,
 	32,
@@ -178,7 +181,7 @@ const dns_master_style_t dns_master_style_cache_with_expired = {
 	DNS_STYLEFLAG_OMIT_OWNER | DNS_STYLEFLAG_OMIT_CLASS |
 		DNS_STYLEFLAG_MULTILINE | DNS_STYLEFLAG_RRCOMMENT |
 		DNS_STYLEFLAG_TRUST | DNS_STYLEFLAG_NCACHE |
-		DNS_STYLEFLAG_EXPIRED,
+		DNS_STYLEFLAG_DSCNAME | DNS_STYLEFLAG_EXPIRED,
 	24,
 	32,
 	32,
@@ -1080,6 +1083,7 @@ again:
 
 	for (i = 0; i < n; i++) {
 		dns_rdataset_t *rds = sorted[i];
+		bool need_eol = false;
 
 		if (ANCIENT(rds) &&
 		    (ctx->style.flags & DNS_STYLEFLAG_EXPIRED) == 0) {
@@ -1097,7 +1101,16 @@ again:
 					fprintf(f, "%s", ctx->indent.string);
 				}
 			}
-			fprintf(f, "; %s\n", dns_trust_totext(rds->trust));
+			fprintf(f, "; %s", dns_trust_totext(rds->trust));
+			need_eol = true;
+		}
+		if (((ctx->style.flags & DNS_STYLEFLAG_DSCNAME) != 0) &&
+		    DSCNAME(rds)) {
+			fprintf(f, "%sds-cname", need_eol ? " " : "; ");
+			need_eol = true;
+		}
+		if (need_eol) {
+			fputs("\n", f);
 		}
 		if (((rds->attributes & DNS_RDATASETATTR_NEGATIVE) != 0) &&
 		    (ctx->style.flags & DNS_STYLEFLAG_NCACHE) == 0)
