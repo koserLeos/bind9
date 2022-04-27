@@ -56,24 +56,11 @@ dns_rdataset_init(dns_rdataset_t *rdataset) {
 
 	REQUIRE(rdataset != NULL);
 
-	rdataset->magic = DNS_RDATASET_MAGIC;
-	rdataset->methods = NULL;
+	*rdataset = (dns_rdataset_t){
+		.magic = DNS_RDATASET_MAGIC,
+		.count = DNS_RDATASET_COUNT_UNDEFINED,
+	};
 	ISC_LINK_INIT(rdataset, link);
-	rdataset->rdclass = 0;
-	rdataset->type = 0;
-	rdataset->ttl = 0;
-	rdataset->trust = 0;
-	rdataset->covers = 0;
-	rdataset->attributes = 0;
-	rdataset->count = DNS_RDATASET_COUNT_UNDEFINED;
-	rdataset->private1 = NULL;
-	rdataset->private2 = NULL;
-	rdataset->private3 = NULL;
-	rdataset->privateuint4 = 0;
-	rdataset->private5 = NULL;
-	rdataset->private6 = NULL;
-	rdataset->private7 = NULL;
-	rdataset->resign = 0;
 }
 
 void
@@ -85,20 +72,11 @@ dns_rdataset_invalidate(dns_rdataset_t *rdataset) {
 	REQUIRE(DNS_RDATASET_VALID(rdataset));
 	REQUIRE(rdataset->methods == NULL);
 
-	rdataset->magic = 0;
+	*rdataset = (dns_rdataset_t){
+		.magic = 0,
+		.count = DNS_RDATASET_COUNT_UNDEFINED,
+	};
 	ISC_LINK_INIT(rdataset, link);
-	rdataset->rdclass = 0;
-	rdataset->type = 0;
-	rdataset->ttl = 0;
-	rdataset->trust = 0;
-	rdataset->covers = 0;
-	rdataset->attributes = 0;
-	rdataset->count = DNS_RDATASET_COUNT_UNDEFINED;
-	rdataset->private1 = NULL;
-	rdataset->private2 = NULL;
-	rdataset->private3 = NULL;
-	rdataset->privateuint4 = 0;
-	rdataset->private5 = NULL;
 }
 
 void
@@ -111,21 +89,11 @@ dns_rdataset_disassociate(dns_rdataset_t *rdataset) {
 	REQUIRE(rdataset->methods != NULL);
 
 	(rdataset->methods->disassociate)(rdataset);
-	rdataset->methods = NULL;
+	*rdataset = (dns_rdataset_t){
+		.magic = DNS_RDATASET_MAGIC,
+		.count = DNS_RDATASET_COUNT_UNDEFINED,
+	};
 	ISC_LINK_INIT(rdataset, link);
-	rdataset->rdclass = 0;
-	rdataset->type = 0;
-	rdataset->ttl = 0;
-	rdataset->trust = 0;
-	rdataset->covers = 0;
-	rdataset->attributes = 0;
-	rdataset->count = DNS_RDATASET_COUNT_UNDEFINED;
-	rdataset->private1 = NULL;
-	rdataset->private2 = NULL;
-	rdataset->private3 = NULL;
-	rdataset->privateuint4 = 0;
-	rdataset->private5 = NULL;
-	rdataset->private6 = NULL;
 }
 
 bool

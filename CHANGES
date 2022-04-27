@@ -1,3 +1,7 @@
+5873.	[cleanup]	The rdataset->privateN fields now have more helpful
+			names, to help programmers understand how BIND's
+			internals represent DNS records. [GL #3273]
+
 5872.	[bug]		udp_recv() in dispatch could trigger an INSIST when the
 			callback's result indicated success but the response
 			was canceled in the meantime. [GL #3300]

@@ -232,11 +232,7 @@ add_ds(dns_keynode_t *knode, dns_rdata_ds_t *ds, isc_mem_t *mctx) {
 		knode->dsset.type = knode->dslist->type;
 		knode->dsset.covers = knode->dslist->covers;
 		knode->dsset.ttl = knode->dslist->ttl;
-		knode->dsset.private1 = knode;
-		knode->dsset.private2 = NULL;
-		knode->dsset.private3 = NULL;
-		knode->dsset.privateuint4 = 0;
-		knode->dsset.private5 = NULL;
+		knode->dsset.p.keytable.node = knode;
 		knode->dsset.trust = dns_trust_ultimate;
 	}
 
@@ -853,12 +849,9 @@ static void
 keynode_disassociate(dns_rdataset_t *rdataset) {
 	dns_keynode_t *keynode;
 
-	REQUIRE(rdataset != NULL);
-	REQUIRE(rdataset->methods == &methods);
-
 	rdataset->methods = NULL;
-	keynode = rdataset->private1;
-	rdataset->private1 = NULL;
+	keynode = rdataset->p.keytable.node;
+	rdataset->p.keytable.node = NULL;
 
 	keynode_detach(keynode->mctx, &keynode);
 }
@@ -867,15 +860,12 @@ static isc_result_t
 keynode_first(dns_rdataset_t *rdataset) {
 	dns_keynode_t *keynode;
 
-	REQUIRE(rdataset != NULL);
-	REQUIRE(rdataset->methods == &methods);
-
-	keynode = rdataset->private1;
+	keynode = rdataset->p.keytable.node;
 	RWLOCK(&keynode->rwlock, isc_rwlocktype_read);
-	rdataset->private2 = ISC_LIST_HEAD(keynode->dslist->rdata);
+	rdataset->p.keytable.iter = ISC_LIST_HEAD(keynode->dslist->rdata);
 	RWUNLOCK(&keynode->rwlock, isc_rwlocktype_read);
 
-	if (rdataset->private2 == NULL) {
+	if (rdataset->p.keytable.iter == NULL) {
 		return (ISC_R_NOMORE);
 	}
 
@@ -887,20 +877,17 @@ keynode_next(dns_rdataset_t *rdataset) {
 	dns_keynode_t *keynode;
 	dns_rdata_t *rdata;
 
-	REQUIRE(rdataset != NULL);
-	REQUIRE(rdataset->methods == &methods);
-
-	rdata = rdataset->private2;
+	rdata = rdataset->p.keytable.iter;
 	if (rdata == NULL) {
 		return (ISC_R_NOMORE);
 	}
 
-	keynode = rdataset->private1;
+	keynode = rdataset->p.keytable.node;
 	RWLOCK(&keynode->rwlock, isc_rwlocktype_read);
-	rdataset->private2 = ISC_LIST_NEXT(rdata, link);
+	rdataset->p.keytable.iter = ISC_LIST_NEXT(rdata, link);
 	RWUNLOCK(&keynode->rwlock, isc_rwlocktype_read);
 
-	if (rdataset->private2 == NULL) {
+	if (rdataset->p.keytable.iter == NULL) {
 		return (ISC_R_NOMORE);
 	}
 
@@ -911,10 +898,7 @@ static void
 keynode_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 	dns_rdata_t *list_rdata;
 
-	REQUIRE(rdataset != NULL);
-	REQUIRE(rdataset->methods == &methods);
-
-	list_rdata = rdataset->private2;
+	list_rdata = rdataset->p.keytable.iter;
 	INSIST(list_rdata != NULL);
 
 	dns_rdata_clone(list_rdata, rdata);
@@ -924,17 +908,9 @@ static void
 keynode_clone(dns_rdataset_t *source, dns_rdataset_t *target) {
 	dns_keynode_t *keynode;
 
-	REQUIRE(source != NULL);
-	REQUIRE(target != NULL);
-	REQUIRE(source->methods == &methods);
-
-	keynode = source->private1;
+	keynode = source->p.keytable.node;
 	isc_refcount_increment(&keynode->refcount);
 
 	*target = *source;
-
-	/*
-	 * Reset iterator state.
-	 */
-	target->private2 = NULL;
+	target->p.keytable.iter = NULL;
 }
