@@ -1376,12 +1376,12 @@ cleanup_lock:
 }
 
 /*
- * Rdataset Methods
+ * Rdataset Methods. The SDLZ driver is very similar.
  */
 
 static void
 disassociate(dns_rdataset_t *rdataset) {
-	dns_dbnode_t *node = rdataset->private5;
+	dns_dbnode_t *node = rdataset->p.rdlist.node;
 	dns_sdbnode_t *sdbnode = (dns_sdbnode_t *)node;
 	dns_db_t *db = (dns_db_t *)sdbnode->sdb;
 
@@ -1391,14 +1391,14 @@ disassociate(dns_rdataset_t *rdataset) {
 
 static void
 rdataset_clone(dns_rdataset_t *source, dns_rdataset_t *target) {
-	dns_dbnode_t *node = source->private5;
+	dns_dbnode_t *node = source->p.rdlist.node;
 	dns_sdbnode_t *sdbnode = (dns_sdbnode_t *)node;
 	dns_db_t *db = (dns_db_t *)sdbnode->sdb;
-	dns_dbnode_t *tempdb = NULL;
+	dns_dbnode_t *tempnode = NULL;
 
 	isc__rdatalist_clone(source, target);
-	attachnode(db, node, &tempdb);
-	source->private5 = tempdb;
+	attachnode(db, node, &tempnode);
+	source->p.rdlist.node = tempnode;
 }
 
 static dns_rdatasetmethods_t sdb_rdataset_methods = {
@@ -1424,10 +1424,7 @@ static void
 list_tordataset(dns_rdatalist_t *rdatalist, dns_db_t *db, dns_dbnode_t *node,
 		dns_rdataset_t *rdataset) {
 	/*
-	 * The sdb rdataset is an rdatalist with some additions.
-	 *	- private1 & private2 are used by the rdatalist.
-	 *	- private3 & private 4 are unused.
-	 *	- private5 is the node.
+	 * The sdb rdataset is an rdatalist with an extra node pointer
 	 */
 
 	/* This should never fail. */
@@ -1435,7 +1432,7 @@ list_tordataset(dns_rdatalist_t *rdatalist, dns_db_t *db, dns_dbnode_t *node,
 		      ISC_R_SUCCESS);
 
 	rdataset->methods = &sdb_rdataset_methods;
-	dns_db_attachnode(db, node, &rdataset->private5);
+	dns_db_attachnode(db, node, &rdataset->p.rdlist.node);
 }
 
 /*
