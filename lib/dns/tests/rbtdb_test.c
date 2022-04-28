@@ -118,9 +118,9 @@ ownercase_test_one(const char *str1, const char *str2) {
 	unsigned char *raw = (unsigned char *)(&header) + sizeof(header);
 	dns_rdataset_t rdataset = {
 		.magic = DNS_RDATASET_MAGIC,
-		.p.rbtdb.db = (dns_db_t *)&rbtdb,
-		.p.rbtdb.node = &rbtnode,
-		.p.rbtdb.raw = raw,
+		.rbtdb = { .db = (dns_db_t *)&rbtdb,
+			   .node = &rbtnode,
+			   .raw = raw },
 		.methods = &rdataset_methods,
 	};
 
@@ -182,9 +182,9 @@ setownercase_test(void **state) {
 	unsigned char *raw = (unsigned char *)(&header) + sizeof(header);
 	dns_rdataset_t rdataset = {
 		.magic = DNS_RDATASET_MAGIC,
-		.p.rbtdb.db = (dns_db_t *)&rbtdb,
-		.p.rbtdb.node = &rbtnode,
-		.p.rbtdb.raw = raw,
+		.rbtdb = { .db = (dns_db_t *)&rbtdb,
+			   .node = &rbtnode,
+			   .raw = raw },
 		.methods = &rdataset_methods,
 	};
 	const char *str1 =

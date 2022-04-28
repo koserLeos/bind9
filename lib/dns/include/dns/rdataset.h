@@ -132,10 +132,11 @@ struct dns_rdataset {
 	isc_stdtime_t resign;
 
 	/*%
-	 * Extra fields used by various rdataset implementations, that is,
-	 * by the code referred to in the rdataset methods table. The names
-	 * of the structures correspond to the file containing the
-	 * implementation.
+	 * Extra fields used by various rdataset implementations, that is, by
+	 * the code referred to in the rdataset methods table. The names of
+	 * the structures roughly correspond to the file containing the
+	 * implementation, except that `rdlist` is used by `rdatalist.c`,
+	 * `sdb.c`, and `sdlz.c`.
 	 *
 	 * Pointers in these structs use incomplete structure types,
 	 * because the structure definitions and corresponding typedef
@@ -157,8 +158,17 @@ struct dns_rdataset {
 			unsigned int   iter_count;
 		} ncache;
 		/*
-		 * An rbtdb rdataset refers to an rdataslab: raw points to
-		 * memory following an rdatasetheader.
+		 * An rbtdb rdataset refers to an rdataslab. There are two
+		 * sets of rdataset methods in rbtdb.c: full-fat
+		 * rdataset_methods and the reduced slab_methods.
+		 *
+		 * For the rdataset_methods, raw points to memory immediately
+		 * following an rdatasetheader.
+		 *
+		 * The slab_methods are used by rdatasets returned by the
+		 * `getnoqname` and `getclosest` methods; in these rdatasets,
+		 * raw refers to a bare rdataslab that belongs to an
+		 * rdatasetheader's `noqname` or `closest` fields.
 		 */
 		struct {
 			struct dns_db *db;
@@ -183,7 +193,7 @@ struct dns_rdataset {
 			 */
 			dns_dbnode_t *node;
 		} rdlist;
-	} p;
+	};
 };
 
 /*!

@@ -1385,7 +1385,7 @@ dbiterator_origin(dns_dbiterator_t *iterator, dns_name_t *name) {
 
 static void
 disassociate(dns_rdataset_t *rdataset) {
-	dns_dbnode_t *node = rdataset->p.rdlist.node;
+	dns_dbnode_t *node = rdataset->rdlist.node;
 	dns_sdlznode_t *sdlznode = (dns_sdlznode_t *)node;
 	dns_db_t *db = (dns_db_t *)sdlznode->sdlz;
 
@@ -1395,14 +1395,11 @@ disassociate(dns_rdataset_t *rdataset) {
 
 static void
 rdataset_clone(dns_rdataset_t *source, dns_rdataset_t *target) {
-	dns_dbnode_t *node = source->p.rdlist.node;
-	dns_sdlznode_t *sdlznode = (dns_sdlznode_t *)node;
+	dns_sdlznode_t *sdlznode = source->rdlist.node;
 	dns_db_t *db = (dns_db_t *)sdlznode->sdlz;
-	dns_dbnode_t *tempnode = NULL;
 
 	isc__rdatalist_clone(source, target);
-	attachnode(db, node, &tempnode);
-	source->p.rdlist.node = tempnode;
+	attachnode(db, source->rdlist.node, &target->rdlist.node);
 }
 
 static dns_rdatasetmethods_t rdataset_methods = {
@@ -1439,7 +1436,7 @@ list_tordataset(dns_rdatalist_t *rdatalist, dns_db_t *db, dns_dbnode_t *node,
 		      ISC_R_SUCCESS);
 
 	rdataset->methods = &rdataset_methods;
-	dns_db_attachnode(db, node, &rdataset->p.rdlist.node);
+	dns_db_attachnode(db, node, &rdataset->rdlist.node);
 }
 
 /*

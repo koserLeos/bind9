@@ -232,7 +232,8 @@ add_ds(dns_keynode_t *knode, dns_rdata_ds_t *ds, isc_mem_t *mctx) {
 		knode->dsset.type = knode->dslist->type;
 		knode->dsset.covers = knode->dslist->covers;
 		knode->dsset.ttl = knode->dslist->ttl;
-		knode->dsset.p.keytable.node = knode;
+		knode->dsset.keytable.node = knode;
+		knode->dsset.keytable.iter = NULL;
 		knode->dsset.trust = dns_trust_ultimate;
 	}
 
@@ -847,25 +848,20 @@ dns_keynode_trust(dns_keynode_t *keynode) {
 
 static void
 keynode_disassociate(dns_rdataset_t *rdataset) {
-	dns_keynode_t *keynode;
-
 	rdataset->methods = NULL;
-	keynode = rdataset->p.keytable.node;
-	rdataset->p.keytable.node = NULL;
-
-	keynode_detach(keynode->mctx, &keynode);
+	keynode_detach(rdataset->keytable.node->mctx, &rdataset->keytable.node);
 }
 
 static isc_result_t
 keynode_first(dns_rdataset_t *rdataset) {
 	dns_keynode_t *keynode;
 
-	keynode = rdataset->p.keytable.node;
+	keynode = rdataset->keytable.node;
 	RWLOCK(&keynode->rwlock, isc_rwlocktype_read);
-	rdataset->p.keytable.iter = ISC_LIST_HEAD(keynode->dslist->rdata);
+	rdataset->keytable.iter = ISC_LIST_HEAD(keynode->dslist->rdata);
 	RWUNLOCK(&keynode->rwlock, isc_rwlocktype_read);
 
-	if (rdataset->p.keytable.iter == NULL) {
+	if (rdataset->keytable.iter == NULL) {
 		return (ISC_R_NOMORE);
 	}
 
@@ -877,17 +873,17 @@ keynode_next(dns_rdataset_t *rdataset) {
 	dns_keynode_t *keynode;
 	dns_rdata_t *rdata;
 
-	rdata = rdataset->p.keytable.iter;
+	rdata = rdataset->keytable.iter;
 	if (rdata == NULL) {
 		return (ISC_R_NOMORE);
 	}
 
-	keynode = rdataset->p.keytable.node;
+	keynode = rdataset->keytable.node;
 	RWLOCK(&keynode->rwlock, isc_rwlocktype_read);
-	rdataset->p.keytable.iter = ISC_LIST_NEXT(rdata, link);
+	rdataset->keytable.iter = ISC_LIST_NEXT(rdata, link);
 	RWUNLOCK(&keynode->rwlock, isc_rwlocktype_read);
 
-	if (rdataset->p.keytable.iter == NULL) {
+	if (rdataset->keytable.iter == NULL) {
 		return (ISC_R_NOMORE);
 	}
 
@@ -898,7 +894,7 @@ static void
 keynode_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 	dns_rdata_t *list_rdata;
 
-	list_rdata = rdataset->p.keytable.iter;
+	list_rdata = rdataset->keytable.iter;
 	INSIST(list_rdata != NULL);
 
 	dns_rdata_clone(list_rdata, rdata);
@@ -908,9 +904,9 @@ static void
 keynode_clone(dns_rdataset_t *source, dns_rdataset_t *target) {
 	dns_keynode_t *keynode;
 
-	keynode = source->p.keytable.node;
+	keynode = source->keytable.node;
 	isc_refcount_increment(&keynode->refcount);
 
 	*target = *source;
-	target->p.keytable.iter = NULL;
+	target->keytable.iter = NULL;
 }

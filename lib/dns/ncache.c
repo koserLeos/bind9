@@ -427,18 +427,18 @@ rdataset_first(dns_rdataset_t *rdataset) {
 	unsigned char *raw;
 	unsigned int count;
 
-	raw = rdataset->p.ncache.raw;
+	raw = rdataset->ncache.raw;
 	count = raw[0] * 256 + raw[1];
 	if (count == 0) {
-		rdataset->p.ncache.iter_pos = NULL;
+		rdataset->ncache.iter_pos = NULL;
 		return (ISC_R_NOMORE);
 	}
 	/*
 	 * iter_count is the number of rdata beyond the cursor position,
 	 * so we decrement the total count by one before storing it.
 	 */
-	rdataset->p.ncache.iter_pos = raw + 2;
-	rdataset->p.ncache.iter_count = count - 1;
+	rdataset->ncache.iter_pos = raw + 2;
+	rdataset->ncache.iter_count = count - 1;
 	return (ISC_R_SUCCESS);
 }
 
@@ -448,16 +448,16 @@ rdataset_next(dns_rdataset_t *rdataset) {
 	unsigned int length;
 	unsigned char *raw;
 
-	raw = rdataset->p.ncache.iter_pos;
-	count = rdataset->p.ncache.iter_count;
+	raw = rdataset->ncache.iter_pos;
+	count = rdataset->ncache.iter_count;
 	if (count == 0) {
-		rdataset->p.ncache.iter_pos = NULL;
+		rdataset->ncache.iter_pos = NULL;
 		return (ISC_R_NOMORE);
 	}
 
 	length = raw[0] * 256 + raw[1];
-	rdataset->p.ncache.iter_pos = raw + 2 + length;
-	rdataset->p.ncache.iter_count = count - 1;
+	rdataset->ncache.iter_pos = raw + 2 + length;
+	rdataset->ncache.iter_count = count - 1;
 	return (ISC_R_SUCCESS);
 }
 
@@ -466,7 +466,7 @@ rdataset_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 	unsigned char *raw;
 	isc_region_t r;
 
-	raw = rdataset->p.ncache.iter_pos;
+	raw = rdataset->ncache.iter_pos;
 	REQUIRE(raw != NULL);
 
 	r.length = raw[0] * 256 + raw[1];
@@ -477,8 +477,8 @@ rdataset_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 static void
 rdataset_clone(dns_rdataset_t *source, dns_rdataset_t *target) {
 	*target = *source;
-	target->p.ncache.iter_pos = NULL;
-	target->p.ncache.iter_count = 0;
+	target->ncache.iter_pos = NULL;
+	target->ncache.iter_count = 0;
 }
 
 static unsigned int
@@ -486,7 +486,7 @@ rdataset_count(dns_rdataset_t *rdataset) {
 	unsigned char *raw;
 	unsigned int count;
 
-	raw = rdataset->p.ncache.raw;
+	raw = rdataset->ncache.raw;
 	count = raw[0] * 256 + raw[1];
 
 	return (count);
@@ -496,7 +496,7 @@ static void
 rdataset_settrust(dns_rdataset_t *rdataset, dns_trust_t trust) {
 	unsigned char *raw;
 
-	raw = rdataset->p.ncache.raw;
+	raw = rdataset->ncache.raw;
 	raw[-1] = (unsigned char)trust;
 	rdataset->trust = trust;
 }
@@ -582,9 +582,9 @@ dns_ncache_getrdataset(dns_rdataset_t *ncacherdataset, dns_name_t *name,
 	rdataset->covers = 0;
 	rdataset->ttl = ncacherdataset->ttl;
 	rdataset->trust = trust;
-	rdataset->p.ncache.raw = remaining.base;
-	rdataset->p.ncache.iter_pos = NULL;
-	rdataset->p.ncache.iter_count = 0;
+	rdataset->ncache.raw = remaining.base;
+	rdataset->ncache.iter_pos = NULL;
+	rdataset->ncache.iter_count = 0;
 
 	return (ISC_R_SUCCESS);
 }
@@ -675,9 +675,9 @@ dns_ncache_getsigrdataset(dns_rdataset_t *ncacherdataset, dns_name_t *name,
 	rdataset->covers = covers;
 	rdataset->ttl = ncacherdataset->ttl;
 	rdataset->trust = trust;
-	rdataset->p.ncache.raw = remaining.base;
-	rdataset->p.ncache.iter_pos = NULL;
-	rdataset->p.ncache.iter_count = 0;
+	rdataset->ncache.raw = remaining.base;
+	rdataset->ncache.iter_pos = NULL;
+	rdataset->ncache.iter_count = 0;
 
 	return (ISC_R_SUCCESS);
 }
@@ -743,7 +743,7 @@ dns_ncache_current(dns_rdataset_t *ncacherdataset, dns_name_t *found,
 	rdataset->covers = covers;
 	rdataset->ttl = ncacherdataset->ttl;
 	rdataset->trust = trust;
-	rdataset->p.ncache.raw = remaining.base;
-	rdataset->p.ncache.iter_pos = NULL;
-	rdataset->p.ncache.iter_count = 0;
+	rdataset->ncache.raw = remaining.base;
+	rdataset->ncache.iter_pos = NULL;
+	rdataset->ncache.iter_count = 0;
 }

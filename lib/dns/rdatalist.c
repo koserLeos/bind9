@@ -85,7 +85,7 @@ dns_rdatalist_tordataset(dns_rdatalist_t *rdatalist, dns_rdataset_t *rdataset) {
 	rdataset->covers = rdatalist->covers;
 	rdataset->ttl = rdatalist->ttl;
 	rdataset->trust = 0;
-	rdataset->p.rdlist.list = rdatalist;
+	rdataset->rdlist.list = rdatalist;
 
 	return (ISC_R_SUCCESS);
 }
@@ -96,7 +96,7 @@ dns_rdatalist_fromrdataset(dns_rdataset_t *rdataset,
 	REQUIRE(rdatalist != NULL && rdataset != NULL);
 	REQUIRE(rdataset->methods == &methods);
 
-	*rdatalist = rdataset->p.rdlist.list;
+	*rdatalist = rdataset->rdlist.list;
 
 	return (ISC_R_SUCCESS);
 }
@@ -108,15 +108,10 @@ isc__rdatalist_disassociate(dns_rdataset_t *rdataset) {
 
 isc_result_t
 isc__rdatalist_first(dns_rdataset_t *rdataset) {
-	dns_rdatalist_t *rdatalist;
-
-	rdatalist = rdataset->p.rdlist.list;
-	rdataset->p.rdlist.iter = ISC_LIST_HEAD(rdatalist->rdata);
-
-	if (rdataset->p.rdlist.iter == NULL) {
+	rdataset->rdlist.iter = ISC_LIST_HEAD(rdataset->rdlist.list->rdata);
+	if (rdataset->rdlist.iter == NULL) {
 		return (ISC_R_NOMORE);
 	}
-
 	return (ISC_R_SUCCESS);
 }
 
@@ -124,14 +119,14 @@ isc_result_t
 isc__rdatalist_next(dns_rdataset_t *rdataset) {
 	dns_rdata_t *rdata;
 
-	rdata = rdataset->p.rdlist.iter;
+	rdata = rdataset->rdlist.iter;
 	if (rdata == NULL) {
 		return (ISC_R_NOMORE);
 	}
 
-	rdataset->p.rdlist.iter = ISC_LIST_NEXT(rdata, link);
+	rdataset->rdlist.iter = ISC_LIST_NEXT(rdata, link);
 
-	if (rdataset->p.rdlist.iter == NULL) {
+	if (rdataset->rdlist.iter == NULL) {
 		return (ISC_R_NOMORE);
 	}
 
@@ -142,7 +137,7 @@ void
 isc__rdatalist_current(dns_rdataset_t *rdataset, dns_rdata_t *rdata) {
 	dns_rdata_t *list_rdata;
 
-	list_rdata = rdataset->p.rdlist.iter;
+	list_rdata = rdataset->rdlist.iter;
 	INSIST(list_rdata != NULL);
 
 	dns_rdata_clone(list_rdata, rdata);
@@ -155,7 +150,7 @@ isc__rdatalist_clone(dns_rdataset_t *source, dns_rdataset_t *target) {
 
 	*target = *source;
 
-	target->p.rdlist.iter = NULL;
+	target->rdlist.iter = NULL;
 }
 
 unsigned int
@@ -166,7 +161,7 @@ isc__rdatalist_count(dns_rdataset_t *rdataset) {
 
 	REQUIRE(rdataset != NULL);
 
-	rdatalist = rdataset->p.rdlist.list;
+	rdatalist = rdataset->rdlist.list;
 
 	count = 0;
 	for (rdata = ISC_LIST_HEAD(rdatalist->rdata); rdata != NULL;
@@ -226,7 +221,7 @@ isc__rdatalist_addnoqname(dns_rdataset_t *rdataset, const dns_name_t *name) {
 	}
 	rdataset->ttl = neg->ttl = negsig->ttl = ttl;
 	rdataset->attributes |= DNS_RDATASETATTR_NOQNAME;
-	rdataset->p.rdlist.noqname = name;
+	rdataset->rdlist.noqname = name;
 	return (ISC_R_SUCCESS);
 }
 
@@ -242,7 +237,7 @@ isc__rdatalist_getnoqname(dns_rdataset_t *rdataset, dns_name_t *name,
 	REQUIRE((rdataset->attributes & DNS_RDATASETATTR_NOQNAME) != 0);
 
 	rdclass = rdataset->rdclass;
-	noqname = rdataset->p.rdlist.noqname;
+	noqname = rdataset->rdlist.noqname;
 
 	(void)dns_name_dynamic(noqname); /* Sanity Check. */
 
@@ -328,7 +323,7 @@ isc__rdatalist_addclosest(dns_rdataset_t *rdataset, const dns_name_t *name) {
 	}
 	rdataset->ttl = neg->ttl = negsig->ttl = ttl;
 	rdataset->attributes |= DNS_RDATASETATTR_CLOSEST;
-	rdataset->p.rdlist.closest = name;
+	rdataset->rdlist.closest = name;
 	return (ISC_R_SUCCESS);
 }
 
@@ -344,7 +339,7 @@ isc__rdatalist_getclosest(dns_rdataset_t *rdataset, dns_name_t *name,
 	REQUIRE((rdataset->attributes & DNS_RDATASETATTR_CLOSEST) != 0);
 
 	rdclass = rdataset->rdclass;
-	closest = rdataset->p.rdlist.closest;
+	closest = rdataset->rdlist.closest;
 
 	(void)dns_name_dynamic(closest); /* Sanity Check. */
 
@@ -391,7 +386,7 @@ isc__rdatalist_setownercase(dns_rdataset_t *rdataset, const dns_name_t *name) {
 	 * We do not need to worry about label lengths as they are all
 	 * less than or equal to 63.
 	 */
-	rdatalist = rdataset->p.rdlist.list;
+	rdatalist = rdataset->rdlist.list;
 	memset(rdatalist->upper, 0, sizeof(rdatalist->upper));
 	for (i = 1; i < name->length; i++) {
 		if (name->ndata[i] >= 0x41 && name->ndata[i] <= 0x5a) {
@@ -409,7 +404,7 @@ isc__rdatalist_getownercase(const dns_rdataset_t *rdataset, dns_name_t *name) {
 	dns_rdatalist_t *rdatalist;
 	unsigned int i;
 
-	rdatalist = rdataset->p.rdlist.list;
+	rdatalist = rdataset->rdlist.list;
 	if ((rdatalist->upper[0] & 0x01) == 0) {
 		return;
 	}
