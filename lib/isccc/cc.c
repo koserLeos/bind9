@@ -1003,6 +1003,7 @@ isccc_cc_checkdup(isccc_symtab_t *symtab, isccc_sexpr_t *message,
 	} else {
 		_frm = tmp;
 	}
+	INSIST(_frm != NULL);
 	tmp = NULL;
 	if (isccc_cc_lookupstring(_ctrl, "_to", &tmp) != ISC_R_SUCCESS) {
 		_to = "";

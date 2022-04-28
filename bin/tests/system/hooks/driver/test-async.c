@@ -311,6 +311,8 @@ async_query_done_begin(void *arg, void *cbdata, isc_result_t *resp) {
 	async_instance_t *inst = (async_instance_t *)cbdata;
 	state_t *state = client_state_get(qctx, inst);
 
+	INSIST(state != NULL);
+
 	UNUSED(qctx);
 	UNUSED(cbdata);
 	UNUSED(state);
