@@ -139,21 +139,25 @@ zone=externalkey
 rm -f K${zone}.+*+*.key
 rm -f K${zone}.+*+*.private
 
-for alg in ECDSAP256SHA256 RSASHA256
-do
-    k1=$($KEYGEN -q -a $alg -b 2048 -n zone -f KSK $zone)
-    k2=$($KEYGEN -q -a $alg -b 2048 -n zone $zone)
-    k3=$($KEYGEN -q -a $alg -b 2048 -n zone $zone)
-    k4=$($KEYGEN -q -a $alg -b 2048 -n zone -f KSK $zone)
-    $DSFROMKEY -T 1200 $k4 >> ../ns1/root.db
+generate_externalkey() {
+	alg=$1
+	size=$2
+	k1=$($KEYGEN -q -a $alg -b $size -n zone -f KSK $zone)
+	k2=$($KEYGEN -q -a $alg -b $size -n zone $zone)
+	k3=$($KEYGEN -q -a $alg -b $size -n zone $zone)
+	k4=$($KEYGEN -q -a $alg -b $size -n zone -f KSK $zone)
+	$DSFROMKEY -T 1200 $k4 >> ../ns1/root.db
 
-    # Convert k1 and k2 in to External Keys.
-    rm -f $k1.private 
-    mv $k1.key a-file
-    $IMPORTKEY -P now -D now+3600 -f a-file $zone > /dev/null 2>&1 ||
-        ( echo_i "importkey failed: $alg" )
-    rm -f $k2.private 
-    mv $k2.key a-file
-    $IMPORTKEY -f a-file $zone > /dev/null 2>&1 ||
-        ( echo_i "importkey failed: $alg" )
-done
+	# Convert k1 and k2 in to External Keys.
+	rm -f $k1.private
+	mv $k1.key a-file
+	$IMPORTKEY -P now -D now+3600 -f a-file $zone > /dev/null 2>&1 ||
+		( echo_i "importkey failed: $alg" )
+	rm -f $k2.private
+	mv $k2.key a-file
+	$IMPORTKEY -f a-file $zone > /dev/null 2>&1 ||
+		( echo_i "importkey failed: $alg" )
+}
+
+generate_externalkey $DEFAULT_ALGORITHM $DEFAULT_ALGORITHM_BITS
+generate_externalkey $ALTERNATIVE_ALGORITHM $ALTERNATIVE_ALGORITHM_BITS
