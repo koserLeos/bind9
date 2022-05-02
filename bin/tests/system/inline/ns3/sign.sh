@@ -159,5 +159,5 @@ generate_externalkey() {
 		( echo_i "importkey failed: $alg" )
 }
 
-generate_externalkey $DEFAULT_ALGORITHM $DEFAULT_ALGORITHM_BITS
-generate_externalkey $ALTERNATIVE_ALGORITHM $ALTERNATIVE_ALGORITHM_BITS
+generate_externalkey $DEFAULT_ALGORITHM $DEFAULT_BITS
+generate_externalkey $ALTERNATIVE_ALGORITHM $ALTERNATIVE_BITS
