@@ -26,7 +26,7 @@ then
 	copy_setports ns3/named-fips.conf.in ns3/named.conf
 else
 	copy_setports ns3/named-fips.conf.in ns3/named-fips.conf
-	copy_setports ns3/named-non-fips.conf.in ns3/named.conf
+	copy_setports ns3/named.conf.in ns3/named.conf
 fi
 copy_setports ns4/named.conf.in ns4/named.conf
 copy_setports ns5/named.conf.in ns5/named.conf
@@ -42,12 +42,10 @@ fi
 
 copy_setports ns3/policies/autosign.conf.in ns3/policies/autosign.conf
 copy_setports ns3/policies/kasp-fips.conf.in ns3/policies/kasp-fips.conf
-copy_setports ns3/policies/kasp-non-fips.conf.in ns3/policies/kasp-non-fips.conf
+copy_setports ns3/policies/kasp.conf.in ns3/policies/kasp.conf
 if $FEATURETEST --have-fips-mode
 then
 	cp ns3/policies/kasp-fips.conf ns3/policies/kasp.conf
-else
-	cp ns3/policies/kasp-non-fips.conf ns3/policies/kasp.conf
 fi
 
 copy_setports ns6/policies/csk1.conf.in ns6/policies/csk1.conf
