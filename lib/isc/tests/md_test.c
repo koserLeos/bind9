@@ -18,9 +18,6 @@
 #include <stddef.h>
 #include <string.h>
 
-/* For FIPS_mode() */
-#include <openssl/crypto.h>
-
 #define UNIT_TESTING
 #include <cmocka.h>
 
@@ -32,8 +29,15 @@
 
 #include "../md.c"
 
-#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
-#define ISC_FIPS_MODE 1
+#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+/* For FIPS_mode() */
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#elif defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
 #endif
 
 #define TEST_INPUT(x) (x), sizeof(x) - 1
@@ -125,10 +129,13 @@ isc_md_init_test(void **state) {
 
 	assert_int_equal(isc_md_init(md, NULL), ISC_R_NOTIMPLEMENTED);
 
-#ifndef ISC_FIPS_MODE
-	assert_int_equal(isc_md_init(md, ISC_MD_MD5), ISC_R_SUCCESS);
-	assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
 #endif /* ISC_FIPS_MODE */
+	{
+		assert_int_equal(isc_md_init(md, ISC_MD_MD5), ISC_R_SUCCESS);
+		assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
+	}
 
 	assert_int_equal(isc_md_init(md, ISC_MD_SHA1), ISC_R_SUCCESS);
 	assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
@@ -204,10 +211,13 @@ isc_md_final_test(void **state) {
 	assert_int_equal(isc_md_final(md, digest, NULL), ISC_R_SUCCESS);
 }
 
-#ifndef ISC_FIPS_MODE
 static void
 isc_md_md5_test(void **state) {
 	isc_md_t *md = *state;
+#ifdef ISC_FIPS_MODE
+	if (ISC_FIPS_MODE())
+		return;
+#endif
 	isc_md_test(md, ISC_MD_MD5, NULL, 0, NULL, 0);
 	isc_md_test(md, ISC_MD_MD5, TEST_INPUT(""),
 		    "D41D8CD98F00B204E9800998ECF8427E", 1);
@@ -228,7 +238,6 @@ isc_md_md5_test(void **state) {
 			       "01234567890123456789012345678901234567890"),
 		    "57EDF4A22BE3C955AC49DA2E2107B67A", 1);
 }
-#endif /* ISC_FIPS_MODE */
 
 static void
 isc_md_sha1_test(void **state) {
@@ -563,10 +572,8 @@ main(void) {
 		cmocka_unit_test_setup_teardown(isc_md_reset_test, _reset,
 						_reset),
 
-	/* isc_md_init() -> isc_md_update() -> isc_md_final() */
-#ifndef ISC_FIPS_MODE
+		/* isc_md_init() -> isc_md_update() -> isc_md_final() */
 		cmocka_unit_test(isc_md_md5_test),
-#endif /* ISC_FIPS_MODE */
 		cmocka_unit_test(isc_md_sha1_test),
 		cmocka_unit_test(isc_md_sha224_test),
 		cmocka_unit_test(isc_md_sha256_test),

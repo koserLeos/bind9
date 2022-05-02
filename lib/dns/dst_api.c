@@ -62,8 +62,15 @@
 #include <dns/types.h>
 
 #include "dst_internal.h"
-#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
-#define DNS_FIPS_MODE 1
+
+#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#elif defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
 #endif
 
 #define DST_AS_STR(t) ((t).value.as_textregion.base)
@@ -198,9 +205,10 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 	UNUSED(engine);
 
 	memset(dst_t_func, 0, sizeof(dst_t_func));
-#ifndef DNS_FIPS_MODE
-	RETERR(dst__hmacmd5_init(&dst_t_func[DST_ALG_HMACMD5]));
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
 #endif
+		RETERR(dst__hmacmd5_init(&dst_t_func[DST_ALG_HMACMD5]));
 	RETERR(dst__hmacsha1_init(&dst_t_func[DST_ALG_HMACSHA1]));
 	RETERR(dst__hmacsha224_init(&dst_t_func[DST_ALG_HMACSHA224]));
 	RETERR(dst__hmacsha256_init(&dst_t_func[DST_ALG_HMACSHA256]));
@@ -209,10 +217,15 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 	RETERR(dst__openssl_init(engine));
 	RETERR(dst__openssldh_init(&dst_t_func[DST_ALG_DH]));
 	/* RSASHA1 (NSEC3RSASHA1) is verify only in FIPS mode. */
-	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA1],
-				    DST_ALG_RSASHA1));
-	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_NSEC3RSASHA1],
-				    DST_ALG_NSEC3RSASHA1));
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
+#endif
+	{
+		RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA1],
+					    DST_ALG_RSASHA1));
+		RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_NSEC3RSASHA1],
+					    DST_ALG_NSEC3RSASHA1));
+	}
 	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA256],
 				    DST_ALG_RSASHA256));
 	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA512],
@@ -224,14 +237,18 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 	 * DST_ALG_ED25519 and DST_ALG_ED448 are not supported in
 	 * FIPS mode in OpenSSL prior to 3.0.0 (HAVE_FIPS_MODE).
 	 */
-#ifndef HAVE_FIPS_MODE
 #ifdef HAVE_OPENSSL_ED25519
-	RETERR(dst__openssleddsa_init(&dst_t_func[DST_ALG_ED25519]));
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
+#endif
+		RETERR(dst__openssleddsa_init(&dst_t_func[DST_ALG_ED25519]));
 #endif /* ifdef HAVE_OPENSSL_ED25519 */
 #ifdef HAVE_OPENSSL_ED448
-	RETERR(dst__openssleddsa_init(&dst_t_func[DST_ALG_ED448]));
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
+#endif
+		RETERR(dst__openssleddsa_init(&dst_t_func[DST_ALG_ED448]));
 #endif /* ifdef HAVE_OPENSSL_ED448 */
-#endif /* !HAVE_FIPS_MODE */
 
 #if HAVE_GSSAPI
 	RETERR(dst__gssapi_init(&dst_t_func[DST_ALG_GSSAPI]));

@@ -725,7 +725,7 @@ AC_CHECK_FUNCS([TLS_server_method TLS_client_method])
 AC_ARG_ENABLE([fips-mode],
 	      [AS_HELP_STRING([--enable-fips-mode],
 			      [enable FIPS mode in OpenSSL library [default=no]])],
-	      [], [enable_fips_mode="no"])
+	      [], [enable_fips_mode="auto"])
 
 AC_MSG_CHECKING([whether to enable FIPS mode in OpenSSL library])
 AS_CASE([$enable_fips_mode],
@@ -734,7 +734,11 @@ AS_CASE([$enable_fips_mode],
 			       [],
 			       [AC_CHECK_FUNCS([FIPS_mode],
 					       [],
-					       AC_MSG_FAILURE([OpenSSL FIPS mode requested but not available.])]))],
+					       AC_MSG_FAILURE([OpenSSL FIPS mode requested but not available.])]))
+		AC_DEFINE([FORCE_FIPS], [1], [Force FIPS mode always, without conditions])
+		],
+	[auto], [AC_MSG_RESULT([auto])
+		AC_CHECK_FUNCS([EVP_default_properties_enable_fips FIPS_mode])],
 	[no], [AC_MSG_RESULT([no])])
 
 AX_RESTORE_FLAGS([openssl])

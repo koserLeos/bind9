@@ -179,6 +179,14 @@
 #define MIN_ADVERTISED_TIMEOUT UINT32_C(0) /* No minimum */
 #define MAX_ADVERTISED_TIMEOUT UINT32_C(UINT16_MAX * 100)
 
+#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#define ISC_FIPS_MODE() FIPS_mode()
+#elif defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#endif
+
 /*%
  * Check an operation for failure.  Assumes that the function
  * using it has a 'result' variable and a 'cleanup' label.
@@ -9726,18 +9734,12 @@ view_loaded(void *arg) {
 
 		named_os_started();
 
-#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#ifdef ISC_FIPS_MODE
 		isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,
 			      NAMED_LOGMODULE_SERVER, ISC_LOG_NOTICE,
 			      "FIPS mode is %s",
-#ifdef HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS
-			      EVP_default_properties_is_fips_enabled(NULL)
-#else
-			      FIPS_mode()
-#endif
-				      ? "enabled"
-				      : "disabled");
-#endif /* ifdef HAVE_FIPS_MODE */
+			      ISC_FIPS_MODE() ? "enabled" : "disabled");
+#endif /* ifdef ISC_FIPS_MODE */
 		atomic_store(&server->reload_status, NAMED_RELOAD_DONE);
 
 		isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,

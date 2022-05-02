@@ -32,6 +32,16 @@
 #endif /* ifdef HOST_NAME_MAX */
 #endif /* ifndef MAXHOSTNAMELEN */
 
+#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#elif defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#endif
+
 static void
 usage(void) {
 	fprintf(stderr, "usage: feature-test <arg>\n");
@@ -116,23 +126,19 @@ main(int argc, char **argv) {
 	}
 
 	if (strcmp(argv[1], "--have-fips-dh") == 0) {
-#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-		return (0);
+#ifdef ISC_FIPS_MODE
+		return (!ISC_FIPS_MODE());
 #else
 		return (1);
-#endif
-#else  /* ifdef HAVE_FIPS_MODE */
-		return (0);
-#endif /* ifdef HAVE_FIPS_MODE */
+#endif /* ifdef ISC_FIPS_MODE */
 	}
 
 	if (strcmp(argv[1], "--have-fips-mode") == 0) {
-#if defined(HAVE_FIPS_MODE) || defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
-		return (0);
-#else  /* ifdef HAVE_FIPS_MODE */
+#ifdef ISC_FIPS_MODE
+		return (!ISC_FIPS_MODE());
+#else
 		return (1);
-#endif /* ifdef HAVE_FIPS_MODE */
+#endif /* ifdef ISC_FIPS_MODE */
 	}
 
 	if (strcmp(argv[1], "--have-geoip2") == 0) {
