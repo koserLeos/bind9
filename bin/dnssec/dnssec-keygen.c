@@ -905,18 +905,18 @@ main(int argc, char **argv) {
 		.size = -1,
 	};
 
-	if (argc == 1) {
-		usage();
-	}
-
-	isc_commandline_errprint = false;
-
 #ifdef ISC_FIPS_MODE
 	if (ISC_FIPS_MODE()) {
 		min_rsa = 2048;
 		min_dh = 2048;
 	}
 #endif
+
+	if (argc == 1) {
+		usage();
+	}
+
+	isc_commandline_errprint = false;
 
 	/*
 	 * Process memory debugging argument first.
