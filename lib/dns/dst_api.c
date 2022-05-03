@@ -296,6 +296,10 @@ dst_algorithm_supported(unsigned int alg) {
 
 bool
 dst_ds_digest_supported(unsigned int digest_type) {
+#ifdef ISC_FIPS_MODE
+	if (digest_type == DNS_DSDIGEST_SHA1)
+		return (!ISC_FIPS_MODE());
+#endif
 	return (digest_type == DNS_DSDIGEST_SHA1 ||
 		digest_type == DNS_DSDIGEST_SHA256 ||
 		digest_type == DNS_DSDIGEST_SHA384);
