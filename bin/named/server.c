@@ -179,12 +179,12 @@
 #define MIN_ADVERTISED_TIMEOUT UINT32_C(0) /* No minimum */
 #define MAX_ADVERTISED_TIMEOUT UINT32_C(UINT16_MAX * 100)
 
-#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
 #define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
 #elif defined(HAVE_FIPS_MODE)
 #define ISC_FIPS_MODE() FIPS_mode()
-#elif defined(FORCE_FIPS)
-#define ISC_FIPS_MODE() true
 #endif
 
 /*%

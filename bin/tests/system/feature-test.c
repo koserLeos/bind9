@@ -32,14 +32,14 @@
 #endif /* ifdef HOST_NAME_MAX */
 #endif /* ifndef MAXHOSTNAMELEN */
 
-#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
 #include <openssl/evp.h>
 #define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
 #elif defined(HAVE_FIPS_MODE)
 #include <openssl/crypto.h>
 #define ISC_FIPS_MODE() FIPS_mode()
-#elif defined(FORCE_FIPS)
-#define ISC_FIPS_MODE() true
 #endif
 
 static void
