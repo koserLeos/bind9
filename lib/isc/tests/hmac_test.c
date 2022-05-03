@@ -22,6 +22,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#elif defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#endif
+
 #define UNIT_TESTING
 #include <cmocka.h>
 
@@ -34,16 +44,6 @@
 #include "../hmac.c"
 
 #define TEST_INPUT(x) (x), sizeof(x) - 1
-
-#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
-#include <openssl/evp.h>
-#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
-#elif defined(HAVE_FIPS_MODE)
-#include <openssl/crypto.h>
-#define ISC_FIPS_MODE() FIPS_mode()
-#elif defined(FORCE_FIPS)
-#define ISC_FIPS_MODE() true
-#endif
 
 static int
 _setup(void **state) {
@@ -233,9 +233,11 @@ static void
 isc_hmac_md5_test(void **state) {
 	isc_hmac_t *hmac = *state;
 
-#ifndef ISC_FIPS_MODE
-	if (ISC_FIPS_MODE())
+#ifdef ISC_FIPS_MODE
+	if (ISC_FIPS_MODE()) {
+		skip();
 		return;
+	}
 #endif
 
 	/* Test 0 */
