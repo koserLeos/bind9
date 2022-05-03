@@ -22,6 +22,17 @@
 #include <string.h>
 #include <unistd.h>
 
+#if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+/* For FIPS_mode() */
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#elif defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#endif
+
 #define UNIT_TESTING
 #include <cmocka.h>
 
@@ -154,22 +165,26 @@ isc_rsa_verify_test(void **state) {
 	assert_int_equal(ret, ISC_R_SUCCESS);
 
 	/* RSASHA1 */
-
-	ret = dst_context_create(key, dt_mctx, DNS_LOGCATEGORY_DNSSEC, false, 0,
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
+#endif
+	{
+		ret = dst_context_create(key, dt_mctx, DNS_LOGCATEGORY_DNSSEC, false, 0,
 				 &ctx);
-	assert_int_equal(ret, ISC_R_SUCCESS);
+		assert_int_equal(ret, ISC_R_SUCCESS);
 
-	r.base = d;
-	r.length = 10;
-	ret = dst_context_adddata(ctx, &r);
-	assert_int_equal(ret, ISC_R_SUCCESS);
+		r.base = d;
+		r.length = 10;
+		ret = dst_context_adddata(ctx, &r);
+		assert_int_equal(ret, ISC_R_SUCCESS);
 
-	r.base = sigsha1;
-	r.length = 256;
-	ret = dst_context_verify(ctx, &r);
-	assert_int_equal(ret, ISC_R_SUCCESS);
+		r.base = sigsha1;
+		r.length = 256;
+		ret = dst_context_verify(ctx, &r);
+		assert_int_equal(ret, ISC_R_SUCCESS);
 
-	dst_context_destroy(&ctx);
+		dst_context_destroy(&ctx);
+	}
 
 	/* RSASHA256 */
 

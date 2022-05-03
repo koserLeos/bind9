@@ -18,17 +18,6 @@
 #include <stddef.h>
 #include <string.h>
 
-#define UNIT_TESTING
-#include <cmocka.h>
-
-#include <isc/buffer.h>
-#include <isc/hex.h>
-#include <isc/md.h>
-#include <isc/region.h>
-#include <isc/result.h>
-
-#include "../md.c"
-
 #if defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
 #include <openssl/evp.h>
 #define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
@@ -39,6 +28,17 @@
 #elif defined(FORCE_FIPS)
 #define ISC_FIPS_MODE() true
 #endif
+
+#define UNIT_TESTING
+#include <cmocka.h>
+
+#include <isc/buffer.h>
+#include <isc/hex.h>
+#include <isc/md.h>
+#include <isc/region.h>
+#include <isc/result.h>
+
+#include "../md.c"
 
 #define TEST_INPUT(x) (x), sizeof(x) - 1
 
@@ -215,8 +215,10 @@ static void
 isc_md_md5_test(void **state) {
 	isc_md_t *md = *state;
 #ifdef ISC_FIPS_MODE
-	if (ISC_FIPS_MODE())
+	if (ISC_FIPS_MODE()) {
+		skip();
 		return;
+	}
 #endif
 	isc_md_test(md, ISC_MD_MD5, NULL, 0, NULL, 0);
 	isc_md_test(md, ISC_MD_MD5, TEST_INPUT(""),
