@@ -208,7 +208,9 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 #ifdef ISC_FIPS_MODE
 	if (!ISC_FIPS_MODE())
 #endif
+	{
 		RETERR(dst__hmacmd5_init(&dst_t_func[DST_ALG_HMACMD5]));
+	}
 	RETERR(dst__hmacsha1_init(&dst_t_func[DST_ALG_HMACSHA1]));
 	RETERR(dst__hmacsha224_init(&dst_t_func[DST_ALG_HMACSHA224]));
 	RETERR(dst__hmacsha256_init(&dst_t_func[DST_ALG_HMACSHA256]));
@@ -241,13 +243,17 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 #ifdef ISC_FIPS_MODE
 	if (!ISC_FIPS_MODE())
 #endif
+	{
 		RETERR(dst__openssleddsa_init(&dst_t_func[DST_ALG_ED25519]));
+	}
 #endif /* ifdef HAVE_OPENSSL_ED25519 */
 #ifdef HAVE_OPENSSL_ED448
 #ifdef ISC_FIPS_MODE
 	if (!ISC_FIPS_MODE())
 #endif
+	{
 		RETERR(dst__openssleddsa_init(&dst_t_func[DST_ALG_ED448]));
+	}
 #endif /* ifdef HAVE_OPENSSL_ED448 */
 
 #if HAVE_GSSAPI
