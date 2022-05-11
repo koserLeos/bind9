@@ -5789,7 +5789,9 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist, cfg_obj_t *config,
 			result = dns_fwdtable_find(view->fwdtable, name, NULL,
 						   &dnsforwarders);
 			if (result == ISC_R_SUCCESS &&
-			    dnsforwarders->fwdpolicy == dns_fwdpolicy_only) {
+			    dnsforwarders->fwdpolicy == dns_fwdpolicy_only &&
+			    !ISC_LIST_EMPTY(dnsforwarders->fwdrs))
+			{
 				continue;
 			}
 
