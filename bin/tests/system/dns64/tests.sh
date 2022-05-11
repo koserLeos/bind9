@@ -1436,6 +1436,27 @@ ret=0
 $DIG $DIGOPTS aaaa ipv4only.arpa -b 10.53.0.7 @10.53.0.2 > dig.out.ns2.test$n || ret=1
 grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:aa' dig.out.ns2.test$n >/dev/null || ret=1
 grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:ab' dig.out.ns2.test$n >/dev/null || ret=1
+grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:ac' dig.out.ns2.test$n >/dev/null && ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=`expr $status + $ret`
+
+echo_i "checking synthesis of AAAA from builtin ipv4only.arpa with forward only and empty servers ($n)"
+ret=0
+$DIG $DIGOPTS aaaa ipv4only.arpa -b 10.53.0.7 @10.53.0.3 > dig.out.ns3.test$n || ret=1
+grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:aa' dig.out.ns3.test$n >/dev/null || ret=1
+grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:ab' dig.out.ns3.test$n >/dev/null || ret=1
+grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:ac' dig.out.ns3.test$n >/dev/null && ret=1
+n=`expr $n + 1`
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=`expr $status + $ret`
+
+echo_i "checking synthesis of AAAA from builtin ipv4only.arpa is disabled with forward only and non-empty servers ($n)"
+ret=0
+$DIG $DIGOPTS aaaa ipv4only.arpa -b 10.53.0.7 @10.53.0.4 > dig.out.ns4.test$n || ret=1
+grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:aa' dig.out.ns4.test$n >/dev/null || ret=1
+grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:ab' dig.out.ns4.test$n >/dev/null || ret=1
+grep -i 'ipv4only.arpa.*IN.AAAA.2001:96::c000:ac' dig.out.ns4.test$n >/dev/null || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`

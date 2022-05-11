@@ -13,3 +13,7 @@ ipv4only.arpa.		3600	IN	SOA	. . 2018112766 7200 3600 604800 3600
 ipv4only.arpa.		3600	IN	NS	.
 ipv4only.arpa.		3600	IN	A	192.0.0.170
 ipv4only.arpa.		3600	IN	A	192.0.0.171
+; 192.0.0.172 would not normally appear in ipv4only.arpa.  This record
+; is here to prove whether ipv4only.arpa/A queries are being answered
+; by the recursive server or if they recursed to get the answer.
+ipv4only.arpa.		3600	IN	A	192.0.0.172
