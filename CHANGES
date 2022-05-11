@@ -1,3 +1,8 @@
+5887.	[bug]		ipv4only.arpa was not always being instanciated when it
+			should have been. Forward zones with empty forwarders
+			incorrectly stopped the creation of ipv4only.arpa.
+			[GL #3347]
+
 5886.	[placeholder]
 
 5885.	[bug]		RPZ NSIP and NSDNAME rule processing didn't handle stub
