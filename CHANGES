@@ -1,3 +1,8 @@
+5887.	[bug]		Empty zones where not always being created when they
+			should have been.  A covering forward only zones
+			without forwarders should not prevent the creation of
+			the empty zone. [GL #3346]
+
 5886.	[placeholder]
 
 5885.	[bug]		RPZ NSIP and NSDNAME rule processing didn't handle stub
