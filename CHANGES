@@ -1,3 +1,6 @@
+5892.	[func]		Apply DNS64 rules internally when making queries.
+			This is controlled by the option 'use-dns64'. [GL #608]
+
 5891.	[func]		Key timing options for `dnssec-settime` and related
 			utilities now accept "UNSET" times as printed by
 			`dnssec-settime -p`. [GL #3361]
