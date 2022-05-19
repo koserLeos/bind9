@@ -177,6 +177,7 @@ struct dns_view {
 	dns_dns64list_t	      dns64;
 	unsigned int	      dns64cnt;
 	bool		      usedns64;
+	bool		      autodns64;
 	dns_rpz_zones_t	*rpzs;
 	dns_catz_zones_t	 *catzs;
 	dns_dlzdblist_t	      dlz_searched;

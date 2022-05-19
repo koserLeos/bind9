@@ -145,6 +145,7 @@ options {\n\
 	allow-recursion-on { any; };\n\
 	allow-update-forwarding {none;};\n\
 	auth-nxdomain false;\n\
+	auto-dns64 false;\n\
 	check-dup-records warn;\n\
 	check-mx warn;\n\
 	check-names primary fail;\n\
