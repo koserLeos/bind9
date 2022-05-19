@@ -1042,6 +1042,7 @@ struct isc_nmsocket {
 	atomic_bool destroying;
 
 	bool route_sock;
+	bool ra_sock;
 
 	/*%
 	 * Socket is closed if it's not active and all the possible
@@ -1406,6 +1407,12 @@ void
 isc__nm_async_udpclose(isc__networker_t *worker, isc__netievent_t *ev0);
 /*%<
  * Callback handlers for asynchronous UDP events (listen, stoplisten, send).
+ */
+
+void
+isc__nm_async_raconnect(isc__networker_t *worker, isc__netievent_t *ev0);
+/*%<
+ * Callback handler for router advertisement socket events.
  */
 
 void
