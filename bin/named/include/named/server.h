@@ -116,6 +116,8 @@ struct named_server {
 
 	isc_tlsctx_cache_t *tlsctx_server_cache;
 	isc_tlsctx_cache_t *tlsctx_client_cache;
+
+	isc_nmhandle_t *ra;
 };
 
 #define NAMED_SERVER_MAGIC    ISC_MAGIC('S', 'V', 'E', 'R')
