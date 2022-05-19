@@ -145,6 +145,8 @@
 #define dumpzone	   dumpzone_file
 #endif /* HAVE_LMDB */
 
+#include <netinet/icmp6.h>
+
 #ifndef SIZE_MAX
 #define SIZE_MAX ((size_t)-1)
 #endif /* ifndef SIZE_MAX */
@@ -4362,6 +4364,11 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist, cfg_obj_t *config,
 	result = named_config_get(maps, "use-dns64", &obj);
 	INSIST(result == ISC_R_SUCCESS);
 	view->usedns64 = cfg_obj_asboolean(obj);
+
+	obj = NULL;
+	result = named_config_get(maps, "auto-dns64", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	view->autodns64 = cfg_obj_asboolean(obj);
 
 	obj = NULL;
 	result = named_config_get(maps, "dns64", &obj);
@@ -9808,6 +9815,155 @@ cleanup:
 }
 
 static void
+ra_recv(isc_nmhandle_t *handle, isc_result_t eresult, isc_region_t *region,
+	void *arg) {
+	named_server_t *server = arg;
+	struct nd_router_advert *ra = NULL;
+	struct nd_opt_hdr *hdr = NULL;
+#ifndef ND_OPT_PREF64
+#define ND_OPT_PREF64 38
+	struct nd_opt_pref64 {
+		u_int8_t nd_opt_pref64_type;
+		u_int8_t nd_opt_pref64_len;
+		u_int16_t nd_opt_pref64_scaled_lifetime_plc;
+		u_int32_t nd_opt_pref64_prefix[3];
+	};
+#endif
+	struct nd_opt_pref64 *pref64 = NULL;
+#ifndef ND_OPT_RDNSS
+#define ND_OPT_RDNSS 25
+	struct nd_opt_rdnss {
+		u_int8_t nd_opt_rdnss_type;
+		u_int8_t nd_opt_rdnss_len;
+		u_int16_t nd_opt_rdnss_reserved;
+		u_int32_t nd_opt_rdnss_lifetime;
+		struct in6_addr nd_opt_rdnss_addr[1];
+	};
+#endif
+	struct nd_opt_rdnss *rdnss = NULL;
+	struct nd_opt_prefix_info *pi = NULL;
+
+	if (handle == NULL) {
+		return;
+	}
+
+	if (eresult != ISC_R_SUCCESS) {
+		isc_nm_cancelread(server->ra);
+		isc_nmhandle_detach(&server->ra);
+		return;
+	}
+
+	if (region->length < sizeof(*ra)) {
+		return;
+	}
+
+	ra = (struct nd_router_advert *)region->base;
+	isc_region_consume(region, sizeof(*ra));
+
+	if (ra->nd_ra_type != ND_ROUTER_ADVERT) {
+		fprintf(stderr, "ra->nd_ra_type = %u\n", ra->nd_ra_type);
+		return;
+	}
+
+	while (region->length > 0) {
+		if (region->length < sizeof(*hdr)) {
+			fprintf(stderr, "hdr too short");
+			return;
+		}
+		hdr = (struct nd_opt_hdr *)region->base;
+		fprintf(stderr, "nd_opt_type=%u nd_opt_len=%u\n",
+			hdr->nd_opt_type, hdr->nd_opt_len);
+		if (hdr->nd_opt_len == 0) {
+			fprintf(stderr, "nd_opt_len too short\n");
+			return;
+		}
+		if (region->length < hdr->nd_opt_len * 8) {
+			fprintf(stderr, "option unexpected end\n");
+			return;
+		}
+		switch (hdr->nd_opt_type) {
+		case ND_OPT_PREFIX_INFORMATION:
+			if (hdr->nd_opt_len * 8 < sizeof(*pi)) {
+				fprintf(stderr,
+					"prefix info nd_opt_len too short\n");
+				return;
+			}
+			if (pi == NULL) {
+				pi = (struct nd_opt_prefix_info *)region->base;
+			}
+			break;
+		case ND_OPT_RDNSS:
+			if (hdr->nd_opt_len * 8 < sizeof(*pref64)) {
+				fprintf(stderr, "rdnss nd_opt_len too short\n");
+				return;
+			}
+			if (rdnss == NULL) {
+				rdnss = (struct nd_opt_rdnss *)region->base;
+			}
+			break;
+		case ND_OPT_PREF64:
+			if (hdr->nd_opt_len * 8 < sizeof(*pref64)) {
+				fprintf(stderr,
+					"pref64 nd_opt_len too short\n");
+				return;
+			}
+			if (pref64 == NULL) {
+				pref64 = (struct nd_opt_pref64 *)region->base;
+			}
+			break;
+		default:
+			break;
+		}
+		isc_region_consume(region, hdr->nd_opt_len * 8);
+	}
+
+	if (pref64 != NULL) {
+#ifndef ND_OPT_PREF64_PLC_MASK
+#define ND_OPT_PREF64_PLC_MASK 0x7
+#endif
+		u_int32_t addr[4] = { pref64->nd_opt_pref64_prefix[0],
+				      pref64->nd_opt_pref64_prefix[1],
+				      pref64->nd_opt_pref64_prefix[2] };
+		unsigned lengths[8] = { 96, 64, 56, 48, 40, 32 };
+		unsigned length =
+			lengths[pref64->nd_opt_pref64_scaled_lifetime_plc &
+				ND_OPT_PREF64_PLC_MASK];
+		char buf[sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx")];
+
+		fprintf(stderr, "%s/%u\n",
+			inet_ntop(AF_INET6, addr, buf, sizeof(buf)), length);
+		/* XXXMPA update views */
+		return;
+	}
+	if (rdnss != NULL) {
+		char buf[sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255."
+				"255")];
+		size_t count = (rdnss->nd_opt_rdnss_len - 1) / 2;
+		unsigned char *base = (unsigned char *)rdnss;
+		for (size_t i = 0; i < count; i++) {
+			fprintf(stderr, "%s\n",
+				inet_ntop(AF_INET6, base + 8 + i * 16, buf,
+					  sizeof(buf)));
+		}
+		/* XXXMPA make ipv4only.arpa / AAAA lookup */
+		return;
+	}
+}
+
+static void
+ra_connected(isc_nmhandle_t *handle, isc_result_t eresult, void *arg) {
+	named_server_t *server = arg;
+
+	if (eresult != ISC_R_SUCCESS) {
+		return;
+	}
+
+	INSIST(server->ra == NULL);
+	isc_nmhandle_attach(handle, &server->ra);
+	isc_nm_read(handle, ra_recv, server);
+}
+
+static void
 run_server(isc_task_t *task, isc_event_t *event) {
 	isc_result_t result;
 	named_server_t *server = (named_server_t *)event->ev_arg;
@@ -9860,6 +10016,9 @@ run_server(isc_task_t *task, isc_event_t *event) {
 		   "loading configuration");
 
 	CHECKFATAL(load_zones(server, false), "loading zones");
+
+	(void)isc_nm_raconnect(named_g_netmgr, ra_connected, server);
+
 #ifdef ENABLE_AFL
 	named_g_run_done = true;
 #endif /* ifdef ENABLE_AFL */
@@ -9958,6 +10117,11 @@ shutdown_server(isc_task_t *task, isc_event_t *event) {
 #endif /* HAVE_GEOIP2 */
 
 	dns_db_detach(&server->in_roothints);
+
+	if (server->ra != NULL) {
+		isc_nm_cancelread(server->ra);
+		isc_nmhandle_detach(&server->ra);
+	}
 
 	isc_task_endexclusive(server->task);
 
@@ -10162,6 +10326,8 @@ named_server_create(isc_mem_t *mctx, named_server_t **serverp) {
 	server->lockfile = NULL;
 
 	server->dtenv = NULL;
+
+	server->ra = NULL;
 
 	server->magic = NAMED_SERVER_MAGIC;
 

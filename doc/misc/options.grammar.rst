@@ -35,6 +35,7 @@
   	answer-cookie <boolean>;
   	attach-cache <string>;
   	auth-nxdomain <boolean>;
+  	auto-dns64 <boolean>;
   	auto-dnssec ( allow | maintain | off );
   	automatic-interface-scan <boolean>;
   	avoid-v4-udp-ports { <portrange>; ... };

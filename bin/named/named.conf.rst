@@ -183,6 +183,7 @@ OPTIONS
   	answer-cookie boolean;
   	attach-cache string;
   	auth-nxdomain boolean;
+  	auto-dns64 boolean;
   	auto-dnssec ( allow | maintain | off );
   	automatic-interface-scan boolean;
   	avoid-v4-udp-ports { portrange; ... };
@@ -622,6 +623,7 @@ VIEW
   	    * ) ] [ dscp integer ];
   	attach-cache string;
   	auth-nxdomain boolean;
+  	auto-dns64 boolean;
   	auto-dnssec ( allow | maintain | off );
   	catalog-zones { zone string [ default-primaries [ port integer
   	    ] [ dscp integer ] { ( remote-servers | ipv4_address [

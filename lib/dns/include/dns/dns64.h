@@ -36,6 +36,8 @@ ISC_LANG_BEGINDECLS
 	      * fail validation.          \
 	      */
 
+#define DNS_DNS64_AUTOMATIC 0x04 /* Added automatically */
+
 /*
  * dns_dns64_aaaaok() and dns_dns64_aaaafroma() flags.
  */

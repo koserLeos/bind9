@@ -262,6 +262,7 @@ route_connected(isc_nmhandle_t *handle, isc_result_t eresult, void *arg) {
 		      "route_connected: %s", isc_result_totext(eresult));
 
 	if (eresult != ISC_R_SUCCESS) {
+		ns_interfacemgr_detach(&mgr);
 		return;
 	}
 
@@ -270,6 +271,7 @@ route_connected(isc_nmhandle_t *handle, isc_result_t eresult, void *arg) {
 	ns_interfacemgr_attach(mgr, &(ns_interfacemgr_t *){ NULL });
 	isc_nmhandle_attach(handle, &mgr->route);
 	isc_nm_read(handle, route_recv, mgr);
+	ns_interfacemgr_detach(&mgr);
 }
 
 isc_result_t
@@ -331,18 +333,20 @@ ns_interfacemgr_create(isc_mem_t *mctx, ns_server_t *sctx,
 	UNUSED(geoip);
 #endif /* if defined(HAVE_GEOIP2) */
 
+	isc_refcount_init(&mgr->references, 1);
+	mgr->magic = IFMGR_MAGIC;
+
 	if (scan) {
+		ns_interfacemgr_t *dummy = NULL;
+		ns_interfacemgr_attach(mgr, &dummy);
 		result = isc_nm_routeconnect(nm, route_connected, mgr);
 		if (result != ISC_R_SUCCESS) {
+			ns_interfacemgr_detach(&dummy);
 			isc_log_write(IFMGR_COMMON_LOGARGS, ISC_LOG_INFO,
 				      "unable to open route socket: %s",
 				      isc_result_totext(result));
 		}
 	}
-
-	isc_refcount_init(&mgr->references, 1);
-	mgr->magic = IFMGR_MAGIC;
-	*mgrp = mgr;
 
 	mgr->clientmgrs = isc_mem_get(mgr->mctx,
 				      mgr->ncpus * sizeof(mgr->clientmgrs[0]));
@@ -352,6 +356,8 @@ ns_interfacemgr_create(isc_mem_t *mctx, ns_server_t *sctx,
 					     &mgr->clientmgrs[i]);
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	}
+
+	*mgrp = mgr;
 
 	return (ISC_R_SUCCESS);
 

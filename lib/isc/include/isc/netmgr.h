@@ -250,6 +250,17 @@ isc_nm_udpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
  */
 
 isc_result_t
+isc_nm_raconnect(isc_nm_t *mgr, isc_nm_cb_t cb, void *cbarg);
+/*%<
+ * Open a ICMPV6 socket and call 'cb', so the caller can be
+ * begin listening for router advertisement message.  This behaves
+ * similarly to isc_nm_udpconnect().
+ *
+ * Returns ISC_R_NOTIMPLEMENTED on systems where ICMPV6 sockets
+ * are not supported.
+ */
+
+isc_result_t
 isc_nm_routeconnect(isc_nm_t *mgr, isc_nm_cb_t cb, void *cbarg);
 /*%<
  * Open a route/netlink socket and call 'cb', so the caller can be
