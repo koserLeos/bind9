@@ -300,7 +300,7 @@ AS_CASE([$host],
 		  ])
 	])
 
-AC_CHECK_HEADERS([fcntl.h regex.h sys/time.h unistd.h sys/mman.h sys/sockio.h sys/select.h sys/param.h sys/sysctl.h net/if6.h sys/socket.h net/route.h linux/netlink.h linux/rtnetlink.h], [], [],
+AC_CHECK_HEADERS([fcntl.h regex.h sys/time.h unistd.h sys/mman.h sys/sockio.h sys/select.h sys/param.h sys/sysctl.h net/if6.h sys/socket.h net/route.h linux/netlink.h linux/rtnetlink.h netinet/icmp6.h], [], [],
 		 [$ac_includes_default
 		  #ifdef HAVE_SYS_PARAM_H
 		  # include <sys/param.h>
