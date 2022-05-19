@@ -92,14 +92,12 @@ ISC_LANG_BEGINDECLS
  *** Types
  ***/
 
-#define isc_task_create(m, q, t) \
-	isc__task_create_bound(m, q, t, -1 ISC__TASKFILELINE)
-#define isc_task_create_bound(m, q, t, i) \
-	isc__task_create_bound(m, q, t, i ISC__TASKFILELINE)
+#define isc_task_create(m, q, t, i) \
+	isc__task_create(m, q, t, i ISC__TASKFILELINE)
 
 isc_result_t
-isc__task_create_bound(isc_taskmgr_t *manager, unsigned int quantum,
-		       isc_task_t **taskp, int tid ISC__TASKFLARG);
+isc__task_create(isc_taskmgr_t *manager, unsigned int quantum,
+		 isc_task_t **taskp, int tid ISC__TASKFLARG);
 /*%<
  * Create a task, optionally bound to a particular tid.
  *
