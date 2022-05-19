@@ -499,7 +499,7 @@ task_run(isc_task_t *task) {
 	REQUIRE(VALID_TASK(task));
 
 	LOCK(&task->lock);
-	quantum = task->quantum;
+	quantum = task->nevents;
 
 	if (task->state != task_state_ready) {
 		goto done;
