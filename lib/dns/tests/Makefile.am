@@ -11,8 +11,9 @@ AM_CPPFLAGS +=				\
 LDADD +=				\
 	libdnstest.la			\
 	$(LIBISC_LIBS)			\
-	$(LIBUV_LIBS)			\
-	$(LIBDNS_LIBS)
+	$(OPENSS_LIBS)			\
+	$(LIBDNS_LIBS)			\
+	$(LIBUV_LIBS)
 
 check_LTLIBRARIES = libdnstest.la
 libdnstest_la_SOURCES = dnstest.c dnstest.h

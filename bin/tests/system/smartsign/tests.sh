@@ -23,45 +23,45 @@ cfile=child.db
 
 echo_i "generating child's keys"
 # active zsk
-czsk1=`$KEYGEN -q -a rsasha1 -L 30 $czone`
+czsk1=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -L 30 $czone)
 
 # not yet published or active
-czsk2=`$KEYGEN -q -a rsasha1 -P none -A none $czone`
+czsk2=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -P none -A none $czone)
 
 # published but not active
-czsk3=`$KEYGEN -q -a rsasha1 -A none $czone`
+czsk3=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -A none $czone)
 
 # inactive
-czsk4=`$KEYGEN -q -a rsasha1 -P now-24h -A now-24h -I now $czone`
+czsk4=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -P now-24h -A now-24h -I now $czone)
 
 # active in 12 hours, inactive 12 hours after that...
-czsk5=`$KEYGEN -q -a rsasha1 -P now+12h -A now+12h -I now+24h $czone`
+czsk5=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -P now+12h -A now+12h -I now+24h $czone)
 
 # explicit successor to czk5
 # (suppressing warning about lack of removal date)
-czsk6=`$KEYGEN -q -S $czsk5 -i 6h 2>/dev/null` 
+czsk6=$($KEYGEN -q -S $czsk5 -i 6h 2>/dev/null)
 
 # active ksk
-cksk1=`$KEYGEN -q -a rsasha1 -fk -L 30 $czone`
+cksk1=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -fk -L 30 $czone)
 
 # published but not YET active; will be active in 20 seconds
-cksk2=`$KEYGEN -q -a rsasha1 -fk $czone`
+cksk2=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -fk $czone)
 # $SETTIME moved after other $KEYGENs
 
 echo_i "revoking key"
 # revoking key changes its ID
-cksk3=`$KEYGEN -q -a rsasha1 -fk $czone`
+cksk3=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -fk $czone)
 cksk4=`$REVOKE $cksk3`
 
 echo_i "setting up sync key"
-cksk5=`$KEYGEN -q -a rsasha1 -fk -P now+1mo -A now+1mo -Psync now $czone`
+cksk5=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -fk -P now+1mo -A now+1mo -Psync now $czone)
 
 echo_i "and future sync key"
-cksk6=`$KEYGEN -q -a rsasha1 -fk -P now+1mo -A now+1mo -Psync now+1mo $czone`
+cksk6=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -fk -P now+1mo -A now+1mo -Psync now+1mo $czone)
 
 echo_i "generating parent keys"
-pzsk=`$KEYGEN -q -a rsasha1 $pzone`
-pksk=`$KEYGEN -q -a rsasha1 -fk $pzone`
+pzsk=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} $pzone)
+pksk=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -fk $pzone)
 
 echo_i "setting child's activation time"
 # using now+30s to fix RT 24561

@@ -35,6 +35,16 @@
 #define DEFAULT_NSEC3PARAM_ITER	   0
 #define DEFAULT_NSEC3PARAM_SALTLEN 0
 
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#endif
+
 /*
  * Utility function for getting a configuration option.
  */
@@ -121,6 +131,18 @@ cfg_kaspkey_fromconfig(const cfg_obj_t *config, dns_kasp_t *kasp,
 			result = DNS_R_BADALG;
 			goto cleanup;
 		}
+#ifdef ISC_FIPS_MODE
+		if ((key->algorithm == DNS_KEYALG_RSASHA1 ||
+		     key->algorithm == DNS_KEYALG_NSEC3RSASHA1) &&
+		    ISC_FIPS_MODE())
+		{
+			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
+				    "dnssec-policy: algorithm %s not supported "
+				    "in FIPS mode",
+				    alg.base);
+			result = DNS_R_BADALG;
+		}
+#endif
 
 		obj = cfg_tuple_get(config, "length");
 		if (cfg_obj_isuint32(obj)) {
@@ -133,6 +155,10 @@ cfg_kaspkey_fromconfig(const cfg_obj_t *config, dns_kasp_t *kasp,
 			case DNS_KEYALG_RSASHA256:
 			case DNS_KEYALG_RSASHA512:
 				min = DNS_KEYALG_RSASHA512 ? 1024 : 512;
+#ifdef ISC_FIPS_MODE
+				if (ISC_FIPS_MODE())
+					min = 2048;
+#endif
 				if (size < min || size > 4096) {
 					cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
 						    "dnssec-policy: key with "

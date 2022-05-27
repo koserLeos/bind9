@@ -115,6 +115,13 @@
 
 #include <bind9/check.h>
 
+#ifdef HAVE_FIPS_MODE
+#include <openssl/crypto.h>
+#endif /* ifdef HAVE_FIPS_MODE */
+#ifdef HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS
+#include <openssl/evp.h>
+#endif
+
 #include <named/config.h>
 #include <named/control.h>
 #if defined(HAVE_GEOIP2)
@@ -165,6 +172,14 @@
 #define MAX_KEEPALIVE_TIMEOUT  UINT32_C(UINT16_MAX * 100)
 #define MIN_ADVERTISED_TIMEOUT UINT32_C(0) /* No minimum */
 #define MAX_ADVERTISED_TIMEOUT UINT32_C(UINT16_MAX * 100)
+
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#define ISC_FIPS_MODE() FIPS_mode()
+#endif
 
 /*%
  * Check an operation for failure.  Assumes that the function
@@ -8895,7 +8910,6 @@ load_configuration(const char *filename, named_server_t *server,
 		const cfg_obj_t *clistenon = NULL;
 		ns_listenlist_t *listenon = NULL;
 
-		clistenon = NULL;
 		/*
 		 * Even though listen-on is present in the default
 		 * configuration, this way is easier.
@@ -8922,6 +8936,7 @@ load_configuration(const char *filename, named_server_t *server,
 			ns_listenlist_detach(&listenon);
 		}
 	}
+
 	/*
 	 * Ditto for IPv6.
 	 */
@@ -9721,12 +9736,12 @@ view_loaded(void *arg) {
 
 		named_os_started();
 
-#ifdef HAVE_FIPS_MODE
+#ifdef ISC_FIPS_MODE
 		isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,
 			      NAMED_LOGMODULE_SERVER, ISC_LOG_NOTICE,
 			      "FIPS mode is %s",
-			      FIPS_mode() ? "enabled" : "disabled");
-#endif /* ifdef HAVE_FIPS_MODE */
+			      ISC_FIPS_MODE() ? "enabled" : "disabled");
+#endif /* ifdef ISC_FIPS_MODE */
 		atomic_store(&server->reload_status, NAMED_RELOAD_DONE);
 
 		isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,

@@ -48,14 +48,14 @@ status=$((status+tmp))
 n=$((n+1))
 echo_i "testing TSIG signed zone transfers ($n)"
 tmp=0
-$DIG $DIGOPTS tsigzone. @10.53.0.2 axfr -y tsigzone.:1234abcd8765 > dig.out.ns2.test$n || tmp=1
+$DIG $DIGOPTS tsigzone. @10.53.0.2 axfr -y $HMAC_ALGORITHM:tsigzone.:1234abcd8765 > dig.out.ns2.test$n || tmp=1
 grep "^;" dig.out.ns2.test$n | cat_i
 
 #
 # Spin to allow the zone to transfer.
 #
 wait_for_xfer_tsig () {
-	$DIG $DIGOPTS tsigzone. @10.53.0.3 axfr -y tsigzone.:1234abcd8765 > dig.out.ns3.test$n || return 1
+	$DIG $DIGOPTS tsigzone. @10.53.0.3 axfr -y $HMAC_ALGORITHM:tsigzone.:1234abcd8765 > dig.out.ns3.test$n || return 1
 	grep "^;" dig.out.ns3.test$n > /dev/null && return 1
 	return 0
 }
@@ -465,7 +465,7 @@ test ${expire:-0} -gt 0 -a ${expire:-0} -lt 1814400 || {
 n=$((n+1))
 echo_i "test smaller transfer TCP message size ($n)"
 $DIG $DIGOPTS example. @10.53.0.8 axfr \
-	-y key1.:1234abcd8765 > dig.out.msgsize.test$n || status=1
+	-y $HMAC_ALGORITHM:key1.:1234abcd8765 > dig.out.msgsize.test$n || status=1
 
 bytes=`wc -c < dig.out.msgsize.test$n`
 if [ $bytes -ne 459357 ]; then

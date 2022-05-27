@@ -18,8 +18,16 @@
 #include <stddef.h>
 #include <string.h>
 
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
 /* For FIPS_mode() */
 #include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#endif
 
 #define UNIT_TESTING
 #include <cmocka.h>
@@ -121,8 +129,13 @@ isc_md_init_test(void **state) {
 
 	assert_int_equal(isc_md_init(md, NULL), ISC_R_NOTIMPLEMENTED);
 
-	assert_int_equal(isc_md_init(md, ISC_MD_MD5), ISC_R_SUCCESS);
-	assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
+#endif /* ISC_FIPS_MODE */
+	{
+		assert_int_equal(isc_md_init(md, ISC_MD_MD5), ISC_R_SUCCESS);
+		assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
+	}
 
 	assert_int_equal(isc_md_init(md, ISC_MD_SHA1), ISC_R_SUCCESS);
 	assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
@@ -201,6 +214,12 @@ isc_md_final_test(void **state) {
 static void
 isc_md_md5_test(void **state) {
 	isc_md_t *md = *state;
+#ifdef ISC_FIPS_MODE
+	if (ISC_FIPS_MODE()) {
+		skip();
+		return;
+	}
+#endif
 	isc_md_test(md, ISC_MD_MD5, NULL, 0, NULL, 0);
 	isc_md_test(md, ISC_MD_MD5, TEST_INPUT(""),
 		    "D41D8CD98F00B204E9800998ECF8427E", 1);

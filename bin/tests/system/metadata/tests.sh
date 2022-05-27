@@ -174,7 +174,7 @@ status=`expr $status + $ret`
 echo_i "checking warning about delete date < inactive date with dnssec-keygen ($n)"
 ret=0
 # keygen should print a warning about delete < inactive
-$KEYGEN -q -a rsasha1 -I now+15s -D now $czone > tmp.out 2>&1 || ret=1
+$KEYGEN -q -a ${DEFAULT_ALGORITHM} -I now+15s -D now $czone > tmp.out 2>&1 || ret=1
 grep "warning" tmp.out > /dev/null 2>&1 || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo_i "failed"; fi
@@ -182,16 +182,16 @@ status=`expr $status + $ret`
 
 echo_i "checking correct behavior setting activation without publication date ($n)"
 ret=0
-key=`$KEYGEN -q -a rsasha1 -A +1w $czone`
-pub=`$SETTIME -upP $key | awk '{print $2}'`
-act=`$SETTIME -upA $key | awk '{print $2}'`
+key=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -A +1w $czone)
+pub=$($SETTIME -upP $key | awk '{print $2}')
+act=$($SETTIME -upA $key | awk '{print $2}')
 [ $pub -eq $act ] || ret=1
-key=`$KEYGEN -q -a rsasha1 -A +1w -i 1d $czone`
-pub=`$SETTIME -upP $key | awk '{print $2}'`
-act=`$SETTIME -upA $key | awk '{print $2}'`
+key=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -A +1w -i 1d $czone)
+pub=$($SETTIME -upP $key | awk '{print $2}')
+act=$($SETTIME -upA $key | awk '{print $2}')
 [ $pub -lt $act ] || ret=1
-key=`$KEYGEN -q -a rsasha1 -A +1w -P never $czone`
-pub=`$SETTIME -upP $key | awk '{print $2}'`
+key=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -A +1w -P never $czone)
+pub=$($SETTIME -upP $key | awk '{print $2}')
 [ $pub = "UNSET" ] || ret=1
 n=`expr $n + 1`
 if [ $ret != 0 ]; then echo_i "failed"; fi
@@ -199,8 +199,8 @@ status=`expr $status + $ret`
 
 echo_i "checking calculation of dates for a successor key ($n)"
 ret=0
-oldkey=`$KEYGEN -a RSASHA1 -q $czone`
-newkey=`$KEYGEN -a RSASHA1 -q $czone`
+oldkey=$($KEYGEN -a ${DEFAULT_ALGORITHM} -q $czone)
+newkey=$($KEYGEN -a ${DEFAULT_ALGORITHM} -q $czone)
 $SETTIME -A -2d -I +2d $oldkey > settime1.test$n 2>&1 || ret=1
 $SETTIME -i 1d -S $oldkey $newkey > settime2.test$n 2>&1 || ret=1
 $SETTIME -pA $newkey | grep "1970" > /dev/null && ret=1
@@ -208,7 +208,7 @@ n=`expr $n + 1`
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
 
-key=`$KEYGEN -q -a RSASHA1 $czone`
+key=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} $czone)
 
 echo_i "checking -p output time is accepted ($n)"
 t=`$SETTIME -pA $key | sed 's/.*: //'`

@@ -22,6 +22,17 @@
 #include <string.h>
 #include <unistd.h>
 
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+/* For FIPS_mode() */
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#endif
+
 #define UNIT_TESTING
 #include <cmocka.h>
 
@@ -149,27 +160,31 @@ isc_rsa_verify_test(void **state) {
 	ret = dns_name_fromtext(name, &buf, NULL, 0, NULL);
 	assert_int_equal(ret, ISC_R_SUCCESS);
 
-	ret = dst_key_fromfile(name, 29235, DST_ALG_RSASHA1, DST_TYPE_PUBLIC,
+	ret = dst_key_fromfile(name, 29235, DST_ALG_RSASHA256, DST_TYPE_PUBLIC,
 			       "./", dt_mctx, &key);
 	assert_int_equal(ret, ISC_R_SUCCESS);
 
 	/* RSASHA1 */
+	if (dst_algorithm_supported(DST_ALG_RSASHA1))
+	{
+		key->key_alg = DST_ALG_RSASHA1;
 
-	ret = dst_context_create(key, dt_mctx, DNS_LOGCATEGORY_DNSSEC, false, 0,
-				 &ctx);
-	assert_int_equal(ret, ISC_R_SUCCESS);
+		ret = dst_context_create(key, dt_mctx, DNS_LOGCATEGORY_DNSSEC, false, 0,
+					 &ctx);
+		assert_int_equal(ret, ISC_R_SUCCESS);
 
-	r.base = d;
-	r.length = 10;
-	ret = dst_context_adddata(ctx, &r);
-	assert_int_equal(ret, ISC_R_SUCCESS);
+		r.base = d;
+		r.length = 10;
+		ret = dst_context_adddata(ctx, &r);
+		assert_int_equal(ret, ISC_R_SUCCESS);
 
-	r.base = sigsha1;
-	r.length = 256;
-	ret = dst_context_verify(ctx, &r);
-	assert_int_equal(ret, ISC_R_SUCCESS);
+		r.base = sigsha1;
+		r.length = 256;
+		ret = dst_context_verify(ctx, &r);
+		assert_int_equal(ret, ISC_R_SUCCESS);
 
-	dst_context_destroy(&ctx);
+		dst_context_destroy(&ctx);
+	}
 
 	/* RSASHA256 */
 

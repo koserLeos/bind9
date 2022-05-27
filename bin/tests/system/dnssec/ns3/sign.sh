@@ -667,8 +667,30 @@ zonefile=occluded.example.db
 kskname=$("$KEYGEN" -q -a "$DEFAULT_ALGORITHM" -fk "$zone")
 zskname=$("$KEYGEN" -q -a "$DEFAULT_ALGORITHM" "$zone")
 dnskeyname=$("$KEYGEN" -q -a "$DEFAULT_ALGORITHM" -fk "delegation.$zone")
-keyname=$("$KEYGEN" -q -a DH -b 1024 -n HOST -T KEY "delegation.$zone")
+if $FEATURETEST --have-fips-dh
+then
+	keyname=$("$KEYGEN" -q -a DH -b 2048 -n HOST -T KEY "delegation.$zone")
+else
+	keyname=$("$KEYGEN" -q -a RSASHA256 -b 2048 -n HOST -T KEY "delegation.$zone")
+fi
 $DSFROMKEY "$dnskeyname.key" > "dsset-delegation.${zone}."
 cat "$infile" "${kskname}.key" "${zskname}.key" "${keyname}.key" \
     "${dnskeyname}.key" "dsset-delegation.${zone}." >"$zonefile"
 "$SIGNER" -P -o "$zone" "$zonefile" > /dev/null
+
+#
+# Pre-signed zone for FIPS validation of RSASHA1 signed zones
+# See sign-rsasha1.sh for how to regenerate rsasha1.example.db
+# with non-FIPS compliant instance.
+#
+# We only need to generate the dsset.
+#
+zone=rsasha1.example
+zonefile=rsasha1.example.db
+awk '$4 == "DNSKEY" && $5 == 257 { print }' "$zonefile" |
+$DSFROMKEY -f - "$zone" > "dsset-${zone}."
+
+zone=rsasha1-1024.example
+zonefile=rsasha1-1024.example.db
+awk '$4 == "DNSKEY" && $5 == 257 { print }' "$zonefile" |
+$DSFROMKEY -f - "$zone" > "dsset-${zone}."

@@ -87,7 +87,7 @@ cp ns5/expire.conf.in ns5/expire.conf
 # $3=input zone file
 # $4=output file
 signzone () {
-    KEYNAME=`$KEYGEN -q -a rsasha256 -K $1 $2`
+    KEYNAME=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -K $1 $2)
     cat $1/$3 $1/$KEYNAME.key > $1/tmp
     $SIGNER -P -K $1 -o $2 -f $1/$4 $1/tmp >/dev/null
     sed -n -e 's/\(.*\) IN DNSKEY \([0-9]\{1,\} [0-9]\{1,\} [0-9]\{1,\}\) \(.*\)/trust-anchors {"\1" static-key \2 "\3";};/p' $1/$KEYNAME.key >>trusted.conf

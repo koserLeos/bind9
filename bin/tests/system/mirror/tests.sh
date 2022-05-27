@@ -118,7 +118,7 @@ wait_for_transfer verify-axfr
 $DIG $DIGOPTS @10.53.0.3 +norec verify-axfr SOA > dig.out.ns3.test$n 2>&1 || ret=1
 grep "ANSWER: 0" dig.out.ns3.test$n > /dev/null || ret=1
 grep "${UPDATED_SERIAL_BAD}.*; serial" dig.out.ns3.test$n > /dev/null && ret=1
-nextpartpeek ns3/named.run | grep "No correct RSASHA256 signature for verify-axfr SOA" > /dev/null || ret=1
+nextpartpeek ns3/named.run | grep "No correct ${DEFAULT_ALGORITHM} signature for verify-axfr SOA" > /dev/null || ret=1
 nextpartpeek ns3/named.run | grep "verify-axfr.*mirror zone is now in use" > /dev/null && ret=1
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
@@ -169,7 +169,7 @@ $DIG $DIGOPTS @10.53.0.3 +norec verify-ixfr SOA > dig.out.ns3.test$n 2>&1 || ret
 # zone should have been successfully verified.
 grep "ANSWER: 0" dig.out.ns3.test$n > /dev/null && ret=1
 grep "${UPDATED_SERIAL_BAD}.*; serial" dig.out.ns3.test$n > /dev/null && ret=1
-nextpartpeek ns3/named.run | grep "No correct RSASHA256 signature for verify-ixfr SOA" > /dev/null || ret=1
+nextpartpeek ns3/named.run | grep "No correct ${DEFAULT_ALGORITHM} signature for verify-ixfr SOA" > /dev/null || ret=1
 # Despite the verification failure for this IXFR, this mirror zone should still
 # be in use as its previous version should have been verified successfully.
 nextpartpeek ns3/named.run | grep "verify-ixfr.*mirror zone is no longer in use" > /dev/null && ret=1
@@ -209,7 +209,7 @@ wait_for_load verify-load ${UPDATED_SERIAL_BAD} ns3/named.run
 $DIG $DIGOPTS @10.53.0.3 +norec verify-load SOA > dig.out.ns3.test$n 2>&1 || ret=1
 grep "ANSWER: 0" dig.out.ns3.test$n > /dev/null || ret=1
 grep "${UPDATED_SERIAL_BAD}.*; serial" dig.out.ns3.test$n > /dev/null && ret=1
-nextpartpeek ns3/named.run | grep "No correct RSASHA256 signature for verify-load SOA" > /dev/null || ret=1
+nextpartpeek ns3/named.run | grep "No correct ${DEFAULT_ALGORITHM} signature for verify-load SOA" > /dev/null || ret=1
 nextpartpeek ns3/named.run | grep "verify-load.*mirror zone is now in use" > /dev/null && ret=1
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
@@ -260,7 +260,7 @@ wait_for_load verify-ixfr ${UPDATED_SERIAL_BAD} ns3/named.run
 $DIG $DIGOPTS @10.53.0.3 +norec verify-ixfr SOA > dig.out.ns3.test$n 2>&1 || ret=1
 grep "ANSWER: 0" dig.out.ns3.test$n > /dev/null || ret=1
 grep "${UPDATED_SERIAL_BAD}.*; serial" dig.out.ns3.test$n > /dev/null && ret=1
-nextpartpeek ns3/named.run | grep "No correct RSASHA256 signature for verify-ixfr SOA" > /dev/null || ret=1
+nextpartpeek ns3/named.run | grep "No correct ${DEFAULT_ALGORITHM} signature for verify-ixfr SOA" > /dev/null || ret=1
 nextpartpeek ns3/named.run | grep "verify-ixfr.*mirror zone is now in use" > /dev/null && ret=1
 # Restore transfers for the "verify-ixfr" zone on ns2.
 # (NOTE: Keep the embedded newline in the sed function list below.)
@@ -513,7 +513,7 @@ rndc_reconfig ns3 10.53.0.3
 wait_for_load verify-reconfig ${UPDATED_SERIAL_BAD} ns3/named.run
 $DIG $DIGOPTS @10.53.0.3 +norec verify-reconfig SOA > dig.out.ns3.test$n 2>&1 || ret=1
 grep "${UPDATED_SERIAL_BAD}.*; serial" dig.out.ns3.test$n > /dev/null && ret=1
-nextpart ns3/named.run | grep "No correct RSASHA256 signature for verify-reconfig SOA" > /dev/null || ret=1
+nextpart ns3/named.run | grep "No correct ${DEFAULT_ALGORITHM} signature for verify-reconfig SOA" > /dev/null || ret=1
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
 

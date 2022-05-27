@@ -22,6 +22,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#endif
+
 #define UNIT_TESTING
 #include <cmocka.h>
 
@@ -121,15 +131,21 @@ isc_hmac_init_test(void **state) {
 	isc_hmac_t *hmac = *state;
 	assert_non_null(hmac);
 
-	expect_assert_failure(isc_hmac_init(NULL, "", 0, ISC_MD_MD5));
-
 	assert_int_equal(isc_hmac_init(hmac, "", 0, NULL),
 			 ISC_R_NOTIMPLEMENTED);
 
-	expect_assert_failure(isc_hmac_init(hmac, NULL, 0, ISC_MD_MD5));
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
+#endif /* ifdef ISC_FIPS_MODE */
+	{
+		expect_assert_failure(isc_hmac_init(NULL, "", 0, ISC_MD_MD5));
 
-	assert_int_equal(isc_hmac_init(hmac, "", 0, ISC_MD_MD5), ISC_R_SUCCESS);
-	assert_int_equal(isc_hmac_reset(hmac), ISC_R_SUCCESS);
+		expect_assert_failure(isc_hmac_init(hmac, NULL, 0, ISC_MD_MD5));
+
+		assert_int_equal(isc_hmac_init(hmac, "", 0, ISC_MD_MD5),
+				 ISC_R_SUCCESS);
+		assert_int_equal(isc_hmac_reset(hmac), ISC_R_SUCCESS);
+	}
 
 	assert_int_equal(isc_hmac_init(hmac, "", 0, ISC_MD_SHA1),
 			 ISC_R_SUCCESS);
@@ -216,6 +232,13 @@ isc_hmac_final_test(void **state) {
 static void
 isc_hmac_md5_test(void **state) {
 	isc_hmac_t *hmac = *state;
+
+#ifdef ISC_FIPS_MODE
+	if (ISC_FIPS_MODE()) {
+		skip();
+		return;
+	}
+#endif
 
 	/* Test 0 */
 	isc_hmac_test(hmac, TEST_INPUT(""), ISC_MD_MD5, TEST_INPUT(""),

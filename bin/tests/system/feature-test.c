@@ -16,6 +16,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <openssl/opensslv.h>
+
 #include <isc/net.h>
 #include <isc/print.h>
 #include <isc/util.h>
@@ -30,6 +32,16 @@
 #endif /* ifdef HOST_NAME_MAX */
 #endif /* ifndef MAXHOSTNAMELEN */
 
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#endif
+
 static void
 usage(void) {
 	fprintf(stderr, "usage: feature-test <arg>\n");
@@ -40,6 +52,8 @@ usage(void) {
 	fprintf(stderr, "\t--enable-querytrace\n");
 	fprintf(stderr, "\t--gethostname\n");
 	fprintf(stderr, "\t--gssapi\n");
+	fprintf(stderr, "\t--have-fips-dh\n");
+	fprintf(stderr, "\t--have-fips-mode\n");
 	fprintf(stderr, "\t--have-geoip2\n");
 	fprintf(stderr, "\t--have-libxml2\n");
 	fprintf(stderr, "\t--ipv6only=no\n");
@@ -109,6 +123,22 @@ main(int argc, char **argv) {
 #else  /* HAVE_GSSAPI */
 		return (1);
 #endif /* HAVE_GSSAPI */
+	}
+
+	if (strcmp(argv[1], "--have-fips-dh") == 0) {
+#ifdef ISC_FIPS_MODE
+		return (!ISC_FIPS_MODE());
+#else
+		return (1);
+#endif /* ifdef ISC_FIPS_MODE */
+	}
+
+	if (strcmp(argv[1], "--have-fips-mode") == 0) {
+#ifdef ISC_FIPS_MODE
+		return (!ISC_FIPS_MODE());
+#else
+		return (1);
+#endif /* ifdef ISC_FIPS_MODE */
 	}
 
 	if (strcmp(argv[1], "--have-geoip2") == 0) {

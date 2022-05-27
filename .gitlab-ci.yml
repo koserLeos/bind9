@@ -119,6 +119,10 @@ stages:
   image: "$CI_REGISTRY_IMAGE:oraclelinux-8-amd64"
   <<: *linux_amd64
 
+.oraclelinux-8fips-amd64: &oraclelinux_8fips_amd64_image
+  image: "oraclelinux-8fips-x86_64"
+  <<: *libvirt_amd64
+
 # Debian
 
 .debian-stretch-amd64: &debian_stretch_amd64_image
@@ -582,6 +586,38 @@ unit:gcc:oraclelinux7:amd64:
   <<: *unit_test_job
   needs:
     - job: gcc:oraclelinux7:amd64
+      artifacts: true
+
+# Jobs for scheduled GCC builds on Oracle Linux 8 FIPS image (amd64) with FIPS
+# mode in BIND 9 enabled
+
+# Some system tests fail with FIPS mode in BIND 9 enabled due to disallowed
+# algorithms, most prominently MD5.
+
+gcc:fips:amd64:
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON}"
+    EXTRA_CONFIGURE: "--enable-dnstap --with-libidn2 --enable-fips-mode"
+  <<: *oraclelinux_8fips_amd64_image
+  <<: *build_job
+  #<<: *schedules_tags_web_triggering_rules
+
+system:gcc:fips:amd64:
+  <<: *oraclelinux_8fips_amd64_image
+  <<: *system_test_job
+  #<<: *schedules_tags_web_triggering_rules
+  needs:
+    - job: gcc:fips:amd64
+      artifacts: true
+  allow_failure: true
+
+unit:gcc:fips:amd64:
+  <<: *oraclelinux_8fips_amd64_image
+  <<: *unit_test_job
+  #<<: *schedules_tags_web_triggering_rules
+  needs:
+    - job: gcc:fips:amd64
       artifacts: true
 
 # Jobs for regular GCC builds on Oracle Linux 8 (amd64)

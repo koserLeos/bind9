@@ -53,7 +53,20 @@ static ENGINE *e = NULL;
 
 static void
 enable_fips_mode(void) {
-#ifdef HAVE_FIPS_MODE
+#ifdef HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS
+	if (EVP_default_properties_is_fips_enabled(NULL) != 0) {
+		/*
+		 * FIPS mode is already enabled.
+		 */
+		return;
+	}
+
+	if (EVP_default_properties_enable_fips(NULL, 1) == 0) {
+		dst__openssl_toresult2("FIPS_mode_set", DST_R_OPENSSLFAILURE);
+		exit(1);
+	}
+
+#elif defined(HAVE_FIPS_MODE)
 	if (FIPS_mode() != 0) {
 		/*
 		 * FIPS mode is already enabled.

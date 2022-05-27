@@ -179,7 +179,7 @@ test_start "checking notify to multiple views using tsig"
 $NSUPDATE << EOF
 server 10.53.0.5 ${PORT}
 zone x21
-key a aaaaaaaaaaaaaaaaaaaa
+key hmac-sha256:a aaaaaaaaaaaaaaaaaaaa
 update add added.x21 0 in txt "test string"
 send
 EOF
@@ -187,9 +187,9 @@ fnb="dig.out.b.ns5.test$n"
 fnc="dig.out.c.ns5.test$n"
 for i in 1 2 3 4 5 6 7 8 9
 do
-	dig_plus_opts added.x21. -y b:bbbbbbbbbbbbbbbbbbbb @10.53.0.5 \
+	dig_plus_opts added.x21. -y hmac-sha256:b:bbbbbbbbbbbbbbbbbbbb @10.53.0.5 \
 		txt > "$fnb" || ret=1
-	dig_plus_opts added.x21. -y c:cccccccccccccccccccc @10.53.0.5 \
+	dig_plus_opts added.x21. -y hmac-sha256:c:cccccccccccccccccccc @10.53.0.5 \
 		txt > "$fnc" || ret=1
 	grep "test string" "$fnb" > /dev/null &&
 	grep "test string" "$fnc" > /dev/null &&
@@ -206,7 +206,7 @@ test_end
 # above, which should time out at some point; we need to wait for them to
 # appear in the logs in case the tests run faster than the notify timeouts
 
-test_start "checking notify retries expire within 45 seconds ($n)"
+test_start "checking notify retries expire within 45 seconds"
 nextpartreset ns3/named.run
 wait_for_log 45 'retries exceeded' ns3/named.run || ret=1
 test_end

@@ -62,10 +62,24 @@
 #include "dnssectool.h"
 
 #define MAX_RSA 4096 /* should be long enough... */
+#define MAX_DH	4096 /* should be long enough... */
 
 const char *program = "dnssec-keygen";
 
+#if defined(FORCE_FIPS)
+#define ISC_FIPS_MODE() true
+#elif defined(HAVE_EVP_DEFAULT_PROPERTIES_ENABLE_FIPS)
+#include <openssl/evp.h>
+#define ISC_FIPS_MODE() EVP_default_properties_is_fips_enabled(NULL)
+#elif defined(HAVE_FIPS_MODE)
+#include <openssl/crypto.h>
+#define ISC_FIPS_MODE() FIPS_mode()
+#endif
+
 isc_log_t *lctx = NULL;
+
+static int min_rsa = 1024;
+static int min_dh = 128;
 
 noreturn static void
 usage(void);
@@ -141,17 +155,29 @@ usage(void) {
 	fprintf(stderr, "    -l <file>: configuration file with dnssec-policy "
 			"statement\n");
 	fprintf(stderr, "    -a <algorithm>:\n");
-	fprintf(stderr, "        RSASHA1 | NSEC3RSASHA1 |\n");
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
+#endif
+	{
+		fprintf(stderr, "        RSASHA1 | NSEC3RSASHA1 |\n");
+	}
 	fprintf(stderr, "        RSASHA256 | RSASHA512 |\n");
 	fprintf(stderr, "        ECDSAP256SHA256 | ECDSAP384SHA384 |\n");
 	fprintf(stderr, "        ED25519 | ED448 | DH\n");
 	fprintf(stderr, "    -3: use NSEC3-capable algorithm\n");
 	fprintf(stderr, "    -b <key size in bits>:\n");
-	fprintf(stderr, "        RSASHA1:\t[1024..%d]\n", MAX_RSA);
-	fprintf(stderr, "        NSEC3RSASHA1:\t[1024..%d]\n", MAX_RSA);
-	fprintf(stderr, "        RSASHA256:\t[1024..%d]\n", MAX_RSA);
-	fprintf(stderr, "        RSASHA512:\t[1024..%d]\n", MAX_RSA);
-	fprintf(stderr, "        DH:\t\t[128..4096]\n");
+#ifdef ISC_FIPS_MODE
+	if (!ISC_FIPS_MODE())
+#endif
+	{
+		fprintf(stderr, "        RSASHA1:\t[%d..%d]\n", min_rsa,
+			MAX_RSA);
+		fprintf(stderr, "        NSEC3RSASHA1:\t[%d..%d]\n", min_rsa,
+			MAX_RSA);
+	}
+	fprintf(stderr, "        RSASHA256:\t[%d..%d]\n", min_rsa, MAX_RSA);
+	fprintf(stderr, "        RSASHA512:\t[%d..%d]\n", min_rsa, MAX_RSA);
+	fprintf(stderr, "        DH:\t\t[%d..%d]\n", min_dh, MAX_DH);
 	fprintf(stderr, "        ECDSAP256SHA256:\tignored\n");
 	fprintf(stderr, "        ECDSAP384SHA384:\tignored\n");
 	fprintf(stderr, "        ED25519:\tignored\n");
@@ -321,6 +347,17 @@ keygen(keygen_ctx_t *ctx, isc_mem_t *mctx, int argc, char **argv) {
 		if (!dst_algorithm_supported(ctx->alg)) {
 			fatal("unsupported algorithm: %s", algstr);
 		}
+#ifdef ISC_FIPS_MODE
+		/* verify only in FIPS mode */
+		switch (ctx->alg) {
+		case DST_ALG_RSASHA1:
+		case DST_ALG_NSEC3RSASHA1:
+			if (ISC_FIPS_MODE())
+				fatal("unsupported algorithm: %s", algstr);
+		default:
+			break;
+		}
+#endif
 
 		if (ctx->alg == DST_ALG_DH) {
 			ctx->options |= DST_TYPE_KEY;
@@ -522,20 +559,22 @@ keygen(keygen_ctx_t *ctx, isc_mem_t *mctx, int argc, char **argv) {
 	switch (ctx->alg) {
 	case DNS_KEYALG_RSASHA1:
 	case DNS_KEYALG_NSEC3RSASHA1:
-	case DNS_KEYALG_RSASHA256:
-		if (ctx->size != 0 && (ctx->size < 1024 || ctx->size > MAX_RSA))
-		{
-			fatal("RSA key size %d out of range", ctx->size);
+#ifdef ISC_FIPS_MODE
+		if (ISC_FIPS_MODE()) {
+			fatal("SHA1 based keys not supported in FIPS mode");
 		}
-		break;
+		FALLTHROUGH;
+#endif
+	case DNS_KEYALG_RSASHA256:
 	case DNS_KEYALG_RSASHA512:
-		if (ctx->size != 0 && (ctx->size < 1024 || ctx->size > MAX_RSA))
-		{
+		if (ctx->size != 0 &&
+		    (ctx->size < min_rsa || ctx->size > MAX_RSA)) {
 			fatal("RSA key size %d out of range", ctx->size);
 		}
 		break;
 	case DNS_KEYALG_DH:
-		if (ctx->size != 0 && (ctx->size < 128 || ctx->size > 4096)) {
+		if (ctx->size != 0 &&
+		    (ctx->size < min_dh || ctx->size > MAX_DH)) {
 			fatal("DH key size %d out of range", ctx->size);
 		}
 		break;
@@ -865,6 +904,13 @@ main(int argc, char **argv) {
 		.protocol = -1,
 		.size = -1,
 	};
+
+#ifdef ISC_FIPS_MODE
+	if (ISC_FIPS_MODE()) {
+		min_rsa = 2048;
+		min_dh = 2048;
+	}
+#endif
 
 	if (argc == 1) {
 		usage();

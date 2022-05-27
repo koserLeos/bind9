@@ -250,7 +250,7 @@ grep "mx03.update.nil/MX:.*MX is an address" ns1/named.run > /dev/null 2>&1 || r
 
 ret=0
 echo_i "check SIG(0) key is accepted"
-key=`$KEYGEN -q -a NSEC3RSASHA1 -b 1024 -T KEY -n ENTITY xxx`
+key=$($KEYGEN -q -a ${DEFAULT_ALGORITHM} -T KEY -n ENTITY xxx)
 echo "" | $NSUPDATE -k ${key}.private > /dev/null 2>&1 || ret=1
 [ $ret = 0 ] || { echo_i "failed"; status=1; }
 
@@ -690,7 +690,7 @@ echo_i "check that 'update-policy subdomain' is properly enforced ($n)"
 # and thus this UPDATE should succeed.
 $NSUPDATE -d <<END > nsupdate.out1-$n 2>&1 || ret=1
 server 10.53.0.1 ${PORT}
-key restricted.example.nil 1234abcd8765
+key hmac-sha256:restricted.example.nil 1234abcd8765
 update add restricted.example.nil 0 IN TXT everywhere.
 send
 END
@@ -700,7 +700,7 @@ grep "TXT.*everywhere" dig.out.1.test$n > /dev/null || ret=1
 # thus this UPDATE should fail.
 $NSUPDATE -d <<END > nsupdate.out2-$n 2>&1 && ret=1
 server 10.53.0.1 ${PORT}
-key restricted.example.nil 1234abcd8765
+key hmac-sha256:restricted.example.nil 1234abcd8765
 update add example.nil 0 IN TXT everywhere.
 send
 END
@@ -715,7 +715,7 @@ echo_i "check that 'update-policy zonesub' is properly enforced ($n)"
 # the A record update should be rejected as it is not in the type list
 $NSUPDATE -d <<END > nsupdate.out1-$n 2>&1 && ret=1
 server 10.53.0.1 ${PORT}
-key zonesub-key.example.nil 1234subk8765
+key hmac-sha256:zonesub-key.example.nil 1234subk8765
 update add zonesub.example.nil 0 IN A 1.2.3.4
 send
 END
@@ -725,7 +725,7 @@ grep "ANSWER: 0," dig.out.1.test$n > /dev/null || ret=1
 # the TXT record update should be accepted as it is in the type list
 $NSUPDATE -d <<END > nsupdate.out2-$n 2>&1 || ret=1
 server 10.53.0.1 ${PORT}
-key zonesub-key.example.nil 1234subk8765
+key hmac-sha256:zonesub-key.example.nil 1234subk8765
 update add zonesub.example.nil 0 IN TXT everywhere.
 send
 END
@@ -842,6 +842,7 @@ n=`expr $n + 1`
 ret=0
 echo_i "check TSIG key algorithms (nsupdate -k) ($n)"
 for alg in md5 sha1 sha224 sha256 sha384 sha512; do
+    test $alg = md5 && $FEATURETEST --have-fips-mode && continue
     $NSUPDATE -k ns1/${alg}.key <<END > /dev/null || ret=1
 server 10.53.0.1 ${PORT}
 update add ${alg}.keytests.nil. 600 A 10.10.10.3
@@ -850,6 +851,7 @@ END
 done
 sleep 2
 for alg in md5 sha1 sha224 sha256 sha384 sha512; do
+    test $alg = md5 && $FEATURETEST --have-fips-mode && continue
     $DIG $DIGOPTS +short @10.53.0.1 ${alg}.keytests.nil | grep 10.10.10.3 > /dev/null 2>&1 || ret=1
 done
 if [ $ret -ne 0 ]; then
@@ -861,6 +863,7 @@ n=`expr $n + 1`
 ret=0
 echo_i "check TSIG key algorithms (nsupdate -y) ($n)"
 for alg in md5 sha1 sha224 sha256 sha384 sha512; do
+    test $alg = md5 && $FEATURETEST --have-fips-mode && continue
     secret=$(sed -n 's/.*secret "\(.*\)";.*/\1/p' ns1/${alg}.key)
     $NSUPDATE -y "hmac-${alg}:${alg}-key:$secret" <<END > /dev/null || ret=1
 server 10.53.0.1 ${PORT}
@@ -870,6 +873,7 @@ END
 done
 sleep 2
 for alg in md5 sha1 sha224 sha256 sha384 sha512; do
+    test $alg = md5 && $FEATURETEST --have-fips-mode && continue
     $DIG $DIGOPTS +short @10.53.0.1 ${alg}.keytests.nil | grep 10.10.10.50 > /dev/null 2>&1 || ret=1
 done
 if [ $ret -ne 0 ]; then
