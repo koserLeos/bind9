@@ -16,6 +16,7 @@ check_PROGRAMS =	\
 	buffer_test	\
 	counter_test	\
 	crc64_test	\
+	dnsstream_utils_test \
 	errno_test	\
 	file_test	\
 	hash_test	\
@@ -68,6 +69,15 @@ doh_test_SOURCES =	\
 	uv_wrap.h
 
 endif HAVE_LIBNGHTTP2
+
+dnsstream_utils_test_CPPFLAGS =	\
+	$(AM_CPPFLAGS)
+
+dnsstream_utils_test_LDADD =	\
+	$(LDADD)
+
+dnsstream_utils_test_SOURCES =	\
+	dnsstream_utils_test.c
 
 hmac_test_CPPFLAGS =	\
 	$(AM_CPPFLAGS)	\
@@ -174,7 +184,6 @@ if HAVE_JSON_C
 task_test_CPPFLAGS += $(JSON_C_CFLAGS)
 task_test_LDADD += $(JSON_C_LIBS)
 endif HAVE_JSON_C
-
 
 EXTRA_DIST = testdata
 
