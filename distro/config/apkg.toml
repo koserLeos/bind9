@@ -1,0 +1,12 @@
+[project]
+name = "bind"
+# needed for make-archive
+make_archive_script = "util/make-archive.sh"
+
+[upstream]
+# needed for get-archive
+archive_url = "https://downloads.isc.org/isc/bind9/{{ version }}/{{ project.name }}-{{ version}}.tar.xz"
+signature_url = "https://downloads.isc.org/isc/bind9/{{ version }}/{{ project.name }}-{{ version}}.tar.xz.asc"
+
+[apkg]
+compat = 2
