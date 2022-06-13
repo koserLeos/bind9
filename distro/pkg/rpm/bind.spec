@@ -27,24 +27,10 @@
 # containing %%{?scl_prefix} to a macro using the %%{?*} construct
 %global service_name %{?scl_prefix}named
 
-%if %{MINOR_VERSION} <= 16
-%if 0%{?rhel} >= 8 || 0%{?fedora} >= 31
-%global python_version		python3
-%global python_version_sitelib	%{python3_sitelib}
-%else
-%global python_version		python
-%global python_version_sitelib	%{python_sitelib}
-%endif
-%endif
-
 ##### Conditionally enabled features
 
 %bcond_without	dnstap
 %bcond_with	tuninglarge
-
-%if %{MINOR_VERSION} <= 16
-%bcond_without	python
-%endif
 
 ##### Package metadata
 
@@ -65,25 +51,15 @@ BuildRequires:	perl
 BuildRequires:	systemd
 %{?systemd_requires}
 
-%if %{MINOR_VERSION} <= 16 && %{with python}
-BuildRequires:	%{python_version}
-BuildRequires:	%{python_version}-rpm-macros
-BuildRequires:	%{python_version}-ply
-Requires:	%{python_version}-ply
-%endif
-%if %{MINOR_VERSION} >= 17
 BuildRequires:	jemalloc-devel
 BuildRequires:	libnghttp2-devel
-%endif
 Requires:	%{name}-libs = %{PACKAGE_VERSION}
 %{?!scl:Conflicts: bind}
 
-%if %{MINOR_VERSION} >= 16
 BuildRequires:	python3
 BuildRequires:	libcap-devel
 BuildRequires:	%{?scl_prefix}libuv-devel
 Requires:	%{?scl_prefix}libuv
-%endif
 
 %if %{with dnstap}
 BuildRequires:	%{?scl_prefix}fstrm-devel
@@ -171,20 +147,12 @@ export LDFLAGS="${LDFLAGS} -L%{_libdir}%{?extra_ldflags: %{extra_ldflags}}"
 # systemd-based systems).  Hardcode LT_SYS_LIBRARY_PATH to an arbitrary path in
 # order to prevent libtool from stripping BIND binaries from the SCL RPATH.
 export LT_SYS_LIBRARY_PATH=/usr/lib64
-%if %{MINOR_VERSION} >= 16
 export SPHINX_BUILD=%{_builddir}/bind-%{UPSTREAM_VERSION}/sphinx/bin/sphinx-build
-%endif
-%if %{MINOR_VERSION} >= 17
 export CPPFLAGS="${CPPFLAGS} -I%{_includedir}"
-%else
 export STD_CINCLUDES="-I%{_includedir}"
 %endif
 %configure \
 	--disable-static \
-%if %{MINOR_VERSION} <= 11
-	--enable-threads \
-	--enable-ipv6 \
-%endif
 %if %{with dnstap}
 	--enable-dnstap \
 %else
@@ -192,37 +160,20 @@ export STD_CINCLUDES="-I%{_includedir}"
 %endif
 	--with-pic \
 	--with-gssapi \
-%if %{MINOR_VERSION} >= 16
 	--with-json-c \
-%else
-	--with-libjson \
-%endif
-%if %{MINOR_VERSION} <= 16
-	--with-libtool \
-%endif
 	--with-libxml2 \
 	--without-lmdb \
-%if %{MINOR_VERSION} <= 16
-%if %{with python}
-	--with-python \
-%else
 	--without-python \
-%endif
-%endif
 %if %{with tuninglarge}
 	--with-tuning=large \
 %endif
 ;
 
-%if %{MINOR_VERSION} >= 16
 python3 -m venv sphinx
 source sphinx/bin/activate
 pip install sphinx_rtd_theme
 make %{?_smp_mflags}
 make doc
-%else
-make %{?_smp_mflags}
-%endif
 
 %{?scl:EOF}
 
@@ -259,17 +210,10 @@ echo "d %{_localstatedir}/run/named 0770 named named -" > ${RPM_BUILD_ROOT}%{_tm
 %doc CHANGES*
 %doc README*
 
-%if %{MINOR_VERSION} >= 16
 %doc doc/arm/_build/html/*
-%else
-%doc doc/arm/*.html
-%endif
 
-%if %{MINOR_VERSION} >= 16
 %{_libdir}/*/*.so
-%endif
 
-%if %{MINOR_VERSION} >= 17
 %{_bindir}/dnssec-*
 %{_bindir}/named-checkconf
 %{_bindir}/named-checkzone
@@ -282,15 +226,10 @@ echo "d %{_localstatedir}/run/named 0770 named named -" > ${RPM_BUILD_ROOT}%{_tm
 %{_mandir}/man1/named-compilezone.1.*
 %{_mandir}/man1/named-journalprint.1.*
 %{_mandir}/man1/nsec3hash.1.*
-%endif
 
 %{_mandir}/man5
 %{_mandir}/man8
 %{_sbindir}/*
-
-%if %{MINOR_VERSION} <= 16 && %{with python}
-%{?_scl_root}%{python_version_sitelib}/*
-%endif
 
 %attr(0644,root,root) %{_unitdir}/%{service_name}.service
 
@@ -311,13 +250,6 @@ echo "d %{_localstatedir}/run/named 0770 named named -" > ${RPM_BUILD_ROOT}%{_tm
 %files devel
 %defattr(-,root,root,-)
 %{_includedir}/*
-%if %{MINOR_VERSION} <= 11
-%{_bindir}/bind9-config
-%{_bindir}/isc-config.sh
-%{_mandir}/man1/bind9-config.1.*
-%{_mandir}/man1/isc-config.sh.1.*
-%{_mandir}/man3
-%endif
 
 # 'bind-libs' package
 
@@ -369,11 +301,7 @@ if [ "$1" -eq 1 ]; then
 	%tmpfiles_create %{service_name}.conf
 fi
 
-%if %{MINOR_VERSION} >= 16
 %global RNDC_CONFGEN_CMD	%{_sbindir}/rndc-confgen -a
-%else
-%global RNDC_CONFGEN_CMD	%{_sbindir}/rndc-confgen -a -r /dev/urandom
-%endif
 
 if [ "$1" -eq 1 ]; then
 	# Initial installation, not upgrade
