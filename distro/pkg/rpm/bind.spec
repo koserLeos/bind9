@@ -41,7 +41,7 @@
 Name:		%{?scl:%scl_pkg_name}%{?!scl:isc-bind}
 Version:	%{PACKAGE_VERSION}
 # TODO: custom release version, see https://gitlab.nic.cz/packaging/apkg/-/issues/76
-Release:	0.%{?dist}
+Release:	0%{?dist}
 Summary:	The Berkeley Internet Name Domain (BIND) DNS (Domain Name System) server
 License:	MPL 2.0
 URL:		https://www.isc.org/downloads/BIND/
