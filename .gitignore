@@ -98,3 +98,5 @@ doc/man/pkcs11-tokens.8in
 \.dir-locals-2.el
 /emacs.desktop
 /emacs.desktop-lock
+# apkg packaging dir
+/pkg
