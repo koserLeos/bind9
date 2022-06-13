@@ -99,7 +99,7 @@ Requires:	%{?scl_prefix}protobuf-c
 %{?scl:BuildRequires: %scl_runtime}
 %{?scl:Requires: %scl_runtime}
 
-Source0:	https://ftp.isc.org/isc/bind9/%{UPSTREAM_VERSION}/bind-%{UPSTREAM_VERSION}.tar.%{TARBALL_FORMAT}
+Source0:	{{ name }}-{{ version }}.tar.xz
 Source1:	named.service.in
 Source2:	named.sysconfig
 Source3:	named.conf.in
