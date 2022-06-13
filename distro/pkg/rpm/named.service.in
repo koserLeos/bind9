@@ -1,0 +1,16 @@
+[Unit]
+After=network.target
+Wants=nss-lookup.target
+Before=nss-lookup.target
+
+[Service]
+Type=forking
+EnvironmentFile=-@SYSCONFDIR@/sysconfig/named
+PIDFile=@LOCALSTATEDIR@/run/named/named.pid
+ExecStart=@SCL_ROOT@/usr/sbin/named -u named $OPTIONS
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/bin/kill -TERM $MAINPID
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
