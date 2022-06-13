@@ -153,7 +153,6 @@ export LT_SYS_LIBRARY_PATH=/usr/lib64
 export SPHINX_BUILD=%{_builddir}/bind-{{ version }}/sphinx/bin/sphinx-build
 export CPPFLAGS="${CPPFLAGS} -I%{_includedir}"
 export STD_CINCLUDES="-I%{_includedir}"
-%endif
 %configure \
 	--disable-static \
 %if %{with dnstap}
