@@ -1,3 +1,5 @@
+%global PACKAGE_VERSION {{ version | replace("-", ".") }}
+
 %bcond_without scl
 
 %if %{with scl}
@@ -130,7 +132,7 @@ servers.
 # 'bind' package
 
 %prep
-%setup -q -n bind-%{UPSTREAM_VERSION}
+%setup -q -n bind-{{ version }}
 
 %build
 %{?scl:scl enable %scl -- <<\EOF}
@@ -147,7 +149,7 @@ export LDFLAGS="${LDFLAGS} -L%{_libdir}%{?extra_ldflags: %{extra_ldflags}}"
 # systemd-based systems).  Hardcode LT_SYS_LIBRARY_PATH to an arbitrary path in
 # order to prevent libtool from stripping BIND binaries from the SCL RPATH.
 export LT_SYS_LIBRARY_PATH=/usr/lib64
-export SPHINX_BUILD=%{_builddir}/bind-%{UPSTREAM_VERSION}/sphinx/bin/sphinx-build
+export SPHINX_BUILD=%{_builddir}/bind-{{ version }}/sphinx/bin/sphinx-build
 export CPPFLAGS="${CPPFLAGS} -I%{_includedir}"
 export STD_CINCLUDES="-I%{_includedir}"
 %endif
