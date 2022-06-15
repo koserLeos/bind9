@@ -2310,6 +2310,7 @@ done:
 void
 isc__nm_resume_processing(void *arg) {
 	isc_nmsocket_t *sock = (isc_nmsocket_t *)arg;
+	isc_result_t result;
 
 	REQUIRE(VALID_NMSOCK(sock));
 	REQUIRE(sock->tid == isc_nm_tid());
@@ -2319,7 +2320,10 @@ isc__nm_resume_processing(void *arg) {
 		return;
 	}
 
-	isc__nm_process_sock_buffer(sock);
+	result = isc__nm_process_sock_buffer(sock);
+	if (result != ISC_R_SUCCESS) {
+		isc__nm_failed_read_cb(sock, result, true);
+	}
 }
 
 void
