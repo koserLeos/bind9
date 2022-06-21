@@ -309,6 +309,7 @@ stages:
     - *setup_interfaces
   script:
     - cd bin/tests/system
+    - touch rpz/dnsrps-off # DNSRPS tests require librpz.so to be present
     - make -j${TEST_PARALLEL_JOBS:-1} -k check V=1
     - if git rev-parse > /dev/null 2>&1; then ( ! grep "^I:.*:file.*not removed$" *.log ); fi
   after_script:
@@ -878,7 +879,7 @@ gcc:bionic:amd64:
   variables:
     CC: gcc
     CFLAGS: "${CFLAGS_COMMON} -O2"
-    EXTRA_CONFIGURE: "--disable-dnstap --disable-geoip"
+    EXTRA_CONFIGURE: "--disable-dnstap --disable-geoip --enable-dnsrps --enable-dnsrps-dl"
   <<: *ubuntu_bionic_amd64_image
   <<: *build_job
 
