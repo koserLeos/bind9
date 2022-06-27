@@ -40,7 +40,6 @@
 
 typedef struct test_node {
 	uint8_t key[64];
-	isc_hashmap_node_t node;
 } test_node_t;
 
 /* simplify the key type casting */
@@ -85,8 +84,7 @@ test_hashmap_full(uint8_t init_bits, uintptr_t count) {
 
 	/* insert short nodes */
 	for (size_t i = 0; i < count; i++) {
-		result = isc_hashmap_add(hashmap, nodes[i].key, 16, &nodes[i],
-					 offsetof(test_node_t, node));
+		result = isc_hashmap_add(hashmap, nodes[i].key, 16, &nodes[i]);
 		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
@@ -100,16 +98,15 @@ test_hashmap_full(uint8_t init_bits, uintptr_t count) {
 
 	/* check for double inserts */
 	for (size_t i = 0; i < count; i++) {
-		result = isc_hashmap_add(hashmap, nodes[i].key, 16, &nodes[i],
-					 offsetof(test_node_t, node));
+		result = isc_hashmap_add(hashmap, nodes[i].key, 16, &nodes[i]);
 		assert_int_equal(result, ISC_R_EXISTS);
 	}
 
 	for (size_t i = 0; i < count; i++) {
-		result = isc_hashmap_add(
-			hashmap, long_nodes[i].key,
-			strlen((const char *)long_nodes[i].key), &long_nodes[i],
-			offsetof(test_node_t, node));
+		result =
+			isc_hashmap_add(hashmap, long_nodes[i].key,
+					strlen((const char *)long_nodes[i].key),
+					&long_nodes[i]);
 		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
@@ -140,8 +137,7 @@ test_hashmap_full(uint8_t init_bits, uintptr_t count) {
 
 	for (size_t i = 0; i < count; i++) {
 		result = isc_hashmap_add(hashmap, upper_nodes[i].key, 16,
-					 &upper_nodes[i],
-					 offsetof(test_node_t, node));
+					 &upper_nodes[i]);
 		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
@@ -203,8 +199,7 @@ test_hashmap_iterator(void) {
 	}
 
 	for (size_t i = 0; i < count; i++) {
-		result = isc_hashmap_add(hashmap, nodes[i].key, 16, &nodes[i],
-					 offsetof(test_node_t, node));
+		result = isc_hashmap_add(hashmap, nodes[i].key, 16, &nodes[i]);
 		assert_int_equal(result, ISC_R_SUCCESS);
 	}
 
@@ -363,16 +358,13 @@ ISC_RUN_TEST_IMPL(isc_hashmap_case) {
 
 	isc_hashmap_create(mctx, 1, ISC_HASHMAP_CASE_SENSITIVE, &hashmap);
 
-	result = isc_hashmap_add(hashmap, lower.key, strlen(lower.key), &lower,
-				 offsetof(typeof(lower), node));
+	result = isc_hashmap_add(hashmap, lower.key, strlen(lower.key), &lower);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	result = isc_hashmap_add(hashmap, lower.key, strlen(lower.key), &lower,
-				 offsetof(typeof(lower), node));
+	result = isc_hashmap_add(hashmap, lower.key, strlen(lower.key), &lower);
 	assert_int_equal(result, ISC_R_EXISTS);
 
-	result = isc_hashmap_add(hashmap, upper.key, strlen(upper.key), &upper,
-				 offsetof(typeof(upper), node));
+	result = isc_hashmap_add(hashmap, upper.key, strlen(upper.key), &upper);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = isc_hashmap_find(hashmap, mixed.key, strlen(mixed.key),
@@ -383,16 +375,13 @@ ISC_RUN_TEST_IMPL(isc_hashmap_case) {
 
 	isc_hashmap_create(mctx, 1, ISC_HASHMAP_CASE_INSENSITIVE, &hashmap);
 
-	result = isc_hashmap_add(hashmap, lower.key, strlen(lower.key), &lower,
-				 offsetof(typeof(lower), node));
+	result = isc_hashmap_add(hashmap, lower.key, strlen(lower.key), &lower);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	result = isc_hashmap_add(hashmap, lower.key, strlen(lower.key), &lower,
-				 offsetof(typeof(lower), node));
+	result = isc_hashmap_add(hashmap, lower.key, strlen(lower.key), &lower);
 	assert_int_equal(result, ISC_R_EXISTS);
 
-	result = isc_hashmap_add(hashmap, upper.key, strlen(upper.key), &upper,
-				 offsetof(typeof(upper), node));
+	result = isc_hashmap_add(hashmap, upper.key, strlen(upper.key), &upper);
 	assert_int_equal(result, ISC_R_EXISTS);
 
 	result = isc_hashmap_find(hashmap, mixed.key, strlen(mixed.key),

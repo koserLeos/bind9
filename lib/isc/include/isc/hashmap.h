@@ -21,15 +21,6 @@
 #include <isc/result.h>
 #include <isc/types.h>
 
-struct isc_hashmap_node {
-	const uint8_t *key;
-	void	      *value;
-	uint32_t       hashval;
-	uint32_t       psl;
-	uint16_t       keysize;
-};
-typedef struct isc_hashmap_node isc_hashmap_node_t;
-
 typedef struct isc_hashmap	isc_hashmap_t;
 typedef struct isc_hashmap_iter isc_hashmap_iter_t;
 
@@ -70,7 +61,7 @@ isc_hashmap_destroy(isc_hashmap_t **hashmapp);
  */
 isc_result_t
 isc_hashmap_add(isc_hashmap_t *hashmap, const uint8_t *key, uint32_t keysize,
-		void *value, uint16_t offset);
+		void *value);
 
 /*%
  * Find a node matching 'key'/'keysize' in hashmap 'hashmap';
