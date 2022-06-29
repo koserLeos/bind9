@@ -188,6 +188,9 @@ view "fourth" {
 			1.2.3.4;
 			1.2.3.5;
 		};
+		update-ds {
+			"parents";
+		};
 		dnssec-policy "test";
 		parental-source 10.10.10.10 port 53 dscp 55;
 	};
@@ -197,6 +200,10 @@ view "fourth" {
 		inline-signing yes;
 		parental-agents {
 			"parents";
+		};
+		update-ds {
+			1.2.3.4;
+			1.2.3.5;
 		};
 		dnssec-policy "default";
 	};
