@@ -21,3 +21,5 @@ AM_CPPFLAGS +=					\
 LDADD +=						\
 	$(top_builddir)/tests/libtest/libtest.la	\
 	$(CMOCKA_LIBS)
+$(top_builddir)/tests/libtest/libtest.la:
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/tests/libtest check

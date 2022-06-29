@@ -26,6 +26,8 @@ LIBISC_CFLAGS =						\
 	-I$(top_builddir)/lib/isc/include
 
 LIBISC_LIBS = $(top_builddir)/lib/isc/libisc.la
+$(LIBISC_LIBS):
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/lib/isc
 
 LIBDNS_CFLAGS = \
 	-I$(top_srcdir)/lib/dns/include			\
@@ -33,33 +35,45 @@ LIBDNS_CFLAGS = \
 
 LIBDNS_LIBS = \
 	$(top_builddir)/lib/dns/libdns.la
+$(LIBDNS_LIBS):
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/lib/dns all
 
 LIBNS_CFLAGS = \
 	-I$(top_srcdir)/lib/ns/include
 
 LIBNS_LIBS = \
 	$(top_builddir)/lib/ns/libns.la
+$(LIBNS_LIBS):
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/lib/ns
 
 LIBIRS_CFLAGS = \
 	-I$(top_srcdir)/lib/irs/include
 
 LIBIRS_LIBS = \
 	$(top_builddir)/lib/irs/libirs.la
+$(LIBIRS_LIBS):
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/lib/irs
 
 LIBISCCFG_CFLAGS = \
 	-I$(top_srcdir)/lib/isccfg/include
 
 LIBISCCFG_LIBS = \
 	$(top_builddir)/lib/isccfg/libisccfg.la
+$(LIBISCCFG_LIBS):
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/lib/isccfg
 
 LIBISCCC_CFLAGS = \
 	-I$(top_srcdir)/lib/isccc/include/
 
 LIBISCCC_LIBS = \
 	$(top_builddir)/lib/isccc/libisccc.la
+$(LIBISCCC_LIBS):
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/lib/isccc
 
 LIBBIND9_CFLAGS = \
 	-I$(top_srcdir)/lib/bind9/include
 
 LIBBIND9_LIBS = \
 	$(top_builddir)/lib/bind9/libbind9.la
+$(LIBBIND9_LIBS):
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/lib/bind9

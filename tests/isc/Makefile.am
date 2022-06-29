@@ -1,4 +1,5 @@
 include $(top_srcdir)/Makefile.top
+include $(top_srcdir)/Makefile.tests
 
 AM_CPPFLAGS +=			\
 	$(LIBISC_CFLAGS)	\
@@ -109,5 +110,3 @@ endif HAVE_JSON_C
 
 
 EXTRA_DIST = testdata
-
-include $(top_srcdir)/Makefile.tests

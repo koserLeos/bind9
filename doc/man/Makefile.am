@@ -148,6 +148,7 @@ man_SUBST =							\
 .8in.8:
 	$(man_SUBST)
 
+
 .NOTPARALLEL: man
 man: Makefile $(man_MANS)
 
@@ -173,6 +174,7 @@ if HAVE_SPHINX_BUILD
 # See https://www.gnu.org/software/automake/manual/html_node/Multiple-Outputs.html
 #
 manpages.stamp: $(MANPAGES_RST)
+	$(MAKE) $(AM_MAKEFLAGS) -C $(top_builddir)/doc/misc
 	@rm -f manpages.tmp
 	@touch manpages.tmp
 	echo "${man_RST_EPILOG}"

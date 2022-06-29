@@ -22,4 +22,10 @@ libtest_la_SOURCES =			\
 	isc.c				\
 	ns.c
 
+isc.lo: $(LIBISC_LIBS)
+dns.lo: $(LIBDNS_LIBS)
+ns.lo: $(LIBNS_LIBS)
+
+libtest_la:: $(LIBISC_LIBS) $(LIBDNS_LIBS) $(LIBNS_LIBS)
+
 include $(top_srcdir)/Makefile.tests
