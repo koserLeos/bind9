@@ -68,6 +68,7 @@
   	sig-signing-type <integer>;
   	sig-validity-interval <integer> [ <integer> ];
   	update-check-ksk <boolean>;
+  	update-ds [ port <integer> ] [ dscp <integer> ] { ( <remote-servers> | <ipv4_address> [ port <integer> ] | <ipv6_address> [ port <integer> ] ) [ key <string> ] [ tls <string> ]; ... };
   	update-policy ( local | { ( deny | grant ) <string> ( 6to4-self | external | krb5-self | krb5-selfsub | krb5-subdomain | krb5-subdomain-self-rhs | ms-self | ms-selfsub | ms-subdomain | ms-subdomain-self-rhs | name | self | selfsub | selfwild | subdomain | tcp-self | wildcard | zonesub ) [ <string> ] <rrtypelist>; ... };
   	zero-no-soa-ttl <boolean>;
   	zone-statistics ( full | terse | none | <boolean> );

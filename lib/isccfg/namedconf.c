@@ -2405,6 +2405,8 @@ static cfg_clausedef_t zone_only_clauses[] = {
 	{ "server-addresses", &cfg_type_bracketed_netaddrlist,
 	  CFG_ZONE_STATICSTUB },
 	{ "server-names", &cfg_type_namelist, CFG_ZONE_STATICSTUB },
+	{ "update-ds", &cfg_type_namesockaddrkeylist,
+	  CFG_ZONE_PRIMARY | CFG_ZONE_SECONDARY },
 	{ "update-policy", &cfg_type_updatepolicy, CFG_ZONE_PRIMARY },
 	{ NULL, NULL, 0 }
 };

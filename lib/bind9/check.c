@@ -3316,12 +3316,17 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 	}
 
 	/*
-	 * Primary and secondary zones that have a "parental-agents" field,
-	 * must have a corresponding "parental-agents" clause.
+	 * Primary and secondary zones that have a "parental-agents" or
+	 * "update-ds" field, must have a corresponding "parental-agents"
+	 * clause.
 	 */
 	if (ztype == CFG_ZONE_PRIMARY || ztype == CFG_ZONE_SECONDARY) {
+		bool updateds = false;
+
 		obj = NULL;
 		(void)cfg_map_get(zoptions, "parental-agents", &obj);
+
+check_parentalagents:
 		if (obj != NULL) {
 			uint32_t count;
 			tresult = validate_remotes("parental-agents", obj,
@@ -3338,6 +3343,13 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 					    znamestr);
 				result = ISC_R_FAILURE;
 			}
+		}
+
+		if (!updateds) {
+			obj = NULL;
+			(void)cfg_map_get(zoptions, "update-ds", &obj);
+			updateds = true;
+			goto check_parentalagents;
 		}
 	}
 

@@ -71,6 +71,7 @@
   	transfer-source-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ] [ dscp <integer> ];
   	try-tcp-refresh <boolean>;
   	update-check-ksk <boolean>;
+  	update-ds [ port <integer> ] [ dscp <integer> ] { ( <remote-servers> | <ipv4_address> [ port <integer> ] | <ipv6_address> [ port <integer> ] ) [ key <string> ] [ tls <string> ]; ... };
   	use-alt-transfer-source <boolean>;
   	zero-no-soa-ttl <boolean>;
   	zone-statistics ( full | terse | none | <boolean> );

@@ -382,7 +382,7 @@ The following blocks are supported:
         Controls global server configuration options and sets defaults for other statements.
 
     ``parental-agents``
-        Defines a named list of servers for inclusion in primary and secondary zones' ``parental-agents`` lists.
+        Defines a named list of servers for inclusion in primary and secondary zones' ``parental-agents`` or ``update-ds`` lists.
 
 .. _primaries:
 
@@ -6647,6 +6647,12 @@ Zone Options
 
 ``dnssec-secure-to-insecure``
    See the description of ``dnssec-secure-to-insecure`` in :ref:`boolean_options`.
+
+``update-ds``
+   Defines a named list of servers that will be used to send dynamic
+   updates to. When the zone is configured with a ``dnssec-policy``,
+   BIND will try to update the DS RRset at these servers during a key
+   rollover.
 
 .. _dynamic_update_policies:
 
