@@ -132,7 +132,7 @@ const uint8_t vectors_hsip32[64][4] = {
 ISC_RUN_TEST_IMPL(isc_siphash24) {
 	UNUSED(state);
 
-	uint8_t in[64], out[8], key[16];
+	uint8_t in[64] = { 0 }, out[8], key[16];
 	for (size_t i = 0; i < ARRAY_SIZE(key); i++) {
 		key[i] = i;
 	}
@@ -147,7 +147,7 @@ ISC_RUN_TEST_IMPL(isc_siphash24) {
 ISC_RUN_TEST_IMPL(isc_halfsiphash24) {
 	UNUSED(state);
 
-	uint8_t in[64], out[4], key[16];
+	uint8_t in[64] = { 0 }, out[4], key[16];
 	for (size_t i = 0; i < ARRAY_SIZE(key); i++) {
 		key[i] = i;
 	}

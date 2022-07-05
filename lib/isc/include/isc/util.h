@@ -252,6 +252,11 @@
 	enum { EXPAND_THEN_PASTE(ASSERT_line_, __LINE__) = 1 / ((msg) && (x)) }
 #endif /* if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR >= 6) */
 
+/*
+ * Errors
+ */
+#include <isc/error.h> /* Contractual promise. */
+
 #ifdef UNIT_TESTING
 extern void
 mock_assert(const int result, const char *const expression,
@@ -262,12 +267,16 @@ mock_assert(const int result, const char *const expression,
  *	never be executed as mock_assert() and _assert_true() longjmp
  *	or exit if the condition is false.
  */
+#define RUNTIME_CHECK(expression)                                             \
+	((!(expression))                                                      \
+		 ? (mock_assert(0, #expression, __FILE__, __LINE__), abort()) \
+		 : (void)0)
 #define REQUIRE(expression)                                                   \
 	((!(expression))                                                      \
 		 ? (mock_assert(0, #expression, __FILE__, __LINE__), abort()) \
 		 : (void)0)
 #define ENSURE(expression)                                                    \
-	((!(int)(expression))                                                 \
+	((!(expression))                                                      \
 		 ? (mock_assert(0, #expression, __FILE__, __LINE__), abort()) \
 		 : (void)0)
 #define INSIST(expression)                                                    \
@@ -286,49 +295,42 @@ mock_assert(const int result, const char *const expression,
 	(((a) == (b)) ? (void)0 : (_assert_int_equal(a, b, f, l), abort()))
 #define _assert_int_not_equal(a, b, f, l) \
 	(((a) != (b)) ? (void)0 : (_assert_int_not_equal(a, b, f, l), abort()))
-#else			    /* UNIT_TESTING */
+
+#elif __ANALYZER__
+
+#include <assert.h>
+
+#ifdef NDEBUG
+#error "Can't use -fanalyzer with -DNDEBUG"
+#endif
+
+#define RUNTIME_CHECK(expression) assert(expression)
+#define REQUIRE(expression)	  assert(expression)
+#define ENSURE(expression)	  assert(expression)
+#define INSIST(expression)	  assert(expression)
+#define INVARIANT(expression)	  assert(expression)
+#define UNREACHABLE()		  (assert(0), __builtin_unreachable())
+
+#else
 
 /*
  * Assertions
  */
 #include <isc/assertions.h> /* Contractual promise. */
 
-/*% Require Assertion */
-#define REQUIRE(e)   ISC_REQUIRE(e)
-/*% Ensure Assertion */
-#define ENSURE(e)    ISC_ENSURE(e)
-/*% Insist Assertion */
-#define INSIST(e)    ISC_INSIST(e)
-/*% Invariant Assertion */
-#define INVARIANT(e) ISC_INVARIANT(e)
-
-#define UNREACHABLE() ISC_UNREACHABLE()
+#define RUNTIME_CHECK(cond) ISC_ERROR_RUNTIMECHECK(cond)
+#define REQUIRE(e)	    ISC_REQUIRE(e)
+#define ENSURE(e)	    ISC_ENSURE(e)
+#define INSIST(e)	    ISC_INSIST(e)
+#define INVARIANT(e)	    ISC_INVARIANT(e)
+#define UNREACHABLE()	    ISC_UNREACHABLE()
 
 #endif /* UNIT_TESTING */
-
-/*
- * Errors
- */
-#include <isc/error.h> /* Contractual promise. */
 
 /*% Unexpected Error */
 #define UNEXPECTED_ERROR isc_error_unexpected
 /*% Fatal Error */
 #define FATAL_ERROR isc_error_fatal
-
-#ifdef UNIT_TESTING
-
-#define RUNTIME_CHECK(expression)                                             \
-	((!(expression))                                                      \
-		 ? (mock_assert(0, #expression, __FILE__, __LINE__), abort()) \
-		 : (void)0)
-
-#else /* UNIT_TESTING */
-
-/*% Runtime Check */
-#define RUNTIME_CHECK(cond) ISC_ERROR_RUNTIMECHECK(cond)
-
-#endif /* UNIT_TESTING */
 
 /*%
  * Time

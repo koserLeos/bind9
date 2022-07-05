@@ -322,12 +322,14 @@ compute_secret(isc_buffer_t *shared, isc_region_t *queryrandomness,
 		return (ISC_R_NOSPACE);
 	}
 	if (r2.length > digestslen) {
+		memset(r.base, 0, digestslen); /* Make Gcc Analyzer happy */
 		memmove(r.base, r2.base, r2.length);
 		for (i = 0; i < digestslen; i++) {
 			r.base[i] ^= digests[i];
 		}
 		isc_buffer_add(secret, r2.length);
 	} else {
+		memset(r.base, 0, r2.length); /* Make Gcc Analyzer happy */
 		memmove(r.base, digests, digestslen);
 		for (i = 0; i < r2.length; i++) {
 			r.base[i] ^= r2.base[i];

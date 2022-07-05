@@ -3596,6 +3596,7 @@ previous_closest_nsec(dns_rdatatype_t type, rbtdb_search_t *search,
 	target = dns_fixedname_initname(&ftarget);
 
 	for (;;) {
+		INSIST(firstp != NULL);
 		if (*firstp) {
 			/*
 			 * Construct the name of the second node to check.
@@ -6064,6 +6065,8 @@ update_recordsandxfrsize(bool add, rbtdb_version_t *rbtversion,
 			 rdatasetheader_t *header, unsigned int namelen) {
 	unsigned char *hdr = (unsigned char *)header;
 	size_t hdrsize = sizeof(*header);
+
+	REQUIRE(rbtversion != NULL);
 
 	RWLOCK(&rbtversion->rwlock, isc_rwlocktype_write);
 	if (add) {
