@@ -13,11 +13,15 @@
 
 .. _soa_rr:
 
+.. _srv_rr:
+
 Zone File
 ---------
 
 This section, largely borrowed from :rfc:`1034`, describes the concept of a
-Resource Record (RR) and explains how to use them.
+Resource Record (RR) and explains when each type is used. Since the
+publication of :rfc:`1034`, dozens of new RRs have been identified and
+implemented in the DNS. Most notable ones are also included.
 
 Resource Records
 ~~~~~~~~~~~~~~~~

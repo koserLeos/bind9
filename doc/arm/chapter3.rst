@@ -14,4 +14,5 @@
 .. include:: config-intro.inc.rst
 .. include:: config-auth.inc.rst
 .. include:: config-resolve.inc.rst
+.. include:: load-balance.inc.rst
 .. include:: zones.inc.rst
