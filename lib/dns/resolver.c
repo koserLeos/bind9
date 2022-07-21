@@ -5610,6 +5610,15 @@ validated(isc_task_t *task, isc_event_t *event) {
 		dns_rdatatype_t covers;
 		FCTXTRACE("nonexistence validation OK");
 
+		if (vevent->secure || vevent->optout)
+		{
+			char tmp_qname[256] = { 0 };
+			char tmp_qtype[256] = { 0 };
+			dns_name_format(fctx->name, tmp_qname, sizeof(tmp_qname));
+			dns_rdatatype_format(fctx->type, tmp_qtype, sizeof(tmp_qtype));
+			fprintf(stderr, "= validated %s %s (nonexistence)\n", tmp_qname, tmp_qtype);
+		}
+
 		inc_stats(res, dns_resstatscounter_valnegsuccess);
 
 		/*
@@ -5653,6 +5662,15 @@ validated(isc_task_t *task, isc_event_t *event) {
 	}
 
 	FCTXTRACE("validation OK");
+
+	if (vevent->secure)
+	{
+		char tmp_qname[256] = { 0 };
+		char tmp_qtype[256] = { 0 };
+		dns_name_format(fctx->name, tmp_qname, sizeof(tmp_qname));
+		dns_rdatatype_format(fctx->type, tmp_qtype, sizeof(tmp_qtype));
+		fprintf(stderr, "= validated %s %s\n", tmp_qname, tmp_qtype);
+	}
 
 	if (vevent->proofs[DNS_VALIDATOR_NOQNAMEPROOF] != NULL) {
 		result = dns_rdataset_addnoqname(

@@ -394,6 +394,7 @@ dns_dnssec_verify(const dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	REQUIRE(mctx != NULL);
 	REQUIRE(sigrdata != NULL && sigrdata->type == dns_rdatatype_rrsig);
 
+
 	ret = dns_rdata_tostruct(sigrdata, &sig, NULL);
 	if (ret != ISC_R_SUCCESS) {
 		return (ret);
@@ -573,6 +574,13 @@ again:
 		inc_stat(dns_dnssecstats_asis);
 	}
 
+	{
+	       char tmp_qname[256] = { 0 };
+	       char tmp_qtype[256] = { 0 };
+	       dns_name_format(name, tmp_qname, sizeof(tmp_qname));
+	       dns_rdatatype_format(set->type, tmp_qtype, sizeof(tmp_qtype));
+	       fprintf(stderr, "dns_dnssec_verify %s %s using keyid %d\n", tmp_qname, tmp_qtype, dst_key_id(key));
+	}
 cleanup_array:
 	isc_mem_put(mctx, rdatas, nrdatas * sizeof(dns_rdata_t));
 cleanup_context:
@@ -602,6 +610,7 @@ cleanup_struct:
 		inc_stat(dns_dnssecstats_wildcard);
 		ret = DNS_R_FROMWILDCARD;
 	}
+
 	return (ret);
 }
 
