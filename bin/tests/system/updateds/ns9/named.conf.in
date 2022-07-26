@@ -1,0 +1,77 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0.  If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+// NS9
+
+options {
+	query-source address 10.53.0.9;
+	notify-source 10.53.0.9;
+	transfer-source 10.53.0.9;
+	port @PORT@;
+	pid-file "named.pid";
+	listen-on { 10.53.0.9; };
+	listen-on-v6 { none; };
+	allow-transfer { any; };
+	recursion no;
+};
+
+key rndc_key {
+	secret "1234abcd8765";
+	algorithm hmac-sha256;
+};
+
+controls {
+	inet 10.53.0.9 port @CONTROLPORT@ allow { any; } keys { rndc_key; };
+};
+
+parental-agents "ns2" port @PORT@ {
+	10.53.0.2;
+};
+
+zone "." {
+	type hint;
+	file "../../common/root.hint";
+};
+
+/*
+ * Zone with parental agent configured, time to submit the DS.
+ */
+zone "dspublish.updateds" {
+	type primary;
+	file "dspublish.updateds.db";
+	dnssec-policy "default";
+	parental-agents { "ns2"; };
+	update-ds { "ns2"; };
+};
+
+/*
+ * Zone with parental agent configured, time to withdraw the DS.
+ */
+zone "dswithdraw.updateds" {
+	type primary;
+	file "dswithdraw.updateds.db";
+	dnssec-policy "insecure";
+	parental-agents { "ns2"; };
+	update-ds { "ns2" };
+};
+
+/*
+ * Zone with parental agent configured, time to update the DS (rollover).
+ */
+zone "rollover.updateds" {
+	type primary;
+	file "rollover.updateds.db";
+	dnssec-policy "default";
+	parental-agents { "ns2"; };
+	update-ds { "ns2" };
+};
