@@ -167,7 +167,6 @@ struct dns_adbname {
  */
 struct dns_adbnamebucket {
 	dns_adbnamelist_t names;
-	dns_adbnamelist_t deadnames;
 	isc_mutex_t lock;
 	isc_refcount_t references;
 };
@@ -272,7 +271,6 @@ struct dns_adbentry {
  */
 struct dns_adbentrybucket {
 	dns_adbentrylist_t entries;
-	dns_adbentrylist_t deadentries;
 	isc_mutex_t lock;
 	isc_refcount_t references;
 };
@@ -782,9 +780,6 @@ expire_name(dns_adbname_t **n, isc_eventtype_t evtype) {
 	 * we'll clean it up later.
 	 */
 	if (!NAME_DEAD(adbname)) {
-		dns_adbnamebucket_t *nbucket = adbname->bucket;
-		ISC_LIST_UNLINK(nbucket->names, adbname, plink);
-		ISC_LIST_APPEND(nbucket->deadnames, adbname, plink);
 		adbname->flags |= NAME_IS_DEAD;
 	}
 }
@@ -866,11 +861,7 @@ unlink_name(dns_adbname_t *name) {
 
 	REQUIRE(nbucket != NULL);
 
-	if (NAME_DEAD(name)) {
-		ISC_LIST_UNLINK(nbucket->deadnames, name, plink);
-	} else {
-		ISC_LIST_UNLINK(nbucket->names, name, plink);
-	}
+	ISC_LIST_UNLINK(nbucket->names, name, plink);
 
 	isc_refcount_decrement(&nbucket->references);
 }
@@ -914,8 +905,6 @@ link_entry(dns_adbentrybucket_t *ebucket, dns_adbentry_t *entry) {
 
 			INSIST((e->flags & ENTRY_IS_DEAD) == 0);
 			e->flags |= ENTRY_IS_DEAD;
-			ISC_LIST_UNLINK(ebucket->entries, e, plink);
-			ISC_LIST_PREPEND(ebucket->deadentries, e, plink);
 		}
 	}
 
@@ -941,11 +930,7 @@ unlink_entry(dns_adbentry_t *entry) {
 
 	DP(DEF_LEVEL, "unlink ADB entry %p from bucket %p", entry, ebucket);
 
-	if ((entry->flags & ENTRY_IS_DEAD) != 0) {
-		ISC_LIST_UNLINK(ebucket->deadentries, entry, plink);
-	} else {
-		ISC_LIST_UNLINK(ebucket->entries, entry, plink);
-	}
+	ISC_LIST_UNLINK(ebucket->entries, entry, plink);
 
 	isc_refcount_decrement(&ebucket->references);
 }
@@ -1466,7 +1451,6 @@ new_adbentrybucket(dns_adb_t *adb) {
 	};
 
 	ISC_LIST_INIT(ebucket->entries);
-	ISC_LIST_INIT(ebucket->deadentries);
 
 	isc_mutex_init(&ebucket->lock);
 	isc_refcount_init(&ebucket->references, 0);
