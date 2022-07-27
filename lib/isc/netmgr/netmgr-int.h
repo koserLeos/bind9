@@ -1584,6 +1584,12 @@ bool
 isc__nmsocket_tls_timer_running(isc_nmsocket_t *sock);
 
 void
+isc__nmsocket_tls_timer_restart(isc_nmsocket_t *sock);
+
+void
+isc__nmsocket_tls_timer_stop(isc_nmsocket_t *sock);
+
+void
 isc__nm_tls_failed_read_cb(isc_nmsocket_t *sock, isc_result_t result);
 
 void
