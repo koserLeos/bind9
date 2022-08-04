@@ -2029,17 +2029,27 @@ bind9_check_remoteserverlist(const cfg_obj_t *cctx, const char *list,
 }
 
 /*
- * Check primaries lists for duplicates.
+ * Check remote server lists for duplicates.
  */
 static isc_result_t
-bind9_check_primarylists(const cfg_obj_t *cctx, isc_log_t *logctx,
-			 isc_mem_t *mctx) {
+bind9_check_remoteserverlists(const cfg_obj_t *cctx, isc_log_t *logctx,
+			      isc_mem_t *mctx) {
 	isc_result_t result, tresult;
 	isc_symtab_t *symtab = NULL;
 
 	result = isc_symtab_create(mctx, 100, freekey, mctx, false, &symtab);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
+	}
+	tresult = bind9_check_remoteserverlist(cctx, "remote", logctx, symtab,
+					       mctx);
+	if (tresult != ISC_R_SUCCESS) {
+		result = tresult;
+	}
+	tresult = bind9_check_remoteserverlist(cctx, "parental-agents", logctx,
+					       symtab, mctx);
+	if (tresult != ISC_R_SUCCESS) {
+		result = tresult;
 	}
 	tresult = bind9_check_remoteserverlist(cctx, "primaries", logctx,
 					       symtab, mctx);
@@ -2048,28 +2058,6 @@ bind9_check_primarylists(const cfg_obj_t *cctx, isc_log_t *logctx,
 	}
 	tresult = bind9_check_remoteserverlist(cctx, "masters", logctx, symtab,
 					       mctx);
-	if (tresult != ISC_R_SUCCESS) {
-		result = tresult;
-	}
-	isc_symtab_destroy(&symtab);
-	return (result);
-}
-
-/*
- * Check parental-agents lists for duplicates.
- */
-static isc_result_t
-bind9_check_parentalagentlists(const cfg_obj_t *cctx, isc_log_t *logctx,
-			       isc_mem_t *mctx) {
-	isc_result_t result, tresult;
-	isc_symtab_t *symtab = NULL;
-
-	result = isc_symtab_create(mctx, 100, freekey, mctx, false, &symtab);
-	if (result != ISC_R_SUCCESS) {
-		return (result);
-	}
-	tresult = bind9_check_remoteserverlist(cctx, "parental-agents", logctx,
-					       symtab, mctx);
 	if (tresult != ISC_R_SUCCESS) {
 		result = tresult;
 	}
@@ -2362,10 +2350,15 @@ get_remotes(const cfg_obj_t *cctx, const char *list, const char *name,
 
 static isc_result_t
 get_remoteservers_def(const char *list, const char *name, const cfg_obj_t *cctx,
-		      const cfg_obj_t **ret) {
+		      const cfg_obj_t **ret, bool *isremote) {
 	isc_result_t result = ISC_R_NOTFOUND;
 
-	if (strcmp(list, "primaries") == 0) {
+	/* Try "remote" first. */
+	result = get_remotes(cctx, "remote", name, ret);
+	if (result == ISC_R_SUCCESS) {
+		*isremote = true;
+		return (result);
+	} else if (strcmp(list, "primaries") == 0) {
 		result = get_remotes(cctx, "primaries", name, ret);
 		if (result != ISC_R_SUCCESS) {
 			result = get_remotes(cctx, "masters", name, ret);
@@ -2373,6 +2366,8 @@ get_remoteservers_def(const char *list, const char *name, const cfg_obj_t *cctx,
 	} else if (strcmp(list, "parental-agents") == 0) {
 		result = get_remotes(cctx, "parental-agents", name, ret);
 	}
+
+	*isremote = false;
 	return (result);
 }
 
@@ -2389,6 +2384,8 @@ validate_remotes(const char *list, const cfg_obj_t *obj,
 	const cfg_listelt_t **stack = NULL;
 	uint32_t stackcount = 0, pushed = 0;
 	const cfg_obj_t *listobj;
+	const cfg_obj_t *remoteobj;
+	bool isremote = false;
 
 	REQUIRE(countp != NULL);
 	result = isc_symtab_create(mctx, 100, NULL, NULL, false, &symtab);
@@ -2398,7 +2395,13 @@ validate_remotes(const char *list, const cfg_obj_t *obj,
 	}
 
 newlist:
-	listobj = cfg_tuple_get(obj, "addresses");
+	if (isremote) {
+		listobj = NULL;
+		remoteobj = cfg_tuple_get(obj, "options");
+		(void)cfg_map_get(remoteobj, "addresses", &listobj);
+	} else {
+		listobj = cfg_tuple_get(obj, "addresses");
+	}
 	element = cfg_list_first(listobj);
 resume:
 	for (; element != NULL; element = cfg_list_next(element)) {
@@ -2483,7 +2486,8 @@ resume:
 		if (tresult == ISC_R_EXISTS) {
 			continue;
 		}
-		tresult = get_remoteservers_def(list, listname, config, &obj);
+		tresult = get_remoteservers_def(list, listname, config, &obj,
+						&isremote);
 		if (tresult != ISC_R_SUCCESS) {
 			if (result == ISC_R_SUCCESS) {
 				result = tresult;
@@ -3326,7 +3330,7 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 		obj = NULL;
 		(void)cfg_map_get(zoptions, "parental-agents", &obj);
 
-check_parentalagents:
+	check_parentalagents:
 		if (obj != NULL) {
 			uint32_t count;
 			tresult = validate_remotes("parental-agents", obj,
@@ -5793,11 +5797,7 @@ bind9_check_namedconf(const cfg_obj_t *config, bool check_plugins,
 		result = ISC_R_FAILURE;
 	}
 
-	if (bind9_check_primarylists(config, logctx, mctx) != ISC_R_SUCCESS) {
-		result = ISC_R_FAILURE;
-	}
-
-	if (bind9_check_parentalagentlists(config, logctx, mctx) !=
+	if (bind9_check_remoteserverlists(config, logctx, mctx) !=
 	    ISC_R_SUCCESS) {
 		result = ISC_R_FAILURE;
 	}

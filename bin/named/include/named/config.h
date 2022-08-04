@@ -64,7 +64,8 @@ named_config_putiplist(isc_mem_t *mctx, isc_sockaddr_t **addrsp,
 
 isc_result_t
 named_config_getremotesdef(const cfg_obj_t *cctx, const char *list,
-			   const char *name, const cfg_obj_t **ret);
+			   const char *name, const cfg_obj_t **ret,
+			   bool *isremote);
 
 isc_result_t
 named_config_getipandkeylist(const cfg_obj_t *config, const char *listtype,

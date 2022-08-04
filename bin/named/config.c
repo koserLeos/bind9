@@ -500,6 +500,46 @@ named_config_getzonetype(const cfg_obj_t *zonetypeobj) {
 	return (ztype);
 }
 
+static isc_result_t
+named_tuple_getport(const cfg_obj_t *obj, bool optional, in_port_t *portp) {
+	uint32_t val;
+
+	if (obj == NULL || !cfg_obj_isuint32(obj)) {
+		if (optional) {
+			return (ISC_R_SUCCESS);
+		}
+	}
+
+	val = cfg_obj_asuint32(obj);
+	if (val >= UINT16_MAX) {
+		cfg_obj_log(obj, named_g_lctx, ISC_LOG_ERROR,
+			    "port '%u' out of range", val);
+		return (ISC_R_RANGE);
+	}
+	*portp = (in_port_t)val;
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+named_tuple_getdscp(const cfg_obj_t *obj, bool optional, isc_dscp_t *dscpp) {
+	uint32_t val;
+
+	if (obj == NULL || !cfg_obj_isuint32(obj)) {
+		if (optional) {
+			return (ISC_R_SUCCESS);
+		}
+	}
+
+	val = cfg_obj_asuint32(obj);
+	if (val >= UINT16_MAX) {
+		cfg_obj_log(obj, named_g_lctx, ISC_LOG_ERROR,
+			    "dscp '%u' out of range", val);
+		return (ISC_R_RANGE);
+	}
+	*dscpp = (isc_dscp_t)val;
+	return (ISC_R_SUCCESS);
+}
+
 isc_result_t
 named_config_getiplist(const cfg_obj_t *config, const cfg_obj_t *list,
 		       in_port_t defport, isc_mem_t *mctx,
@@ -633,19 +673,25 @@ getremotesdef(const cfg_obj_t *cctx, const char *list, const char *name,
 
 isc_result_t
 named_config_getremotesdef(const cfg_obj_t *cctx, const char *list,
-			   const char *name, const cfg_obj_t **ret) {
-	isc_result_t result;
+			   const char *name, const cfg_obj_t **ret,
+			   bool *isremote) {
+	isc_result_t result = ISC_R_NOTFOUND;
 
-	if (strcmp(list, "parental-agents") == 0) {
-		return (getremotesdef(cctx, list, name, ret));
+	/* Try "remote" first. */
+	result = getremotesdef(cctx, "remote", name, ret);
+	if (result == ISC_R_SUCCESS) {
+		*isremote = true;
+		return (result);
+	} else if (strcmp(list, "parental-agents") == 0) {
+		result = getremotesdef(cctx, list, name, ret);
 	} else if (strcmp(list, "primaries") == 0) {
 		result = getremotesdef(cctx, list, name, ret);
 		if (result != ISC_R_SUCCESS) {
 			result = getremotesdef(cctx, "masters", name, ret);
 		}
-		return (result);
 	}
-	return (ISC_R_NOTFOUND);
+	*isremote = false;
+	return (result);
 }
 
 static isc_result_t
@@ -723,6 +769,7 @@ named_config_getipandkeylist(const cfg_obj_t *config, const char *listtype,
 	uint32_t stackcount = 0, pushed = 0;
 	isc_result_t result;
 	const cfg_listelt_t *element;
+	const cfg_obj_t *remoteobj;
 	const cfg_obj_t *addrlist;
 	const cfg_obj_t *portobj;
 	const cfg_obj_t *dscpobj;
@@ -742,6 +789,7 @@ named_config_getipandkeylist(const cfg_obj_t *config, const char *listtype,
 		in_port_t port;
 		isc_dscp_t dscp;
 	} *stack = NULL;
+	bool isremote = false;
 
 	REQUIRE(ipkl != NULL);
 	REQUIRE(ipkl->count == 0);
@@ -771,30 +819,37 @@ named_config_getipandkeylist(const cfg_obj_t *config, const char *listtype,
 	}
 
 newlist:
-	addrlist = cfg_tuple_get(list, "addresses");
-	portobj = cfg_tuple_get(list, "port");
-	dscpobj = cfg_tuple_get(list, "dscp");
+	if (isremote) {
+		addrlist = NULL;
+		portobj = NULL;
+		dscpobj = NULL;
+		/* TODO: source, source-v6 */
+		remoteobj = cfg_tuple_get(list, "options");
+		(void)cfg_map_get(remoteobj, "addresses", &addrlist);
 
-	if (cfg_obj_isuint32(portobj)) {
-		uint32_t val = cfg_obj_asuint32(portobj);
-		if (val > UINT16_MAX) {
-			cfg_obj_log(portobj, named_g_lctx, ISC_LOG_ERROR,
-				    "port '%u' out of range", val);
-			result = ISC_R_RANGE;
+		result = named_tuple_getport(list, true, &port);
+		if (result != ISC_R_SUCCESS) {
 			goto cleanup;
 		}
-		port = (in_port_t)val;
-	}
 
-	if (dscpobj != NULL && cfg_obj_isuint32(dscpobj)) {
-		if (cfg_obj_asuint32(dscpobj) > 63) {
-			cfg_obj_log(dscpobj, named_g_lctx, ISC_LOG_ERROR,
-				    "dscp value '%u' is out of range",
-				    cfg_obj_asuint32(dscpobj));
-			result = ISC_R_RANGE;
+		result = named_tuple_getdscp(list, true, &dscp);
+		if (result != ISC_R_SUCCESS) {
 			goto cleanup;
 		}
-		dscp = (isc_dscp_t)cfg_obj_asuint32(dscpobj);
+	} else {
+		addrlist = cfg_tuple_get(list, "addresses");
+		portobj = cfg_tuple_get(list, "port");
+		dscpobj = cfg_tuple_get(list, "dscp");
+
+		result = named_tuple_getport(portobj, true, &port);
+		if (result != ISC_R_SUCCESS) {
+			goto cleanup;
+		}
+
+		result = named_tuple_getdscp(dscpobj, true, &dscp);
+		if (result != ISC_R_SUCCESS) {
+			goto cleanup;
+		}
 	}
 
 	result = ISC_R_NOMEMORY;
@@ -812,8 +867,8 @@ resume:
 		tls = cfg_tuple_get(cfg_listelt_value(element), "tls");
 
 		if (!cfg_obj_issockaddr(addr)) {
-			const char *listname = cfg_obj_asstring(addr);
 			isc_result_t tresult;
+			const char *listname = cfg_obj_asstring(addr);
 
 			/* Grow lists? */
 			grow_array(mctx, lists, l, listcount);
@@ -828,8 +883,8 @@ resume:
 				continue;
 			}
 			list = NULL;
-			tresult = named_config_getremotesdef(config, listtype,
-							     listname, &list);
+			tresult = named_config_getremotesdef(
+				config, listtype, listname, &list, &isremote);
 			if (tresult == ISC_R_NOTFOUND) {
 				cfg_obj_log(addr, named_g_lctx, ISC_LOG_ERROR,
 					    "%s \"%s\" not found", listtype,
@@ -987,14 +1042,8 @@ named_config_getport(const cfg_obj_t *config, const char *type,
 
 	result = named_config_get(maps, type, &portobj);
 	INSIST(result == ISC_R_SUCCESS);
-	if (cfg_obj_asuint32(portobj) >= UINT16_MAX) {
-		cfg_obj_log(portobj, named_g_lctx, ISC_LOG_ERROR,
-			    "port '%u' out of range",
-			    cfg_obj_asuint32(portobj));
-		return (ISC_R_RANGE);
-	}
-	*portp = (in_port_t)cfg_obj_asuint32(portobj);
-	return (ISC_R_SUCCESS);
+
+	return (named_tuple_getport(portobj, false, portp));
 }
 
 isc_result_t
@@ -1013,14 +1062,8 @@ named_config_getdscp(const cfg_obj_t *config, isc_dscp_t *dscpp) {
 		*dscpp = -1;
 		return (ISC_R_SUCCESS);
 	}
-	if (cfg_obj_asuint32(dscpobj) >= 64) {
-		cfg_obj_log(dscpobj, named_g_lctx, ISC_LOG_ERROR,
-			    "dscp '%u' out of range",
-			    cfg_obj_asuint32(dscpobj));
-		return (ISC_R_RANGE);
-	}
-	*dscpp = (isc_dscp_t)cfg_obj_asuint32(dscpobj);
-	return (ISC_R_SUCCESS);
+
+	return (named_tuple_getdscp(dscpobj, false, dscpp));
 }
 
 struct keyalgorithms {

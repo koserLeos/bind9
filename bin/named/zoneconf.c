@@ -1880,9 +1880,12 @@ named_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		if (obj == NULL && ztype == dns_zone_mirror &&
 		    dns_name_equal(dns_zone_getorigin(zone), dns_rootname))
 		{
+			bool isremote = false;
 			result = named_config_getremotesdef(
 				named_g_config, "primaries",
-				DEFAULT_IANA_ROOT_ZONE_PRIMARIES, &obj);
+				DEFAULT_IANA_ROOT_ZONE_PRIMARIES, &obj,
+				&isremote);
+			INSIST(!isremote);
 			RETERR(result);
 		}
 		if (obj != NULL) {

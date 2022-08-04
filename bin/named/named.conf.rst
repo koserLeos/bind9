@@ -505,6 +505,23 @@ PRIMARIES
       ipv6_address [ port integer ] ) [ key
       string ] [ tls string ]; ... };
 
+REMOTE
+^^^^^^
+
+::
+
+  remote string {
+  	addresses { ( remote-servers | ipv4_address [ port integer ]
+  	    | ipv6_address [ port integer ] ) [ key string ] [ tls
+  	    string ]; ... };
+  	dscp integer;
+  	port integer;
+  	source ( ipv4_address | * ) [ port ( integer | * ) ] [ dscp
+  	    integer ];
+  	source-v6 ( ipv6_address | * ) [ port ( integer | * ) ] [ dscp
+  	    integer ];
+  };
+
 SERVER
 ^^^^^^
 

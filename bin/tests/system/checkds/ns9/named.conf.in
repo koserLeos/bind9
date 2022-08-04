@@ -34,8 +34,14 @@ controls {
 	inet 10.53.0.9 port @CONTROLPORT@ allow { any; } keys { rndc_key; };
 };
 
-parental-agents "ns2" port @PORT@ {
-	10.53.0.2;
+remote "ns2" {
+	addresses { 10.53.0.2; };
+	port @PORT@;
+};
+
+remote "ns4" {
+	addresses { 10.53.0.4; };
+	port @PORT@;
 };
 
 zone "." {
@@ -99,10 +105,7 @@ zone "multiple-dspublished.checkds" {
 	type primary;
 	file "multiple-dspublished.checkds.db";
 	dnssec-policy "default";
-	parental-agents {
-		10.53.0.2 port @PORT@;
-		10.53.0.4 port @PORT@;
-	};
+	parental-agents { "ns2"; "ns4"; };
 };
 
 /*

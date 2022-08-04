@@ -243,6 +243,33 @@ static cfg_type_t cfg_type_remoteservers = { "remote-servers", cfg_parse_tuple,
 					     &cfg_rep_tuple,   remotes_fields };
 
 /*%
+ * Statement to configure communication with remote servers.
+ */
+static cfg_clausedef_t remote_clauses[] = {
+	{ "port", &cfg_type_uint32, 0 },
+	{ "dscp", &cfg_type_uint32, 0 },
+	{ "source", &cfg_type_sockaddr4wild, 0 },
+	{ "source-v6", &cfg_type_sockaddr6wild, 0 },
+	{ "addresses", &cfg_type_bracketed_namesockaddrkeylist, 0 },
+	{ NULL, NULL, 0 }
+};
+
+static cfg_clausedef_t *remote_clausesets[] = { remote_clauses, NULL };
+
+cfg_type_t cfg_type_remoteopts = { "remoteopts",  cfg_parse_map,
+				   cfg_print_map, cfg_doc_map,
+				   &cfg_rep_map,  remote_clausesets };
+
+static cfg_tuplefielddef_t remote_fields[] = { { "name", &cfg_type_astring, 0 },
+					       { "options",
+						 &cfg_type_remoteopts, 0 },
+					       { NULL, NULL, 0 } };
+
+static cfg_type_t cfg_type_remote = { "remote",	       cfg_parse_tuple,
+				      cfg_print_tuple, cfg_doc_tuple,
+				      &cfg_rep_tuple,  remote_fields };
+
+/*%
  * "sockaddrkeylist", a list of socket addresses with optional keys
  * and an optional default port, as used in the remote-servers option.
  * E.g.,
@@ -1162,6 +1189,7 @@ static cfg_clausedef_t namedconf_clauses[] = {
 	{ "options", &cfg_type_options, 0 },
 	{ "parental-agents", &cfg_type_remoteservers, CFG_CLAUSEFLAG_MULTI },
 	{ "primaries", &cfg_type_remoteservers, CFG_CLAUSEFLAG_MULTI },
+	{ "remote", &cfg_type_remote, CFG_CLAUSEFLAG_MULTI },
 	{ "statistics-channels", &cfg_type_statschannels,
 	  CFG_CLAUSEFLAG_MULTI },
 	{ "tls", &cfg_type_tlsconf, CFG_CLAUSEFLAG_MULTI },
