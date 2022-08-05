@@ -1969,7 +1969,7 @@ generatexml(named_server_t *server, uint32_t flags, int *buflen,
 	xmlTextWriterPtr writer = NULL;
 	xmlDocPtr doc = NULL;
 	int xmlrc;
-	dns_view_t *view;
+	dns_view_t *view_next, *view = NULL;
 	stats_dumparg_t dumparg;
 	dns_stats_t *cacherrstats;
 	uint64_t nsstat_values[ns_statscounter_max];
@@ -2236,13 +2236,14 @@ generatexml(named_server_t *server, uint32_t flags, int *buflen,
 	 * Render views.  For each view we know of, call its
 	 * rendering function.
 	 */
-	view = ISC_LIST_HEAD(server->viewlist);
+	view_next = ISC_LIST_HEAD(server->viewlist);
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "views"));
-	while (view != NULL &&
+	while (view_next != NULL &&
 	       ((flags & (STATS_XML_SERVER | STATS_XML_ZONES)) != 0)) {
 		isc_stats_t *istats = NULL;
 		dns_stats_t *dstats = NULL;
 
+		dns_view_attach(view_next, &view);
 		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "view"));
 		TRY0(xmlTextWriterWriteAttribute(writer, ISC_XMLCHAR "name",
 						 ISC_XMLCHAR view->name));
@@ -2323,7 +2324,8 @@ generatexml(named_server_t *server, uint32_t flags, int *buflen,
 
 		TRY0(xmlTextWriterEndElement(writer)); /* view */
 
-		view = ISC_LIST_NEXT(view, link);
+		view_next = ISC_LIST_NEXT(view, link);
+		dns_view_detach(&view);
 	}
 	TRY0(xmlTextWriterEndElement(writer)); /* /views */
 
@@ -2355,6 +2357,8 @@ cleanup:
 	isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,
 		      NAMED_LOGMODULE_SERVER, ISC_LOG_ERROR,
 		      "failed generating XML response");
+	if (view != NULL)
+		dns_view_detach(&view);
 	if (writer != NULL) {
 		xmlFreeTextWriter(writer);
 	}
