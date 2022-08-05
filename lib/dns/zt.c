@@ -263,9 +263,7 @@ dns_zt_load(dns_zt_t *zt, bool stop, bool newonly) {
 	struct zt_load_params params;
 	REQUIRE(VALID_ZT(zt));
 	params.newonly = newonly;
-	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
 	result = dns_zt_apply(zt, stop, NULL, load, &params);
-	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
 	return (result);
 }
 
@@ -336,9 +334,7 @@ dns_zt_asyncload(dns_zt_t *zt, bool newonly, dns_zt_allloaded_t alldone,
 	zt->loaddone = alldone;
 	zt->loaddone_arg = arg;
 
-	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
 	result = dns_zt_apply(zt, false, NULL, asyncload, zt);
-	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
 
 	/*
 	 * Have all the loads completed?
@@ -384,9 +380,7 @@ dns_zt_freezezones(dns_zt_t *zt, dns_view_t *view, bool freeze) {
 
 	REQUIRE(VALID_ZT(zt));
 
-	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
 	result = dns_zt_apply(zt, false, &tresult, freezezones, &params);
-	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
 	if (tresult == ISC_R_NOTFOUND) {
 		tresult = ISC_R_SUCCESS;
 	}
@@ -533,6 +527,7 @@ dns_zt_apply(dns_zt_t *zt, bool stop, isc_result_t *sub,
 	REQUIRE(action != NULL);
 
 	dns_rbtnodechain_init(&chain);
+	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
 	result = dns_rbtnodechain_first(&chain, zt->table, NULL, NULL);
 	if (result == ISC_R_NOTFOUND) {
 		/*
@@ -564,6 +559,7 @@ dns_zt_apply(dns_zt_t *zt, bool stop, isc_result_t *sub,
 	}
 
 cleanup:
+	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
 	dns_rbtnodechain_invalidate(&chain);
 	if (sub != NULL) {
 		*sub = tresult;
