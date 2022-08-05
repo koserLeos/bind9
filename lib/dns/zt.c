@@ -527,7 +527,7 @@ dns_zt_apply(dns_zt_t *zt, bool stop, isc_result_t *sub,
 	dns_rbtnode_t *node;
 	dns_rbtnodechain_t chain;
 	isc_result_t result, tresult = ISC_R_SUCCESS;
-	dns_zone_t *zone;
+	dns_zone_t *zone = NULL;
 
 	REQUIRE(VALID_ZT(zt));
 	REQUIRE(action != NULL);
@@ -544,9 +544,10 @@ dns_zt_apply(dns_zt_t *zt, bool stop, isc_result_t *sub,
 	while (result == DNS_R_NEWORIGIN || result == ISC_R_SUCCESS) {
 		result = dns_rbtnodechain_current(&chain, NULL, NULL, &node);
 		if (result == ISC_R_SUCCESS) {
-			zone = node->data;
-			if (zone != NULL) {
+			if (node->data != NULL) {
+				dns_zone_attach(node->data, &zone);
 				result = (action)(zone, uap);
+				dns_zone_detach(&zone);
 			}
 			if (result != ISC_R_SUCCESS && stop) {
 				tresult = result;
