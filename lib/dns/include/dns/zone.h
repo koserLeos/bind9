@@ -642,7 +642,7 @@ dns_zone_maintenance(dns_zone_t *zone);
  */
 
 void
-dns_zone_setprimaries(dns_zone_t *zone, const isc_sockaddr_t *primaries,
+dns_zone_setprimaries(dns_zone_t *zone, isc_sockaddr_t *addresses,
 		      dns_name_t **keynames, dns_name_t **tlsnames,
 		      uint32_t count);
 /*%<
@@ -650,8 +650,8 @@ dns_zone_setprimaries(dns_zone_t *zone, const isc_sockaddr_t *primaries,
  *
  * Require:
  *\li	'zone' to be a valid zone.
- *\li	'primaries' array of isc_sockaddr_t with port set or NULL.
- *\li	'count' the number of primaries.
+ *\li	'addresses' array of isc_sockaddr_t with port set or NULL.
+ *\li	'count' the number of addresses.
  *\li	'keynames' array of dns_name_t's for tsig keys or NULL.
  *
  *\li	If 'primaries' is NULL then 'count' must be zero.
@@ -663,7 +663,7 @@ dns_zone_setprimaries(dns_zone_t *zone, const isc_sockaddr_t *primaries,
  */
 
 void
-dns_zone_setparentals(dns_zone_t *zone, const isc_sockaddr_t *parentals,
+dns_zone_setparentals(dns_zone_t *zone, isc_sockaddr_t *addresses,
 		      dns_name_t **keynames, dns_name_t **tlsnames,
 		      uint32_t count);
 /*%<
@@ -684,29 +684,8 @@ dns_zone_setparentals(dns_zone_t *zone, const isc_sockaddr_t *parentals,
  */
 
 void
-dns_zone_setparentals(dns_zone_t *zone, const isc_sockaddr_t *parentals,
-		      dns_name_t **keynames, dns_name_t **tlsnames,
-		      uint32_t count);
-/*%<
- *	Set the list of parental agents for the zone.
- *
- * Require:
- *\li	'zone' to be a valid zone.
- *\li	'parentals' array of isc_sockaddr_t with port set or NULL.
- *\li	'count' the number of parentals.
- *\li	'keynames' array of dns_name_t's for tsig keys or NULL.
- *
- *\li	If 'parentals' is NULL then 'count' must be zero.
- *
- * Returns:
- *\li	#ISC_R_SUCCESS
- *\li	#ISC_R_NOMEMORY
- *\li      Any result dns_name_dup() can return, if keynames!=NULL
- */
-
-void
-dns_zone_setalsonotify(dns_zone_t *zone, const isc_sockaddr_t *notify,
-		       const isc_dscp_t *dscps, dns_name_t **keynames,
+dns_zone_setalsonotify(dns_zone_t *zone, isc_sockaddr_t *addresses,
+		       isc_dscp_t *dscps, dns_name_t **keynames,
 		       dns_name_t **tlsnames, uint32_t count);
 /*%<
  *	Set the list of additional servers to be notified when
@@ -717,8 +696,8 @@ dns_zone_setalsonotify(dns_zone_t *zone, const isc_sockaddr_t *notify,
  *
  * Require:
  *\li	'zone' to be a valid zone.
- *\li	'notify' to be non-NULL if count != 0.
- *\li	'count' to be the number of notifiees.
+ *\li	'addresses' to be non-NULL if count != 0.
+ *\li	'count' to be the number of addresses.
  *
  * Returns:
  *\li	#ISC_R_SUCCESS
