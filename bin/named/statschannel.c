@@ -1969,9 +1969,9 @@ generatexml(named_server_t *server, uint32_t flags, int *buflen,
 	xmlTextWriterPtr writer = NULL;
 	xmlDocPtr doc = NULL;
 	int xmlrc;
-	dns_view_t *view_next, *view = NULL;
+	dns_view_t *view_next = NULL, *view = NULL;
 	stats_dumparg_t dumparg;
-	dns_stats_t *cacherrstats;
+	dns_stats_t *cacherrstats = NULL;
 	uint64_t nsstat_values[ns_statscounter_max];
 	uint64_t resstat_values[dns_resstatscounter_max];
 	uint64_t adbstat_values[dns_adbstats_max];
