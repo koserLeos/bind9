@@ -518,9 +518,9 @@ dns_zt_setviewrevert(dns_zt_t *zt) {
 isc_result_t
 dns_zt_apply(dns_zt_t *zt, bool stop, isc_result_t *sub,
 	     isc_result_t (*action)(dns_zone_t *, void *), void *uap) {
-	dns_rbtnode_t *node;
+	dns_rbtnode_t *node = NULL;
 	dns_rbtnodechain_t chain;
-	isc_result_t result, tresult = ISC_R_SUCCESS;
+	isc_result_t result, err = ISC_R_SUCCESS;
 	dns_zone_t *zone = NULL;
 
 	REQUIRE(VALID_ZT(zt));
@@ -529,13 +529,16 @@ dns_zt_apply(dns_zt_t *zt, bool stop, isc_result_t *sub,
 	dns_rbtnodechain_init(&chain);
 	RWLOCK(&zt->rwlock, isc_rwlocktype_read);
 	result = dns_rbtnodechain_first(&chain, zt->table, NULL, NULL);
+
 	if (result == ISC_R_NOTFOUND) {
 		/*
 		 * The tree is empty.
 		 */
-		tresult = result;
-		result = ISC_R_NOMORE;
+		err = result;
+		result = ISC_R_SUCCESS;
+		goto cleanup;
 	}
+
 	while (result == DNS_R_NEWORIGIN || result == ISC_R_SUCCESS) {
 		result = dns_rbtnodechain_current(&chain, NULL, NULL, &node);
 		if (result == ISC_R_SUCCESS) {
@@ -544,12 +547,15 @@ dns_zt_apply(dns_zt_t *zt, bool stop, isc_result_t *sub,
 				result = (action)(zone, uap);
 				dns_zone_detach(&zone);
 			}
-			if (result != ISC_R_SUCCESS && stop) {
-				tresult = result;
-				goto cleanup; /* don't break */
-			} else if (result != ISC_R_SUCCESS &&
-				   tresult == ISC_R_SUCCESS) {
-				tresult = result;
+
+			if (result != ISC_R_SUCCESS) {
+				if (err == ISC_R_SUCCESS) {
+					err = result;
+				}
+
+				if (stop) {
+					goto cleanup; /* don't break */
+				}
 			}
 		}
 		result = dns_rbtnodechain_next(&chain, NULL, NULL);
@@ -562,7 +568,7 @@ cleanup:
 	RWUNLOCK(&zt->rwlock, isc_rwlocktype_read);
 	dns_rbtnodechain_invalidate(&chain);
 	if (sub != NULL) {
-		*sub = tresult;
+		*sub = err;
 	}
 
 	return (result);
