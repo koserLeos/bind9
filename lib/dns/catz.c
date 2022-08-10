@@ -338,6 +338,8 @@ dns_catz_options_setdefault(isc_mem_t *mctx, const dns_catz_options_t *defaults,
 
 	opts->in_memory = defaults->in_memory;
 
+	opts->min_update_interval = defaults->min_update_interval;
+
 	if (opts->allowlist != NULL) {
 		catz_allowlist_detach(&opts->allowlist, mctx);
 	}
