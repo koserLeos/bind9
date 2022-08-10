@@ -79,6 +79,7 @@
 #include <dns/fixedname.h>
 #include <dns/forward.h>
 #include <dns/geoip.h>
+#include <dns/ipkeylist.h>
 #include <dns/journal.h>
 #include <dns/kasp.h>
 #include <dns/keymgr.h>
@@ -3039,6 +3040,8 @@ configure_catz_zone(dns_view_t *view, dns_view_t *pview,
 	const char *str;
 	isc_result_t result;
 	dns_name_t origin;
+	dns_ipkeylist_t masters;
+	bool masters_processed = false;
 	dns_catz_options_t *opts;
 
 	dns_name_init(&origin, NULL);
@@ -3118,16 +3121,30 @@ configure_catz_zone(dns_view_t *view, dns_view_t *pview,
 		result = ISC_R_SUCCESS;
 	}
 
-	dns_catz_zone_resetdefoptions(zone);
-	opts = dns_catz_zone_getdefoptions(zone);
-
 	obj = cfg_tuple_get(catz_obj, "default-masters");
 	if (obj == NULL || !cfg_obj_istuple(obj)) {
 		obj = cfg_tuple_get(catz_obj, "default-primaries");
 	}
 	if (obj != NULL && cfg_obj_istuple(obj)) {
-		result = named_config_getipandkeylist(
-			config, "primaries", obj, view->mctx, &opts->masters);
+		dns_ipkeylist_init(&masters);
+		result = named_config_getipandkeylist(config, "primaries", obj,
+						      view->mctx, &masters);
+		if (result != ISC_R_SUCCESS) {
+			cfg_obj_log(catz_obj, named_g_lctx,
+				    DNS_CATZ_ERROR_LEVEL,
+				    "catz: unable process the primaries list "
+				    "for catalog zone '%s', error %s",
+				    str, isc_result_totext(result));
+			goto cleanup;
+		}
+		masters_processed = true;
+	}
+
+	dns_catz_zone_resetdefoptions(zone);
+	opts = dns_catz_zone_getdefoptions(zone);
+
+	if (masters_processed) {
+		opts->masters = masters;
 	}
 
 	obj = cfg_tuple_get(catz_obj, "in-memory");
