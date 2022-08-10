@@ -198,6 +198,43 @@ catz_allowlist_detach(dns_catz_allowlist_t **alistp, isc_mem_t *mctx) {
 	}
 }
 
+static bool
+catz_allowlist_check(dns_catz_allowlist_t *alist, dns_name_t *checkname) {
+	dns_name_t *name = NULL;
+	bool wildcard_match = false;
+	bool equal_match = false;
+
+	REQUIRE(checkname != NULL);
+
+	if (alist == NULL || alist->allow_all) {
+		return (true);
+	}
+
+	for (name = ISC_LIST_HEAD(alist->names); name != NULL;
+	     name = ISC_LIST_NEXT(name, link))
+	{
+		bool neg = ((name->attributes & DNS_NAMEATTR_NEG) != 0);
+
+		if (dns_name_iswildcard(name)) {
+			if (dns_name_matcheswildcard(checkname, name)) {
+				if (neg) {
+					/* Negated names have precedence. */
+					return (false);
+				}
+				wildcard_match = true;
+			}
+		} else if (dns_name_equal(checkname, name)) {
+			if (neg) {
+				/* Negated names have precedence. */
+				return (false);
+			}
+			equal_match = true;
+		}
+	}
+
+	return (wildcard_match || equal_match);
+}
+
 void
 dns_catz_allowlist_addname(const dns_catz_zone_t *zone,
 			   dns_catz_allowlist_t *alist, const dns_name_t *name,
@@ -773,7 +810,7 @@ dns_catz_zones_merge(dns_catz_zone_t *target, dns_catz_zone_t *newzone) {
 		}
 
 		/*
-		 * Delete the old entry so that it won't accidentally be
+		 * Delete the old entry so that the zone won't accidentally be
 		 * removed as a non-existing entry below.
 		 */
 		dns_catz_entry_detach(target, &oentry);
@@ -1811,14 +1848,37 @@ catz_entry_add_or_mod(dns_catz_zone_t *target, isc_ht_t *ht, unsigned char *key,
 		      size_t keysize, dns_catz_entry_t *nentry,
 		      dns_catz_entry_t *oentry, const char *msg,
 		      const char *zname, const char *czname) {
-	isc_result_t result = isc_ht_add(ht, key, (uint32_t)keysize, nentry);
+	isc_result_t result;
+	bool allowed = catz_allowlist_check(nentry->opts.allowlist,
+					    &nentry->name);
 
+	if (!allowed) {
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+			      DNS_LOGMODULE_MASTER, ISC_LOG_INFO,
+			      "catz: zone '%s' from catalog '%s' is %s "
+			      "allowed, ignoring",
+			      zname, czname,
+			      oentry != NULL ? "no longer" : "not");
+		/*
+		 * Return early; if 'oentry' was set ("mod" mode), then leave
+		 * the entry there which will result in zone being removed
+		 * during the next phase of the processing.
+		 */
+		return;
+	}
+
+	result = isc_ht_add(ht, key, (uint32_t)keysize, nentry);
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
 			      DNS_LOGMODULE_MASTER, ISC_LOG_ERROR,
 			      "catz: error %s zone '%s' from catalog '%s' - %s",
 			      msg, zname, czname, isc_result_totext(result));
 	}
+
+	/*
+	 * Delete the old entry so that the zone won't accidentally be removed
+	 * as a non-existing entry during the next phase of the processing.
+	 */
 	if (oentry != NULL) {
 		dns_catz_entry_detach(target, &oentry);
 		result = isc_ht_delete(target->entries, key, (uint32_t)keysize);
