@@ -1887,6 +1887,7 @@ static cfg_tuplefielddef_t catz_zone_fields[] = {
 	{ "default-masters", &cfg_type_namesockaddrkeylist,
 	  CFG_CLAUSEFLAG_NODOC },
 	{ "default-primaries", &cfg_type_namesockaddrkeylist, 0 },
+	{ "allowed-member-zones", &cfg_type_namelist, 0 },
 	{ "zone-directory", &cfg_type_qstring, 0 },
 	{ "in-memory", &cfg_type_boolean, 0 },
 	{ "min-update-interval", &cfg_type_duration, 0 },

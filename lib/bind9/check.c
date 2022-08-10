@@ -5007,7 +5007,7 @@ static isc_result_t
 check_catz(const cfg_obj_t *catz_obj, const char *viewname, isc_mem_t *mctx,
 	   isc_log_t *logctx) {
 	const cfg_listelt_t *element;
-	const cfg_obj_t *obj, *nameobj, *primariesobj;
+	const cfg_obj_t *obj, *nameobj, *primariesobj, *allowedzonesobj;
 	const char *zonename;
 	const char *forview = " for view ";
 	isc_result_t result, tresult;
@@ -5069,6 +5069,58 @@ check_catz(const cfg_obj_t *catz_obj, const char *viewname, isc_mem_t *mctx,
 					    zonename, forview, viewname);
 				result = ISC_R_FAILURE;
 				break;
+			}
+		}
+
+		allowedzonesobj = cfg_tuple_get(obj, "allowed-member-zones");
+		if (allowedzonesobj != NULL && cfg_obj_islist(allowedzonesobj))
+		{
+			const cfg_listelt_t *el;
+
+			for (el = cfg_list_first(allowedzonesobj); el != NULL;
+			     el = cfg_list_next(el)) {
+				const char *mznamestr, *mznamefinalstr;
+				dns_fixedname_t fixed_mzname;
+				isc_buffer_t b;
+				dns_name_t *mzname;
+
+				nameobj = cfg_listelt_value(el);
+				mznamestr = cfg_obj_asstring(nameobj);
+
+				/* The name can be negated. */
+				if (*mznamestr == '!') {
+					mznamefinalstr = mznamestr + 1;
+				} else {
+					mznamefinalstr = mznamestr;
+				}
+
+				/* Check if the name is empty. */
+				if (strlen(mznamefinalstr) == 0) {
+					cfg_obj_log(nameobj, logctx,
+						    ISC_LOG_ERROR,
+						    "allowed-member-zones '%s' "
+						    "is not a valid entry (%s)",
+						    mznamestr, "empty name");
+					result = ISC_R_FAILURE;
+					continue;
+				}
+
+				/* Check if the name is a valid DNS name. */
+				isc_buffer_constinit(&b, mznamefinalstr,
+						     strlen(mznamefinalstr));
+				isc_buffer_add(&b, strlen(mznamefinalstr));
+				mzname = dns_fixedname_initname(&fixed_mzname);
+				tresult = dns_name_fromtext(
+					mzname, &b, dns_rootname, 0, NULL);
+				if (tresult != ISC_R_SUCCESS) {
+					cfg_obj_log(nameobj, logctx,
+						    ISC_LOG_ERROR,
+						    "allowed-member-zones '%s' "
+						    "is not a valid entry (%s)",
+						    mznamestr, "invalid name");
+					result = ISC_R_FAILURE;
+					continue;
+				}
 			}
 		}
 	}
