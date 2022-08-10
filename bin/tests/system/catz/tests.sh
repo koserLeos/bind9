@@ -658,7 +658,7 @@ nextpart ns2/named.run >/dev/null
 n=$((n+1))
 echo_i "reconfiguring secondary - checking if catz survives a certain class of failed reconfiguration attempts ($n)"
 ret=0
-sed -e "s/^#T3//" < ns2/named1.conf.in > ns2/named.conf.tmp
+sed -e "s/^#T4//" < ns2/named1.conf.in > ns2/named.conf.tmp
 copy_setports ns2/named.conf.tmp ns2/named.conf
 $RNDC -c ../common/rndc.conf -s 10.53.0.2 -p "${CONTROLPORT}" reconfig > /dev/null 2>&1 && ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
@@ -2503,6 +2503,155 @@ ret=0
 wait_for_no_soa @10.53.0.2 dom18.example. dig.out.test$n || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
+
+##########################################################################
+echo_i "Testing the allowed-member-zones option"
+
+n=$((n+1))
+echo_i "adding domain not-allowed.example. to primary ns1 via RNDC ($n)"
+ret=0
+echo "@ 3600 IN SOA . . 1 3600 3600 3600 3600" > ns1/not-allowed.example.db
+echo "@ IN NS invalid." >> ns1/not-allowed.example.db
+echo "@ IN A 192.0.2.1" >> ns1/not-allowed.example.db
+rndccmd 10.53.0.1 addzone not-allowed.example. in default '{type primary; file "not-allowed.example.db";};' || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "adding domain not-listed.example. to primary ns1 via RNDC ($n)"
+ret=0
+echo "@ 3600 IN SOA . . 1 3600 3600 3600 3600" > ns1/not-listed.example.db
+echo "@ IN NS invalid." >> ns1/not-listed.example.db
+echo "@ IN A 192.0.2.1" >> ns1/not-listed.example.db
+rndccmd 10.53.0.1 addzone not-listed.example. in default '{type primary; file "not-listed.example.db";};' || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "adding domain not-allowed-after-allowed.example. to primary ns1 via RNDC ($n)"
+ret=0
+echo "@ 3600 IN SOA . . 1 3600 3600 3600 3600" > ns1/not-allowed-after-allowed.example.db
+echo "@ IN NS invalid." >> ns1/not-allowed-after-allowed.example.db
+echo "@ IN A 192.0.2.1" >> ns1/not-allowed-after-allowed.example.db
+rndccmd 10.53.0.1 addzone not-allowed-after-allowed.example. in default '{type primary; file "not-allowed-after-allowed.example.db";};' || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "checking that not-allowed.example. is served by primary ns1 ($n)"
+ret=0
+wait_for_soa @10.53.0.1 not-allowed.example. dig.out.test$n || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "checking that not-listed.example. is served by primary ns1 ($n)"
+ret=0
+wait_for_soa @10.53.0.1 not-listed.example. dig.out.test$n || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "checking that not-allowed-after-allowed.example. is served by primary ns1 ($n)"
+ret=0
+wait_for_soa @10.53.0.1 not-listed.example. dig.out.test$n || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "adding domain not-allowed.example. to catalog1 zone ($n)"
+ret=0
+$NSUPDATE -d <<END >> nsupdate.out.test$n 2>&1 || ret=1
+    server 10.53.0.1 ${PORT}
+    update add not-allowed.zones.catalog1.example. 3600 IN PTR not-allowed.example.
+    send
+END
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "adding domain not-listed.example. to catalog2 zone ($n)"
+ret=0
+$NSUPDATE -d <<END >> nsupdate.out.test$n 2>&1 || ret=1
+    server 10.53.0.3 ${PORT}
+    update add not-listed.zones.catalog2.example. 3600 IN PTR not-listed.example.
+    send
+END
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "adding domain not-allowed-after-allowed.example. to catalog6 zone ($n)"
+ret=0
+$NSUPDATE -d <<END >> nsupdate.out.test$n 2>&1 || ret=1
+    server 10.53.0.1 ${PORT}
+    update add not-allowed-after-allowed.zones.catalog6.example. 3600 IN PTR not-allowed-after-allowed.example.
+    send
+END
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "waiting for secondary to sync up ($n)"
+ret=0
+wait_for_message ns2/named.run "catz: iterating over 'not-allowed.example' from catalog 'catalog1.example'" || ret=30
+wait_for_message ns2/named.run "catz: iterating over 'not-listed.example' from catalog 'catalog2.example'"  || ret=40
+wait_for_message ns2/named.run "catz: iterating over 'not-allowed-after-allowed.example' from catalog 'catalog6.example'"  || ret=50
+wait_for_message ns2/named.run "catz: zone 'not-allowed.example' from catalog 'catalog1.example' is not allowed, ignoring"  || ret=60
+wait_for_message ns2/named.run "catz: zone 'not-listed.example' from catalog 'catalog2.example' is not allowed, ignoring"  || ret=80
+wait_for_message ns2/named.run "catz: adding zone 'not-allowed-after-allowed.example' from catalog 'catalog6.example'"  || ret=90
+wait_for_message ns2/named.run "transfer of 'not-allowed-after-allowed.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=100
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "checking that not-allowed.example. is not served by ns2 ($n)"
+ret=0
+wait_for_no_soa @10.53.0.2 not-allowed.example. dig.out.test$n || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "checking that not-listed.example. is not served by ns2 ($n)"
+ret=0
+wait_for_no_soa @10.53.0.2 not-listed.example. dig.out.test$n || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "checking that not-allowed-after-allowed.example. is served by ns2 ($n)"
+ret=0
+wait_for_soa @10.53.0.2 not-allowed-after-allowed.example. dig.out.test$n || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+nextpart ns2/named.run >/dev/null
+
+n=$((n+1))
+echo_i "reconfiguring secondary - adding full restriction for catalog6 catalog zone ($n)"
+ret=0
+sed -e "s/^#T3//" < ns2/named1.conf.in > ns2/named.conf.tmp
+copy_setports ns2/named.conf.tmp ns2/named.conf
+rndccmd 10.53.0.2 reconfig || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "waiting for secondary to sync up ($n)"
+ret=0
+wait_for_message ns2/named.run "catz: iterating over 'not-allowed-after-allowed.example' from catalog 'catalog6.example'" &&
+wait_for_message ns2/named.run "catz: zone 'not-allowed-after-allowed.example' from catalog 'catalog6.example' is no longer allowed, ignoring" || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+n=$((n+1))
+echo_i "checking that not-allowed-after-allowed.example. is not served by ns2 ($n)"
+ret=0
+wait_for_no_soa @10.53.0.2 not-allowed-after-allowed.example. dig.out.test$n || ret=1
+if [ $ret -ne 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
+nextpart ns2/named.run >/dev/null
 
 ##########################################################################
 n=$((n+1))

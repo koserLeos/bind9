@@ -77,6 +77,14 @@ view "default" {
 		primaries { 10.53.0.1; };
 	};
 
+	/* catalog5 is missing on purpose */
+
+	zone "catalog6.example" {
+		type secondary;
+		file "catalog5.example.db";
+		primaries { 10.53.0.1; };
+	};
+
 	# No "version" property
 	zone "catalog-bad1.example" {
 		type secondary;

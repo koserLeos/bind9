@@ -44,11 +44,13 @@ view "default" {
 			default-masters { 10.53.0.1; }
 			min-update-interval 1s
 			in-memory no
-			zone-directory "zonedir";
+			zone-directory "zonedir"
+			allowed-member-zones { "*.example"; "!not-allowed.example."; };
 		zone "catalog2.example"
 			default-primaries { 10.53.0.1 port @EXTRAPORT1@; }
 			min-update-interval 1s
-			in-memory yes;
+			in-memory yes
+			allowed-member-zones { "dom2.example."; "dom4.example"; dom4-reused-label.example; dom13.example; dom14.example.; dom17.example; dom18.example; };
 		zone "catalog3.example"
 			default-masters { 10.53.0.1; }
 			min-update-interval 1s
@@ -59,6 +61,9 @@ view "default" {
 #T2		zone "catalog5.example"
 #T2			min-update-interval 1s
 #T2			default-primaries { 10.53.0.1; };
+		zone "catalog6.example"
+#T3			allowed-member-zones { }
+			default-primaries { 10.53.0.1; };
 		zone "catalog-bad1.example"
 			default-masters { 10.53.0.1; }
 			min-update-interval 1s
@@ -81,9 +86,9 @@ view "default" {
 	# of failed configuration attempts (see GL#3060).
 	# We use "dlz" because the dlz processing code is located in an ideal place in
 	# the view configuration function for the test to cover the view reverting code.
-#T3	dlz "bad-dlz" {
-#T3		database "dlopen bad-dlz.so example.org";
-#T3	};
+#T4	dlz "bad-dlz" {
+#T4		database "dlopen bad-dlz.so example.org";
+#T4	};
 
 	zone "dom-existing.example" {
 	    type primary;
@@ -123,6 +128,14 @@ view "default" {
 	zone "catalog4.example" {
 		type secondary;
 		file "catalog4.example.db";
+		primaries { 10.53.0.1; };
+	};
+
+	/* catalog5 is missing on purpose */
+
+	zone "catalog6.example" {
+		type secondary;
+		file "catalog5.example.db";
 		primaries { 10.53.0.1; };
 	};
 

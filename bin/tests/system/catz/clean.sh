@@ -18,6 +18,7 @@ rm -f ns*/named.memstats
 rm -f ns*/named.conf
 rm -f ns*/named.run
 rm -f ns*/named.run.prev
+rm -f ns1/not-*example.db
 rm -f ns1/*dom*example.db
 rm -f ns2/__catz__*db
 rm -f ns2/catalog-bad*.db
