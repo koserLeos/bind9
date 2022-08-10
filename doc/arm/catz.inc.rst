@@ -95,6 +95,7 @@ Catalog zones are configured with a :any:`catalog-zones` statement in the
    catalog-zones {
        zone "catalog.example"
             default-primaries { 10.53.0.1; }
+            allowed-member-zones { "*.example.com"; "example.com"; "!www.example.com"; };
             in-memory no
             zone-directory "catzones"
             min-update-interval 10;
@@ -115,6 +116,14 @@ specified in any order.
    zones listed in a catalog zone, and can be overridden by options within
    a catalog zone. If no such options are included, then member zones
    transfer their contents from the servers listed in this option.
+
+``allowed-member-zones``
+   This option defines a list with the allowed member zone names which can be
+   configured by the catalog zone. If a specified name is a wildcard, it is
+   subject to DNS wildcard expansion. The elements can be negated with a
+   leading exclamation mark (``!``). The negated elements have more weight than
+   the normal elements. If not specified, the default is to allow member zones
+   with any name. An empty list means no name is allowed.
 
 ``in-memory``
    This option, if set to ``yes``, causes member zones to be
