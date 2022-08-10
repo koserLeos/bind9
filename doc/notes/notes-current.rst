@@ -25,7 +25,9 @@ Known Issues
 New Features
 ~~~~~~~~~~~~
 
-- None.
+- Implement a new catalog zones configuration option ``allowed-member-zones``,
+  which lets to restrict the allowed member zone names for a given catalog zone.
+  It is possible to use wildcard and negated names in the list. :gl:`#751`
 
 - A new configuration option ``require-cookie`` has been introduced, it
   specifies if there should be a DNS COOKIE in the response for a given
