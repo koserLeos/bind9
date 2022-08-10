@@ -3147,6 +3147,52 @@ configure_catz_zone(dns_view_t *view, dns_view_t *pview,
 		opts->masters = masters;
 	}
 
+	obj = cfg_tuple_get(catz_obj, "allowed-member-zones");
+	if (obj != NULL && cfg_obj_islist(obj)) {
+		const cfg_listelt_t *el;
+
+		for (el = cfg_list_first(obj); el != NULL;
+		     el = cfg_list_next(el)) {
+			isc_result_t tresult;
+			const cfg_obj_t *mznameobj;
+			const char *mznamestr;
+			dns_fixedname_t fixed_mzname;
+			isc_buffer_t b;
+			dns_name_t *mzname;
+			bool neg = false;
+
+			mznameobj = cfg_listelt_value(el);
+			mznamestr = cfg_obj_asstring(mznameobj);
+
+			/* The name can be negated. */
+			if (*mznamestr == '!') {
+				neg = true;
+				mznamestr++;
+			}
+
+			/*
+			 * Check if the name can be converted to a valid DNS
+			 * name, and if true, then add it to the allowed member
+			 * zones list.
+			 */
+			if (strlen(mznamestr) == 0) {
+				continue;
+			}
+			isc_buffer_constinit(&b, mznamestr, strlen(mznamestr));
+			isc_buffer_add(&b, strlen(mznamestr));
+			mzname = dns_fixedname_initname(&fixed_mzname);
+			tresult = dns_name_fromtext(mzname, &b, dns_rootname, 0,
+						    NULL);
+			if (tresult != ISC_R_SUCCESS) {
+				continue;
+			}
+			dns_catz_allowlist_addname(zone, opts->allowlist,
+						   mzname, neg);
+		}
+	} else {
+		dns_catz_allowlist_setdefault(zone, opts->allowlist);
+	}
+
 	obj = cfg_tuple_get(catz_obj, "in-memory");
 	if (obj != NULL && cfg_obj_isboolean(obj)) {
 		opts->in_memory = cfg_obj_asboolean(obj);

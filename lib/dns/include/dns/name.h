@@ -132,6 +132,7 @@ struct dns_name {
 #define DNS_NAMEATTR_PREREQUISITE 0x00004000 /*%< Used by client. */
 #define DNS_NAMEATTR_UPDATE	  0x00008000 /*%< Used by client. */
 #define DNS_NAMEATTR_HASUPDATEREC 0x00010000 /*%< Used by client. */
+#define DNS_NAMEATTR_NEG	  0x00020000 /*%< Used by catz. */
 
 /*
  * Various flags.

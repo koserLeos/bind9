@@ -45,6 +45,7 @@ typedef struct dns_catz_entry	       dns_catz_entry_t;
 typedef struct dns_catz_coo	       dns_catz_coo_t;
 typedef struct dns_catz_zone	       dns_catz_zone_t;
 typedef struct dns_catz_changed	       dns_catz_changed_t;
+typedef struct dns_catz_allowlist      dns_catz_allowlist_t;
 typedef struct dns_catz_zones	       dns_catz_zones_t;
 typedef struct dns_client	       dns_client_t;
 typedef void			       dns_clientrestrans_t;

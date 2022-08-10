@@ -26,6 +26,7 @@
 #include <dns/db.h>
 #include <dns/fixedname.h>
 #include <dns/ipkeylist.h>
+#include <dns/name.h>
 #include <dns/rdata.h>
 #include <dns/types.h>
 
@@ -70,6 +71,9 @@ struct dns_catz_entry_options {
 	 * postponed. This is a global option for the whole catalog zone.
 	 */
 	uint32_t min_update_interval;
+
+	/* Allowed member zone names; NULL means everything is allowed. */
+	dns_catz_allowlist_t *allowlist;
 };
 
 void
@@ -113,6 +117,34 @@ dns_catz_options_setdefault(isc_mem_t *mctx, const dns_catz_options_t *defaults,
  * \li	'mctx' to be a valid memory context.
  * \li	'defaults' to be non NULL and valid options.
  * \li	'opts' to be non NULL.
+ */
+
+void
+dns_catz_allowlist_addname(const dns_catz_zone_t *zone,
+			   dns_catz_allowlist_t *alist, const dns_name_t *name,
+			   const bool neg);
+/*%<
+ * Add a dynamically allocated copy of 'name' (can be wildcard) to the allowed
+ * member zones list 'alist' belonging to catalog zone 'zone'. When 'neg' is
+ * true, it negates the meaning of the check, i.e. the name becomes not
+ * allowed, potentially overriding an existing wildcard entry.
+ *
+ * Requires:
+ * \li	'zone' is a valid dns_catz_zone_t.
+ * \li	'alist' is a valid dns_catz_allowlist_t.
+ * \li	'name' is a valid dns_name_t.
+ */
+
+void
+dns_catz_allowlist_setdefault(const dns_catz_zone_t *zone,
+			      dns_catz_allowlist_t  *alist);
+/*%<
+ * Set the allowed member zones list 'alist' to a default value of allowing
+ * all names.
+ *
+ * Requires:
+ * \li	'zone' is a valid dns_catz_zone_t.
+ * \li	'alist' is a valid dns_catz_allowlist_t.
  */
 
 dns_name_t *

@@ -30,6 +30,7 @@
 #include <dns/catz.h>
 #include <dns/dbiterator.h>
 #include <dns/events.h>
+#include <dns/name.h>
 #include <dns/rdatasetiter.h>
 #include <dns/view.h>
 #include <dns/zone.h>
@@ -38,11 +39,13 @@
 #define DNS_CATZ_ZONES_MAGIC ISC_MAGIC('c', 'a', 't', 's')
 #define DNS_CATZ_ENTRY_MAGIC ISC_MAGIC('c', 'a', 't', 'e')
 #define DNS_CATZ_COO_MAGIC   ISC_MAGIC('c', 'a', 't', 'c')
+#define DNS_CATZ_ALIST_MAGIC ISC_MAGIC('c', 'a', 't', 'a')
 
 #define DNS_CATZ_ZONE_VALID(catz)   ISC_MAGIC_VALID(catz, DNS_CATZ_ZONE_MAGIC)
 #define DNS_CATZ_ZONES_VALID(catzs) ISC_MAGIC_VALID(catzs, DNS_CATZ_ZONES_MAGIC)
 #define DNS_CATZ_ENTRY_VALID(entry) ISC_MAGIC_VALID(entry, DNS_CATZ_ENTRY_MAGIC)
 #define DNS_CATZ_COO_VALID(coo)	    ISC_MAGIC_VALID(coo, DNS_CATZ_COO_MAGIC)
+#define DNS_CATZ_ALIST_VALID(alist) ISC_MAGIC_VALID(alist, DNS_CATZ_ALIST_MAGIC)
 
 #define DNS_CATZ_VERSION_UNDEFINED ((uint32_t)(-1))
 
@@ -131,6 +134,101 @@ struct dns_catz_zones {
 	isc_task_t *updater;
 };
 
+/*%
+ * Allowed member zone names
+ */
+struct dns_catz_allowlist {
+	unsigned int magic;
+	dns_namelist_t names;
+	bool allow_all;
+	isc_refcount_t refs;
+};
+
+static void
+catz_allowlist_new(isc_mem_t *mctx, dns_catz_allowlist_t **alistp) {
+	dns_catz_allowlist_t *alist;
+
+	REQUIRE(mctx != NULL);
+	REQUIRE(alistp != NULL && *alistp == NULL);
+
+	alist = isc_mem_get(mctx, sizeof(dns_catz_allowlist_t));
+	ISC_LIST_INIT(alist->names);
+	isc_refcount_init(&alist->refs, 1);
+	alist->allow_all = false;
+	alist->magic = DNS_CATZ_ALIST_MAGIC;
+	*alistp = alist;
+}
+
+static void
+catz_allowlist_clear(dns_catz_allowlist_t *alist, isc_mem_t *mctx) {
+	dns_name_t *name = NULL;
+
+	while ((name = ISC_LIST_HEAD(alist->names)) != NULL) {
+		ISC_LIST_UNLINK(alist->names, name, link);
+		dns_name_free(name, mctx);
+		isc_mem_put(mctx, name, sizeof(*name));
+	}
+	alist->allow_all = false;
+}
+
+static void
+catz_allowlist_attach(dns_catz_allowlist_t *alist,
+		      dns_catz_allowlist_t **alistp) {
+	REQUIRE(DNS_CATZ_ALIST_VALID(alist));
+	REQUIRE(alistp != NULL && *alistp == NULL);
+
+	isc_refcount_increment(&alist->refs);
+	*alistp = alist;
+}
+
+static void
+catz_allowlist_detach(dns_catz_allowlist_t **alistp, isc_mem_t *mctx) {
+	dns_catz_allowlist_t *alist;
+
+	REQUIRE(alistp != NULL && DNS_CATZ_ALIST_VALID(*alistp));
+	REQUIRE(mctx != NULL);
+	alist = *alistp;
+	*alistp = NULL;
+
+	if (isc_refcount_decrement(&alist->refs) == 1) {
+		catz_allowlist_clear(alist, mctx);
+		alist->magic = 0;
+		isc_refcount_destroy(&alist->refs);
+		isc_mem_put(mctx, alist, sizeof(dns_catz_allowlist_t));
+	}
+}
+
+void
+dns_catz_allowlist_addname(const dns_catz_zone_t *zone,
+			   dns_catz_allowlist_t *alist, const dns_name_t *name,
+			   const bool neg) {
+	dns_name_t *dname;
+
+	REQUIRE(DNS_CATZ_ZONE_VALID(zone));
+	REQUIRE(DNS_CATZ_ALIST_VALID(alist));
+	REQUIRE(name != NULL);
+
+	dname = isc_mem_get(zone->catzs->mctx, sizeof(*dname));
+	dns_name_init(dname, NULL);
+	dns_name_dup(name, zone->catzs->mctx, dname);
+
+	if (neg) {
+		dname->attributes |= DNS_NAMEATTR_NEG;
+	}
+
+	ISC_LIST_APPEND(alist->names, dname, link);
+}
+
+void
+dns_catz_allowlist_setdefault(const dns_catz_zone_t *zone,
+			      dns_catz_allowlist_t *alist) {
+	REQUIRE(DNS_CATZ_ZONE_VALID(zone));
+	REQUIRE(DNS_CATZ_ALIST_VALID(alist));
+
+	catz_allowlist_clear(alist, zone->catzs->mctx);
+	alist->allow_all = true;
+}
+
 void
 dns_catz_options_init(dns_catz_options_t *options) {
 	REQUIRE(options != NULL);
@@ -146,6 +244,8 @@ dns_catz_options_init(dns_catz_options_t *options) {
 	options->in_memory = false;
 	options->min_update_interval = 5;
 	options->zonedir = NULL;
+
+	options->allowlist = NULL;
 }
 
 void
@@ -166,6 +266,9 @@ dns_catz_options_free(dns_catz_options_t *options, isc_mem_t *mctx) {
 	if (options->allow_transfer != NULL) {
 		isc_buffer_free(&options->allow_transfer);
 	}
+	if (options->allowlist != NULL) {
+		catz_allowlist_detach(&options->allowlist, mctx);
+	}
 }
 
 void
@@ -177,6 +280,7 @@ dns_catz_options_copy(isc_mem_t *mctx, const dns_catz_options_t *src,
 	REQUIRE(dst->masters.count == 0);
 	REQUIRE(dst->allow_query == NULL);
 	REQUIRE(dst->allow_transfer == NULL);
+	REQUIRE(dst->allowlist == NULL);
 
 	if (src->masters.count != 0) {
 		dns_ipkeylist_copy(mctx, &src->masters, &dst->masters);
@@ -197,6 +301,10 @@ dns_catz_options_copy(isc_mem_t *mctx, const dns_catz_options_t *src,
 
 	if (src->allow_transfer != NULL) {
 		isc_buffer_dup(mctx, &dst->allow_transfer, src->allow_transfer);
+	}
+
+	if (src->allowlist != NULL) {
+		catz_allowlist_attach(src->allowlist, &dst->allowlist);
 	}
 }
 
@@ -223,8 +331,19 @@ dns_catz_options_setdefault(isc_mem_t *mctx, const dns_catz_options_t *defaults,
 			       defaults->allow_transfer);
 	}
 
-	/* This option is always taken from config, so it's always 'default' */
+	/*
+	 * The following options are always taken from config, so they are
+	 * always 'default'.
+	 */
+
 	opts->in_memory = defaults->in_memory;
+
+	if (opts->allowlist != NULL) {
+		catz_allowlist_detach(&opts->allowlist, mctx);
+	}
+	if (defaults->allowlist != NULL) {
+		catz_allowlist_attach(defaults->allowlist, &opts->allowlist);
+	}
 }
 
 static void
@@ -407,6 +526,40 @@ dns_catz_entry_cmp(const dns_catz_entry_t *ea, const dns_catz_entry_t *eb) {
 		}
 	}
 
+	/* Make similar checks with allowlist */
+	if ((ea->opts.allowlist == NULL) != (eb->opts.allowlist == NULL)) {
+		return (false);
+	}
+
+	/* If one is non-NULL, then they both are */
+	if (ea->opts.allowlist != NULL) {
+		dns_name_t *namea, *nameb;
+
+		if (ea->opts.allowlist->allow_all !=
+		    eb->opts.allowlist->allow_all) {
+			return (false);
+		}
+
+		namea = ISC_LIST_HEAD(ea->opts.allowlist->names);
+		nameb = ISC_LIST_HEAD(eb->opts.allowlist->names);
+		do {
+			if ((namea == NULL) != (nameb == NULL)) {
+				return (false);
+			}
+
+			/* If one is non-NULL, then they both are */
+			if (namea != NULL) {
+				if (!dns_name_equal(namea, nameb) ||
+				    namea->attributes != nameb->attributes) {
+					return (false);
+				}
+				namea = ISC_LIST_NEXT(namea, link);
+				nameb = ISC_LIST_NEXT(nameb, link);
+			}
+
+		} while (namea != NULL || nameb != NULL);
+	}
+
 	/* xxxwpk TODO compare dscps! */
 	return (true);
 }
@@ -431,6 +584,7 @@ dns_catz_zone_resetdefoptions(dns_catz_zone_t *zone) {
 
 	dns_catz_options_free(&zone->defoptions, zone->catzs->mctx);
 	dns_catz_options_init(&zone->defoptions);
+	catz_allowlist_new(zone->catzs->mctx, &zone->defoptions.allowlist);
 }
 
 isc_result_t
