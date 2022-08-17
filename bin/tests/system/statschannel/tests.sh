@@ -388,5 +388,28 @@ if [ $ret != 0 ]; then echo_i "failed"; fi
 status=`expr $status + $ret`
 n=`expr $n + 1`
 
+echo_i "Check pipelined responses do not grow excessively ($n)"
+ret=0
+i=0
+if [ -x "${NC}" ] ; then
+    {
+        while test $i -lt 10; do
+            printf "GET /json/v1 HTTP/1.1\r\nHost: 10.53.0.3:%s\r\nAccept-Encoding: deflate, gzip, br, zstd\r\n\r\n" "${EXTRAPORT1}"
+            i=$((i + 1))
+        done
+    } | ${NC} 10.53.0.3 ${EXTRAPORT1} | grep -a Content-Length |
+        awk 'BEGIN { prev=0; }
+             { if (prev != 0 && $2 - prev > 100) {
+                   exit(1);
+               }
+               prev = $2;
+             }' || ret=1
+else
+    echo_i "skipping test as nc not found"
+fi
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+n=$((n + 1))
+
 echo_i "exit status: $status"
 [ $status -eq 0 ] || exit 1
