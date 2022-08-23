@@ -596,22 +596,18 @@ tcp_connect(isc_nm_t *nm) {
 			  connect_connect_cb, NULL, T_CONNECT);
 }
 
-#if HAVE_LIBNGHTTP2
 static void
 tls_connect(isc_nm_t *nm) {
 	isc_nm_tlsconnect(nm, &tcp_connect_addr, &tcp_listen_addr,
 			  connect_connect_cb, NULL, tcp_connect_tlsctx,
 			  tcp_tlsctx_client_sess_cache, T_CONNECT);
 }
-#endif
 
 stream_connect_function
 get_stream_connect_function(void) {
-#if HAVE_LIBNGHTTP2
 	if (stream_use_TLS) {
 		return (tls_connect);
 	}
-#endif
 	return (tcp_connect);
 }
 
@@ -620,7 +616,6 @@ stream_listen(isc_nm_accept_cb_t accept_cb, void *accept_cbarg, int backlog,
 	      isc_quota_t *quota, isc_nmsocket_t **sockp) {
 	isc_result_t result = ISC_R_SUCCESS;
 
-#if HAVE_LIBNGHTTP2
 	if (stream_use_TLS) {
 		result = isc_nm_listentls(listen_nm, ISC_NM_LISTEN_ALL,
 					  &tcp_listen_addr, accept_cb,
@@ -628,7 +623,6 @@ stream_listen(isc_nm_accept_cb_t accept_cb, void *accept_cbarg, int backlog,
 					  tcp_listen_tlsctx, sockp);
 		return (result);
 	}
-#endif
 	result = isc_nm_listentcp(listen_nm, ISC_NM_LISTEN_ALL,
 				  &tcp_listen_addr, accept_cb, accept_cbarg,
 				  backlog, quota, sockp);
@@ -639,7 +633,7 @@ stream_listen(isc_nm_accept_cb_t accept_cb, void *accept_cbarg, int backlog,
 void
 stream_connect(isc_nm_cb_t cb, void *cbarg, unsigned int timeout) {
 	isc_refcount_increment0(&active_cconnects);
-#if HAVE_LIBNGHTTP2
+
 	if (stream_use_TLS) {
 		isc_nm_tlsconnect(connect_nm, &tcp_connect_addr,
 				  &tcp_listen_addr, cb, cbarg,
@@ -647,7 +641,6 @@ stream_connect(isc_nm_cb_t cb, void *cbarg, unsigned int timeout) {
 				  tcp_tlsctx_client_sess_cache, timeout);
 		return;
 	}
-#endif
 	isc_nm_tcpconnect(connect_nm, &tcp_connect_addr, &tcp_listen_addr, cb,
 			  cbarg, timeout);
 }
