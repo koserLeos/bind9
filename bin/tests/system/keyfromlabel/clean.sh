@@ -20,7 +20,7 @@ rm -f K*
 rm -f pin
 rm -f dsset-*
 rm -f *.example.db *.example.db.signed
-rm -f keyfromlabel.out.*
+rm -f keyfromlabel.out.* keyfromlabel.err.*
 rm -f pkcs11-tool.out.*
 rm -f signer.out.*
 rm -f softhsm2.err.* softhsm2.out.*
