@@ -198,6 +198,36 @@ AC_ARG_ENABLE(buffer_useinline,
 	      fi,
 	      AC_DEFINE([ISC_BUFFER_USEINLINE], [1]))
 
+# rr chaos mode is not included in pairwise testing as rr is not
+# present in the relevant Docker image.
+AC_ARG_ENABLE([rr-chaos-mode],
+	      [AS_HELP_STRING([--enable-rr-chaos-mode],
+			      [Use rr chaos mode to find intermittent bugs (default=no)])],
+	      [],
+	      [enable_rr_chaos_mode=no])
+
+TEST_TOOL_PREFIX=
+AC_MSG_CHECKING([whether to enable rr chaos mode])
+AS_CASE([$enable_rr_chaos_mode],
+	[no],[AC_MSG_RESULT([no])],
+	[yes],[
+	  AC_MSG_RESULT([yes])
+	  TEST_TOOL_PREFIX="rr record -h"
+	],
+	[valgrind],[
+	  AC_MSG_RESULT([valgrind])
+	  TEST_TOOL_PREFIX="valgrind -q --gen-suppressions=all --num-callers=48 --fullpath-after= --log-file=named-$server-valgrind-%p.log --tool=memcheck --track-origins=yes --leak-check=full"
+	],
+	[helgrind],[
+	  AC_MSG_RESULT([helgrind])
+	  TEST_TOOL_PREFIX="valgrind -q --gen-suppressions=all --num-callers=48 --fullpath-after= --log-file=named-$server-valgrind-%p.log --tool=helgrind"
+	],
+	[
+	  AC_MSG_RESULT([yes, $enable_rr_chaos_mode])
+	  TEST_TOOL_PREFIX="$enable_rr_chaos_mode"
+	])
+AC_SUBST([TEST_TOOL_PREFIX])
+
 # Fuzzing is not included in pairwise testing as fuzzing tools are
 # not present in the relevant Docker image.
 #
