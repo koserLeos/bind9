@@ -1,3 +1,7 @@
+5972.	[bug]		Fix an assertion failure in dispatch caused by
+			receiving extra UDP datagram between the current
+			read callback and stopping the reading. [GL #3545]
+
 5971.	[func]		Add libsystemd sd_notify() support. [GL #1176]
 
 5970.	[func]		Log the reason why a query was refused. [GL !6669]
