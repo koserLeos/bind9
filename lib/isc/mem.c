@@ -64,7 +64,7 @@
 #define MCTXUNLOCK(m) UNLOCK(&m->lock)
 
 #ifndef ISC_MEM_DEBUGGING
-#define ISC_MEM_DEBUGGING 0
+#define ISC_MEM_DEBUGGING ISC_MEM_DEBUGRECORD
 #endif /* ifndef ISC_MEM_DEBUGGING */
 unsigned int isc_mem_debugging = ISC_MEM_DEBUGGING;
 unsigned int isc_mem_defaultflags = ISC_MEMFLAG_DEFAULT;
@@ -1749,7 +1749,8 @@ error:
 
 void
 isc__mem_create(isc_mem_t **mctxp FLARG) {
-	mem_create(mctxp, isc_mem_debugging, isc_mem_defaultflags);
+	mem_create(mctxp, isc_mem_debugging | ISC_MEM_DEBUGRECORD,
+		   isc_mem_defaultflags);
 #if ISC_MEM_TRACKLINES
 	if ((isc_mem_debugging & ISC_MEM_DEBUGTRACE) != 0) {
 		fprintf(stderr, "create mctx %p file %s line %u\n", *mctxp,
