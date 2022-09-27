@@ -1583,6 +1583,8 @@ main(int argc, char *argv[]) {
 	isc_managers_destroy(&named_g_mctx, &named_g_loopmgr, &named_g_netmgr,
 			     &named_g_taskmgr);
 
+	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
+
 #if ENABLE_LEAK_DETECTION
 	isc__tls_setdestroycheck(true);
 	isc__uv_setdestroycheck(true);

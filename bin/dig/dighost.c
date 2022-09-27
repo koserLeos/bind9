@@ -4705,6 +4705,8 @@ destroy_libs(void) {
 
 	isc_managers_destroy(&mctx, &loopmgr, &netmgr, &taskmgr);
 
+	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
+
 #if ENABLE_LEAK_DETECTION
 	isc__tls_setdestroycheck(true);
 	isc__uv_setdestroycheck(true);
