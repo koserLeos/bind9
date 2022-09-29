@@ -63,9 +63,12 @@ isc__ratelimiter_doshutdown(void *arg);
 void
 isc_ratelimiter_create(isc_loop_t *loop, isc_ratelimiter_t **rlp) {
 	isc_ratelimiter_t *rl = NULL;
-	isc_mem_t *mctx = isc_loop_getmctx(loop);
+	isc_mem_t *mctx;
 
-	INSIST(rlp != NULL && *rlp == NULL);
+	REQUIRE(loop != NULL);
+	REQUIRE(rlp != NULL && *rlp == NULL);
+
+	mctx = isc_loop_getmctx(loop);
 
 	rl = isc_mem_get(mctx, sizeof(*rl));
 	*rl = (isc_ratelimiter_t){
