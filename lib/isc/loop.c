@@ -233,7 +233,9 @@ loop_init(isc_loop_t *loop, isc_loopmgr_t *loopmgr, size_t tid) {
 	UV_RUNTIME_CHECK(uv_async_init, r);
 	uv_handle_set_data(&loop->destroy_trigger, loop);
 
+	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
 	isc_mem_create(&loop->mctx);
+	isc_mem_debugging = 0;
 
 	isc_mutex_init(&loop->queue_lock);
 

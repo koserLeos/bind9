@@ -52,14 +52,23 @@ struct isc_ratelimiter {
 };
 
 static void
-ratelimiter_tick(void *arg);
+isc__ratelimiter_tick(void *arg);
 
-isc_result_t
-isc_ratelimiter_create(isc_loop_t *loop, isc_ratelimiter_t **ratelimiterp) {
+static void
+isc__ratelimiter_start(void *arg);
+
+static void
+isc__ratelimiter_doshutdown(void *arg);
+
+void
+isc_ratelimiter_create(isc_loop_t *loop, isc_ratelimiter_t **rlp) {
 	isc_ratelimiter_t *rl = NULL;
-	isc_mem_t *mctx = isc_loop_getmctx(loop);
+	isc_mem_t *mctx;
 
-	INSIST(ratelimiterp != NULL && *ratelimiterp == NULL);
+	REQUIRE(loop != NULL);
+	REQUIRE(rlp != NULL && *rlp == NULL);
+
+	mctx = isc_loop_getmctx(loop);
 
 	rl = isc_mem_get(mctx, sizeof(*rl));
 	*rl = (isc_ratelimiter_t){
@@ -74,10 +83,11 @@ isc_ratelimiter_create(isc_loop_t *loop, isc_ratelimiter_t **ratelimiterp) {
 	isc_interval_set(&rl->interval, 0, 0);
 	ISC_LIST_INIT(rl->pending);
 
+	isc_timer_create(rl->loop, isc__ratelimiter_tick, rl, &rl->timer);
+
 	isc_mutex_init(&rl->lock);
 
-	*ratelimiterp = rl;
-	return (ISC_R_SUCCESS);
+	*rlp = rl;
 }
 
 void
@@ -87,10 +97,11 @@ isc_ratelimiter_setinterval(isc_ratelimiter_t *rl, isc_interval_t *interval) {
 
 	LOCK(&rl->lock);
 	rl->interval = *interval;
-	/*
-	 * If the timer is currently running, its rate will change during
-	 * the next tick.
-	 */
+	if (rl->state == isc_ratelimiter_ratelimited) {
+		/* Restart the timer if it's already running */
+		isc_ratelimiter_ref(rl);
+		isc_async_run(rl->loop, isc__ratelimiter_start, rl);
+	}
 	UNLOCK(&rl->lock);
 }
 
@@ -113,6 +124,31 @@ isc_ratelimiter_setpushpop(isc_ratelimiter_t *rl, bool pushpop) {
 	UNLOCK(&rl->lock);
 }
 
+static void
+isc__ratelimiter_start(void *arg) {
+	isc_ratelimiter_t *rl = arg;
+
+	REQUIRE(VALID_RATELIMITER(rl));
+
+	LOCK(&rl->lock);
+	switch (rl->state) {
+	case isc_ratelimiter_ratelimited:
+		/* Start or reschedule the timer */
+		isc_timer_start(rl->timer, isc_timertype_ticker, &rl->interval);
+		break;
+	case isc_ratelimiter_shuttingdown:
+		/* The ratelimiter is shutting down */
+		break;
+	case isc_ratelimiter_idle:
+		/* The ratelimiter was stopped before it was started */
+		break;
+	default:
+		UNREACHABLE();
+	}
+	UNLOCK(&rl->lock);
+	isc_ratelimiter_detach(&rl);
+}
+
 isc_result_t
 isc_ratelimiter_enqueue(isc_ratelimiter_t *rl, isc_task_t *task,
 			isc_event_t **eventp) {
@@ -133,9 +169,10 @@ isc_ratelimiter_enqueue(isc_ratelimiter_t *rl, isc_task_t *task,
 	case isc_ratelimiter_idle:
 		/* Start the ratelimiter */
 		isc_ratelimiter_ref(rl);
-		isc_async_run(rl->loop, ratelimiter_tick, rl);
+		isc_async_run(rl->loop, isc__ratelimiter_start, rl);
 		rl->state = isc_ratelimiter_ratelimited;
-		/* FALLTHROUGH */
+		/* Enqueue the task via normal path */
+		FALLTHROUGH;
 	case isc_ratelimiter_ratelimited:
 		event->ev_sender = task;
 		*eventp = NULL;
@@ -172,11 +209,10 @@ isc_ratelimiter_dequeue(isc_ratelimiter_t *rl, isc_event_t *event) {
 }
 
 static void
-ratelimiter_tick(void *arg) {
+isc__ratelimiter_tick(void *arg) {
 	isc_ratelimiter_t *rl = (isc_ratelimiter_t *)arg;
 	isc_event_t *event;
 	uint32_t pertic;
-	bool do_destroy = false;
 	ISC_LIST(isc_event_t) pending;
 
 	REQUIRE(VALID_RATELIMITER(rl));
@@ -184,21 +220,13 @@ ratelimiter_tick(void *arg) {
 	ISC_LIST_INIT(pending);
 
 	LOCK(&rl->lock);
+
+	REQUIRE(rl->timer != NULL);
+
 	if (rl->state == isc_ratelimiter_shuttingdown) {
-		UNLOCK(&rl->lock);
-		do_destroy = (rl->timer != NULL);
-		goto done;
+		INSIST(EMPTY(rl->pending));
+		goto unlock;
 	}
-
-	if (rl->timer == NULL) {
-		isc_timer_create(rl->loop, ratelimiter_tick, rl, &rl->timer);
-	}
-
-	/*
-	 * If the timer was already running with a different rate,
-	 * this updates it to the correct one.
-	 */
-	isc_timer_start(rl->timer, isc_timertype_ticker, &rl->interval);
 
 	pertic = rl->pertic;
 	while (pertic != 0) {
@@ -209,25 +237,35 @@ ratelimiter_tick(void *arg) {
 			ISC_LIST_UNLINK(rl->pending, event, ev_ratelink);
 			ISC_LIST_APPEND(pending, event, ev_ratelink);
 		} else {
-			/* There's no more work to do, destroy the timer */
-			do_destroy = true;
+			/* There's no more work to do, stop the timer */
+			isc_timer_stop(rl->timer);
 			rl->state = isc_ratelimiter_idle;
 			break;
 		}
 	}
+unlock:
 	UNLOCK(&rl->lock);
 
 	while ((event = ISC_LIST_HEAD(pending)) != NULL) {
 		ISC_LIST_UNLINK(pending, event, ev_ratelink);
 		isc_task_send(event->ev_sender, &event);
 	}
+}
 
-done:
-	/* No work left to do. Stop and destroy the timer. */
-	if (do_destroy) {
-		isc_timer_destroy(&rl->timer);
-		isc_ratelimiter_detach(&rl);
-	}
+void
+isc__ratelimiter_doshutdown(void *arg) {
+	isc_ratelimiter_t *rl = arg;
+
+	REQUIRE(VALID_RATELIMITER(rl));
+
+	LOCK(&rl->lock);
+	INSIST(rl->state == isc_ratelimiter_shuttingdown);
+	INSIST(EMPTY(rl->pending));
+
+	isc_timer_destroy(&rl->timer);
+	isc_loop_detach(&rl->loop);
+	UNLOCK(&rl->lock);
+	isc_ratelimiter_detach(&rl);
 }
 
 void
@@ -237,14 +275,16 @@ isc_ratelimiter_shutdown(isc_ratelimiter_t *rl) {
 	REQUIRE(VALID_RATELIMITER(rl));
 
 	LOCK(&rl->lock);
-	rl->state = isc_ratelimiter_shuttingdown;
-
-	while ((event = ISC_LIST_HEAD(rl->pending)) != NULL) {
-		ISC_LIST_UNLINK(rl->pending, event, ev_ratelink);
-		event->ev_attributes |= ISC_EVENTATTR_CANCELED;
-		isc_task_send(event->ev_sender, &event);
+	if (rl->state != isc_ratelimiter_shuttingdown) {
+		rl->state = isc_ratelimiter_shuttingdown;
+		while ((event = ISC_LIST_HEAD(rl->pending)) != NULL) {
+			ISC_LIST_UNLINK(rl->pending, event, ev_ratelink);
+			event->ev_attributes |= ISC_EVENTATTR_CANCELED;
+			isc_task_send(event->ev_sender, &event);
+		}
+		isc_ratelimiter_ref(rl);
+		isc_async_run(rl->loop, isc__ratelimiter_doshutdown, rl);
 	}
-	isc_loop_detach(&rl->loop);
 	UNLOCK(&rl->lock);
 }
 

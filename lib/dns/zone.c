@@ -717,6 +717,7 @@ struct dns_forward {
 	dns_request_t *request;
 	uint32_t which;
 	isc_sockaddr_t addr;
+	dns_transport_t *transport;
 	dns_updatecallback_t callback;
 	void *callback_arg;
 	unsigned int options;
@@ -18286,6 +18287,9 @@ forward_destroy(dns_forward_t *forward) {
 	if (forward->msgbuf != NULL) {
 		isc_buffer_free(&forward->msgbuf);
 	}
+	if (forward->transport != NULL) {
+		dns_transport_detach(&forward->transport);
+	}
 	if (forward->zone != NULL) {
 		LOCK(&forward->zone->lock);
 		if (ISC_LINK_LINKED(forward, link)) {
@@ -18302,20 +18306,22 @@ sendtoprimary(dns_forward_t *forward) {
 	isc_result_t result;
 	isc_sockaddr_t src;
 	isc_dscp_t dscp = -1;
+	dns_zone_t *zone = forward->zone;
+	bool tls_transport_invalid = false;
 
-	LOCK_ZONE(forward->zone);
+	LOCK_ZONE(zone);
 
-	if (DNS_ZONE_FLAG(forward->zone, DNS_ZONEFLG_EXITING)) {
-		UNLOCK_ZONE(forward->zone);
+	if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_EXITING)) {
+		UNLOCK_ZONE(zone);
 		return (ISC_R_CANCELED);
 	}
 
-	if (forward->which >= forward->zone->primariescnt) {
-		UNLOCK_ZONE(forward->zone);
+	if (forward->which >= zone->primariescnt) {
+		UNLOCK_ZONE(zone);
 		return (ISC_R_NOMORE);
 	}
 
-	forward->addr = forward->zone->primaries[forward->which];
+	forward->addr = zone->primaries[forward->which];
 	/*
 	 * Always use TCP regardless of whether the original update
 	 * used TCP.
@@ -18324,30 +18330,59 @@ sendtoprimary(dns_forward_t *forward) {
 	 */
 	switch (isc_sockaddr_pf(&forward->addr)) {
 	case PF_INET:
-		src = forward->zone->xfrsource4;
-		dscp = forward->zone->xfrsource4dscp;
+		src = zone->xfrsource4;
+		dscp = zone->xfrsource4dscp;
 		break;
 	case PF_INET6:
-		src = forward->zone->xfrsource6;
-		dscp = forward->zone->xfrsource6dscp;
+		src = zone->xfrsource6;
+		dscp = zone->xfrsource6dscp;
 		break;
 	default:
 		result = ISC_R_NOTIMPLEMENTED;
 		goto unlock;
 	}
+
+	if (forward->transport != NULL) {
+		dns_transport_detach(&forward->transport);
+	}
+
+	if (zone->primarytlsnames != NULL &&
+	    zone->primarytlsnames[forward->which] != NULL)
+	{
+		dns_view_t *view = dns_zone_getview(zone);
+		dns_name_t *tlsname = zone->primarytlsnames[zone->curprimary];
+
+		result = dns_view_gettransport(view, DNS_TRANSPORT_TLS, tlsname,
+					       &forward->transport);
+
+		if (result != ISC_R_SUCCESS) {
+			/* Log the error message when unlocked. */
+			tls_transport_invalid = true;
+			goto unlock;
+		}
+	}
+
 	result = dns_request_createraw(
 		forward->zone->view->requestmgr, forward->msgbuf, &src,
-		&forward->addr, NULL, NULL, dscp, forward->options,
-		15 /* XXX */, 0, 0, forward->zone->task, forward_callback,
-		forward, &forward->request);
+		&forward->addr, forward->transport, zone->zmgr->tlsctx_cache,
+		dscp, forward->options, 15 /* XXX */, 0, 0, forward->zone->task,
+		forward_callback, forward, &forward->request);
 	if (result == ISC_R_SUCCESS) {
 		if (!ISC_LINK_LINKED(forward, link)) {
-			ISC_LIST_APPEND(forward->zone->forwards, forward, link);
+			ISC_LIST_APPEND(zone->forwards, forward, link);
 		}
 	}
 
 unlock:
-	UNLOCK_ZONE(forward->zone);
+	UNLOCK_ZONE(zone);
+
+	if (tls_transport_invalid) {
+		dns_zone_log(zone, ISC_LOG_ERROR,
+			     "could not get TLS configuration "
+			     "for dynamic update: %s",
+			     isc_result_totext(result));
+	}
+
 	return (result);
 }
 
@@ -18487,17 +18522,12 @@ dns_zone_forwardupdate(dns_zone_t *zone, dns_message_t *msg,
 	REQUIRE(callback != NULL);
 
 	forward = isc_mem_get(zone->mctx, sizeof(*forward));
-
-	forward->request = NULL;
-	forward->zone = NULL;
-	forward->msgbuf = NULL;
-	forward->which = 0;
-	forward->mctx = 0;
-	forward->callback = callback;
-	forward->callback_arg = callback_arg;
+	*forward = (dns_forward_t){ .callback = callback,
+				    .callback_arg = callback_arg,
+				    .options = DNS_REQUESTOPT_TCP };
 	ISC_LINK_INIT(forward, link);
 	forward->magic = FORWARD_MAGIC;
-	forward->options = DNS_REQUESTOPT_TCP;
+
 	/*
 	 * If we have a SIG(0) signed message we need to preserve the
 	 * query id as that is included in the SIG(0) computation.
@@ -18835,7 +18865,7 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_loopmgr_t *loopmgr,
 		   dns_zonemgr_t **zmgrp) {
 	dns_zonemgr_t *zmgr;
 	isc_result_t result;
-	isc_loop_t *mainloop = isc_loop_main(loopmgr);
+	isc_loop_t *loop = isc_loop_current(loopmgr);
 
 	REQUIRE(mctx != NULL);
 	REQUIRE(loopmgr != NULL);
@@ -18869,35 +18899,11 @@ dns_zonemgr_create(isc_mem_t *mctx, isc_loopmgr_t *loopmgr,
 	/* Unreachable lock. */
 	isc_rwlock_init(&zmgr->urlock, 0, 0);
 
-	result = isc_ratelimiter_create(mainloop, &zmgr->checkdsrl);
-	INSIST(result == ISC_R_SUCCESS);
-	if (result != ISC_R_SUCCESS) {
-		goto free_urlock;
-	}
-
-	result = isc_ratelimiter_create(mainloop, &zmgr->notifyrl);
-	INSIST(result == ISC_R_SUCCESS);
-	if (result != ISC_R_SUCCESS) {
-		goto free_checkdsrl;
-	}
-
-	result = isc_ratelimiter_create(mainloop, &zmgr->refreshrl);
-	INSIST(result == ISC_R_SUCCESS);
-	if (result != ISC_R_SUCCESS) {
-		goto free_notifyrl;
-	}
-
-	result = isc_ratelimiter_create(mainloop, &zmgr->startupnotifyrl);
-	INSIST(result == ISC_R_SUCCESS);
-	if (result != ISC_R_SUCCESS) {
-		goto free_refreshrl;
-	}
-
-	result = isc_ratelimiter_create(mainloop, &zmgr->startuprefreshrl);
-	INSIST(result == ISC_R_SUCCESS);
-	if (result != ISC_R_SUCCESS) {
-		goto free_startupnotifyrl;
-	}
+	isc_ratelimiter_create(loop, &zmgr->checkdsrl);
+	isc_ratelimiter_create(loop, &zmgr->notifyrl);
+	isc_ratelimiter_create(loop, &zmgr->refreshrl);
+	isc_ratelimiter_create(loop, &zmgr->startupnotifyrl);
+	isc_ratelimiter_create(loop, &zmgr->startuprefreshrl);
 
 	zmgr->zonetasks = isc_mem_get(
 		zmgr->mctx, zmgr->workers * sizeof(zmgr->zonetasks[0]));
@@ -18982,19 +18988,15 @@ free_zonetasks:
 
 	isc_ratelimiter_shutdown(zmgr->startuprefreshrl);
 	isc_ratelimiter_detach(&zmgr->startuprefreshrl);
-free_startupnotifyrl:
 	isc_ratelimiter_shutdown(zmgr->startupnotifyrl);
 	isc_ratelimiter_detach(&zmgr->startupnotifyrl);
-free_refreshrl:
 	isc_ratelimiter_shutdown(zmgr->refreshrl);
 	isc_ratelimiter_detach(&zmgr->refreshrl);
-free_notifyrl:
 	isc_ratelimiter_shutdown(zmgr->notifyrl);
 	isc_ratelimiter_detach(&zmgr->notifyrl);
-free_checkdsrl:
 	isc_ratelimiter_shutdown(zmgr->checkdsrl);
 	isc_ratelimiter_detach(&zmgr->checkdsrl);
-free_urlock:
+
 	isc_rwlock_destroy(&zmgr->urlock);
 	isc_rwlock_destroy(&zmgr->rwlock);
 	isc_mem_put(zmgr->mctx, zmgr, sizeof(*zmgr));

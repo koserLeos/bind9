@@ -49,7 +49,11 @@ isc__xml_free(void *ptr) {
 void
 isc__xml_initialize(void) {
 #ifdef HAVE_LIBXML2
+	unsigned int s = isc_mem_debugging;
+	isc_mem_debugging = 0;
 	isc_mem_create(&isc__xml_mctx);
+	isc_mem_debugging = s;
+
 	isc_mem_setname(isc__xml_mctx, "libxml2");
 	isc_mem_setdestroycheck(isc__xml_mctx, false);
 

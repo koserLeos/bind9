@@ -143,7 +143,10 @@ void
 isc__uv_initialize(void) {
 #if UV_VERSION_HEX >= UV_VERSION(1, 38, 0)
 	int r;
+	unsigned int s = isc_mem_debugging;
+	isc_mem_debugging = 0;
 	isc_mem_create(&isc__uv_mctx);
+	isc_mem_debugging = s;
 	isc_mem_setname(isc__uv_mctx, "uv");
 	isc_mem_setdestroycheck(isc__uv_mctx, false);
 

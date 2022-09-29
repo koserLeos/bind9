@@ -152,7 +152,10 @@ isc__tls_free(void *ptr) {
 
 void
 isc__tls_initialize(void) {
+	unsigned int s = isc_mem_debugging;
+	isc_mem_debugging = 0;
 	isc_mem_create(&isc__tls_mctx);
+	isc_mem_debugging = s;
 	isc_mem_setname(isc__tls_mctx, "OpenSSL");
 	isc_mem_setdestroycheck(isc__tls_mctx, false);
 
