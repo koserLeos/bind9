@@ -1570,9 +1570,7 @@ signapex(void) {
 	result = dns_dbiterator_current(gdbiter, &node, name);
 	check_dns_dbiterator_current(result);
 	signname(node, name);
-	LOCK(&namelock);
 	dumpnode(name, node);
-	UNLOCK(&namelock);
 	cleannode(gdb, gversion, node);
 	dns_db_detachnode(gdb, &node);
 	result = dns_dbiterator_first(gdbiter);
@@ -1582,6 +1580,7 @@ signapex(void) {
 		fatal("failure iterating database: %s",
 		      isc_result_totext(result));
 	}
+	dns_dbiterator_pause(gdbiter);
 }
 
 /*%
@@ -1697,6 +1696,7 @@ assignwork(isc_task_t *task) {
 	sevent->fname = fname;
 	isc_task_send(task, ISC_EVENT_PTR(&sevent));
 unlock:
+	dns_dbiterator_pause(gdbiter);
 	UNLOCK(&namelock);
 }
 
@@ -4030,7 +4030,9 @@ main(int argc, char *argv[]) {
 
 	presign();
 	TIME_NOW(&sign_start);
+	LOCK(&namelock);
 	signapex();
+	UNLOCK(&namelock);
 	if (!atomic_load(&finished)) {
 		/*
 		 * There is more work to do.  Spread it out over multiple

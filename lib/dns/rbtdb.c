@@ -136,7 +136,6 @@ typedef isc_rwlock_t nodelock_t;
 #define NODE_LOCK(l, t)	    RWLOCK((l), (t))
 #define NODE_UNLOCK(l, t)   RWUNLOCK((l), (t))
 #define NODE_TRYUPGRADE(l)  isc_rwlock_tryupgrade(l)
-#define NODE_DOWNGRADE(l)   isc_rwlock_downgrade(l)
 
 /*%
  * Whether to rate-limit updating the LRU to avoid possible thread contention.
@@ -540,11 +539,11 @@ need_headerupdate(rdatasetheader_t *header, isc_stdtime_t now);
 static void
 update_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, isc_stdtime_t now);
 static void
-expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, bool tree_locked,
-	      expire_t reason);
+expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header,
+	      isc_rwlocktype_t treelocktype, expire_t reason);
 static void
 overmem_purge(dns_rbtdb_t *rbtdb, unsigned int locknum_start, isc_stdtime_t now,
-	      bool tree_locked);
+	      isc_rwlocktype_t treelocktype);
 static void
 resign_insert(dns_rbtdb_t *rbtdb, int idx, rdatasetheader_t *newheader);
 static void
@@ -1952,7 +1951,7 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
  */
 static bool
 decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
-		    rbtdb_serial_t least_serial, isc_rwlocktype_t nlock,
+		    rbtdb_serial_t least_serial, isc_rwlocktype_t *nlock,
 		    isc_rwlocktype_t tlock, bool pruning) {
 	isc_result_t result;
 	bool write_locked;
@@ -1980,16 +1979,13 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	}
 
 	/* Upgrade the lock? */
-	if (nlock == isc_rwlocktype_read) {
+	if (*nlock == isc_rwlocktype_read) {
 		NODE_UNLOCK(&nodelock->lock, isc_rwlocktype_read);
 		NODE_LOCK(&nodelock->lock, isc_rwlocktype_write);
+		*nlock = isc_rwlocktype_write;
 	}
 
 	if (isc_refcount_decrement(&node->references) > 1) {
-		/* Restore the lock? */
-		if (nlock == isc_rwlocktype_read) {
-			NODE_DOWNGRADE(&nodelock->lock);
-		}
 		return (false);
 	}
 
@@ -2014,26 +2010,27 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	 * Attempt to switch to a write lock on the tree.  If this fails,
 	 * we will add this node to a linked list of nodes in this locking
 	 * bucket which we will free later.
+	 *
+	 * Locking hierarchy notwithstanding, we don't need to free
+	 * the node lock before acquiring the tree write lock because
+	 * we only do a trylock.
 	 */
-	if (tlock != isc_rwlocktype_write) {
-		/*
-		 * Locking hierarchy notwithstanding, we don't need to free
-		 * the node lock before acquiring the tree write lock because
-		 * we only do a trylock.
-		 */
-		if (tlock == isc_rwlocktype_read) {
-			result = isc_rwlock_tryupgrade(&rbtdb->tree_lock);
-		} else {
-			result = isc_rwlock_trylock(&rbtdb->tree_lock,
-						    isc_rwlocktype_write);
-		}
-		RUNTIME_CHECK(result == ISC_R_SUCCESS ||
-			      result == ISC_R_LOCKBUSY);
-
-		write_locked = (result == ISC_R_SUCCESS);
-	} else {
-		write_locked = true;
+	switch (tlock) {
+	case isc_rwlocktype_none:
+		result = isc_rwlock_trylock(&rbtdb->tree_lock,
+					    isc_rwlocktype_write);
+		break;
+	case isc_rwlocktype_read:
+		result = ISC_R_LOCKBUSY;
+		break;
+	case isc_rwlocktype_write:
+		result = ISC_R_SUCCESS;
+		break;
+	default:
+		UNREACHABLE();
 	}
+	RUNTIME_CHECK(result == ISC_R_SUCCESS || result == ISC_R_LOCKBUSY);
+	write_locked = (result == ISC_R_SUCCESS);
 
 	refs = isc_refcount_decrement(&nodelock->references);
 	INSIST(refs > 0);
@@ -2080,24 +2077,11 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	}
 
 restore_locks:
-	/* Restore the lock? */
-	if (nlock == isc_rwlocktype_read) {
-		NODE_DOWNGRADE(&nodelock->lock);
-	}
-
 	/*
-	 * Relock a read lock, or unlock the write lock if no lock was held.
+	 * Unlock the write lock if no lock was held.
 	 */
-	if (tlock == isc_rwlocktype_none) {
-		if (write_locked) {
-			RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
-		}
-	}
-
-	if (tlock == isc_rwlocktype_read) {
-		if (write_locked) {
-			isc_rwlock_downgrade(&rbtdb->tree_lock);
-		}
+	if (tlock == isc_rwlocktype_none && write_locked) {
+		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 	}
 
 	return (no_reference);
@@ -2116,6 +2100,7 @@ prune_tree(isc_task_t *task, isc_event_t *event) {
 	dns_rbtnode_t *node = event->ev_arg;
 	dns_rbtnode_t *parent;
 	unsigned int locknum;
+	isc_rwlocktype_t locktype = isc_rwlocktype_write;
 
 	UNUSED(task);
 
@@ -2123,10 +2108,11 @@ prune_tree(isc_task_t *task, isc_event_t *event) {
 
 	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 	locknum = node->locknum;
-	NODE_LOCK(&rbtdb->node_locks[locknum].lock, isc_rwlocktype_write);
+	NODE_LOCK(&rbtdb->node_locks[locknum].lock, locktype);
 	do {
 		parent = node->parent;
-		decrement_reference(rbtdb, node, 0, isc_rwlocktype_write,
+
+		decrement_reference(rbtdb, node, 0, &locktype,
 				    isc_rwlocktype_write, true);
 
 		if (parent != NULL && parent->down == NULL) {
@@ -2159,7 +2145,7 @@ prune_tree(isc_task_t *task, isc_event_t *event) {
 
 		node = parent;
 	} while (node != NULL);
-	NODE_UNLOCK(&rbtdb->node_locks[locknum].lock, isc_rwlocktype_write);
+	NODE_UNLOCK(&rbtdb->node_locks[locknum].lock, locktype);
 	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 
 	detach((dns_db_t **)&rbtdb);
@@ -2569,18 +2555,19 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 	for (header = HEAD(resigned_list); header != NULL;
 	     header = HEAD(resigned_list)) {
 		nodelock_t *lock;
+		isc_rwlocktype_t locktype;
 
 		ISC_LIST_UNLINK(resigned_list, header, link);
 
 		lock = &rbtdb->node_locks[header->node->locknum].lock;
-		NODE_LOCK(lock, isc_rwlocktype_write);
+		locktype = isc_rwlocktype_write;
+		NODE_LOCK(lock, locktype);
 		if (rollback && !IGNORE(header)) {
 			resign_insert(rbtdb, header->node->locknum, header);
 		}
 		decrement_reference(rbtdb, header->node, least_serial,
-				    isc_rwlocktype_write, isc_rwlocktype_none,
-				    false);
-		NODE_UNLOCK(lock, isc_rwlocktype_write);
+				    &locktype, isc_rwlocktype_none, false);
+		NODE_UNLOCK(lock, locktype);
 	}
 
 	if (!EMPTY(cleanup_list)) {
@@ -2603,19 +2590,21 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 			 * expensive, but this event should be rare enough
 			 * to justify the cost.
 			 */
-			RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 			tlock = isc_rwlocktype_write;
+			RWLOCK(&rbtdb->tree_lock, tlock);
 		}
 
 		for (changed = HEAD(cleanup_list); changed != NULL;
 		     changed = next_changed) {
 			nodelock_t *lock;
+			isc_rwlocktype_t locktype;
 
 			next_changed = NEXT(changed, link);
 			rbtnode = changed->node;
 			lock = &rbtdb->node_locks[rbtnode->locknum].lock;
+			locktype = isc_rwlocktype_write;
 
-			NODE_LOCK(lock, isc_rwlocktype_write);
+			NODE_LOCK(lock, locktype);
 			/*
 			 * This is a good opportunity to purge any dead nodes,
 			 * so use it.
@@ -2628,9 +2617,9 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 				rollback_node(rbtnode, serial);
 			}
 			decrement_reference(rbtdb, rbtnode, least_serial,
-					    isc_rwlocktype_write, tlock, false);
+					    &locktype, tlock, false);
 
-			NODE_UNLOCK(lock, isc_rwlocktype_write);
+			NODE_UNLOCK(lock, locktype);
 
 			isc_mem_put(rbtdb->common.mctx, changed,
 				    sizeof(*changed));
@@ -2639,7 +2628,7 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 			isc_refcount_increment(&rbtdb->references);
 			isc_task_send(rbtdb->task, &event);
 		} else {
-			RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+			RWUNLOCK(&rbtdb->tree_lock, tlock);
 		}
 	}
 
@@ -3896,6 +3885,7 @@ zone_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	rbtdb_rdatatype_t sigtype;
 	bool active;
 	nodelock_t *lock;
+	isc_rwlocktype_t locktype;
 	dns_rbt_t *tree;
 
 	search.rbtdb = (dns_rbtdb_t *)db;
@@ -4396,11 +4386,12 @@ tree_exit:
 		node = search.zonecut;
 		INSIST(node != NULL);
 		lock = &(search.rbtdb->node_locks[node->locknum].lock);
+		locktype = isc_rwlocktype_read;
 
-		NODE_LOCK(lock, isc_rwlocktype_read);
-		decrement_reference(search.rbtdb, node, 0, isc_rwlocktype_read,
+		NODE_LOCK(lock, locktype);
+		decrement_reference(search.rbtdb, node, 0, &locktype,
 				    isc_rwlocktype_none, false);
-		NODE_UNLOCK(lock, isc_rwlocktype_read);
+		NODE_UNLOCK(lock, locktype);
 	}
 
 	if (close_version) {
@@ -5253,11 +5244,12 @@ tree_exit:
 		node = search.zonecut;
 		INSIST(node != NULL);
 		lock = &(search.rbtdb->node_locks[node->locknum].lock);
+		locktype = isc_rwlocktype_read;
 
-		NODE_LOCK(lock, isc_rwlocktype_read);
-		decrement_reference(search.rbtdb, node, 0, isc_rwlocktype_read,
+		NODE_LOCK(lock, locktype);
+		decrement_reference(search.rbtdb, node, 0, &locktype,
 				    isc_rwlocktype_none, false);
-		NODE_UNLOCK(lock, isc_rwlocktype_read);
+		NODE_UNLOCK(lock, locktype);
 	}
 
 	dns_rbtnodechain_reset(&search.chain);
@@ -5458,25 +5450,26 @@ detachnode(dns_db_t *db, dns_dbnode_t **targetp) {
 	bool want_free = false;
 	bool inactive = false;
 	rbtdb_nodelock_t *nodelock;
+	isc_rwlocktype_t locktype;
 
 	REQUIRE(VALID_RBTDB(rbtdb));
 	REQUIRE(targetp != NULL && *targetp != NULL);
 
 	node = (dns_rbtnode_t *)(*targetp);
 	nodelock = &rbtdb->node_locks[node->locknum];
+	locktype = isc_rwlocktype_read;
 
-	NODE_LOCK(&nodelock->lock, isc_rwlocktype_read);
+	NODE_LOCK(&nodelock->lock, locktype);
 
-	if (decrement_reference(rbtdb, node, 0, isc_rwlocktype_read,
-				isc_rwlocktype_none, false))
-	{
+	if (decrement_reference(rbtdb, node, 0, &locktype, isc_rwlocktype_none,
+				false)) {
 		if (isc_refcount_current(&nodelock->references) == 0 &&
 		    nodelock->exiting) {
 			inactive = true;
 		}
 	}
 
-	NODE_UNLOCK(&nodelock->lock, isc_rwlocktype_read);
+	NODE_UNLOCK(&nodelock->lock, locktype);
 
 	*targetp = NULL;
 
@@ -6728,7 +6721,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	isc_result_t result;
 	bool delegating;
 	bool newnsec;
-	bool tree_locked = false;
+	isc_rwlocktype_t treelocktype = isc_rwlocktype_none;
 	bool cache_is_overmem = false;
 	dns_fixedname_t fixed;
 	dns_name_t *name;
@@ -6873,12 +6866,12 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		cache_is_overmem = true;
 	}
 	if (delegating || newnsec || cache_is_overmem) {
-		tree_locked = true;
-		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+		treelocktype = isc_rwlocktype_write;
+		RWLOCK(&rbtdb->tree_lock, treelocktype);
 	}
 
 	if (cache_is_overmem) {
-		overmem_purge(rbtdb, rbtnode->locknum, now, tree_locked);
+		overmem_purge(rbtdb, rbtnode->locknum, now, treelocktype);
 	}
 
 	NODE_LOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
@@ -6892,7 +6885,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	}
 
 	if (IS_CACHE(rbtdb)) {
-		if (tree_locked) {
+		if (treelocktype == isc_rwlocktype_write) {
 			cleanup_dead_nodes(rbtdb, rbtnode->locknum);
 		}
 
@@ -6901,7 +6894,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		    header->rdh_ttl + STALE_TTL(header, rbtdb) <
 			    now - RBTDB_VIRTUAL)
 		{
-			expire_header(rbtdb, header, tree_locked, expire_ttl);
+			expire_header(rbtdb, header, treelocktype, expire_ttl);
 		}
 
 		/*
@@ -6909,9 +6902,10 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		 * cleaning, we can release it now.  However, we still need the
 		 * node lock.
 		 */
-		if (tree_locked && !delegating && !newnsec) {
-			RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
-			tree_locked = false;
+		if (treelocktype == isc_rwlocktype_write && !delegating &&
+		    !newnsec) {
+			RWUNLOCK(&rbtdb->tree_lock, treelocktype);
+			treelocktype = isc_rwlocktype_none;
 		}
 	}
 
@@ -6941,8 +6935,8 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
 		    isc_rwlocktype_write);
 
-	if (tree_locked) {
-		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+	if (treelocktype == isc_rwlocktype_write) {
+		RWUNLOCK(&rbtdb->tree_lock, treelocktype);
 	}
 
 	/*
@@ -8615,7 +8609,7 @@ rdataset_expire(dns_rdataset_t *rdataset) {
 	header--;
 	NODE_LOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
 		  isc_rwlocktype_write);
-	expire_header(rbtdb, header, false, expire_flush);
+	expire_header(rbtdb, header, isc_rwlocktype_none, expire_flush);
 	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
 		    isc_rwlocktype_write);
 }
@@ -8816,27 +8810,27 @@ dereference_iter_node(rbtdb_dbiterator_t *rbtdbiter) {
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)rbtdbiter->common.db;
 	dns_rbtnode_t *node = rbtdbiter->node;
 	nodelock_t *lock;
+	isc_rwlocktype_t locktype;
 
 	if (node == NULL) {
 		return;
 	}
 
 	lock = &rbtdb->node_locks[node->locknum].lock;
-	NODE_LOCK(lock, isc_rwlocktype_read);
-	decrement_reference(rbtdb, node, 0, isc_rwlocktype_read,
-			    rbtdbiter->tree_locked, false);
-	NODE_UNLOCK(lock, isc_rwlocktype_read);
+	locktype = isc_rwlocktype_read;
+
+	NODE_LOCK(lock, locktype);
+	decrement_reference(rbtdb, node, 0, &locktype, rbtdbiter->tree_locked,
+			    false);
+	NODE_UNLOCK(lock, locktype);
 
 	rbtdbiter->node = NULL;
 }
 
 static void
 flush_deletions(rbtdb_dbiterator_t *rbtdbiter) {
-	dns_rbtnode_t *node;
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)rbtdbiter->common.db;
-	bool was_read_locked = false;
-	nodelock_t *lock;
-	int i;
+	isc_rwlocktype_t treelocktype;
 
 	if (rbtdbiter->delcnt != 0) {
 		/*
@@ -8851,31 +8845,47 @@ flush_deletions(rbtdb_dbiterator_t *rbtdbiter) {
 			      rbtdbiter->delcnt,
 			      dns_rbt_nodecount(rbtdb->tree));
 
-		if (rbtdbiter->tree_locked == isc_rwlocktype_read) {
+		treelocktype = rbtdbiter->tree_locked;
+		switch (treelocktype) {
+		case isc_rwlocktype_read:
+			rbtdbiter->tree_locked = isc_rwlocktype_none;
 			RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
-			was_read_locked = true;
+			FALLTHROUGH;
+		case isc_rwlocktype_none:
+			RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+			rbtdbiter->tree_locked = isc_rwlocktype_write;
+			break;
+		default:
+			/* Only one flush_deletions() can be running */
+			UNREACHABLE();
 		}
-		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
-		rbtdbiter->tree_locked = isc_rwlocktype_write;
 
-		for (i = 0; i < rbtdbiter->delcnt; i++) {
-			node = rbtdbiter->deletions[i];
-			lock = &rbtdb->node_locks[node->locknum].lock;
+		for (int i = 0; i < rbtdbiter->delcnt; i++) {
+			dns_rbtnode_t *node = rbtdbiter->deletions[i];
+			nodelock_t *lock =
+				&rbtdb->node_locks[node->locknum].lock;
+			isc_rwlocktype_t locktype = isc_rwlocktype_read;
 
-			NODE_LOCK(lock, isc_rwlocktype_read);
-			decrement_reference(rbtdb, node, 0, isc_rwlocktype_read,
-					    rbtdbiter->tree_locked, false);
-			NODE_UNLOCK(lock, isc_rwlocktype_read);
+			NODE_LOCK(lock, locktype);
+			decrement_reference(rbtdb, node, 0, &locktype,
+					    isc_rwlocktype_write, false);
+			NODE_UNLOCK(lock, locktype);
 		}
 
 		rbtdbiter->delcnt = 0;
 
+		rbtdbiter->tree_locked = isc_rwlocktype_none;
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
-		if (was_read_locked) {
+		switch (treelocktype) {
+		case isc_rwlocktype_read:
 			RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
 			rbtdbiter->tree_locked = isc_rwlocktype_read;
-		} else {
-			rbtdbiter->tree_locked = isc_rwlocktype_none;
+			break;
+		case isc_rwlocktype_none:
+			rbtdbiter->tree_locked = treelocktype;
+			break;
+		default:
+			UNREACHABLE();
 		}
 	}
 }
@@ -8899,11 +8909,15 @@ dbiterator_destroy(dns_dbiterator_t **iteratorp) {
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)rbtdbiter->common.db;
 	dns_db_t *db = NULL;
 
-	if (rbtdbiter->tree_locked == isc_rwlocktype_read) {
+	switch (rbtdbiter->tree_locked) {
+	case isc_rwlocktype_read:
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
 		rbtdbiter->tree_locked = isc_rwlocktype_none;
-	} else {
-		INSIST(rbtdbiter->tree_locked == isc_rwlocktype_none);
+		break;
+	case isc_rwlocktype_none:
+		break;
+	default:
+		UNREACHABLE();
 	}
 
 	dereference_iter_node(rbtdbiter);
@@ -9292,10 +9306,15 @@ dbiterator_pause(dns_dbiterator_t *iterator) {
 
 	rbtdbiter->paused = true;
 
-	if (rbtdbiter->tree_locked != isc_rwlocktype_none) {
-		INSIST(rbtdbiter->tree_locked == isc_rwlocktype_read);
-		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
+	switch (rbtdbiter->tree_locked) {
+	case isc_rwlocktype_read:
 		rbtdbiter->tree_locked = isc_rwlocktype_none;
+		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
+		break;
+	case isc_rwlocktype_none:
+		break;
+	default:
+		UNREACHABLE();
 	}
 
 	flush_deletions(rbtdbiter);
@@ -10001,7 +10020,7 @@ update_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, isc_stdtime_t now) {
  */
 static void
 overmem_purge(dns_rbtdb_t *rbtdb, unsigned int locknum_start, isc_stdtime_t now,
-	      bool tree_locked) {
+	      isc_rwlocktype_t treelocktype) {
 	rdatasetheader_t *header, *header_prev;
 	unsigned int locknum;
 	int purgecount = 2;
@@ -10015,7 +10034,7 @@ overmem_purge(dns_rbtdb_t *rbtdb, unsigned int locknum_start, isc_stdtime_t now,
 
 		header = isc_heap_element(rbtdb->heaps[locknum], 1);
 		if (header && header->rdh_ttl < now - RBTDB_VIRTUAL) {
-			expire_header(rbtdb, header, tree_locked, expire_ttl);
+			expire_header(rbtdb, header, treelocktype, expire_ttl);
 			purgecount--;
 		}
 
@@ -10032,7 +10051,7 @@ overmem_purge(dns_rbtdb_t *rbtdb, unsigned int locknum_start, isc_stdtime_t now,
 			 */
 			ISC_LIST_UNLINK(rbtdb->rdatasets[locknum], header,
 					link);
-			expire_header(rbtdb, header, tree_locked, expire_lru);
+			expire_header(rbtdb, header, treelocktype, expire_lru);
 			purgecount--;
 		}
 
@@ -10042,8 +10061,11 @@ overmem_purge(dns_rbtdb_t *rbtdb, unsigned int locknum_start, isc_stdtime_t now,
 }
 
 static void
-expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, bool tree_locked,
-	      expire_t reason) {
+expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header,
+	      isc_rwlocktype_t treelocktype, expire_t reason) {
+	REQUIRE(treelocktype == isc_rwlocktype_none ||
+		treelocktype == isc_rwlocktype_write);
+
 	set_ttl(rbtdb, header, 0);
 	mark_header_ancient(rbtdb, header);
 
@@ -10052,17 +10074,15 @@ expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, bool tree_locked,
 	 */
 
 	if (isc_refcount_current(&header->node->references) == 0) {
+		isc_rwlocktype_t locktype = isc_rwlocktype_write;
 		/*
 		 * If no one else is using the node, we can clean it up now.
 		 * We first need to gain a new reference to the node to meet a
 		 * requirement of decrement_reference().
 		 */
 		new_reference(rbtdb, header->node, isc_rwlocktype_write);
-		decrement_reference(rbtdb, header->node, 0,
-				    isc_rwlocktype_write,
-				    tree_locked ? isc_rwlocktype_write
-						: isc_rwlocktype_none,
-				    false);
+		decrement_reference(rbtdb, header->node, 0, &locktype,
+				    treelocktype, false);
 
 		if (rbtdb->cachestats == NULL) {
 			return;

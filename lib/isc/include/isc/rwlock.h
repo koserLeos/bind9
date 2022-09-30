@@ -37,7 +37,6 @@ typedef enum {
 
 struct isc_rwlock {
 	pthread_rwlock_t rwlock;
-	atomic_bool	 downgrade;
 };
 
 #if ISC_TRACK_PTHREADS_OBJECTS
@@ -54,7 +53,6 @@ typedef struct isc_rwlock  isc__rwlock_t;
 #define isc_rwlock_trylock(rwl, type) isc___rwlock_trylock(*rwl, type)
 #define isc_rwlock_unlock(rwl, type)  isc__rwlock_unlock(*rwl, type)
 #define isc_rwlock_tryupgrade(rwl)    isc___rwlock_tryupgrade(*rwl)
-#define isc_rwlock_downgrade(rwl)     isc__rwlock_downgrade(*rwl)
 #define isc_rwlock_destroy(rwl)             \
 	{                                   \
 		isc___rwlock_destroy(*rwl); \
@@ -71,7 +69,6 @@ typedef struct isc_rwlock isc__rwlock_t;
 #define isc_rwlock_trylock(rwl, type) isc___rwlock_trylock(rwl, type)
 #define isc_rwlock_unlock(rwl, type)  isc__rwlock_unlock(rwl, type)
 #define isc_rwlock_tryupgrade(rwl)    isc___rwlock_tryupgrade(rwl)
-#define isc_rwlock_downgrade(rwl)     isc__rwlock_downgrade(rwl)
 #define isc_rwlock_destroy(rwl)	      isc__rwlock_destroy(rwl)
 
 #endif /* ISC_TRACK_PTHREADS_OBJECTS */
@@ -122,7 +119,6 @@ typedef struct isc_rwlock isc__rwlock_t;
 #define isc_rwlock_trylock(rwl, type) isc___rwlock_trylock(rwl, type)
 #define isc_rwlock_unlock(rwl, type)  isc__rwlock_unlock(rwl, type)
 #define isc_rwlock_tryupgrade(rwl)    isc___rwlock_tryupgrade(rwl)
-#define isc_rwlock_downgrade(rwl)     isc__rwlock_downgrade(rwl)
 #define isc_rwlock_destroy(rwl)	      isc__rwlock_destroy(rwl)
 
 #endif /* USE_PTHREAD_RWLOCK */
@@ -143,12 +139,6 @@ typedef struct isc_rwlock isc__rwlock_t;
 	{                                                          \
 		int _ret = isc___rwlock_unlock(rwl, type);         \
 		PTHREADS_RUNTIME_CHECK(isc___rwlock_unlock, _ret); \
-	}
-
-#define isc__rwlock_downgrade(rwl)                                    \
-	{                                                             \
-		int _ret = isc___rwlock_downgrade(rwl);               \
-		PTHREADS_RUNTIME_CHECK(isc___rwlock_downgrade, _ret); \
 	}
 
 #define isc__rwlock_destroy(rwl)                                    \
@@ -172,9 +162,6 @@ isc___rwlock_unlock(isc__rwlock_t *rwl, isc_rwlocktype_t type);
 
 isc_result_t
 isc___rwlock_tryupgrade(isc__rwlock_t *rwl);
-
-int
-isc___rwlock_downgrade(isc__rwlock_t *rwl);
 
 int
 isc___rwlock_destroy(isc__rwlock_t *rwl);

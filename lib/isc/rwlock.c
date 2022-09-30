@@ -41,37 +41,16 @@ isc___rwlock_init(isc__rwlock_t *rwl, unsigned int read_quota,
 
 	ret = pthread_rwlock_init(&rwl->rwlock, NULL);
 
-	atomic_init(&rwl->downgrade, false);
-
 	return (ret);
 }
 
 int
 isc___rwlock_lock(isc__rwlock_t *rwl, isc_rwlocktype_t type) {
-	int ret;
-
 	switch (type) {
 	case isc_rwlocktype_read:
 		return (pthread_rwlock_rdlock(&rwl->rwlock));
 	case isc_rwlocktype_write:
-		while (true) {
-			ret = pthread_rwlock_wrlock(&rwl->rwlock);
-			if (ret != 0) {
-				return (ret);
-			}
-			/* Unlock if in middle of downgrade operation */
-			if (atomic_load_acquire(&rwl->downgrade)) {
-				ret = pthread_rwlock_unlock(&rwl->rwlock);
-				if (ret != 0) {
-					return (ret);
-				}
-				while (atomic_load_acquire(&rwl->downgrade)) {
-				}
-				continue;
-			}
-			break;
-		}
-		return (0);
+		return (pthread_rwlock_wrlock(&rwl->rwlock));
 	default:
 		UNREACHABLE();
 	}
@@ -86,10 +65,6 @@ isc___rwlock_trylock(isc__rwlock_t *rwl, isc_rwlocktype_t type) {
 		break;
 	case isc_rwlocktype_write:
 		ret = pthread_rwlock_trywrlock(&rwl->rwlock);
-		if ((ret == 0) && atomic_load_acquire(&rwl->downgrade)) {
-			RUNTIME_CHECK(pthread_rwlock_unlock(&rwl->rwlock) == 0);
-			return (ISC_R_LOCKBUSY);
-		}
 		break;
 	default:
 		UNREACHABLE();
@@ -117,27 +92,6 @@ isc_result_t
 isc___rwlock_tryupgrade(isc__rwlock_t *rwl) {
 	UNUSED(rwl);
 	return (ISC_R_LOCKBUSY);
-}
-
-int
-isc___rwlock_downgrade(isc__rwlock_t *rwl) {
-	int ret;
-
-	atomic_store_release(&rwl->downgrade, true);
-
-	ret = pthread_rwlock_unlock(&rwl->rwlock);
-	if (ret != 0) {
-		return (ret);
-	}
-
-	ret = pthread_rwlock_rdlock(&rwl->rwlock);
-	if (ret != 0) {
-		return (ret);
-	}
-
-	atomic_store_release(&rwl->downgrade, false);
-
-	return (0);
 }
 
 int
@@ -554,32 +508,6 @@ isc___rwlock_tryupgrade(isc__rwlock_t *rwl) {
 	}
 
 	return (ISC_R_SUCCESS);
-}
-
-int
-isc___rwlock_downgrade(isc__rwlock_t *rwl) {
-	int32_t prev_readers;
-
-	REQUIRE(VALID_RWLOCK(rwl));
-
-	/* Become an active reader. */
-	prev_readers = atomic_fetch_add_release(&rwl->cnt_and_flag,
-						READER_INCR);
-	/* We must have been a writer. */
-	INSIST((prev_readers & WRITER_ACTIVE) != 0);
-
-	/* Complete write */
-	atomic_fetch_sub_release(&rwl->cnt_and_flag, WRITER_ACTIVE);
-	atomic_fetch_add_release(&rwl->write_completions, 1);
-
-	/* Resume other readers */
-	LOCK(&rwl->lock);
-	if (rwl->readers_waiting > 0) {
-		BROADCAST(&rwl->readable);
-	}
-	UNLOCK(&rwl->lock);
-
-	return (0);
 }
 
 int
