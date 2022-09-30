@@ -1953,12 +1953,9 @@ static bool
 decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		    rbtdb_serial_t least_serial, isc_rwlocktype_t *nlock,
 		    isc_rwlocktype_t tlock, bool pruning) {
-	isc_result_t result;
-	bool write_locked;
 	bool locked = tlock != isc_rwlocktype_none;
 	rbtdb_nodelock_t *nodelock;
 	int bucket = node->locknum;
-	bool no_reference = true;
 	uint_fast32_t refs;
 
 	nodelock = &rbtdb->node_locks[bucket];
@@ -2006,85 +2003,55 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		}
 	}
 
-	/*
-	 * Attempt to switch to a write lock on the tree.  If this fails,
-	 * we will add this node to a linked list of nodes in this locking
-	 * bucket which we will free later.
-	 *
-	 * Locking hierarchy notwithstanding, we don't need to free
-	 * the node lock before acquiring the tree write lock because
-	 * we only do a trylock.
-	 */
-	switch (tlock) {
-	case isc_rwlocktype_none:
-		result = isc_rwlock_trylock(&rbtdb->tree_lock,
-					    isc_rwlocktype_write);
-		break;
-	case isc_rwlocktype_read:
-		result = ISC_R_LOCKBUSY;
-		break;
-	case isc_rwlocktype_write:
-		result = ISC_R_SUCCESS;
-		break;
-	default:
-		UNREACHABLE();
-	}
-	RUNTIME_CHECK(result == ISC_R_SUCCESS || result == ISC_R_LOCKBUSY);
-	write_locked = (result == ISC_R_SUCCESS);
-
 	refs = isc_refcount_decrement(&nodelock->references);
 	INSIST(refs > 0);
 
-	if (KEEP_NODE(node, rbtdb, locked || write_locked)) {
-		goto restore_locks;
+	if (KEEP_NODE(node, rbtdb, locked)) {
+		return (true);
 	}
 
 #undef KEEP_NODE
 
-	if (write_locked) {
-		/*
-		 * We can now delete the node.
-		 */
-
-		/*
-		 * If this node is the only one in the level it's in, deleting
-		 * this node may recursively make its parent the only node in
-		 * the parent level; if so, and if no one is currently using
-		 * the parent node, this is almost the only opportunity to
-		 * clean it up.  But the recursive cleanup is not that trivial
-		 * since the child and parent may be in different lock buckets,
-		 * which would cause a lock order reversal problem.  To avoid
-		 * the trouble, we'll dispatch a separate event for batch
-		 * cleaning.  We need to check whether we're deleting the node
-		 * as a result of pruning to avoid infinite dispatching.
-		 * Note: pruning happens only when a task has been set for the
-		 * rbtdb.  If the user of the rbtdb chooses not to set a task,
-		 * it's their responsibility to purge stale leaves (e.g. by
-		 * periodic walk-through).
-		 */
-		if (!pruning && is_leaf(node) && rbtdb->task != NULL) {
-			send_to_prune_tree(rbtdb, node, isc_rwlocktype_write);
-			no_reference = false;
-		} else {
-			delete_node(rbtdb, node);
-		}
-	} else {
+	/*
+	 * If the tree is not write locked, we will add this node to a linked
+	 * list of nodes in this locking bucket which we will free later.
+	 */
+	if (tlock != isc_rwlocktype_write) {
 		INSIST(node->data == NULL);
 		if (!ISC_LINK_LINKED(node, deadlink)) {
 			ISC_LIST_APPEND(rbtdb->deadnodes[bucket], node,
 					deadlink);
 		}
+		return (true);
 	}
 
-restore_locks:
 	/*
-	 * Unlock the write lock if no lock was held.
+	 * We can now delete the node.
 	 */
-	if (tlock == isc_rwlocktype_none && write_locked) {
-		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+
+	/*
+	 * If this node is the only one in the level it's in, deleting
+	 * this node may recursively make its parent the only node in
+	 * the parent level; if so, and if no one is currently using
+	 * the parent node, this is almost the only opportunity to
+	 * clean it up.  But the recursive cleanup is not that trivial
+	 * since the child and parent may be in different lock buckets,
+	 * which would cause a lock order reversal problem.  To avoid
+	 * the trouble, we'll dispatch a separate event for batch
+	 * cleaning.  We need to check whether we're deleting the node
+	 * as a result of pruning to avoid infinite dispatching.
+	 * Note: pruning happens only when a task has been set for the
+	 * rbtdb.  If the user of the rbtdb chooses not to set a task,
+	 * it's their responsibility to purge stale leaves (e.g. by
+	 * periodic walk-through).
+	 */
+	if (!pruning && is_leaf(node) && rbtdb->task != NULL) {
+		send_to_prune_tree(rbtdb, node, isc_rwlocktype_write);
+		return (false);
 	}
 
-	return (no_reference);
+	delete_node(rbtdb, node);
+	return (true);
 }
 
 /*
