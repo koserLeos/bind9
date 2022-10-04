@@ -1394,6 +1394,14 @@ static isc_result_t
 tls_cycle(isc_nmsocket_t *sock) {
 	isc_result_t result;
 
+	/*
+	 * Clear the TLS error queue so that SSL_get_error() will work
+	 * properly.
+	 *
+	 * Details: https://stackoverflow.com/a/37980911
+	 */
+	ERR_clear_error();
+
 	if (isc__nmsocket_closing(sock)) {
 		return (ISC_R_CANCELED);
 	}
