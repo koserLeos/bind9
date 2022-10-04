@@ -402,6 +402,14 @@ tls_do_bio(isc_nmsocket_t *sock, isc_region_t *received_data,
 		isc_nm_read_stop(sock->outerhandle);
 	}
 
+	/*
+	 * Clear the TLS error queue so that SSL_get_error() will work
+	 * properly.
+	 *
+	 * Details: https://stackoverflow.com/a/37980911
+	 */
+	ERR_clear_error();
+
 	if (sock->tlsstream.state == TLS_INIT) {
 		INSIST(received_data == NULL && send_data == NULL);
 		if (sock->tlsstream.server) {
@@ -556,7 +564,7 @@ tls_do_bio(isc_nmsocket_t *sock, isc_region_t *received_data,
 	}
 
 	pending = tls_process_outgoing(sock, finish, send_data);
-	if (pending > 0) {
+	if (pending > 0 && tls_status != SSL_ERROR_SSL) {
 		/* We'll continue in tls_senddone */
 		return;
 	}
