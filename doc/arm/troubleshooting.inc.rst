@@ -80,8 +80,12 @@ Inspecting Encrypted DNS Traffic
 By definition, TLS-encrypted traffic (e.g. DNS over TLS, DNS over HTTPS)
 is opaque to packet sniffers, which makes debugging problems with
 encrypted DNS close to impossible. However, Wireshark_ offers a
-solution_ to this problem by being able to read key log files. In order
-to make :iscman:`named` prepare such a file, set the ``SSLKEYLOGFILE``
+solution_ to this problem by being able to read key log files.
+
+.. envvar:: SSLKEYLOGFILE
+
+In order
+to make :iscman:`named` prepare such a file, set the :envvar:`SSLKEYLOGFILE`
 environment variable to either:
 
 - the string ``config`` (``SSLKEYLOGFILE=config``); this requires
@@ -108,7 +112,7 @@ environment variable to either:
    strongly discouraged as it will likely make the key log file
    unusable.
 
-When the ``SSLKEYLOGFILE`` environment variable is set, each TLS
+When the :envvar:`SSLKEYLOGFILE` environment variable is set, each TLS
 connection established by :iscman:`named` (both incoming and outgoing) causes
 about 1 kilobyte of data to be written to the key log file.
 
