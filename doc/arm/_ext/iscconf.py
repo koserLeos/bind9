@@ -380,7 +380,8 @@ def domain_factory(domainname, domainlabel, todolist, grammar):
                 "label": domainlabel + " statement",  # description for index
                 "docname": self.env.docname,
                 "anchor": anchor,
-                "priority": 1,  # search priority
+                "priority": 0,  # highest search priority
+                                # (maps to index in JavaScript Scorer.objPrio)
             }
 
             if name in self.data["statements"]:
