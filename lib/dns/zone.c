@@ -5921,6 +5921,10 @@ dns_kasp_t *
 dns_zone_getkasp(dns_zone_t *zone) {
 	REQUIRE(DNS_ZONE_VALID(zone));
 
+	if (inline_raw(zone) && zone->secure != NULL) {
+		return (zone->secure->kasp);
+	}
+
 	return (zone->kasp);
 }
 
