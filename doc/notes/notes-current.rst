@@ -63,3 +63,8 @@ Bug Fixes
   enter into a state where it would not recover without stopping ``named``,
   manually deleting ``managed-keys.bind`` and ``managed-keys.bind.jnl`` files,
   and starting ``named`` again. :gl:`#2895`
+
+- Fix bugs related to ``inline-signing`` zones that are subject to a
+  multisigner model (RFC 8901). In some cases it was not possible to update
+  the zone with a DNSKEY, CDS or CDNSKEY from the other provider, or the
+  record would be removed again after a re-sign of the zone. :gl:`#2710`
