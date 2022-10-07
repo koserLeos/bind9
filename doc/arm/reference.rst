@@ -2795,6 +2795,30 @@ Boolean Options
       NSEC records; synthesis from NSEC3 is planned for the future. This
       will also be controlled by :any:`synth-from-dnssec`.
 
+.. namedconf:statement:: zonemd-check
+   :tags: zone
+   :short: Controls whether the zone's contents are checked against the ZONEMD record.
+
+   This option indicates that a zone's contents should be checked
+   against the cryptographic hash in a ZONEMD record, if such a record
+   is present, when it is loaded or transferred. This helps to ensure
+   integrity of the zone data. The default is ``yes``.
+
+.. namedconf:statement:: zonemd-dnssec-only
+   :tags: zone
+   :short: Restrict ZONEMD checks to DNSSEC-signed zones.
+
+   When this option is set to the default value of ``yes``, zones
+   containing ZONEMD records will be rejected if they are not
+   DNSSEC-signed.
+
+.. namedconf:statement:: zonemd-required
+   :tags: zone
+   :short: Controls whether a ZONEMD record is required to be present in the zone.
+
+    This indicates that a ZONEMD record **must** be present in a
+    zone when it is loaded or transferred. The default is ``no``.
+
 Forwarding
 ^^^^^^^^^^
 
@@ -7324,6 +7348,15 @@ Zone Options
    See the description of :any:`max-zone-ttl` in :namedconf:ref:`options`.
    The use of this option in :any:`zone` blocks is deprecated and
    will be rendered nonoperational in a future release.
+
+:any:`zonemd-check`
+   See the description of :any:`zonemd-check` in :ref:`boolean_options`.
+
+:any:`zonemd-dnssec-only`
+   See the description of :any:`zonemd-dnssec-only` in :ref:`boolean_options`.
+
+:any:`zonemd-required`
+   See the description of :any:`zonemd-required` in :ref:`boolean_options`.
 
 .. _dynamic_update_policies:
 
