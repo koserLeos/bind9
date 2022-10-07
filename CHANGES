@@ -1,3 +1,6 @@
+5993.	[func]		Refactor the isc_httpd implementation used in the
+			statistics channel. [GL !6879]
+
 5992.	[func]		Introduce the new isc_mem_*x() APIs that takes extra
 			flags as the last argument.  Currently ISC_MEM_ZERO
 			and ISC_MEM_ALIGN(n) flags have been implemented that
