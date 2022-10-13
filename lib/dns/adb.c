@@ -26,6 +26,7 @@
 
 #include <isc/atomic.h>
 #include <isc/hashmap.h>
+#include <isc/list.h>
 #include <isc/loop.h>
 #include <isc/mutexblock.h>
 #include <isc/netaddr.h>
@@ -79,6 +80,12 @@
 #define ADB_CACHE_MAXIMUM 86400 /*%< seconds (86400 = 24 hours) */
 #define ADB_ENTRY_WINDOW  1800	/*%< seconds */
 
+/*
+ * How many thread-local buckets we keep before acquiring the write lock and
+ * reshuffling the LRU lists.
+ */
+#define ADB_MAX_LOCAL 4096
+
 /*%
  * The period in seconds after which an ADB name entry is regarded as stale
  * and forced to be cleaned up.
@@ -116,16 +123,23 @@ struct dns_adb {
 	isc_refcount_t references;
 
 	dns_adbnamebucketlist_t namebuckets_lru;
+	dns_adbnamebucket_t **namebuckets_local;
+	isc_stdtime_t namebuckets_last_update;
+	size_t *namebuckets_local_cur;
 	isc_hashmap_t *namebuckets;
 	isc_rwlock_t names_lock;
 
 	dns_adbentrybucketlist_t entrybuckets_lru;
+	dns_adbentrybucket_t **entrybuckets_local;
+	isc_stdtime_t entrybuckets_last_update;
+	size_t *entrybuckets_local_cur;
 	isc_hashmap_t *entrybuckets;
 	isc_rwlock_t entries_lock;
 
 	isc_stats_t *stats;
 
 	atomic_bool exiting;
+	atomic_bool is_overmem;
 
 	uint32_t quota;
 	uint32_t atr_freq;
@@ -176,6 +190,7 @@ struct dns_adbnamebucket {
 	dns_adbnamelist_t names;
 	isc_mutex_t lock;
 	isc_refcount_t references;
+	isc_stdtime_t last_used;
 	ISC_LINK(dns_adbnamebucket_t) link;
 	size_t keysize;
 	uint8_t key[];
@@ -283,6 +298,7 @@ struct dns_adbentrybucket {
 	dns_adbentrylist_t entries;
 	isc_mutex_t lock;
 	isc_refcount_t references;
+	isc_stdtime_t last_used;
 	ISC_LINK(dns_adbentrybucket_t) link;
 	size_t keysize;
 	uint8_t key[];
@@ -295,6 +311,8 @@ static dns_adbname_t *
 new_adbname(dns_adb_t *, const dns_name_t *);
 static dns_adbnamebucket_t *
 new_adbnamebucket(dns_adb_t *, const uint8_t *key, const size_t keysize);
+static void
+free_adbnamebucket(dns_adb_t *adb, dns_adbnamebucket_t **nbucketp);
 static void
 free_adbname(dns_adbname_t **);
 static dns_adbnamehook_t *
@@ -311,6 +329,8 @@ static void
 free_adbentry(dns_adbentry_t **);
 static dns_adbentrybucket_t *
 new_adbentrybucket(dns_adb_t *adb, const uint8_t *key, const size_t keysize);
+static void
+free_adbentrybucket(dns_adb_t *adb, dns_adbentrybucket_t **ebucketp);
 static dns_adbfind_t *
 new_adbfind(dns_adb_t *, in_port_t);
 static void
@@ -329,7 +349,8 @@ get_namebucket(dns_adb_t *, const dns_name_t *, isc_stdtime_t now,
 static dns_adbname_t *
 get_name(dns_adbnamebucket_t *, const dns_name_t *, unsigned int);
 static void
-get_entrybucket(dns_adb_t *, const isc_sockaddr_t *, dns_adbentrybucket_t **);
+get_entrybucket(dns_adb_t *, const isc_sockaddr_t *, isc_stdtime_t,
+		dns_adbentrybucket_t **);
 static dns_adbentry_t *
 get_entry(dns_adbentrybucket_t *, const isc_sockaddr_t *, isc_stdtime_t);
 static void
@@ -381,6 +402,11 @@ adjustsrtt(dns_adbaddrinfo_t *addr, unsigned int rtt, unsigned int factor,
 	   isc_stdtime_t now);
 static void
 log_quota(dns_adbentry_t *entry, const char *fmt, ...) ISC_FORMAT_PRINTF(2, 3);
+
+static void
+flush_namebuckets_local(dns_adb_t *adb);
+static void
+flush_entrybuckets_local(dns_adb_t *adb);
 
 /*
  * MUST NOT overlap DNS_ADBFIND_* flags!
@@ -643,9 +669,8 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 
 		nh = new_adbnamehook(adb, NULL);
 
-		get_entrybucket(adb, &sockaddr, &ebucket);
+		get_entrybucket(adb, &sockaddr, now, &ebucket);
 		INSIST(ebucket != NULL);
-		LOCK(&ebucket->lock);
 
 		entry = get_entry(ebucket, &sockaddr, now);
 		if (entry == NULL) {
@@ -780,8 +805,7 @@ expire_name(dns_adbname_t **n, isc_eventtype_t evtype) {
 	}
 
 	/*
-	 * Mark the name as dead and move it from 'names' to 'deadnames';
-	 * we'll clean it up later.
+	 * Mark the name as dead.
 	 */
 	if (!NAME_DEAD(adbname)) {
 		adbname->flags |= NAME_IS_DEAD;
@@ -909,13 +933,12 @@ unlink_entry(dns_adbentry_t *entry) {
 
 static void
 shutdown_names(dns_adb_t *adb) {
-	dns_adbnamebucket_t *nbucket = NULL;
-
 	RWLOCK(&adb->names_lock, isc_rwlocktype_read);
-	for (nbucket = ISC_LIST_HEAD(adb->namebuckets_lru); nbucket != NULL;
-	     nbucket = ISC_LIST_NEXT(nbucket, link))
+	for (dns_adbnamebucket_t *nbucket = ISC_LIST_HEAD(adb->namebuckets_lru);
+	     nbucket != NULL; nbucket = ISC_LIST_NEXT(nbucket, link))
 	{
 		dns_adbname_t *name = NULL;
+		dns_adbname_t *next = NULL;
 
 		LOCK(&nbucket->lock);
 		/*
@@ -924,13 +947,11 @@ shutdown_names(dns_adb_t *adb) {
 		 * all the fetches are canceled, the name will destroy
 		 * itself.
 		 */
-		name = ISC_LIST_HEAD(nbucket->names);
-		while (name != NULL) {
-			dns_adbname_t *next_name = ISC_LIST_NEXT(name, plink);
+		for (name = ISC_LIST_HEAD(nbucket->names); name != NULL;
+		     name = next) {
+			next = ISC_LIST_NEXT(name, plink);
 			expire_name(&name, DNS_EVENT_ADBSHUTDOWN);
-			name = next_name;
 		}
-
 		UNLOCK(&nbucket->lock);
 	}
 	RWUNLOCK(&adb->names_lock, isc_rwlocktype_read);
@@ -938,19 +959,18 @@ shutdown_names(dns_adb_t *adb) {
 
 static void
 shutdown_entries(dns_adb_t *adb) {
-	dns_adbentrybucket_t *ebucket = NULL;
-
 	RWLOCK(&adb->entries_lock, isc_rwlocktype_read);
-	for (ebucket = ISC_LIST_HEAD(adb->entrybuckets_lru); ebucket != NULL;
-	     ebucket = ISC_LIST_NEXT(ebucket, link))
+	for (dns_adbentrybucket_t *ebucket =
+		     ISC_LIST_HEAD(adb->entrybuckets_lru);
+	     ebucket != NULL; ebucket = ISC_LIST_NEXT(ebucket, link))
 	{
 		dns_adbentry_t *entry = NULL;
-		dns_adbentry_t *next_entry = NULL;
+		dns_adbentry_t *next = NULL;
 
 		LOCK(&ebucket->lock);
 		for (entry = ISC_LIST_HEAD(ebucket->entries); entry != NULL;
-		     entry = next_entry) {
-			next_entry = ISC_LIST_NEXT(entry, plink);
+		     entry = next) {
+			next = ISC_LIST_NEXT(entry, plink);
 			entry_detach(&entry);
 		}
 		UNLOCK(&ebucket->lock);
@@ -1237,12 +1257,11 @@ new_adbnamebucket(dns_adb_t *adb, const uint8_t *key, const size_t keysize) {
 	nbucket = isc_mem_get(adb->mctx, sizeof(*nbucket) + keysize);
 	*nbucket = (dns_adbnamebucket_t){
 		.keysize = keysize,
+		.names = ISC_LIST_INITIALIZER,
+		.link = ISC_LINK_INITIALIZER,
 	};
 
 	memmove(nbucket->key, key, keysize);
-
-	ISC_LIST_INIT(nbucket->names);
-	ISC_LINK_INIT(nbucket, link);
 
 	isc_mutex_init(&nbucket->lock);
 	isc_refcount_init(&nbucket->references, 0);
@@ -1380,12 +1399,11 @@ new_adbentrybucket(dns_adb_t *adb, const uint8_t *key, const size_t keysize) {
 	ebucket = isc_mem_get(adb->mctx, sizeof(*ebucket) + keysize);
 	*ebucket = (dns_adbentrybucket_t){
 		.keysize = keysize,
+		.entries = ISC_LIST_INITIALIZER,
+		.link = ISC_LINK_INITIALIZER,
 	};
 
 	memmove(ebucket->key, key, keysize);
-
-	ISC_LIST_INIT(ebucket->entries);
-	ISC_LINK_INIT(ebucket, link);
 
 	isc_mutex_init(&ebucket->lock);
 	isc_refcount_init(&ebucket->references, 0);
@@ -1513,6 +1531,23 @@ free_adbaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **ainfo) {
 	isc_mem_put(adb->mctx, ai, sizeof(*ai));
 }
 
+static void
+flush_namebuckets_local(dns_adb_t *adb) {
+	for (size_t tid = 0; tid < adb->nloops; tid++) {
+		for (size_t i = 0; i < adb->namebuckets_local_cur[tid]; i++) {
+			dns_adbnamebucket_t *nbucket =
+				adb->namebuckets_local[tid * ADB_MAX_LOCAL + i];
+			if (ISC_LINK_LINKED(nbucket, link)) {
+				ISC_LIST_UNLINK(adb->namebuckets_lru, nbucket,
+						link);
+			}
+			ISC_LIST_PREPEND(adb->namebuckets_lru, nbucket, link);
+			adb->namebuckets_local[tid * ADB_MAX_LOCAL + i] = NULL;
+		}
+		adb->namebuckets_local_cur[tid] = 0;
+	}
+}
+
 /*
  * Search for the name bucket in the hash table.
  */
@@ -1521,29 +1556,71 @@ get_namebucket(dns_adb_t *adb, const dns_name_t *name, isc_stdtime_t now,
 	       dns_adbnamebucket_t **nbucketp) {
 	isc_result_t result;
 	dns_adbnamebucket_t *nbucket = NULL;
+	isc_rwlocktype_t locktype = isc_rwlocktype_read;
+	isc_time_t timenow;
+	uint32_t tid = isc_tid();
 
 	REQUIRE(nbucketp != NULL && *nbucketp == NULL);
 
-	RWLOCK(&adb->names_lock, isc_rwlocktype_write);
-	/*
-	 * First, see if there are stale names at the
-	 * end of the list, and purge them if so.
-	 */
-	purge_stale_names(adb, now);
+	isc_time_set(&timenow, now, 0);
+
+	RWLOCK(&adb->names_lock, locktype);
+	if (adb->namebuckets_local_cur[tid] == ADB_MAX_LOCAL ||
+	    now - adb->namebuckets_last_update > ADB_STALE_MARGIN ||
+	    atomic_load_relaxed(&adb->is_overmem))
+	{
+	relock:
+		RWUNLOCK(&adb->names_lock, locktype);
+		locktype = isc_rwlocktype_write;
+		RWLOCK(&adb->names_lock, locktype);
+
+		adb->namebuckets_last_update = now;
+
+		flush_namebuckets_local(adb);
+		purge_stale_names(adb, now);
+	}
+
 	result = isc_hashmap_find(adb->namebuckets, name->ndata, name->length,
 				  (void **)&nbucket);
 	if (result == ISC_R_NOTFOUND) {
-		/*
-		 * Allocate a new bucket and add it to the hash table.
-		 */
+		if (locktype == isc_rwlocktype_read) {
+			goto relock;
+		}
+
+		/* Allocate a new bucket and add it to the hash table. */
 		nbucket = new_adbnamebucket(adb, name->ndata, name->length);
 		result = isc_hashmap_add(adb->namebuckets, nbucket->key,
 					 nbucket->keysize, nbucket);
-	} else {
-		ISC_LIST_UNLINK(adb->namebuckets_lru, nbucket, link);
 	}
-	ISC_LIST_PREPEND(adb->namebuckets_lru, nbucket, link);
-	RWUNLOCK(&adb->names_lock, isc_rwlocktype_write);
+	INSIST(result == ISC_R_SUCCESS);
+
+	LOCK(&nbucket->lock);
+	if (nbucket->last_used > adb->namebuckets_last_update) {
+		/*
+		 * The local LRU buffer hasn't been flushed yet, and this bucket
+		 * was already stored in the local LRU buffer.
+		 */
+		goto unlock;
+	}
+
+	nbucket->last_used = now;
+
+	if (locktype == isc_rwlocktype_read) {
+		size_t i = adb->namebuckets_local_cur[tid];
+		INSIST(adb->namebuckets_local[tid * ADB_MAX_LOCAL + i] == NULL);
+
+		adb->namebuckets_local[tid * ADB_MAX_LOCAL + i] = nbucket;
+		adb->namebuckets_local_cur[tid]++;
+	} else {
+		if (ISC_LINK_LINKED(nbucket, link)) {
+			ISC_LIST_UNLINK(adb->namebuckets_lru, nbucket, link);
+		}
+		ISC_LIST_PREPEND(adb->namebuckets_lru, nbucket, link);
+	}
+
+unlock:
+	RWUNLOCK(&adb->names_lock, locktype);
+
 	INSIST(result == ISC_R_SUCCESS);
 
 	*nbucketp = nbucket;
@@ -1571,34 +1648,93 @@ get_name(dns_adbnamebucket_t *nbucket, const dns_name_t *name,
 	return (NULL);
 }
 
+static void
+flush_entrybuckets_local(dns_adb_t *adb) {
+	for (size_t tid = 0; tid < adb->nloops; tid++) {
+		for (size_t i = 0; i < adb->entrybuckets_local_cur[tid]; i++) {
+			dns_adbentrybucket_t *ebucket =
+				adb->entrybuckets_local[tid * ADB_MAX_LOCAL + i];
+			if (ISC_LINK_LINKED(ebucket, link)) {
+				ISC_LIST_UNLINK(adb->entrybuckets_lru, ebucket,
+						link);
+			}
+			ISC_LIST_PREPEND(adb->entrybuckets_lru, ebucket, link);
+			adb->entrybuckets_local[tid * ADB_MAX_LOCAL + i] = NULL;
+		}
+		adb->entrybuckets_local_cur[tid] = 0;
+	}
+}
+
 /*
  * Search for the entry bucket for this address in the hash table.
  */
 static void
-get_entrybucket(dns_adb_t *adb, const isc_sockaddr_t *addr,
+get_entrybucket(dns_adb_t *adb, const isc_sockaddr_t *addr, isc_stdtime_t now,
 		dns_adbentrybucket_t **ebucketp) {
 	isc_result_t result;
 	dns_adbentrybucket_t *ebucket = NULL;
+	isc_rwlocktype_t locktype = isc_rwlocktype_read;
+	uint32_t tid = isc_tid();
 
 	REQUIRE(ebucketp != NULL && *ebucketp == NULL);
 
-	RWLOCK(&adb->entries_lock, isc_rwlocktype_write);
+	RWLOCK(&adb->entries_lock, locktype);
+	if (adb->entrybuckets_local_cur[tid] == ADB_MAX_LOCAL ||
+	    now - adb->entrybuckets_last_update > ADB_STALE_MARGIN ||
+	    atomic_load_relaxed(&adb->is_overmem))
+	{
+	relock:
+		RWUNLOCK(&adb->entries_lock, locktype);
+		locktype = isc_rwlocktype_write;
+		RWLOCK(&adb->entries_lock, locktype);
+
+		adb->entrybuckets_last_update = now;
+
+		flush_entrybuckets_local(adb);
+	}
 	result = isc_hashmap_find(adb->entrybuckets,
 				  (const unsigned char *)addr, sizeof(*addr),
 				  (void **)&ebucket);
 	if (result == ISC_R_NOTFOUND) {
-		/*
-		 * Allocate a new bucket and add it to the hash table.
-		 */
+		if (locktype == isc_rwlocktype_read) {
+			goto relock;
+		}
+
+		/* Allocate a new bucket and add it to the hash table. */
 		ebucket = new_adbentrybucket(adb, (const unsigned char *)addr,
 					     sizeof(*addr));
 		result = isc_hashmap_add(adb->entrybuckets, ebucket->key,
 					 ebucket->keysize, ebucket);
-	} else {
-		ISC_LIST_UNLINK(adb->entrybuckets_lru, ebucket, link);
 	}
-	ISC_LIST_PREPEND(adb->entrybuckets_lru, ebucket, link);
-	RWUNLOCK(&adb->entries_lock, isc_rwlocktype_write);
+	INSIST(result == ISC_R_SUCCESS);
+
+	LOCK(&ebucket->lock);
+
+	if (ebucket->last_used > adb->namebuckets_last_update) {
+		/*
+		 * The local LRU buffer hasn't been flushed yet, and this bucket
+		 * was already stored in the local LRU buffer.
+		 */
+		goto unlock;
+	}
+
+	if (locktype == isc_rwlocktype_read) {
+		size_t i = adb->entrybuckets_local_cur[tid];
+		INSIST(adb->entrybuckets_local[tid * ADB_MAX_LOCAL + i] ==
+		       NULL);
+
+		adb->entrybuckets_local[tid * ADB_MAX_LOCAL + i] = ebucket;
+		adb->entrybuckets_local_cur[tid]++;
+	} else {
+		if (ISC_LINK_LINKED(ebucket, link)) {
+			ISC_LIST_UNLINK(adb->entrybuckets_lru, ebucket, link);
+		}
+		ISC_LIST_PREPEND(adb->entrybuckets_lru, ebucket, link);
+	}
+
+unlock:
+	RWUNLOCK(&adb->entries_lock, locktype);
+
 	INSIST(result == ISC_R_SUCCESS);
 
 	*ebucketp = ebucket;
@@ -1822,7 +1958,7 @@ maybe_expire_name(dns_adbname_t **namep, isc_stdtime_t now) {
 static void
 purge_stale_names(dns_adb_t *adb, isc_stdtime_t now) {
 	dns_adbnamebucket_t *nbucket = NULL;
-	bool overmem = isc_mem_isovermem(adb->mctx);
+	bool overmem = atomic_load_relaxed(&adb->is_overmem);
 	int max_removed = overmem ? 2 : 1;
 	int scans = 0, removed = 0;
 
@@ -1968,6 +2104,34 @@ clean_hashes(dns_adb_t *adb, isc_stdtime_t now) {
 }
 
 static void
+free_adbnamebucket(dns_adb_t *adb, dns_adbnamebucket_t **nbucketp) {
+	dns_adbnamebucket_t *nbucket = *nbucketp;
+	*nbucketp = NULL;
+
+	cleanup_names(nbucket, INT_MAX);
+	isc_mutex_destroy(&nbucket->lock);
+	isc_refcount_destroy(&nbucket->references);
+	if (ISC_LINK_LINKED(nbucket, link)) {
+		ISC_LIST_UNLINK(adb->namebuckets_lru, nbucket, link);
+	}
+	isc_mem_put(adb->mctx, nbucket, sizeof(*nbucket) + nbucket->keysize);
+}
+
+static void
+free_adbentrybucket(dns_adb_t *adb, dns_adbentrybucket_t **ebucketp) {
+	dns_adbentrybucket_t *ebucket = *ebucketp;
+	*ebucketp = NULL;
+
+	cleanup_entries(ebucket, INT_MAX);
+	isc_mutex_destroy(&ebucket->lock);
+	isc_refcount_destroy(&ebucket->references);
+	if (ISC_LINK_LINKED(ebucket, link)) {
+		ISC_LIST_UNLINK(adb->entrybuckets_lru, ebucket, link);
+	}
+	isc_mem_put(adb->mctx, ebucket, sizeof(*ebucket) + ebucket->keysize);
+}
+
+static void
 destroy(dns_adb_t *adb) {
 	isc_result_t result;
 	isc_hashmap_iter_t *it = NULL;
@@ -1983,16 +2147,16 @@ destroy(dns_adb_t *adb) {
 	{
 		dns_adbnamebucket_t *nbucket = NULL;
 		isc_hashmap_iter_current(it, (void **)&nbucket);
-		cleanup_names(nbucket, INT_MAX);
-		isc_mutex_destroy(&nbucket->lock);
-		isc_refcount_destroy(&nbucket->references);
-		ISC_LIST_UNLINK(adb->namebuckets_lru, nbucket, link);
-		isc_mem_put(adb->mctx, nbucket,
-			    sizeof(*nbucket) + nbucket->keysize);
+		free_adbnamebucket(adb, &nbucket);
 	}
 	isc_hashmap_iter_destroy(&it);
 	isc_hashmap_destroy(&adb->namebuckets);
 	RWUNLOCK(&adb->names_lock, isc_rwlocktype_write);
+	isc_mem_put(adb->mctx, adb->namebuckets_local,
+		    adb->nloops * sizeof(adb->namebuckets_local[0]) *
+			    ADB_MAX_LOCAL);
+	isc_mem_put(adb->mctx, adb->namebuckets_local_cur,
+		    adb->nloops * sizeof(adb->namebuckets_local_cur[0]));
 	isc_rwlock_destroy(&adb->names_lock);
 
 	RWLOCK(&adb->entries_lock, isc_rwlocktype_write);
@@ -2002,16 +2166,16 @@ destroy(dns_adb_t *adb) {
 	{
 		dns_adbentrybucket_t *ebucket = NULL;
 		isc_hashmap_iter_current(it, (void **)&ebucket);
-		cleanup_entries(ebucket, INT_MAX);
-		isc_mutex_destroy(&ebucket->lock);
-		isc_refcount_destroy(&ebucket->references);
-		ISC_LIST_UNLINK(adb->entrybuckets_lru, ebucket, link);
-		isc_mem_put(adb->mctx, ebucket,
-			    sizeof(*ebucket) + ebucket->keysize);
+		free_adbentrybucket(adb, &ebucket);
 	}
 	isc_hashmap_iter_destroy(&it);
 	isc_hashmap_destroy(&adb->entrybuckets);
 	RWUNLOCK(&adb->entries_lock, isc_rwlocktype_write);
+	isc_mem_put(adb->mctx, adb->entrybuckets_local,
+		    adb->nloops * sizeof(adb->entrybuckets_local[0]) *
+			    ADB_MAX_LOCAL);
+	isc_mem_put(adb->mctx, adb->entrybuckets_local_cur,
+		    adb->nloops * sizeof(adb->entrybuckets_local_cur[0]));
 	isc_rwlock_destroy(&adb->entries_lock);
 
 	isc_mutex_destroy(&adb->lock);
@@ -2059,11 +2223,26 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_loopmgr_t *loopmgr,
 	isc_mem_attach(mem, &adb->mctx);
 
 	ISC_LIST_INIT(adb->namebuckets_lru);
+	adb->namebuckets_local = isc_mem_getx(
+		adb->mctx,
+		adb->nloops * sizeof(adb->namebuckets_local[0]) * ADB_MAX_LOCAL,
+		ISC_MEM_ZERO);
+	adb->namebuckets_local_cur = isc_mem_getx(
+		adb->mctx, adb->nloops * sizeof(adb->namebuckets_local_cur[0]),
+		ISC_MEM_ZERO);
 	isc_hashmap_create(adb->mctx, 1, ISC_HASHMAP_CASE_INSENSITIVE,
 			   &adb->namebuckets);
 	isc_rwlock_init(&adb->names_lock, 0, 0);
 
 	ISC_LIST_INIT(adb->entrybuckets_lru);
+	adb->entrybuckets_local =
+		isc_mem_getx(adb->mctx,
+			     adb->nloops * sizeof(adb->entrybuckets_local[0]) *
+				     ADB_MAX_LOCAL,
+			     ISC_MEM_ZERO);
+	adb->entrybuckets_local_cur = isc_mem_getx(
+		adb->mctx, adb->nloops * sizeof(adb->entrybuckets_local_cur[0]),
+		ISC_MEM_ZERO);
 	isc_hashmap_create(adb->mctx, 1, ISC_HASHMAP_CASE_SENSITIVE,
 			   &adb->entrybuckets);
 	isc_rwlock_init(&adb->entries_lock, 0, 0);
@@ -2110,10 +2289,20 @@ free_tasks:
 
 	isc_mutex_destroy(&adb->lock);
 
+	isc_mem_put(adb->mctx, adb->entrybuckets_local,
+		    adb->nloops * sizeof(adb->entrybuckets_local[0]) *
+			    ADB_MAX_LOCAL);
+	isc_mem_put(adb->mctx, adb->namebuckets_local_cur,
+		    adb->nloops * sizeof(adb->namebuckets_local_cur[0]));
 	isc_rwlock_destroy(&adb->entries_lock);
 	isc_hashmap_destroy(&adb->entrybuckets);
 	INSIST(ISC_LIST_EMPTY(adb->entrybuckets_lru));
 
+	isc_mem_put(adb->mctx, adb->namebuckets_local,
+		    adb->nloops * sizeof(adb->namebuckets_local[0]) *
+			    ADB_MAX_LOCAL);
+	isc_mem_put(adb->mctx, adb->entrybuckets_local_cur,
+		    adb->nloops * sizeof(adb->entrybuckets_local_cur[0]));
 	isc_rwlock_destroy(&adb->names_lock);
 	isc_hashmap_destroy(&adb->namebuckets);
 	INSIST(ISC_LIST_EMPTY(adb->namebuckets_lru));
@@ -2264,9 +2453,8 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 	/*
 	 * Try to see if we know anything about this name at all.
 	 */
-	get_namebucket(adb, name, now, &nbucket);
+	get_namebucket(adb, name, now, &nbucket); /* acquires lock */
 	INSIST(nbucket != NULL);
-	LOCK(&nbucket->lock);
 	adbname = get_name(nbucket, name, find->options);
 	if (adbname == NULL) {
 		/*
@@ -3762,9 +3950,8 @@ dns_adb_findaddrinfo(dns_adb_t *adb, const isc_sockaddr_t *sa,
 		return (ISC_R_SHUTTINGDOWN);
 	}
 
-	get_entrybucket(adb, sa, &ebucket);
+	get_entrybucket(adb, sa, now, &ebucket);
 	INSIST(ebucket != NULL);
-	LOCK(&ebucket->lock);
 
 	entry = get_entry(ebucket, sa, now);
 	if (entry == NULL) {
@@ -3901,21 +4088,13 @@ dns_adb_flushnames(dns_adb_t *adb, const dns_name_t *name) {
 static void
 water(void *arg, int mark) {
 	dns_adb_t *adb = arg;
-	bool overmem = (mark == ISC_MEM_HIWATER);
-
-	/*
-	 * We're going to change the way to handle overmem condition:
-	 * use isc_mem_isovermem() instead of storing the state via this
-	 * callback, since the latter way tends to cause race
-	 * conditions. To minimize the change, and in case we re-enable
-	 * the callback approach, however, keep this function at the
-	 * moment.
-	 */
 
 	REQUIRE(DNS_ADB_VALID(adb));
 
+	atomic_store_release(&adb->is_overmem, (mark == ISC_MEM_HIWATER));
+
 	DP(ISC_LOG_DEBUG(1), "adb reached %s water mark",
-	   overmem ? "high" : "low");
+	   (mark == ISC_MEM_HIWATER) ? "high" : "low");
 }
 
 void
