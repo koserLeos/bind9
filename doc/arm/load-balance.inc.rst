@@ -17,27 +17,33 @@ Load balancing distributes client service requests across a group of server mach
 to reduce the overall load on any one server. There are many ways to achieve
 load balancing:
 
-   - Client-side method is to use DNS records with support for load-balancing
-     (such as MX records, SRV records).
-   - Tailored-response method, which takes advantage of built-in BIND 9
-     features such as GeoIPs within :any:`acl` blocks, :any:`view` blocks to
-     send different clients tailored responses.
-   - last resort option, `rrset-order` and :any:`sortlist` features in BIND.
+   - Client-side method is to publish DNS records with support for load-balancing
+     (such as :ref:`HTTPS <https_balance>` records, :ref:`MX <mx_balance>`
+     records, :ref:`SRV <srv_balance>` records).
+   - :ref:`Tailored-response method <tailored_responses>`, which takes
+     advantage of built-in BIND 9 features such as GeoIPs within :any:`acl`
+     blocks, :any:`view` blocks to send different clients tailored responses.
+   - :ref:`Last resort <last_resort_balance>` option, :any:`rrset-order` and
+     :any:`sortlist` features in BIND.
 
 Each approach is described in the following sections and the limits to each are
-identified.
-
-.. note::
-   Often DNS answers sent to clients need to react to changing
-   conditions, e.g. when one of servers in the pool is overloaded or in maintenance.
-   You can use :ref:`dynamic_update` support in BIND.
+identified. Generic limitations are described together in section
+:ref:`balancing_caveats`.
 
 .. note::
    This section deals with the use of DNS to balance end-user services.
    Load balancing of DNS service is not addressed by these techniques.
 
-Balancing Mail
-~~~~~~~~~~~~~~
+.. _https_balance:
+
+Balancing Web Traffic (HTTPS Records)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TODO
+
+.. _mx_balance:
+
+Balancing Mail (MX Records)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sharing load between multiple mail servers is controlled by
 :ref:`MX<mx_records>` resource records. These records contain a *preference*
@@ -64,7 +70,7 @@ more mail servers by assigning them the same value; for example:
 
 **mail**, **mail1** and **mail2** are all considered to have equal preference,
 or cost. The authoritative name server delivers the MX records in the order
-defined by the :ref:`rrset-order<rrset_ordering>` statement, and the receiving
+defined by the :any:`rrset-order` statement, and the receiving
 SMTP software selects one based on its algorithm. In some cases the SMTP
 selection algorithm may work against the definition of the RRset-order
 statement.
@@ -80,12 +86,39 @@ reverse lookups as a spam check, define the PTR records for 192.168.0.4,
    to a common file system (NAS, NFS, etc.), or by defining all but one
    server to be a mail relay or forwarder.
 
-Balancing Other Services
-~~~~~~~~~~~~~~~~~~~~~~~~
+.. _srv_balance:
 
-If the requirement is to load-share FTP, web, or other services, then defining
-multiple A records with the same name and different IP addresses, as in the
-example below, is an effective solution.
+Balancing Other Services (SRV Records)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :ref:`SRV<srv_rr>` resource record allows an application to **discover**
+the server name or names (and optional port number) on which a service - SIP or
+LDAP, for example - is provided. As such, it offers another approach to load
+balancing. SRV RRs contain both *priority* and *weight* fields, allowing a fine
+level of granular configuration as well as providing some level of failover.
+However, the end application must be **SRV-aware** for this approach to work.
+Application support for SRV is patchy at best - varying from very high in SIP
+(VoIP) to non-existent (browsers).
+
+.. _last_resort_balance:
+
+Last Resort Option (A/AAAA records)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some services do not have service-specific record type or domain name, and rely
+on A/AAAA records to map service name to addresses.
+If the requirement is to load-share services without specialized resource record,
+then defining multiple A/AAAA records with the same name and different IP
+addresses, as in the example below, can be used as an **imperfect workaround**.
+Please note this technique relies on quirks in client implementations and is
+not reliable.
+
+.. note::
+   This is legacy method is still in use for HTTP traffic, but it is
+   becoming obsolete as :ref:`HTTPS <https_balance>` resource record support in
+   clients is rolled out.
+
+This method is best illustrated on a simple zone file:
 
 .. code-block:: none
 
@@ -98,48 +131,31 @@ example below, is an effective solution.
    www  A   192.168.0.7
         A   192.168.0.8
 
-.. note::
-   While the above example shows IPv4 addresses using A RRs, the principle applies
-   equally to IPv6 addresses using AAAA RRs.
-
 The authoritative name server delivers all the IP addresses from the zone file;
 the first IP address in the returned list is defined according to the value
-of the :ref:`rrset-order<rrset_ordering>` statement. The **ftp** and **www**
+of the :any:`rrset-order` or :any:`sortlist` statements. The **ftp** and **www**
 servers must all be exact (synchronized) replicas of each other in this scenario.
-In summary, multiple RRs can be an extremely effective load-balancing tool
-and can even provide powerful failover capabilities, depending on the application.
 
-.. note::
-   Since clients receive all of the addresses for a service, it becomes the client's
-   responsibility to choose one to use; some clients may not be able to do this.
-   Further, just because DNS has supplied multiple addresses it does not mean that
-   they all work. Clients may choose the address of a server that is currently
-   unavailable, meaning that the client itself needs to have some way to retry
-   using a different address from the set.
+.. warning::
+   Use this method only as last resort option.
+   Resource record sets, by DNS protocol definition, can be reordered at any
+   time. Intermediate resolvers might reorder records and ruin any
+   load-balancing attempts. Similarly client side is allowed to reorder records
+   at will.
 
-Balancing Using SRV
-~~~~~~~~~~~~~~~~~~~
-
-The :ref:`SRV<srv_rr>` resource record allows an application to **discover**
-the server name or names (and optional port number) on which a service - SIP or
-LDAP, for example - is provided. As such, it offers another approach to load
-balancing. SRV RRs contain both *priority* and *weight* fields, allowing a fine
-level of granular configuration as well as providing some level of failover.
-However, the end application must be **SRV-aware** for this approach to work.
-Application support for SRV is patchy at best - varying from very high in SIP
-(VoIP) to non-existent (browsers).
-
+.. _tailored_responses:
 
 Balancing Services with Split-Horizon (GeoIP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-An alternative approach to load balancing may be provisioned using BIND's
-:any:`view` block to create a split horizon (or GeoIP-aware) configuration.
+All application-specific approaches listed above can be combined with BIND's
+:any:`view` feature to create a split horizon (or GeoIP-aware) configuration.
 Split horizon uses the client's source IP address to respond with a specific
-service IP address, thus balancing for geographic or even service
+set of records, thus balancing for geographic or even service
 provider-specific traffic sources (please see :ref:`Example Split-Horizon
 Configuration<split_dns>`).
 
+.. _balancing_caveats:
 
 Effectiveness of DNS Service Load Balancing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -150,23 +166,27 @@ should also be considered:
 
 1. Data supplied from the authoritative name server will reflect both the
 zone file content, such as multiple RRs, and any BIND 9 operational control
-statements, such as :ref:`rrset-order<rrset_ordering>`.
+statements, such as :any:`rrset-order` and :any:`sortlist`.
 
 2. When this data is cached by a resolver and subsequently supplied from its
 cache, two consequences apply:
 
-   a. The order in which multiple IPs appear is essentially **frozen** within
-   the resolver's cache; it is no longer controlled by the authoritative name
-   server's policies. If data is supplied from a pathologically small number
-   of caches, any balancing effect may become distorted.
+   a. The order in which multiple IPs appear **can change** within
+      the resolver's cache; it is no longer controlled by the authoritative name
+      server's policies. If data is supplied from a pathologically small number
+      of caches, any balancing effect may become distorted.
 
    b. The resolver may be configured with its own policies using
-   :ref:`rrset-order<rrset_ordering>` or the (relatively rare) :any:`sortlist`
-   statement, which may distort the aims of the authoritative name server.
+      :any:`rrset-order` or the (relatively rare) :any:`sortlist`
+      statement, which may distort the aims of the authoritative name server.
 
-What DNS load balancing cannot do is to account for service loading or
-availability; for instance, certain transactions may generate very high CPU or
-resource loads, or certain servers in a set may simply be unavailable (as
-already mentioned). For this type of control only a local load balancer - one
-which measures service response times, server loading, and potentially other
-metrics - will be effective.
+   c. Changes on the authoritative side might not take effect until :term:`TTL`
+      expires.
+
+3. To account for server load or availability data on the authoritative server
+   must be modified using :ref:`dynamic_update`. For instance, certain
+   transactions may generate very high CPU or resource loads, or certain servers
+   in a set may simply be unavailable. For this type of control only a local load
+   balancer - one which measures service response times, server loading, and
+   potentially other metrics - must modify content of DNS zone, and the
+   dynamically modified records should use sufficiently low :term:`TTL` values.
