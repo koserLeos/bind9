@@ -15,12 +15,17 @@ Load Balancing
 
 Load balancing distributes client service requests across a group of server machines,
 to reduce the overall load on any one server. There are many ways to achieve
-load balancing: one fairly primitive method is to use
-:ref:`zone file<zone_file>` features (such as MX records, SRV
-records, and multiple A records), but it is also possible to take advantage
-of built-in BIND 9 features such as GeoIPs within :any:`acl` blocks, :any:`view`
-blocks, and the :ref:`rrset-order<rrset_ordering>` statement. Each approach is described
-in the following sections and the limits to each are identified.
+load balancing:
+
+   - Client-side method is to use DNS records with support for load-balancing
+     (such as MX records, SRV records).
+   - Tailored-response method, which takes advantage of built-in BIND 9
+     features such as GeoIPs within :any:`acl` blocks, :any:`view` blocks to
+     send different clients tailored responses.
+   - last resort option, `rrset-order` and :any:`sortlist` features in BIND.
+
+Each approach is described in the following sections and the limits to each are
+identified.
 
 .. note::
    Often DNS answers sent to clients need to react to changing
