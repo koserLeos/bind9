@@ -23,6 +23,11 @@ blocks, and the :ref:`rrset-order<rrset_ordering>` statement. Each approach is d
 in the following sections and the limits to each are identified.
 
 .. note::
+   Often DNS answers sent to clients need to react to changing
+   conditions, e.g. when one of servers in the pool is overloaded or in maintenance.
+   You can use :ref:`dynamic_update` support in BIND.
+
+.. note::
    This section deals with the use of DNS to balance end-user services.
    Load balancing of DNS service is not addressed by these techniques.
 
