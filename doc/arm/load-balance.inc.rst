@@ -39,60 +39,46 @@ identified.
 Balancing Mail
 ~~~~~~~~~~~~~~
 
-Sharing load between multiple mail servers can be achieved in one of two ways.
+Sharing load between multiple mail servers is controlled by
+:ref:`MX<mx_records>` resource records. These records contain a *preference*
+value. One primary use of this value is to achieve resilience of the mail
+service by designating a primary server and one or more secondary, or backup,
+servers. The :ref:`MX<mx_records>` resource record of the primary server is
+given a low *preference* value and the :ref:`MX<mx_records>` resource record of
+the secondary server(s) is given higher *preference* values. *preference* can
+therefore be regarded more like a *cost*; the lowest-cost server is preferred.
 
-1. :ref:`MX<mx_records>` resource records contain a *preference* value. One
-   primary use of this value is to achieve resilience of the mail service by
-   designating a primary server and one or more secondary, or backup, servers.
-   The :ref:`MX<mx_records>` resource record of the primary server is given a
-   low *preference* value and the :ref:`MX<mx_records>` resource record of
-   the secondary server(s) is given higher *preference* values.
-   *preference* can therefore be regarded more like a *cost*; the lowest-cost
-   server is preferred.
+However, *preference* can also be used to achieve load balancing between two or
+more mail servers by assigning them the same value; for example:
 
-   However, *preference* can also be used to achieve load balancing between two or
-   more mail servers by assigning them the same value; for example:
+.. code-block:: none
 
-   .. code-block:: none
+   ; zone file fragment
+   @       MX      10 mail.example.com.
+   @       MX      10 mail1.example.com.
+   @       MX      10 mail2.example.com.
+   ...
+   mail    A       192.168.0.4
+   mail1   A       192.168.0.5
+   mail2   A       192.168.0.6
 
-   	; zone file fragment
-   	@       MX      10 mail.example.com.
-   	@       MX      10 mail1.example.com.
-   	@       MX      10 mail2.example.com.
-   	...
-   	mail    A       192.168.0.4
-   	mail1   A       192.168.0.5
-	mail2   A       192.168.0.6
+**mail**, **mail1** and **mail2** are all considered to have equal preference,
+or cost. The authoritative name server delivers the MX records in the order
+defined by the :ref:`rrset-order<rrset_ordering>` statement, and the receiving
+SMTP software selects one based on its algorithm. In some cases the SMTP
+selection algorithm may work against the definition of the RRset-order
+statement.
 
-   **mail**, **mail1** and **mail2** are all considered to have equal preference,
-   or cost. The authoritative name server delivers the MX records in the order
-   defined by the :ref:`rrset-order<rrset_ordering>` statement, and the receiving
-   SMTP software selects one based on its algorithm. In some cases the SMTP
-   selection algorithm may work against the definition of the RRset-order
-   statement.
+To avoid problems if the receiving mail system does
+reverse lookups as a spam check, define the PTR records for 192.168.0.4,
+192.168.0.5, and 192.168.0.6 to mail.example.com.
 
-2. Define multiple A records with the same mail server name:
-
-   .. code-block:: none
-
-   	; zone file fragment
-   	@       MX      10  mail.example.com.
-   	...
-   	mail    A       192.168.0.4
-   	        A       192.168.0.5
-   	        A       192.168.0.6
-
-   In this case, the load-balancing effect is under the control of BIND and the
-   RRset-order statement. To avoid problems if the receiving mail system does
-   reverse lookups as a spam check, define the PTR records for 192.168.0.4,
-   192.168.0.5, and 192.168.0.6 to mail.example.com.
-
-   .. note::
-      In both the above cases, each mail server must be capable of handling and
-      synchronizing the load for all the mailboxes served by the domain, This
-      can be accomplished either using some appropriate back-end or by access
-      to a common file system (NAS, NFS, etc.), or by defining all but one
-      server to be a mail relay or forwarder.
+.. note::
+   In both the above cases, each mail server must be capable of handling and
+   synchronizing the load for all the mailboxes served by the domain, This
+   can be accomplished either using some appropriate back-end or by access
+   to a common file system (NAS, NFS, etc.), or by defining all but one
+   server to be a mail relay or forwarder.
 
 Balancing Other Services
 ~~~~~~~~~~~~~~~~~~~~~~~~
