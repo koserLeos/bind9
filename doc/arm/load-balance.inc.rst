@@ -89,14 +89,14 @@ example below, is an effective solution.
 
 .. code-block:: none
 
-	; zone file fragment
+   ; zone file fragment
 
-	ftp   	A   192.168.0.4
-		A   192.168.0.5
-		A   192.168.0.6
-	...
-	www   	A   192.168.0.7
-		A   192.168.0.8
+   ftp  A   192.168.0.4
+        A   192.168.0.5
+        A   192.168.0.6
+   ...
+   www  A   192.168.0.7
+        A   192.168.0.8
 
 .. note::
    While the above example shows IPv4 addresses using A RRs, the principle applies
