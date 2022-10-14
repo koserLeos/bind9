@@ -2971,17 +2971,13 @@ isc__nm_http_set_max_streams(isc_nmsocket_t *listener,
 void
 isc_nm_http_set_endpoints(isc_nmsocket_t *listener,
 			  isc_nm_http_endpoints_t *eps) {
-	isc_loopmgr_t *loopmgr = NULL;
-
 	REQUIRE(VALID_NMSOCK(listener));
 	REQUIRE(listener->type == isc_nm_httplistener);
 	REQUIRE(VALID_HTTP_ENDPOINTS(eps));
 
-	loopmgr = listener->worker->netmgr->loopmgr;
-
 	atomic_store(&eps->in_use, true);
 
-	for (size_t i = 0; i < isc_loopmgr_nloops(loopmgr); i++) {
+	for (size_t i = 0; i < listener->nchildren; i++) {
 		isc__netievent__http_eps_t *ievent =
 			isc__nm_get_netievent_httpendpoints(
 				&listener->worker->netmgr->workers[i], listener,
