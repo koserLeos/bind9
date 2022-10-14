@@ -24,9 +24,7 @@ in the following sections and the limits to each are identified.
 
 .. note::
    This section deals with the use of DNS to balance end-user services.
-   Load balancing of DNS service is not addressed by these techniques
-   but may use :ref:`forwarding<sample_forwarding>` configurations and
-   the :any:`rate-limit<rate-limit>` statement.
+   Load balancing of DNS service is not addressed by these techniques.
 
 Balancing Mail
 ~~~~~~~~~~~~~~
