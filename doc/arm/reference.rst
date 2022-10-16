@@ -4003,13 +4003,20 @@ Periodic Task Intervals
    gone away. For convenience, TTL-style time-unit suffixes may be used to
    specify the value. It also accepts ISO 8601 duration formats.
 
-The :any:`sortlist` Statement
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RRset Ordering
+^^^^^^^^^^^^^^
+
+.. note::
+
+    While alternating the order of records in a DNS response between
+    subsequent queries is a known load distribution technique, certain
+    caveats apply which usually make it a suboptimal choice for load balancing
+    purposes when used on its own. See :ref:`balancing_caveats`.
 
 The response to a DNS query may consist of multiple resource records
 (RRs) forming a resource record set (RRset). The name server
 normally returns the RRs within the RRset in an indeterminate order (but
-see the :any:`rrset-order` statement in :ref:`rrset_ordering`). The client resolver code should
+see the :any:`rrset-order` statement). The client resolver code should
 rearrange the RRs as appropriate: that is, using any addresses on the
 local net in preference to other addresses. However, not all resolvers
 can do this or are correctly configured. When a client is using a local
@@ -4088,18 +4095,6 @@ are not sorted.
           { localhost; localnets; };
           { localnets; };
    };
-
-.. _rrset_ordering:
-
-RRset Ordering
-^^^^^^^^^^^^^^
-
-.. note::
-
-    While alternating the order of records in a DNS response between
-    subsequent queries is a known load distribution technique, certain
-    caveats apply (mostly stemming from caching) which usually make it a
-    suboptimal choice for load balancing purposes when used on its own.
 
 .. namedconf:statement:: rrset-order
    :tags: query

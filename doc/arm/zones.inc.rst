@@ -13,11 +13,15 @@
 
 .. _soa_rr:
 
+.. _srv_rr:
+
 Zone File
 ---------
 
 This section, largely borrowed from :rfc:`1034`, describes the concept of a
-Resource Record (RR) and explains how to use them.
+Resource Record (RR) and explains when each type is used. Since the
+publication of :rfc:`1034`, dozens of new RRs have been identified and
+implemented in the DNS. Most notable ones are also included.
 
 Resource Records
 ~~~~~~~~~~~~~~~~
@@ -26,10 +30,7 @@ A domain name identifies a node in the DNS tree namespace. Each node has a set o
 information, which may be empty. The set of resource information
 associated with a particular name is composed of separate RRs. The order
 of RRs in a set is not significant and need not be preserved by name
-servers, resolvers, or other parts of the DNS. However, sorting of
-multiple RRs is permitted for optimization purposes: for example, to
-specify that a particular nearby server be tried first. See
-:any:`sortlist` and :ref:`rrset_ordering`.
+servers, resolvers, or other parts of the DNS.
 
 The components of a Resource Record are:
 
