@@ -17,13 +17,13 @@ Load balancing distributes client service requests across a group of server mach
 to reduce the overall load on any one server. There are many ways to achieve
 load balancing:
 
-   - Client-side method is to publish DNS records with support for load-balancing
+   - The client-side method is to publish DNS records with support for load-balancing
      (such as :ref:`HTTPS <https_balance>` records, :ref:`MX <mx_balance>`
-     records, :ref:`SRV <srv_balance>` records).
-   - :ref:`Tailored-response method <tailored_responses>`, which takes
-     advantage of built-in BIND 9 features such as GeoIPs within :any:`acl`
-     blocks, :any:`view` blocks to send different clients tailored responses.
-   - :ref:`Last resort <last_resort_balance>` option, :any:`rrset-order` and
+     records, or :ref:`SRV <srv_balance>` records).
+   - The :ref:`tailored-response method <tailored_responses>` takes
+     advantage of built-in BIND 9 features, such as GeoIPs within :any:`acl`
+     blocks and :any:`view` blocks, to send different clients tailored responses.
+   - The :ref:`last-resort <last_resort_balance>` option uses the :any:`rrset-order` and
      :any:`sortlist` features in BIND.
 
 Each approach is described in the following sections and the limits to each are
@@ -68,7 +68,7 @@ more mail servers by assigning them the same value; for example:
    mail1   A       192.168.0.5
    mail2   A       192.168.0.6
 
-**mail**, **mail1** and **mail2** are all considered to have equal preference,
+**mail**, **mail1**, and **mail2** are all considered to have equal preference,
 or cost. The authoritative name server delivers the MX records in the order
 defined by the :any:`rrset-order` statement, and the receiving
 SMTP software selects one based on its algorithm. In some cases the SMTP
@@ -80,7 +80,7 @@ reverse lookups as a spam check, define the PTR records for 192.168.0.4,
 192.168.0.5, and 192.168.0.6 to mail.example.com.
 
 .. note::
-   In both the above cases, each mail server must be capable of handling and
+   In the above situation, each mail server must be capable of handling and
    synchronizing the load for all the mailboxes served by the domain, This
    can be accomplished either using some appropriate back-end or by access
    to a common file system (NAS, NFS, etc.), or by defining all but one
@@ -102,7 +102,7 @@ Application support for SRV is patchy at best - varying from very high in SIP
 
 .. _last_resort_balance:
 
-Last Resort Option (A/AAAA records)
+Last-Resort Option (A/AAAA records)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some services do not have a service-specific record type or domain name, and rely
@@ -173,8 +173,8 @@ cache, two consequences apply:
 
    a. The order in which multiple IPs appear **can change** within
       the resolver's cache; it is no longer controlled by the authoritative name
-      server's policies. If data is supplied from a pathologically small number
-      of caches, any balancing effect may become distorted.
+      server's policies. If data is supplied from too few
+      caches, any balancing effect may become distorted.
 
    b. The resolver may be configured with its own policies using
       :any:`rrset-order` or the (relatively rare) :any:`sortlist`

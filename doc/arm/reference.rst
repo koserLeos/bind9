@@ -4009,7 +4009,7 @@ RRset Ordering
 .. note::
 
     While alternating the order of records in a DNS response between
-    subsequent queries is a known load distribution technique, certain
+    subsequent queries is a known load-distribution technique, certain
     caveats apply which usually make it a suboptimal choice for load balancing
     purposes when used on its own. See :ref:`balancing_caveats`.
 
