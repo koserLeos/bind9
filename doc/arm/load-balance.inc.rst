@@ -27,12 +27,12 @@ load balancing:
      :any:`sortlist` features in BIND.
 
 Each approach is described in the following sections and the limits to each are
-identified. Generic limitations are described together in section
+identified. Generic limitations are described in the section
 :ref:`balancing_caveats`.
 
 .. note::
    This section deals with the use of DNS to balance end-user services.
-   Load balancing of DNS service is not addressed by these techniques.
+   Load balancing of the DNS service itself is not addressed by these techniques.
 
 .. _https_balance:
 
@@ -51,7 +51,7 @@ value. One primary use of this value is to achieve resilience of the mail
 service by designating a primary server and one or more secondary, or backup,
 servers. The :ref:`MX<mx_records>` resource record of the primary server is
 given a low *preference* value and the :ref:`MX<mx_records>` resource record of
-the secondary server(s) is given higher *preference* values. *preference* can
+the secondary server(s) is given higher *preference* values. *Preference* can
 therefore be regarded more like a *cost*; the lowest-cost server is preferred.
 
 However, *preference* can also be used to achieve load balancing between two or
@@ -105,20 +105,20 @@ Application support for SRV is patchy at best - varying from very high in SIP
 Last Resort Option (A/AAAA records)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Some services do not have service-specific record type or domain name, and rely
-on A/AAAA records to map service name to addresses.
-If the requirement is to load-share services without specialized resource record,
+Some services do not have a service-specific record type or domain name, and rely
+on A/AAAA records to map the service name to addresses.
+If the requirement is to load-share services without a specialized resource record,
 then defining multiple A/AAAA records with the same name and different IP
 addresses, as in the example below, can be used as an **imperfect workaround**.
 Please note this technique relies on quirks in client implementations and is
 not reliable.
 
 .. note::
-   This is legacy method is still in use for HTTP traffic, but it is
+   This legacy method is still in use for HTTP traffic, but is
    becoming obsolete as :ref:`HTTPS <https_balance>` resource record support in
    clients is rolled out.
 
-This method is best illustrated on a simple zone file:
+It is best illustrated in a simple zone file:
 
 .. code-block:: none
 
@@ -137,19 +137,19 @@ of the :any:`rrset-order` or :any:`sortlist` statements. The **ftp** and **www**
 servers must all be exact (synchronized) replicas of each other in this scenario.
 
 .. warning::
-   Use this method only as last resort option.
+   Use this method only as a last-resort option.
    Resource record sets, by DNS protocol definition, can be reordered at any
    time. Intermediate resolvers might reorder records and ruin any
-   load-balancing attempts. Similarly client side is allowed to reorder records
+   load-balancing attempts. Similarly, the client side is allowed to reorder records
    at will.
 
 .. _tailored_responses:
 
-Balancing Services with Split-Horizon (GeoIP)
+Balancing Services with Split Horizon (GeoIP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 All application-specific approaches listed above can be combined with BIND's
-:any:`view` feature to create a split horizon (or GeoIP-aware) configuration.
+:any:`view` feature to create a split-horizon (or GeoIP-aware) configuration.
 Split horizon uses the client's source IP address to respond with a specific
 set of records, thus balancing for geographic or even service
 provider-specific traffic sources (please see :ref:`Example Split-Horizon
@@ -180,13 +180,13 @@ cache, two consequences apply:
       :any:`rrset-order` or the (relatively rare) :any:`sortlist`
       statement, which may distort the aims of the authoritative name server.
 
-   c. Changes on the authoritative side might not take effect until :term:`TTL`
+   c. Changes on the authoritative side might not take effect until the :term:`TTL`
       expires.
 
-3. To account for server load or availability data on the authoritative server
+3. To account for server load or availability, data on the authoritative server
    must be modified using :ref:`dynamic_update`. For instance, certain
    transactions may generate very high CPU or resource loads, or certain servers
    in a set may simply be unavailable. For this type of control only a local load
    balancer - one which measures service response times, server loading, and
-   potentially other metrics - must modify content of DNS zone, and the
+   potentially other metrics - must modify the content of the DNS zone, and the
    dynamically modified records should use sufficiently low :term:`TTL` values.
