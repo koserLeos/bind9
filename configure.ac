@@ -2191,6 +2191,13 @@ AC_PATH_PROG(CURL, curl, curl)
 AC_SUBST(CURL)
 
 #
+# Look for nc
+#
+
+AC_PATH_PROGS(NC, nc, nc)
+AC_SUBST(NC)
+
+#
 # Look for xsltproc
 #
 
