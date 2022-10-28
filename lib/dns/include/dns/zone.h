@@ -645,7 +645,7 @@ dns_zone_setprimaries(dns_zone_t *zone, isc_sockaddr_t *addresses,
  *\li	'count' the number of primaries.
  *\li	'keynames' array of dns_name_t's for tsig keys or NULL.
  *
- *\li	If 'primaries' is NULL then 'count' must be zero.
+ *\li	If 'addresses' is NULL then 'count' must be zero.
  *
  * Returns:
  *\li	#ISC_R_SUCCESS
@@ -666,7 +666,7 @@ dns_zone_setparentals(dns_zone_t *zone, isc_sockaddr_t *addresses,
  *\li	'count' the number of primaries.
  *\li	'keynames' array of dns_name_t's for tsig keys or NULL.
  *
- *\li	If 'parentals' is NULL then 'count' must be zero.
+ *\li	If 'addresses' is NULL then 'count' must be zero.
  *
  * Returns:
  *\li	#ISC_R_SUCCESS
