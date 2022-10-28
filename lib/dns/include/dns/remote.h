@@ -86,9 +86,8 @@ dns_remote_init(dns_remote_t *remote, unsigned int count,
  *	Requires:
  *		'remote' is not NULL.
  *		'mctx' is not NULL.
- *		'addrs' is not NULL or 'count' equals zero.
- *		if 'count' is not zero, 'keynames' and 'tlsnames' are
- *not NULL.
+ *		'addrs' is not NULL, or 'count' equals zero.
+ *		'keynames' and 'tlsnames' are not NULL, then 'count > 0'.
  */
 
 void
