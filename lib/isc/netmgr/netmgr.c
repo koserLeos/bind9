@@ -156,7 +156,7 @@ networker_teardown(void *arg) {
 	isc__networker_t *worker = arg;
 	isc_loop_t *loop = worker->loop;
 
-	worker->shuttingdown = true;
+	atomic_store(&worker->shuttingdown, true);
 
 	isc_log_write(isc_lctx, ISC_LOGCATEGORY_GENERAL, ISC_LOGMODULE_NETMGR,
 		      ISC_LOG_DEBUG(1),
@@ -1705,7 +1705,7 @@ isc__nm_stop_reading(isc_nmsocket_t *sock) {
 
 bool
 isc__nm_closing(isc__networker_t *worker) {
-	return (worker->shuttingdown);
+	return (atomic_load(&worker->shuttingdown));
 }
 
 bool

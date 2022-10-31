@@ -202,7 +202,7 @@ typedef struct isc__networker {
 	isc_refcount_t references;
 	isc_loop_t *loop;
 	isc_nm_t *netmgr;
-	bool shuttingdown;
+	atomic_bool shuttingdown;
 
 	char *recvbuf;
 	char *sendbuf;
