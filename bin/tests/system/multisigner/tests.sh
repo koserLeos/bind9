@@ -154,41 +154,64 @@ awk '$4 == "CDNSKEY" {print}' dig.out.ns3.cdnskey > cdnskey.ns3
 dig_with_opts ${ZONE} @10.53.0.4 CDNSKEY > dig.out.ns4.cdnskey
 awk '$4 == "CDNSKEY" {print}' dig.out.ns4.cdnskey > cdnskey.ns4
 
+set_server "ns3" "10.53.0.3"
+
+# Initially there should be one CDNSKEY.
+n=$((n+1))
+echo_i "check zone ${ZONE} ${DIR} initially CDNSKEY ($n)"
+ret=0
+retry_quiet 10 records_published CDNSKEY 1 || ret=1
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
+
 n=$((n+1))
 echo_i "update zone ${ZONE} at ns3 with CDNSKEY from provider ns4"
 ret=0
-set_server "ns3" "10.53.0.3"
-# Initially there should be one CDNSKEY.
-retry_quiet 10 records_published CDNSKEY 1 || ret=1
 (
 echo zone "${ZONE}"
 echo server "${SERVER}" "${PORT}"
 echo update add $(cat "cdnskey.ns4")
 echo send
 ) | $NSUPDATE
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
+
 # Now there should be two CDNSKEY records (we test that BIND does not
 # skip it during DNSSEC maintenance).
+n=$((n+1))
 echo_i "check zone ${ZONE} CDNSKEY RRset after update ($n)"
+ret=0
 retry_quiet 10 records_published CDNSKEY 2 || ret=1
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
 
+set_server "ns4" "10.53.0.4"
+
+# Initially there should be one CDNSKEY.
+n=$((n+1))
+echo_i "check zone ${ZONE} ${DIR} initially CDNSKEY ($n)"
+ret=0
+retry_quiet 10 records_published CDNSKEY 1 || ret=1
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
 
 n=$((n+1))
 echo_i "update zone ${ZONE} at ns4 with CDNSKEY from provider ns3"
 ret=0
-set_server "ns4" "10.53.0.4"
-# Initially there should be one CDNSKEY.
-retry_quiet 10 records_published CDNSKEY 1 || ret=1
 (
 echo zone "${ZONE}"
 echo server "${SERVER}" "${PORT}"
 echo update add $(cat "cdnskey.ns3")
 echo send
 ) | $NSUPDATE
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
+
 # Now there should be two CDNSKEY records (we test that BIND does not
 # skip it during DNSSEC maintenance).
+n=$((n+1))
 echo_i "check zone ${ZONE} CDNSKEY RRset after update ($n)"
+ret=0
 retry_quiet 10 records_published CDNSKEY 2 || ret=1
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
