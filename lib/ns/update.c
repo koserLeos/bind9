@@ -3043,8 +3043,30 @@ update_action(isc_task_t *task, isc_event_t *event) {
 		get_current_rr(request, DNS_SECTION_UPDATE, zoneclass, &name,
 			       &rdata, &covers, &ttl, &update_class);
 		if (rdata.type == dns_rdatatype_dnskey && securedb != NULL) {
+			isc_buffer_t b;
+			dst_key_t *keyp = NULL;
+
 			updatedb = securedb;
 			updatever = securever;
+			/* Create key files for this new DNSKEY */
+			isc_buffer_init(&b, rdata.data, rdata.length);
+			isc_buffer_add(&b, rdata.length);
+			result = dst_key_fromdns(dns_db_origin(db), zoneclass,
+						 &b, dns_zone_getmctx(zone),
+						 &keyp);
+			if (result != ISC_R_SUCCESS) {
+				update_log(client, zone, LOGLEVEL_PROTOCOL,
+					   "attempt to add key file failed");
+			} else {
+				result = dst_key_tofile(
+					keyp,
+					(DST_TYPE_PUBLIC | DST_TYPE_PRIVATE),
+					dns_zone_getkeydirectory(zone));
+			}
+			if (result != ISC_R_SUCCESS) {
+				update_log(client, zone, LOGLEVEL_PROTOCOL,
+					   "attempt to add key file failed");
+			}
 		} else {
 			updatedb = db;
 			updatever = ver;
