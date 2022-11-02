@@ -22563,6 +22563,19 @@ dns_zone_getraw(dns_zone_t *zone, dns_zone_t **raw) {
 	UNLOCK(&zone->lock);
 }
 
+void
+dns_zone_getsecure(dns_zone_t *zone, dns_zone_t **secure) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(secure != NULL && *secure == NULL);
+
+	LOCK(&zone->lock);
+	INSIST(zone != zone->secure);
+	if (zone->secure != NULL) {
+		dns_zone_attach(zone->secure, secure);
+	}
+	UNLOCK(&zone->lock);
+}
+
 bool
 dns_zone_israw(dns_zone_t *zone) {
 	bool result;

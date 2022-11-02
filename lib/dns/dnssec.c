@@ -828,7 +828,7 @@ dns_dnssec_findzonekeys(dns_db_t *db, dns_dbversion_t *ver, dns_dbnode_t *node,
 			}
 		}
 
-		if (result != ISC_R_SUCCESS) {
+		if (true) {
 			char filename[DNS_NAME_FORMATSIZE +
 				      DNS_SECALG_FORMATSIZE +
 				      sizeof("key file for //65535")];
@@ -857,9 +857,16 @@ dns_dnssec_findzonekeys(dns_db_t *db, dns_dbversion_t *ver, dns_dbnode_t *node,
 
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
 				      DNS_LOGMODULE_DNSSEC, ISC_LOG_WARNING,
-				      "dns_dnssec_findzonekeys: error "
-				      "reading %s: %s",
-				      filename, isc_result_totext(result));
+				      "dns_dnssec_findzonekeys: reading %s",
+				      filename);
+
+			if (result != ISC_R_SUCCESS) {
+				isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+					      DNS_LOGMODULE_DNSSEC, ISC_LOG_WARNING,
+					      "dns_dnssec_findzonekeys: error "
+					      "reading %s: %s",
+					      filename, isc_result_totext(result));
+			}
 		}
 
 		if (result == ISC_R_FILENOTFOUND || result == ISC_R_NOPERM) {

@@ -2521,6 +2521,9 @@ isc_result_t
 dns_zone_link(dns_zone_t *zone, dns_zone_t *raw);
 
 void
+dns_zone_getsecure(dns_zone_t *zone, dns_zone_t **secure);
+
+void
 dns_zone_getraw(dns_zone_t *zone, dns_zone_t **raw);
 
 bool
