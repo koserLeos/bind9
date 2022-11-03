@@ -1,3 +1,7 @@
+6104.	[port]		Detect compiler support for transparent unions, to
+			improve the type safety of polymorphic functions.
+			[GL !7472]
+
 6103.	[func]		Support for simple lock-free singly-linked lists.
 			[GL !7470]
 
