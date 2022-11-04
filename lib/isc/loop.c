@@ -234,7 +234,10 @@ loop_init(isc_loop_t *loop, isc_loopmgr_t *loopmgr, size_t tid) {
 	UV_RUNTIME_CHECK(uv_async_init, r);
 	uv_handle_set_data(&loop->destroy_trigger, loop);
 
+	char name[16];
+	snprintf(name, sizeof(name), "loop%zu", tid);
 	isc_mem_create(&loop->mctx);
+	isc_mem_setname(loop->mctx, name);
 
 	isc_mutex_init(&loop->queue_lock);
 
