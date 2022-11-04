@@ -1020,7 +1020,7 @@ new_adbname(dns_adb_t *adb, const dns_name_t *dnsname, bool start_at_zone) {
 
 #if DNS_ADB_TRACE
 	fprintf(stderr, "dns_adbname__init:%s:%s:%d:%p->references = 1\n",
-		__func__, __FILE__, __LINE__ + 1, name);
+		__func__, __FILE__, __LINE__, name);
 #endif
 	isc_refcount_init(&name->references, 1);
 
