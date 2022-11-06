@@ -102,6 +102,7 @@
 #define DNS_MESSAGEEXTFLAG_DO 0x8000U
 
 /*%< EDNS0 extended OPT codes */
+
 #define DNS_OPT_LLQ	      1	 /*%< LLQ opt code */
 #define DNS_OPT_UL	      2	 /*%< UL opt code */
 #define DNS_OPT_NSID	      3	 /*%< NSID opt code */
@@ -114,6 +115,7 @@
 #define DNS_OPT_EDE	      15 /*%< Extended DNS Error opt code */
 #define DNS_OPT_CLIENT_TAG    16 /*%< Client tag opt code */
 #define DNS_OPT_SERVER_TAG    17 /*%< Server tag opt code */
+#define DNS_OPT_RAD	      18 /*%< Reporting Agent Domain */
 
 /*%< Experimental options [65001...65534] as per RFC6891 */
 
@@ -122,7 +124,7 @@
  * options we know about. Extended DNS Errors may occur multiple times, but we
  * will set only one per message (for now).
  */
-#define DNS_EDNSOPTIONS 8
+#define DNS_EDNSOPTIONS 9
 
 /*%< EDNS0 extended DNS errors */
 #define DNS_EDE_OTHER		     0	/*%< Other Error */
