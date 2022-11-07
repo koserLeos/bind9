@@ -22,6 +22,7 @@ options {
 	recursion no;
 	notify yes;
 	dnssec-validation no;
+	reporting-agent-domain "rad.example.net";
 };
 
 view main in {
