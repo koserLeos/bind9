@@ -5634,6 +5634,7 @@ ns__query_start(query_ctx_t *qctx) {
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AA;
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AD;
 		qctx->client->message->rcode = dns_rcode_badcookie;
+		qctx->client->attributes &= ~NS_CLIENTATTR_WANTRAD;
 		return (ns_query_done(qctx));
 	}
 
@@ -7168,6 +7169,8 @@ query_checkrrl(query_ctx_t *qctx, isc_result_t result) {
 							~DNS_MESSAGEFLAG_AD;
 						qctx->client->message->rcode =
 							dns_rcode_badcookie;
+						qctx->client->attributes &=
+							~NS_CLIENTATTR_WANTRAD;
 					} else {
 						qctx->client->message->flags |=
 							DNS_MESSAGEFLAG_TC;
@@ -11590,6 +11593,7 @@ ns_query_done(query_ctx_t *qctx) {
 	 */
 	if (qctx->client->query.restarts == 0 && !qctx->authoritative) {
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AA;
+		qctx->client->attributes &= ~NS_CLIENTATTR_WANTRAD;
 	}
 
 	/*
