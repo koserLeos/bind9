@@ -11712,9 +11712,7 @@ log_rad(ns_client_t *client) {
 	char classbuf[DNS_RDATACLASS_FORMATSIZE];
 	char namebuf[DNS_NAME_FORMATSIZE];
 
-	if (!isc_log_wouldlog(ns_lctx, ISC_LOG_INFO)) {
-		return;
-	}
+	client->attributes |= NS_CLIENTATTR_WANTRAD;
 
 	if (client->query.qtype != dns_rdatatype_txt ||
 	    client->view->rad == NULL ||
@@ -11734,6 +11732,15 @@ log_rad(ns_client_t *client) {
 		} else {
 			client->attributes |= NS_CLIENTATTR_NEEDTCP;
 		}
+	}
+
+	/*
+	 * Don't return RAD to error reports to prevent infinite
+	 * loops.
+	 */
+	client->attributes &= ~NS_CLIENTATTR_WANTRAD;
+
+	if (!isc_log_wouldlog(ns_lctx, ISC_LOG_INFO)) {
 		return;
 	}
 
