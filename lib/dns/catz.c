@@ -586,6 +586,10 @@ dns_catz_new_zones(dns_catz_zones_t **catzsp, dns_catz_zonemodmethods_t *zmm,
 	REQUIRE(catzsp != NULL && *catzsp == NULL);
 	REQUIRE(zmm != NULL);
 
+	mctx = NULL;
+	isc_mem_create(&mctx);
+	isc_mem_setname(mctx, "catz", mctx);
+	
 	new_zones = isc_mem_get(mctx, sizeof(*new_zones));
 	memset(new_zones, 0, sizeof(*new_zones));
 
@@ -595,7 +599,7 @@ dns_catz_new_zones(dns_catz_zones_t **catzsp, dns_catz_zonemodmethods_t *zmm,
 
 	isc_ht_init(&new_zones->zones, mctx, 4);
 
-	isc_mem_attach(mctx, &new_zones->mctx);
+	new_zones->mctx = mctx;
 	new_zones->zmm = zmm;
 	new_zones->timermgr = timermgr;
 	new_zones->taskmgr = taskmgr;

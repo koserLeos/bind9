@@ -102,11 +102,15 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, const char *name,
 	REQUIRE(name != NULL);
 	REQUIRE(viewp != NULL && *viewp == NULL);
 
+	mctx = NULL;
+	isc_mem_create(&mctx);
+	snprintf(buffer, sizeof(buffer), "view-%s", name);
+	isc_mem_setname(mctx, buffer, mctx);
+	
 	view = isc_mem_get(mctx, sizeof(*view));
 
 	view->nta_file = NULL;
-	view->mctx = NULL;
-	isc_mem_attach(mctx, &view->mctx);
+	view->mctx = mctx;
 	view->name = isc_mem_strdup(mctx, name);
 
 	result = isc_file_sanitize(NULL, view->name, "nta", buffer,
@@ -296,6 +300,8 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, const char *name,
 
 	*viewp = view;
 
+	isc_mem_detach(&mctx);
+	
 	return (ISC_R_SUCCESS);
 
 cleanup_peerlist:
