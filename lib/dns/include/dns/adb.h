@@ -146,11 +146,6 @@ struct dns_adbfind {
  *	Fetches will start using the closest zone data or use the root servers.
  *	This is useful for reestablishing glue that has expired.
  *
- * _GLUEOK:
- * _HINTOK:
- *	Glue or hints are ok.  These are used when matching names already
- *	in the adb, and when dns databases are searched.
- *
  * _RETURNLAME:
  *	Return lame servers in a find, so that all addresses are returned.
  *
@@ -183,16 +178,6 @@ struct dns_adbfind {
  *	This is useful for reestablishing glue that has expired.
  */
 #define DNS_ADBFIND_STARTATZONE 0x00000020
-/*%
- *	Glue or hints are ok.  These are used when matching names already
- *	in the adb, and when dns databases are searched.
- */
-#define DNS_ADBFIND_GLUEOK 0x00000040
-/*%
- *	Glue or hints are ok.  These are used when matching names already
- *	in the adb, and when dns databases are searched.
- */
-#define DNS_ADBFIND_HINTOK 0x00000080
 /*%
  *	Return lame servers in a find, so that all addresses are returned.
  */

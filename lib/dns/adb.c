@@ -385,12 +385,8 @@ log_quota(dns_adbentry_t *entry, const char *fmt, ...) ISC_FORMAT_PRINTF(2, 3);
 #define FIND_EVENTFREED(h) (((h)->flags & FIND_EVENT_FREED) != 0)
 
 #define NAME_IS_DEAD	 0x40000000
-#define NAME_HINT_OK	 DNS_ADBFIND_HINTOK
-#define NAME_GLUE_OK	 DNS_ADBFIND_GLUEOK
 #define NAME_STARTATZONE DNS_ADBFIND_STARTATZONE
 #define NAME_DEAD(n)	 (((n)->flags & NAME_IS_DEAD) != 0)
-#define NAME_GLUEOK(n)	 (((n)->flags & NAME_GLUE_OK) != 0)
-#define NAME_HINTOK(n)	 (((n)->flags & NAME_HINT_OK) != 0)
 
 /*
  * Private flag(s) for entries.
@@ -421,8 +417,6 @@ log_quota(dns_adbentry_t *entry, const char *fmt, ...) ISC_FORMAT_PRINTF(2, 3);
 #define FIND_WANTEMPTYEVENT(fn) (((fn)->options & DNS_ADBFIND_EMPTYEVENT) != 0)
 #define FIND_AVOIDFETCHES(fn)	(((fn)->options & DNS_ADBFIND_AVOIDFETCHES) != 0)
 #define FIND_STARTATZONE(fn)	(((fn)->options & DNS_ADBFIND_STARTATZONE) != 0)
-#define FIND_HINTOK(fn)		(((fn)->options & DNS_ADBFIND_HINTOK) != 0)
-#define FIND_GLUEOK(fn)		(((fn)->options & DNS_ADBFIND_GLUEOK) != 0)
 #define FIND_HAS_ADDRS(fn)	(!ISC_LIST_EMPTY((fn)->list))
 #define FIND_RETURNLAME(fn)	(((fn)->options & DNS_ADBFIND_RETURNLAME) != 0)
 #define FIND_NOFETCH(fn)	(((fn)->options & DNS_ADBFIND_NOFETCH) != 0)
@@ -441,9 +435,6 @@ log_quota(dns_adbentry_t *entry, const char *fmt, ...) ISC_FORMAT_PRINTF(2, 3);
  * glue, and compare this to the appropriate bits set in o, to see if
  * this is ok.
  */
-#define GLUE_OK(nf, o)	   (!NAME_GLUEOK(nf) || (((o)&DNS_ADBFIND_GLUEOK) != 0))
-#define HINT_OK(nf, o)	   (!NAME_HINTOK(nf) || (((o)&DNS_ADBFIND_HINTOK) != 0))
-#define GLUEHINT_OK(nf, o) (GLUE_OK(nf, o) || HINT_OK(nf, o))
 #define STARTATZONE_MATCHES(nf, o) \
 	(((nf)->flags & NAME_STARTATZONE) == ((o)&DNS_ADBFIND_STARTATZONE))
 
@@ -1648,7 +1639,6 @@ get_name(dns_adbnamebucket_t *nbucket, const dns_name_t *name,
 	while (adbname != NULL) {
 		if (!NAME_DEAD(adbname)) {
 			if (dns_name_equal(name, &adbname->name) &&
-			    GLUEHINT_OK(adbname, options) &&
 			    STARTATZONE_MATCHES(adbname, options))
 			{
 				return (adbname);
@@ -2357,12 +2347,6 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 
 		adbname = new_adbname(adb, name);
 		link_name(nbucket, adbname);
-		if (FIND_HINTOK(find)) {
-			adbname->flags |= NAME_HINT_OK;
-		}
-		if (FIND_GLUEOK(find)) {
-			adbname->flags |= NAME_GLUE_OK;
-		}
 		if (FIND_STARTATZONE(find)) {
 			adbname->flags |= NAME_STARTATZONE;
 		}
@@ -3099,8 +3083,7 @@ dbfind_name(dns_adbname_t *adbname, isc_stdtime_t now, dns_rdatatype_t rdtype) {
 	 * the configuration on which server we should send queries to.
 	 */
 	result = dns_view_find(adb->view, &adbname->name, rdtype, now,
-			       NAME_GLUEOK(adbname) ? DNS_DBFIND_GLUEOK : 0,
-			       NAME_HINTOK(adbname),
+			       DNS_DBFIND_GLUEOK, true,
 			       ((adbname->flags & NAME_STARTATZONE) != 0), NULL,
 			       NULL, fname, &rdataset, NULL);
 
@@ -3185,12 +3168,6 @@ dbfind_name(dns_adbname_t *adbname, isc_stdtime_t now, dns_rdatatype_t rdtype) {
 		break;
 	case DNS_R_CNAME:
 	case DNS_R_DNAME:
-		/*
-		 * Clear the hint and glue flags, so this will match
-		 * more often.
-		 */
-		adbname->flags &= ~(DNS_ADBFIND_GLUEOK | DNS_ADBFIND_HINTOK);
-
 		rdataset.ttl = ttlclamp(rdataset.ttl);
 		clean_target(adb, &adbname->target);
 		adbname->expire_target = INT_MAX;
