@@ -798,7 +798,6 @@ dlz_create(const char *dlzname, unsigned int argc, char *argv[], void **dbdata,
 	if (mysql == NULL) {
 		return (ISC_R_NOMEMORY);
 	}
-	memset(mysql, 0, sizeof(mysql_instance_t));
 
 	/* Fill in the helper functions */
 	va_start(ap, dbdata);
@@ -814,6 +813,7 @@ dlz_create(const char *dlzname, unsigned int argc, char *argv[], void **dbdata,
 	if (argc < 4) {
 		mysql->log(ISC_LOG_ERROR, "MySQL module requires "
 					  "at least 4 command line args.");
+		free(mysql);
 		return (ISC_R_FAILURE);
 	}
 
@@ -821,6 +821,7 @@ dlz_create(const char *dlzname, unsigned int argc, char *argv[], void **dbdata,
 	if (argc > 8) {
 		mysql->log(ISC_LOG_ERROR, "MySQL module cannot accept "
 					  "more than 7 command line args.");
+		free(mysql);
 		return (ISC_R_FAILURE);
 	}
 
@@ -1039,6 +1040,7 @@ dlz_destroy(void *dbdata) {
 	if (db->socket != NULL) {
 		free(db->socket);
 	}
+	free(db);
 }
 
 /*

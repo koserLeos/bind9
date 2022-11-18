@@ -869,7 +869,6 @@ dlz_create(const char *dlzname, unsigned int argc, char *argv[], void **dbdata,
 	if (s3 == NULL) {
 		return (ISC_R_NOMEMORY);
 	}
-	memset(s3, 0, sizeof(sqlite3_instance_t));
 
 	/* Fill in the helper functions */
 	va_start(ap, dbdata);
@@ -885,6 +884,7 @@ dlz_create(const char *dlzname, unsigned int argc, char *argv[], void **dbdata,
 	if (argc < 4) {
 		s3->log(ISC_LOG_ERROR, "SQLite3 module requires "
 				       "at least 4 command line args.");
+		free(s3);
 		return (ISC_R_FAILURE);
 	}
 
@@ -892,6 +892,7 @@ dlz_create(const char *dlzname, unsigned int argc, char *argv[], void **dbdata,
 	if (argc > 8) {
 		s3->log(ISC_LOG_ERROR, "SQLite3 module cannot accept "
 				       "more than 8 command line args.");
+		free(s3);
 		return (ISC_R_FAILURE);
 	}
 
@@ -900,8 +901,8 @@ dlz_create(const char *dlzname, unsigned int argc, char *argv[], void **dbdata,
 	if (s3->dbname == NULL) {
 		s3->log(ISC_LOG_ERROR, "SQLite3 module requires a dbname "
 				       "parameter.");
-		result = ISC_R_FAILURE;
-		goto cleanup;
+		free(s3);
+		return (ISC_R_FAILURE);
 	}
 
 	/* multithreaded build can have multiple DB connections */
@@ -1024,6 +1025,7 @@ dlz_destroy(void *dbdata) {
 	if (db->dbname != NULL) {
 		free(db->dbname);
 	}
+	free(db);
 }
 
 /*
