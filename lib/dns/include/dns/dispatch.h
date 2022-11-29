@@ -14,6 +14,7 @@
 #pragma once
 
 #include <isc/netmgr.h>
+#include <isc/refcount.h>
 
 /*****
 ***** Module Info
@@ -94,25 +95,9 @@ dns_dispatchmgr_create(isc_mem_t *mctx, isc_nm_t *nm, dns_dispatchmgr_t **mgrp);
  *\li	anything else	-- failure
  */
 
-void
-dns_dispatchmgr_attach(dns_dispatchmgr_t *mgr, dns_dispatchmgr_t **mgrp);
+ISC_REFCOUNT_DECL(dns_dispatchmgr);
 /*%<
- * Attach to a dispatch manger.
- *
- * Requires:
- *\li	 is valid.
- *
- *\li	mgrp != NULL && *mgrp == NULL
- */
-
-void
-dns_dispatchmgr_detach(dns_dispatchmgr_t **mgrp);
-/*%<
- * Detach from the dispatch manager, and destroy it if no references
- * remain.
- *
- * Requires:
- *\li	mgrp != NULL && *mgrp is a valid dispatchmgr.
+ * Attach/detach/ref/unref to a dispatch manger.
  */
 
 void
@@ -201,24 +186,9 @@ dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, const isc_sockaddr_t *localaddr,
  *\li	Anything else	-- failure.
  */
 
-void
-dns_dispatch_attach(dns_dispatch_t *disp, dns_dispatch_t **dispp);
+ISC_REFCOUNT_DECL(dns_dispatch);
 /*%<
- * Attach to a dispatch handle.
- *
- * Requires:
- *\li	disp is valid.
- *
- *\li	dispp != NULL && *dispp == NULL
- */
-
-void
-dns_dispatch_detach(dns_dispatch_t **dispp);
-/*%<
- * Detaches from the dispatch.
- *
- * Requires:
- *\li	dispp != NULL and *dispp be a valid dispatch.
+ * Attach/detach/ref/unref to a dispatch handle.
  */
 
 isc_result_t
