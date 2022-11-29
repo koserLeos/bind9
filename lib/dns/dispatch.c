@@ -157,26 +157,6 @@ struct dns_dispatch {
 #define VALID_DISPATCHMGR(e)  ISC_MAGIC_VALID((e), DNS_DISPATCHMGR_MAGIC)
 
 /*%
- * Quota to control the number of UDP dispatch sockets.  If a dispatch has
- * more than the quota of sockets, new queries will purge oldest ones, so
- * that a massive number of outstanding queries won't prevent subsequent
- * queries (especially if the older ones take longer time and result in
- * timeout).
- */
-#ifndef DNS_DISPATCH_SOCKSQUOTA
-#define DNS_DISPATCH_SOCKSQUOTA 3072
-#endif /* ifndef DNS_DISPATCH_SOCKSQUOTA */
-
-/*%
- * Quota to control the number of concurrent requests that can be handled
- * by each TCP dispatch. (UDP dispatches do not currently support socket
- * sharing.)
- */
-#ifndef DNS_DISPATCH_MAXREQUESTS
-#define DNS_DISPATCH_MAXREQUESTS 32768
-#endif /* ifndef DNS_DISPATCH_MAXREQUESTS */
-
-/*%
  * Number of buckets in the QID hash table, and the value to
  * increment the QID by when attempting to avoid collisions.
  * The number of buckets should be prime, and the increment
@@ -1420,28 +1400,7 @@ dns_dispatch_add(dns_dispatch_t *disp, unsigned int options,
 
 	LOCK(&disp->lock);
 
-	if (disp->requests >= DNS_DISPATCH_MAXREQUESTS) {
-		UNLOCK(&disp->lock);
-		return (ISC_R_QUOTA);
-	}
-
 	qid = disp->mgr->qid;
-
-	if (disp->socktype == isc_socktype_udp &&
-	    disp->nsockets > DNS_DISPATCH_SOCKSQUOTA)
-	{
-		dns_dispentry_t *oldest = NULL;
-
-		/*
-		 * Kill oldest outstanding query if the number of sockets
-		 * exceeds the quota to keep the room for new queries.
-		 */
-		oldest = ISC_LIST_HEAD(disp->active);
-		if (oldest != NULL) {
-			oldest_response = oldest->response;
-			inc_stats(disp->mgr, dns_resstatscounter_dispabort);
-		}
-	}
 
 	res = isc_mem_get(disp->mgr->mctx, sizeof(*res));
 
