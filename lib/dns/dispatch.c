@@ -1646,27 +1646,24 @@ udp_connected(isc_nmhandle_t *handle, isc_result_t eresult, void *arg) {
 		eresult = ISC_R_CANCELED;
 	} else if (eresult == ISC_R_SUCCESS) {
 		startrecv(handle, disp, resp);
-		/* } else if (eresult == ISC_R_ADDRINUSE) { */
-		/* 	in_port_t localport = 0; */
-		/* 	isc_result_t result; */
+	} else if (eresult == ISC_R_ADDRINUSE) {
+		in_port_t localport = 0;
+		isc_result_t result;
 
-		/* 	/\* probably a port collision; try a different one *\/
-		 */
-		/* 	disp->nsockets--; */
-		/* 	result = setup_socket(disp, resp, &resp->peer,
-		 * &localport); */
-		/* 	if (result == ISC_R_SUCCESS) { */
-		/* 		dns_dispatch_connect(resp); */
-		/* 		goto detach; */
-		/* 	} */
-		/* FIXME: This trashes the hashtable */
+		/* probably a port collision; try a different one */
+		disp->nsockets--;
+		result = setup_socket(disp, resp, &resp->peer, &localport);
+		if (result == ISC_R_SUCCESS) {
+			dns_dispatch_connect(resp);
+			goto detach;
+		}
 	}
 
 	if (resp->connected != NULL) {
 		resp->connected(eresult, NULL, resp->arg);
 	}
 
-	/* detach: */
+detach:
 	dns_dispentry_detach(&resp);
 }
 
