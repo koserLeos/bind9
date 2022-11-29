@@ -64,8 +64,6 @@ struct dns_dispatchmgr {
 	isc_mutex_t lock;
 	ISC_LIST(dns_dispatch_t) list;
 
-	dns_qid_t qid;
-
 	in_port_t *v4ports;    /*%< available ports for IPv4 */
 	unsigned int nv4ports; /*%< # of available ports for IPv4 */
 	in_port_t *v6ports;    /*%< available ports for IPv4 */
@@ -144,6 +142,8 @@ struct dns_dispatch {
 	unsigned int tcpbuffers; /*%< allocated buffers */
 
 	unsigned int timedout;
+
+	dns_qid_t qid;
 };
 
 #define RESPONSE_MAGIC	  ISC_MAGIC('D', 'r', 's', 'p')
@@ -673,7 +673,7 @@ tcp_recv(isc_nmhandle_t *handle, isc_result_t result, isc_region_t *region,
 
 	atomic_store(&disp->tcpreading, false);
 
-	qid = &disp->mgr->qid;
+	qid = &disp->qid;
 
 	ISC_LIST_INIT(resps);
 
@@ -855,8 +855,6 @@ dns_dispatchmgr_create(isc_mem_t *mctx, isc_nm_t *nm,
 	isc_portset_destroy(mctx, &v4portset);
 	isc_portset_destroy(mctx, &v6portset);
 
-	qid_init(mgr->mctx, &mgr->qid);
-
 	*mgrp = mgr;
 	return (ISC_R_SUCCESS);
 }
@@ -893,8 +891,6 @@ dispatchmgr_destroy(dns_dispatchmgr_t *mgr) {
 
 	mgr->magic = 0;
 	isc_mutex_destroy(&mgr->lock);
-
-	qid_free(&mgr->qid);
 
 	if (mgr->blackhole != NULL) {
 		dns_acl_detach(&mgr->blackhole);
@@ -1017,6 +1013,10 @@ dispatch_free(dns_dispatch_t **dispp) {
 	INSIST(disp->requests == 0);
 	INSIST(ISC_LIST_EMPTY(disp->active));
 
+	if (disp->socktype == isc_socktype_tcp) {
+		qid_free(&disp->qid);
+	}
+
 	isc_mutex_destroy(&disp->lock);
 
 	isc_mem_put(mgr->mctx, disp, sizeof(*disp));
@@ -1047,6 +1047,8 @@ dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, const isc_sockaddr_t *localaddr,
 		isc_sockaddr_anyofpf(&disp->local, pf);
 		isc_sockaddr_setport(&disp->local, 0);
 	}
+
+	qid_init(mgr->mctx, &disp->qid);
 
 	/*
 	 * Append it to the dispatcher list.
@@ -1275,8 +1277,6 @@ dns_dispatch_add(dns_dispatch_t *disp, unsigned int options,
 
 	LOCK(&disp->lock);
 
-	qid = &disp->mgr->qid;
-
 	resp = isc_mem_get(disp->mgr->mctx, sizeof(*resp));
 
 	*resp = (dns_dispentry_t){
@@ -1291,57 +1291,73 @@ dns_dispatch_add(dns_dispatch_t *disp, unsigned int options,
 		.alink = ISC_LINK_INITIALIZER,
 		.plink = ISC_LINK_INITIALIZER,
 		.rlink = ISC_LINK_INITIALIZER,
+		.magic = RESPONSE_MAGIC,
 	};
 
 	isc_refcount_init(&resp->references, 1);
 
-	if (disp->socktype == isc_socktype_udp) {
+	switch (disp->socktype) {
+	case isc_socktype_udp:
 		result = setup_socket(disp, resp, dest, &localport);
 		if (result != ISC_R_SUCCESS) {
 			goto fail;
 		}
-	}
 
-	/*
-	 * Try somewhat hard to find a unique ID. Start with
-	 * a random number unless DNS_DISPATCHOPT_FIXEDID is set,
-	 * in which case we start with the ID passed in via *idp.
-	 */
-	if ((options & DNS_DISPATCHOPT_FIXEDID) != 0) {
-		tries = 1;
-	}
-	LOCK(&qid->lock);
-	for (int i = 0; i < tries; i++) {
 		/* Pick new messsage ID */
 		if ((options & DNS_DISPATCHOPT_FIXEDID) != 0) {
 			id = *idp;
 		} else {
 			id = (dns_messageid_t)isc_random16();
 		}
-
-		/* Compute the hashtable key */
-		INSIST(disp->socktype == isc_socktype_udp || localport == 0);
-		resp->keylen = qid_makekey(resp->key, dest, id, localport);
-
-		uint32_t hashval = isc_hashmap_hash(qid->table, resp->key,
-						    resp->keylen);
-
-		/* Try to add this to the hashtable */
-		result = isc_hashmap_add(qid->table, &hashval, resp->key,
-					 resp->keylen, resp);
-		if (result == ISC_R_EXISTS) {
-			/* Aw, try again */
-			continue;
-		}
-		/* Success */
-		ok = true;
 		break;
-	}
-	UNLOCK(&qid->lock);
+	case isc_socktype_tcp:
+		/*
+		 * Try somewhat hard to find a unique ID. Start with a random
+		 * number unless DNS_DISPATCHOPT_FIXEDID is set, in which case
+		 * we start with the ID passed in via *idp.
+		 */
 
-	if (!ok) {
-		result = ISC_R_NOMORE;
-		goto fail;
+		qid = &disp->qid;
+		if ((options & DNS_DISPATCHOPT_FIXEDID) != 0) {
+			tries = 1;
+		}
+		LOCK(&qid->lock);
+		for (int i = 0; i < tries; i++) {
+			/* Pick new messsage ID */
+			if ((options & DNS_DISPATCHOPT_FIXEDID) != 0) {
+				id = *idp;
+			} else {
+				id = (dns_messageid_t)isc_random16();
+			}
+
+			/* Compute the hashtable key */
+			INSIST(disp->socktype == isc_socktype_udp ||
+			       localport == 0);
+			resp->keylen = qid_makekey(resp->key, dest, id,
+						   localport);
+
+			uint32_t hashval = isc_hashmap_hash(
+				qid->table, resp->key, resp->keylen);
+
+			/* Try to add this to the hashtable */
+			result = isc_hashmap_add(qid->table, &hashval,
+						 resp->key, resp->keylen, resp);
+			if (result == ISC_R_EXISTS) {
+				/* Aw, try again */
+				continue;
+			}
+			/* Success */
+			ok = true;
+			break;
+		}
+		UNLOCK(&qid->lock);
+		if (!ok) {
+			result = ISC_R_NOMORE;
+			goto fail;
+		}
+		break;
+	default:
+		UNREACHABLE();
 	}
 
 	if (transport != NULL) {
@@ -1355,7 +1371,6 @@ dns_dispatch_add(dns_dispatch_t *disp, unsigned int options,
 	dns_dispatch_attach(disp, &resp->disp);
 
 	resp->id = id;
-	resp->magic = RESPONSE_MAGIC;
 
 	disp->requests++;
 
@@ -1517,8 +1532,6 @@ dns_dispatch_done(dns_dispentry_t **respp) {
 
 	REQUIRE(VALID_DISPATCHMGR(mgr));
 
-	qid = &mgr->qid;
-
 	LOCK(&disp->lock);
 	INSIST(disp->requests > 0);
 	disp->requests--;
@@ -1529,13 +1542,17 @@ dns_dispatch_done(dns_dispentry_t **respp) {
 
 	deactivate_dispentry(disp, resp);
 
-	LOCK(&qid->lock);
-	uint32_t hashval = isc_hashmap_hash(qid->table, resp->key,
-					    resp->keylen);
-	isc_result_t result = isc_hashmap_delete(qid->table, &hashval,
-						 resp->key, resp->keylen);
-	INSIST(result == ISC_R_SUCCESS);
-	UNLOCK(&qid->lock);
+	if (disp->socktype == isc_socktype_tcp) {
+		qid = &disp->qid;
+
+		LOCK(&qid->lock);
+		uint32_t hashval = isc_hashmap_hash(qid->table, resp->key,
+						    resp->keylen);
+		isc_result_t result = isc_hashmap_delete(
+			qid->table, &hashval, resp->key, resp->keylen);
+		INSIST(result == ISC_R_SUCCESS);
+		UNLOCK(&qid->lock);
+	}
 	UNLOCK(&disp->lock);
 
 	dns_dispentry_detach(respp);
