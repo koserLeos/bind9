@@ -16,7 +16,13 @@
 
 set -e
 
-softhsm2-util --init-token --free --pin 1234 --so-pin 1234 --label "softhsm2-keyfromlabel" | awk '/^The token has been initialized and is reassigned to slot/ { print $NF }'
+softhsm2-util --module "$SOFTHSM2_MODULE" --show-slots > softhsm2.out.slots 2> softhsm2.err.slots
+
+softhsm2-util --module "$SOFTHSM2_MODULE" --init-token --free \
+	--pin ${HSMPIN:-1234} --so-pin ${HSMPIN:-1234} \
+	--label "softhsm2-keyfromlabel" > softhsm2.out.init 2>softhsm2.err.init
+
+awk '/^The token has been initialized and is reassigned to slot/ { print $NF }' softhsm2.out.init
 
 printf '%s' "${HSMPIN:-1234}" > pin
 PWD=$(pwd)

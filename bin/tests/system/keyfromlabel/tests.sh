@@ -33,7 +33,7 @@ keyfromlabel() {
         id="$3"
         shift 3
 
-	$KEYFRLAB -E pkcs11 -a $alg -l "token=softhsm2-keyfromlabel;object=${id}-${zone};pin-source=$PWD/pin" "$@" $zone >> keyfromlabel.out.$zone.$id 2>> /dev/null || return 1
+	$KEYFRLAB -E pkcs11 -a $alg -l "token=softhsm2-keyfromlabel;object=${id}-${zone};pin-source=$PWD/pin" "$@" $zone >> keyfromlabel.out.$zone.$id 2>> keyfromlabel.err.$zone.$id || return 1
 	cat keyfromlabel.out.$zone.$id
 }
 
