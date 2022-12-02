@@ -112,7 +112,8 @@ hash_label(uint16_t init, uint8_t *ptr, bool sensitive) {
 		}
 	}
 
-	return (isc_hash_bits32(hash, 16));
+	hash = isc_hash_bits32(hash, 16);
+	return (hash != 0 ? hash : HASH_INIT_DJB2);
 }
 
 static bool
@@ -150,19 +151,14 @@ match_wirename(uint8_t *a, uint8_t *b, unsigned int len, bool sensitive) {
  *
  * The final possibility is that this suffix occurs in an uncompressed
  * name, so we have to compare the rest of the suffix in full.
- *
- * A special case is when this suffix is a TLD. That can be handled by
- * the case for uncompressed names, but it is common enough that it is
- * worth taking a short cut. (In the TLD case, the `old_coff` will be
- * zero, and the quick checks for the previous suffix will fail.)
  */
 static bool
-match_suffix(isc_buffer_t *buffer, unsigned int new_coff, uint8_t *sptr,
-	     unsigned int slen, unsigned int old_coff, bool sensitive) {
+match_suffix(isc_buffer_t *buffer, uint16_t new_coff, uint8_t *sptr,
+	     uint8_t slen, uint16_t old_coff, bool sensitive) {
+	uint8_t llen = sptr[0] + 1;
 	uint8_t pptr[] = { 0xC0 | (old_coff >> 8), old_coff & 0xff };
 	uint8_t *bptr = isc_buffer_base(buffer);
 	unsigned int blen = isc_buffer_usedlength(buffer);
-	unsigned int llen = sptr[0] + 1;
 
 	INSIST(llen <= 64 && llen < slen);
 
@@ -188,11 +184,6 @@ match_suffix(isc_buffer_t *buffer, unsigned int new_coff, uint8_t *sptr,
 	slen -= llen;
 	sptr += llen;
 
-	/* are both labels followed by the root label? */
-	if (blen >= 1 && slen == 1 && bptr[0] == 0 && sptr[0] == 0) {
-		return (true);
-	}
-
 	/* is this label followed by a pointer to the previous match? */
 	if (blen >= 2 && bptr[0] == pptr[0] && bptr[1] == pptr[1]) {
 		return (true);
@@ -203,73 +194,50 @@ match_suffix(isc_buffer_t *buffer, unsigned int new_coff, uint8_t *sptr,
 }
 
 /*
- * Robin Hood hashing aims to minimize probe distance when inserting a
- * new element by ensuring that the new element does not have a worse
- * probe distance than any other element in its probe sequence. During
- * insertion, if an existing element is encountered with a shorter
- * probe distance, it is swapped with the new element, and insertion
- * continues with the displaced element.
- */
-static unsigned int
-probe_distance(dns_compress_t *cctx, unsigned int slot) {
-	return ((slot - cctx->set[slot].hash) & cctx->mask);
-}
-
-static unsigned int
-slot_index(dns_compress_t *cctx, unsigned int hash, unsigned int probe) {
-	return ((hash + probe) & cctx->mask);
-}
-
-static bool
-insert_label(dns_compress_t *cctx, isc_buffer_t *buffer, const dns_name_t *name,
-	     unsigned int label, uint16_t hash, unsigned int probe) {
-	/*
-	 * hash set entries must have valid compression offsets
-	 * and the hash set must not get too full (75% load)
-	 */
-	unsigned int prefix_len = name->offsets[label];
-	unsigned int coff = isc_buffer_usedlength(buffer) + prefix_len;
-	if (coff >= 0x4000 || cctx->count > cctx->mask * 3 / 4) {
-		return false;
-	}
-	for (;;) {
-		unsigned int slot = slot_index(cctx, hash, probe);
-		/* we can stop when we find an empty slot */
-		if (cctx->set[slot].coff == 0) {
-			cctx->set[slot].hash = hash;
-			cctx->set[slot].coff = coff;
-			cctx->count++;
-			return true;
-		}
-		/* he steals from the rich and gives to the poor */
-		if (probe > probe_distance(cctx, slot)) {
-			probe = probe_distance(cctx, slot);
-			ISC_SWAP(cctx->set[slot].hash, hash);
-			ISC_SWAP(cctx->set[slot].coff, coff);
-		}
-		probe++;
-	}
-}
-
-/*
  * Add the unmatched prefix of the name to the hash set.
+ *
+ * The insertion loop continues from the search loop inside
+ * dns_compress_name() below, iterating over the remaining labels
+ * of the name and accumulating the hash in the same manner.
+ *
+ * Hash set entries must have valid compression offsets and the
+ * hash set must not get too full (75% load), so we stop if we
+ * pass either of these thresholds.
  */
 static void
 insert(dns_compress_t *cctx, isc_buffer_t *buffer, const dns_name_t *name,
-       unsigned int label, uint16_t hash, unsigned int probe) {
+       uint8_t label, uint16_t hash, uint16_t slot) {
 	bool sensitive = (cctx->flags & DNS_COMPRESS_CASE) != 0;
-	/*
-	 * this insertion loop continues from the search loop inside
-	 * dns_compress_name() below, iterating over the remaining labels
-	 * of the name and accumulating the hash in the same manner
-	 */
-	while (insert_label(cctx, buffer, name, label, hash, probe) &&
-	       label-- > 0)
-	{
-		unsigned int prefix_len = name->offsets[label];
-		uint8_t *suffix_ptr = name->ndata + prefix_len;
+	uint8_t prefix_len = name->offsets[label];
+	uint8_t *suffix_ptr;
+
+	for (;;) {
+		unsigned int coff = isc_buffer_usedlength(buffer) + prefix_len;
+		if (coff >= 0x4000 || cctx->count > cctx->mask * 3 / 4) {
+			return;
+		}
+
+		cctx->set[slot].hash = hash;
+		cctx->set[slot].coff = coff;
+		cctx->count++;
+
+		if (label == 0) {
+			return;
+		}
+		label--;
+
+		prefix_len = name->offsets[label];
+		suffix_ptr = name->ndata + prefix_len;
 		hash = hash_label(hash, suffix_ptr, sensitive);
-		probe = 0;
+
+		for (slot = hash;; slot++) {
+			slot &= cctx->mask;
+			/* we can overwrite tombstones */
+			if (cctx->set[slot].coff == 0) {
+				/* continue outer loop, to insert here */
+				break;
+			}
+		}
 	}
 }
 
@@ -293,38 +261,40 @@ dns_compress_name(dns_compress_t *cctx, isc_buffer_t *buffer,
 	bool sensitive = (cctx->flags & DNS_COMPRESS_CASE) != 0;
 
 	uint16_t hash = HASH_INIT_DJB2;
-	unsigned int label = name->labels - 1; /* skip the root label */
+	uint8_t label = name->labels - 1; /* skip the root label */
 
 	/*
 	 * find out how much of the name's suffix is in the hash set,
 	 * stepping backwards from the end one label at a time
 	 */
 	while (label-- > 0) {
-		unsigned int prefix_len = name->offsets[label];
-		unsigned int suffix_len = name->length - prefix_len;
+		uint8_t prefix_len = name->offsets[label];
+		uint8_t suffix_len = name->length - prefix_len;
 		uint8_t *suffix_ptr = name->ndata + prefix_len;
 		hash = hash_label(hash, suffix_ptr, sensitive);
 
-		for (unsigned int probe = 0; true; probe++) {
-			unsigned int slot = slot_index(cctx, hash, probe);
-			unsigned int coff = cctx->set[slot].coff;
+		for (uint16_t slot = hash;; slot++) {
+			slot &= cctx->mask;
+
+			uint16_t coff = cctx->set[slot].coff;
 
 			/*
-			 * if we would have inserted this entry here (as in
-			 * insert_label() above), our suffix cannot be in the
-			 * hash set, so stop searching and switch to inserting
-			 * the rest of the name (its prefix) into the set
+			 * when we reach an empty non-tombstone slot,
+			 * our suffix cannot be in the hash set, so stop
+			 * searching and switch to inserting the rest of
+			 * the name (its prefix) into the set
 			 */
-			if (coff == 0 || probe > probe_distance(cctx, slot)) {
-				insert(cctx, buffer, name, label, hash, probe);
+			if (coff == 0 && cctx->set[slot].hash == 0) {
+				insert(cctx, buffer, name, label, hash, slot);
 				return;
 			}
 
 			/*
-			 * this slot matches, so provisionally set the
-			 * return values and continue with the next label
+			 * if this slot matches, provisionally set the
+			 * return values and continue with the next
+			 * label
 			 */
-			if (hash == cctx->set[slot].hash &&
+			if (coff != 0 && cctx->set[slot].hash == hash &&
 			    match_suffix(buffer, coff, suffix_ptr, suffix_len,
 					 *return_coff, sensitive))
 			{
@@ -340,28 +310,10 @@ void
 dns_compress_rollback(dns_compress_t *cctx, unsigned int coff) {
 	REQUIRE(CCTX_VALID(cctx));
 
-	for (unsigned int slot = 0; slot <= cctx->mask; slot++) {
-		if (cctx->set[slot].coff < coff) {
-			continue;
+	for (uint16_t slot = 0; slot <= cctx->mask; slot++) {
+		if (cctx->set[slot].coff >= coff) {
+			/* tombstone: coff == 0 && hash != 0 */
+			cctx->set[slot].coff = 0;
 		}
-		/*
-		 * The next few elements might be part of the deleted element's
-		 * probe sequence, so we slide them down to overwrite the entry
-		 * we are deleting and preserve the probe sequence. Moving an
-		 * element to the previous slot reduces its probe distance, so
-		 * we stop when we find an element whose probe distance is zero.
-		 */
-		unsigned int prev = slot;
-		unsigned int next = slot_index(cctx, prev, 1);
-		while (cctx->set[next].coff != 0 &&
-		       probe_distance(cctx, next) != 0)
-		{
-			cctx->set[prev] = cctx->set[next];
-			prev = next;
-			next = slot_index(cctx, prev, 1);
-		}
-		cctx->set[prev].coff = 0;
-		cctx->set[prev].hash = 0;
-		cctx->count--;
 	}
 }
