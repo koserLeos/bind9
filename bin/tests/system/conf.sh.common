@@ -82,6 +82,7 @@ formerr \
 forward \
 geoip2 \
 glue \
+host \
 idna \
 inline \
 integrity \
