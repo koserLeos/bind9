@@ -680,8 +680,8 @@ dns_name_toregion(const dns_name_t *name, isc_region_t *r);
  */
 
 isc_result_t
-dns_name_fromwire(dns_name_t *name, isc_buffer_t *source, dns_decompress_t dctx,
-		  unsigned int options, isc_buffer_t *target);
+dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
+		  dns_decompress_t *dctx, isc_buffer_t *target);
 /*%<
  * Copy the possibly-compressed name at source (active region) into target,
  * decompressing it.
@@ -707,9 +707,8 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source, dns_decompress_t dctx,
  * \li	'target' is a valid buffer or 'target' is NULL and 'name' has
  *	a dedicated buffer.
  *
- * \li	'dctx' is a valid decompression context.
- *
- * \li	DNS_NAME_DOWNCASE is not set.
+ * \li	'dctx' is a valid decompression context, or NULL to indicate
+ *	that names must not be compressed.
  *
  * Ensures:
  *

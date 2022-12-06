@@ -806,7 +806,7 @@ generic_fromwire_in_svcb(ARGS_FROMWIRE) {
 	UNUSED(type);
 	UNUSED(rdclass);
 
-	dctx = dns_decompress_setpermitted(dctx, false);
+	dns_decompress_setpermitted(dctx, false);
 
 	dns_name_init(&name, NULL);
 
@@ -824,7 +824,7 @@ generic_fromwire_in_svcb(ARGS_FROMWIRE) {
 	/*
 	 * TargetName.
 	 */
-	RETERR(dns_name_fromwire(&name, source, dctx, options, target));
+	RETERR(dns_name_fromwire(&name, source, dctx, target));
 
 	if (alias) {
 		return (ISC_R_SUCCESS);

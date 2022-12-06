@@ -32,16 +32,17 @@ old_bench(const uint8_t *data, size_t size) {
 	isc_result_t result;
 	dns_fixedname_t fixed;
 	dns_name_t *name = dns_fixedname_initname(&fixed);
-	dns_decompress_t dctx = DNS_DECOMPRESS_PERMITTED;
+	dns_decompress_t dctx;
 	isc_buffer_t buf;
 	uint32_t count = 0;
 
 	isc_buffer_constinit(&buf, data, size);
 	isc_buffer_add(&buf, size);
 	isc_buffer_setactive(&buf, size);
+	dns_decompress_init(&dctx);
 
 	while (isc_buffer_consumedlength(&buf) < size) {
-		result = old_name_fromwire(name, &buf, dctx, 0, NULL);
+		result = old_name_fromwire(name, &buf, &dctx, NULL);
 		if (result != ISC_R_SUCCESS) {
 			isc_buffer_forward(&buf, 1);
 		}
@@ -55,16 +56,17 @@ new_bench(const uint8_t *data, size_t size) {
 	isc_result_t result;
 	dns_fixedname_t fixed;
 	dns_name_t *name = dns_fixedname_initname(&fixed);
-	dns_decompress_t dctx = DNS_DECOMPRESS_PERMITTED;
+	dns_decompress_t dctx;
 	isc_buffer_t buf;
 	uint32_t count = 0;
 
 	isc_buffer_constinit(&buf, data, size);
 	isc_buffer_add(&buf, size);
 	isc_buffer_setactive(&buf, size);
+	dns_decompress_init(&dctx);
 
 	while (isc_buffer_consumedlength(&buf) < size) {
-		result = dns_name_fromwire(name, &buf, dctx, 0, NULL);
+		result = dns_name_fromwire(name, &buf, &dctx, NULL);
 		if (result != ISC_R_SUCCESS) {
 			isc_buffer_forward(&buf, 1);
 		}

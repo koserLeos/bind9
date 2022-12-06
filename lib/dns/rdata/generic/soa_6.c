@@ -165,13 +165,13 @@ fromwire_soa(ARGS_FROMWIRE) {
 	UNUSED(type);
 	UNUSED(rdclass);
 
-	dctx = dns_decompress_setpermitted(dctx, true);
+	dns_decompress_setpermitted(dctx, true);
 
 	dns_name_init(&mname, NULL);
 	dns_name_init(&rname, NULL);
 
-	RETERR(dns_name_fromwire(&mname, source, dctx, options, target));
-	RETERR(dns_name_fromwire(&rname, source, dctx, options, target));
+	RETERR(dns_name_fromwire(&mname, source, dctx, target));
+	RETERR(dns_name_fromwire(&rname, source, dctx, target));
 
 	isc_buffer_activeregion(source, &sregion);
 	isc_buffer_availableregion(target, &tregion);

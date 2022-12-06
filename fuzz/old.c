@@ -51,8 +51,8 @@ typedef enum { fw_start = 0, fw_ordinary, fw_newcurrent } fw_state;
 #define BINDABLE(name) (!name->attributes.readonly && !name->attributes.dynamic)
 
 isc_result_t
-old_name_fromwire(dns_name_t *name, isc_buffer_t *source, dns_decompress_t dctx,
-		  unsigned int options, isc_buffer_t *target) {
+old_name_fromwire(dns_name_t *name, isc_buffer_t *source,
+		  dns_decompress_t *dctx, isc_buffer_t *target) {
 	unsigned char *cdata, *ndata;
 	unsigned int cused; /* Bytes of compressed name data used */
 	unsigned int nused, labels, n, nmax;
@@ -75,7 +75,7 @@ old_name_fromwire(dns_name_t *name, isc_buffer_t *source, dns_decompress_t dctx,
 	REQUIRE((target != NULL && ISC_BUFFER_VALID(target)) ||
 		(target == NULL && ISC_BUFFER_VALID(name->buffer)));
 
-	downcase = ((options & DNS_NAME_DOWNCASE) != 0);
+	downcase = false; /* ((options & DNS_NAME_DOWNCASE) != 0) */
 
 	if (target == NULL && name->buffer != NULL) {
 		target = name->buffer;

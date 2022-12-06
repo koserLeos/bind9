@@ -88,7 +88,7 @@ fromwire_lp(ARGS_FROMWIRE) {
 	UNUSED(type);
 	UNUSED(rdclass);
 
-	dctx = dns_decompress_setpermitted(dctx, true);
+	dns_decompress_setpermitted(dctx, true);
 
 	dns_name_init(&name, NULL);
 
@@ -98,7 +98,7 @@ fromwire_lp(ARGS_FROMWIRE) {
 	}
 	RETERR(mem_tobuffer(target, sregion.base, 2));
 	isc_buffer_forward(source, 2);
-	return (dns_name_fromwire(&name, source, dctx, options, target));
+	return (dns_name_fromwire(&name, source, dctx, target));
 }
 
 static isc_result_t

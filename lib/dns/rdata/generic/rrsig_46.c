@@ -303,7 +303,7 @@ fromwire_rrsig(ARGS_FROMWIRE) {
 	UNUSED(type);
 	UNUSED(rdclass);
 
-	dctx = dns_decompress_setpermitted(dctx, false);
+	dns_decompress_setpermitted(dctx, false);
 
 	isc_buffer_activeregion(source, &sr);
 	/*
@@ -328,7 +328,7 @@ fromwire_rrsig(ARGS_FROMWIRE) {
 	 * Signer.
 	 */
 	dns_name_init(&name, NULL);
-	RETERR(dns_name_fromwire(&name, source, dctx, options, target));
+	RETERR(dns_name_fromwire(&name, source, dctx, target));
 
 	/*
 	 * Sig.

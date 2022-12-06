@@ -31,6 +31,9 @@
 #define CCTX_MAGIC    ISC_MAGIC('C', 'C', 'T', 'X')
 #define CCTX_VALID(x) ISC_MAGIC_VALID(x, CCTX_MAGIC)
 
+#define DCTX_MAGIC    ISC_MAGIC('D', 'C', 'T', 'X')
+#define DCTX_VALID(x) ISC_MAGIC_VALID(x, DCTX_MAGIC)
+
 void
 dns_compress_init(dns_compress_t *cctx, isc_mem_t *mctx,
 		  dns_compress_flags_t flags) {
@@ -364,4 +367,20 @@ dns_compress_rollback(dns_compress_t *cctx, unsigned int coff) {
 		cctx->set[prev].hash = 0;
 		cctx->count--;
 	}
+}
+
+void
+dns_decompress_init(dns_decompress_t *dctx) {
+	REQUIRE(dctx != NULL);
+
+	*dctx = (dns_decompress_t){
+		.magic = DCTX_MAGIC,
+	};
+}
+
+void
+dns_decompress_invalidate(dns_decompress_t *dctx) {
+	REQUIRE(DCTX_VALID(dctx));
+
+	dctx->magic = 0;
 }

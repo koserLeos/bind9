@@ -24,9 +24,7 @@
 
 ISC_LANG_BEGINDECLS
 
-/*! \file dns/compress.h
- * Direct manipulation of the structures is strongly discouraged.
- *
+/*
  * A name compression context handles compression of multiple DNS names in
  * relation to a single DNS message. The context can be used to selectively
  * turn on/off compression for specific names (depending on the RR type,
@@ -100,13 +98,18 @@ struct dns_compress {
 };
 
 /*
- * Deompression context
+ * A decompression context handles compression of multiple DNS names in
+ * relation to a single DNS message.
+ *
+ * Depending on the caller's requirements, we either expect all names to be
+ * uncompressed already, or we allow any name to need decompression
+ * regardless of whether that is strictly allowed by RFC 3579. Decompression
+ * is disabled by a NULL decompression context pointer, and allowed by an
+ * initialized decompression context.
  */
-enum dns_decompress {
-	DNS_DECOMPRESS_DEFAULT,
-	DNS_DECOMPRESS_PERMITTED,
-	DNS_DECOMPRESS_NEVER,
-	DNS_DECOMPRESS_ALWAYS,
+struct dns_decompress {
+	unsigned int magic;
+	/* TBD */
 };
 
 void
@@ -206,27 +209,44 @@ dns_compress_rollback(dns_compress_t *cctx, unsigned int offset);
  *\li		'cctx' is initialized.
  */
 
-/*%
- *	Set whether decompression is allowed, according to RFC 3597
- */
-static inline dns_decompress_t /* inline to suppress code generation */
-dns_decompress_setpermitted(dns_decompress_t dctx, bool permitted) {
-	if (dctx == DNS_DECOMPRESS_NEVER || dctx == DNS_DECOMPRESS_ALWAYS) {
-		return (dctx);
-	} else if (permitted) {
-		return (DNS_DECOMPRESS_PERMITTED);
-	} else {
-		return (DNS_DECOMPRESS_DEFAULT);
-	}
-}
+/**********************************************************************/
 
 /*%
- *	Returns whether decompression is allowed here
+ * The various per-rdatatype fromwire() functions call setpermitted(dctx)
+ * according to whether RFC 3579 says name compression is allowed inside that
+ * particular type's RDATA. But (apart from the tests) decompression contexts
+ * were never initialized in a way that allowed these fromwire setpermitted()
+ * calls to make any changes. So this function has become a no-op.
+ *
+ * The dns_decompress_setpermitted() calls remain as documentation of whether
+ * an rdatatype allows compression or not, according to RFC 3579, and for
+ * symmetry with the compression contexts in the towire() functions.
  */
-static inline bool /* inline to suppress code generation */
-dns_decompress_getpermitted(dns_decompress_t dctx) {
-	return (dctx == DNS_DECOMPRESS_ALWAYS ||
-		dctx == DNS_DECOMPRESS_PERMITTED);
-}
+#define dns_decompress_setpermitted(dctx, permitted) /* no-op */
+
+/*%
+ * Returns whether decompression is allowed here
+ */
+#define dns_decompress_getpermitted(dctx) (dctx != NULL)
+
+void
+dns_decompress_init(dns_decompress_t *dctx);
+/*%<
+ * Initializes 'dctx'.
+ *
+ * Requires:
+ *
+ * \li	'dctx' is not NULL.
+ */
+
+void
+dns_decompress_invalidate(dns_decompress_t *dctx);
+/*%<
+ * Invalidates 'dctx'.
+ *
+ * Requires:
+ *
+ * \li	'dctx' is a valid decompression context.
+ */
 
 ISC_LANG_ENDDECLS

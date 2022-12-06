@@ -196,22 +196,20 @@ security area and must be paranoid about its input.
         fromwire_typename(dns_rdataclass_t class,
                            dns_rdatatype_t type,
                            isc_buffer_t *source,
-                           dns_decompress_t dctx,
-                           bool downcase,
+                           dns_decompress_t *dctx,
                            isc_buffer_t *target);
 
         static dns_result_t
         fromwire_classname_typename(dns_rdataclass_t class,
                                     dns_rdatatype_t type,
                                     isc_buffer_t *source,
-                                    dns_decompress_t dctx,
-                                    bool downcase,
+                                    dns_decompress_t *dctx,
                                     isc_buffer_t *target);
 
 `fromwire_classname_typename()` is required to set whether
 name compression is allowed, according to RFC 3597.
 
-        dctx = dns_decompress_setpermitted(dctx, true); /* or false */
+        dns_decompress_setpermitted(dctx, true); /* or false */
 
 |Parameter|Description |
 |---------|-----------------------|
@@ -219,7 +217,6 @@ name compression is allowed, according to RFC 3597.
 |`type`|This should be tested with a `REQUIRE(type == <value>)` statement at the beginning of the function.|
 |`source`|This is a `BINARY` buffer with the `active` region containing a resource record in wire format.|
 |`dctx`|This is the decompression context and is passed to `dns_name_fromwire()`, along with `downcase`, to enable a compressed domain name to be extracted from the source.|
-|`downcase`|This is passed to `dns_name_fromwire()` to say whether the extracted domain name should be downcased during the extraction.|
 |`target`|This is a `BINARY` buffer into which the decompressed and checked resource record is written.|
 
 `fromwire_typename()` is a security sensitive routine

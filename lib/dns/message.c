@@ -844,7 +844,7 @@ dns_message_findtype(const dns_name_t *name, dns_rdatatype_t type,
 }
 
 static isc_result_t
-getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
+getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 	 dns_rdataclass_t rdclass, dns_rdatatype_t rdtype,
 	 unsigned int rdatalen, dns_rdata_t *rdata) {
 	isc_buffer_t *scratch;
@@ -862,7 +862,7 @@ getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 	 * Subsequent tries: double buffer size on each try.
 	 * dns_rdata_fromwire() will stop the loop if it gets too large.
 	 */
-	result = dns_rdata_fromwire(rdata, rdclass, rdtype, source, dctx, 0,
+	result = dns_rdata_fromwire(rdata, rdclass, rdtype, source, dctx,
 				    scratch);
 
 	for (unsigned int size = ISC_MAX(SCRATCHPAD_SIZE, 2 * rdatalen);
@@ -870,7 +870,7 @@ getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 	{
 		scratch = newbuffer(msg, size);
 		result = dns_rdata_fromwire(rdata, rdclass, rdtype, source,
-					    dctx, 0, scratch);
+					    dctx, scratch);
 	}
 
 	return (result);
@@ -887,7 +887,7 @@ getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 	} while (0)
 
 static isc_result_t
-getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
+getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 	     unsigned int options) {
 	isc_region_t r;
 	unsigned int count;
@@ -913,7 +913,7 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 		 */
 		isc_buffer_remainingregion(source, &r);
 		isc_buffer_setactive(source, r.length);
-		result = dns_name_fromwire(name, source, dctx, 0, NULL);
+		result = dns_name_fromwire(name, source, dctx, NULL);
 		if (result != ISC_R_SUCCESS) {
 			goto cleanup;
 		}
@@ -1098,7 +1098,7 @@ auth_signed(dns_namelist_t *section) {
 }
 
 static isc_result_t
-getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
+getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 	   dns_section_t sectionid, unsigned int options) {
 	isc_region_t r;
 	unsigned int count, rdatalen;
@@ -1137,7 +1137,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 		 */
 		isc_buffer_remainingregion(source, &r);
 		isc_buffer_setactive(source, r.length);
-		result = dns_name_fromwire(name, source, dctx, 0, NULL);
+		result = dns_name_fromwire(name, source, dctx, NULL);
 		if (result != ISC_R_SUCCESS) {
 			goto cleanup;
 		}
@@ -1607,9 +1607,9 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 	msg->header_ok = 1;
 	msg->state = DNS_SECTION_QUESTION;
 
-	dctx = DNS_DECOMPRESS_ALWAYS;
+	dns_decompress_init(&dctx);
 
-	ret = getquestions(source, msg, dctx, options);
+	ret = getquestions(source, msg, &dctx, options);
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
 		goto truncated;
 	}
@@ -1622,7 +1622,7 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 	}
 	msg->question_ok = 1;
 
-	ret = getsection(source, msg, dctx, DNS_SECTION_ANSWER, options);
+	ret = getsection(source, msg, &dctx, DNS_SECTION_ANSWER, options);
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
 		goto truncated;
 	}
@@ -1634,7 +1634,7 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 		return (ret);
 	}
 
-	ret = getsection(source, msg, dctx, DNS_SECTION_AUTHORITY, options);
+	ret = getsection(source, msg, &dctx, DNS_SECTION_AUTHORITY, options);
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
 		goto truncated;
 	}
@@ -1646,7 +1646,7 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 		return (ret);
 	}
 
-	ret = getsection(source, msg, dctx, DNS_SECTION_ADDITIONAL, options);
+	ret = getsection(source, msg, &dctx, DNS_SECTION_ADDITIONAL, options);
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
 		goto truncated;
 	}
