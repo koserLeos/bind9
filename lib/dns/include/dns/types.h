@@ -68,6 +68,7 @@ typedef ISC_LIST(dns_dlzdb_t) dns_dlzdblist_t;
 typedef struct dns_dyndbctx	      dns_dyndbctx_t;
 typedef struct dns_sdlzimplementation dns_sdlzimplementation_t;
 typedef struct dns_decompress	      dns_decompress_t;
+typedef struct dns_decompress_slot    dns_decompress_slot_t;
 typedef struct dns_dispatch	      dns_dispatch_t;
 typedef struct dns_dispatchlist	      dns_dispatchlist_t;
 typedef struct dns_dispatchset	      dns_dispatchset_t;

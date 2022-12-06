@@ -17,6 +17,7 @@
 
 #include <isc/ascii.h>
 #include <isc/buffer.h>
+#include <isc/mem.h>
 #include <isc/random.h>
 #include <isc/time.h>
 #include <isc/util.h>
@@ -28,23 +29,16 @@
 #include "old.h"
 
 static uint32_t
-old_bench(const uint8_t *data, size_t size) {
+old_bench(dns_decompress_t *dctx, isc_buffer_t *source) {
 	isc_result_t result;
 	dns_fixedname_t fixed;
 	dns_name_t *name = dns_fixedname_initname(&fixed);
-	dns_decompress_t dctx;
-	isc_buffer_t buf;
 	uint32_t count = 0;
 
-	isc_buffer_constinit(&buf, data, size);
-	isc_buffer_add(&buf, size);
-	isc_buffer_setactive(&buf, size);
-	dns_decompress_init(&dctx);
-
-	while (isc_buffer_consumedlength(&buf) < size) {
-		result = old_name_fromwire(name, &buf, &dctx, NULL);
+	while (isc_buffer_remaininglength(source) > 0) {
+		result = old_name_fromwire(name, source, dctx, NULL);
 		if (result != ISC_R_SUCCESS) {
-			isc_buffer_forward(&buf, 1);
+			isc_buffer_forward(source, 1);
 		}
 		count++;
 	}
@@ -52,23 +46,16 @@ old_bench(const uint8_t *data, size_t size) {
 }
 
 static uint32_t
-new_bench(const uint8_t *data, size_t size) {
+new_bench(dns_decompress_t *dctx, isc_buffer_t *source) {
 	isc_result_t result;
 	dns_fixedname_t fixed;
 	dns_name_t *name = dns_fixedname_initname(&fixed);
-	dns_decompress_t dctx;
-	isc_buffer_t buf;
 	uint32_t count = 0;
 
-	isc_buffer_constinit(&buf, data, size);
-	isc_buffer_add(&buf, size);
-	isc_buffer_setactive(&buf, size);
-	dns_decompress_init(&dctx);
-
-	while (isc_buffer_consumedlength(&buf) < size) {
-		result = dns_name_fromwire(name, &buf, &dctx, NULL);
+	while (isc_buffer_remaininglength(source) > 0) {
+		result = dns_name_fromwire(name, source, dctx, NULL);
 		if (result != ISC_R_SUCCESS) {
-			isc_buffer_forward(&buf, 1);
+			isc_buffer_forward(source, 1);
 		}
 		count++;
 	}
@@ -77,20 +64,35 @@ new_bench(const uint8_t *data, size_t size) {
 
 static void
 oldnew_bench(const uint8_t *data, size_t size) {
-	isc_time_t t0;
-	isc_time_now_hires(&t0);
-	uint32_t n1 = old_bench(data, size);
-	isc_time_t t1;
-	isc_time_now_hires(&t1);
-	uint32_t n2 = new_bench(data, size);
-	isc_time_t t2;
-	isc_time_now_hires(&t2);
+	dns_decompress_t dctx;
+	isc_buffer_t source;
 
-	double t01 = (double)isc_time_microdiff(&t1, &t0);
-	double t12 = (double)isc_time_microdiff(&t2, &t1);
-	printf("  old %u / %f ms; %f / us\n", n1, t01 / 1000.0, n1 / t01);
-	printf("  new %u / %f ms; %f / us\n", n2, t12 / 1000.0, n2 / t12);
-	printf("  old/new %f or %f\n", t01 / t12, t12 / t01);
+	isc_buffer_constinit(&source, data, size);
+	isc_buffer_add(&source, size);
+	isc_buffer_setactive(&source, size);
+	dns_decompress_init(&dctx, &source);
+	isc_time_t s1;
+	isc_time_now_hires(&s1);
+	uint32_t n1 = old_bench(&dctx, &source);
+	isc_time_t e1;
+	isc_time_now_hires(&e1);
+	dns_decompress_invalidate(&dctx);
+
+	isc_buffer_first(&source);
+	isc_buffer_setactive(&source, size);
+	dns_decompress_init(&dctx, &source);
+	isc_time_t s2;
+	isc_time_now_hires(&s2);
+	uint32_t n2 = new_bench(&dctx, &source);
+	isc_time_t e2;
+	isc_time_now_hires(&e2);
+	dns_decompress_invalidate(&dctx);
+
+	double t1 = (double)isc_time_microdiff(&e1, &s1);
+	double t2 = (double)isc_time_microdiff(&e2, &s2);
+	printf("  old %u / %f ms; %f / us\n", n1, t1 / 1000.0, n1 / t1);
+	printf("  new %u / %f ms; %f / us\n", n2, t2 / 1000.0, n2 / t2);
+	printf("  old/new %f or %f\n", t1 / t2, t2 / t1);
 }
 
 #define NAMES 1000

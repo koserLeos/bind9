@@ -135,13 +135,6 @@ compress_test(const dns_name_t *name1, const dns_name_t *name2,
 	dns_compress_t cstr, *cctx = &cstr;
 	dns_decompress_t dstr, *dctx = &dstr;
 
-	dns_compress_init(cctx, mctx, enabled ? 0 : DNS_COMPRESS_DISABLED);
-	dns_compress_setpermitted(cctx, permitted);
-	dns_decompress_init(dctx);
-	if (!permitted) {
-		dctx = NULL;
-	}
-
 	isc_buffer_init(&source, buf1, sizeof(buf1));
 	isc_buffer_init(&target, buf2, sizeof(buf2));
 
@@ -151,6 +144,13 @@ compress_test(const dns_name_t *name1, const dns_name_t *name2,
 	 */
 	isc_buffer_putuint16(&source, 0xEAD);
 	isc_buffer_putuint16(&target, 0xEAD);
+
+	dns_compress_init(cctx, mctx, enabled ? 0 : DNS_COMPRESS_DISABLED);
+	dns_compress_setpermitted(cctx, permitted);
+	dns_decompress_init(dctx, &source);
+	if (!permitted) {
+		dctx = NULL;
+	}
 
 	if (rdata) {
 		/* RDATA compression */

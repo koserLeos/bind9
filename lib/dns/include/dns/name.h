@@ -719,15 +719,7 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
  * decompressing it.
  *
  * Notes:
- * \li	Decompression policy is controlled by 'dctx'.
- *
- * Security:
- *
- * \li	*** WARNING ***
- *
- * \li	This routine will often be used when 'source' contains raw network
- *	data.  A programming error in this routine could result in a denial
- *	of service, or in the hijacking of the server.
+ * \li	Decompression is enabled or disabled by 'dctx'.
  *
  * Requires:
  *
@@ -753,9 +745,8 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
  * Result:
  * \li	Success
  * \li	Bad Form: Label Length
- * \li	Bad Form: Unknown Label Type
  * \li	Bad Form: Name Length
- * \li	Bad Form: Compression type not allowed
+ * \li	Bad Form: Bad Label Type
  * \li	Bad Form: Bad compression pointer
  * \li	Bad Form: Input too short
  * \li	Resource Limit: Not enough space in buffer

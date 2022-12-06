@@ -858,6 +858,9 @@ dns_rdata_fromwire(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 	if (result != ISC_R_SUCCESS) {
 		*source = ss;
 		*target = st;
+		if (dns_decompress_getpermitted(dctx)) {
+			dns_decompress_rollback(dctx, source);
+		}
 	}
 	return (result);
 }

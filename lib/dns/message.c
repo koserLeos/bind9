@@ -889,8 +889,7 @@ getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 static isc_result_t
 getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 	     unsigned int options) {
-	isc_region_t r;
-	unsigned int count;
+	unsigned int count, remaining;
 	dns_name_t *name = NULL;
 	dns_name_t *name2 = NULL;
 	dns_rdataset_t *rdataset = NULL;
@@ -909,51 +908,54 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		free_name = true;
 
 		/*
-		 * Parse the name out of this packet.
+		 * Parse the owner name, looking for matches. (Unlikely for the
+		 * question, but matching does not harm the common case.)
 		 */
-		isc_buffer_remainingregion(source, &r);
-		isc_buffer_setactive(source, r.length);
+		remaining = isc_buffer_remaininglength(source);
+		isc_buffer_setactive(source, remaining);
+		dns_decompress_findowner(dctx);
 		result = dns_name_fromwire(name, source, dctx, NULL);
-		if (result != ISC_R_SUCCESS) {
+		if (result == ISC_R_EXISTS) {
+			/*
+			 * We found an instant match for the name.
+			 */
+			name2 = dns_decompress_getowner(dctx);
+		} else if (result == ISC_R_SUCCESS) {
+			/*
+			 * Scan the section for matching names.
+			 */
+			name2 = findowner(name, section);
+		} else {
 			goto cleanup;
 		}
 
-		/*
-		 * Run through the section, looking to see if this name
-		 * is already there.  If it is found, put back the allocated
-		 * name since we no longer need it, and set our name pointer
-		 * to point to the name we found.
-		 */
-		name2 = findowner(name, section);
-
-		/*
-		 * If it is the first name in the section, accept it.
-		 *
-		 * If it is not, but is not the same as the name already
-		 * in the question section, append to the section.  Note that
-		 * here in the question section this is illegal, so return
-		 * FORMERR.  In the future, check the opcode to see if
-		 * this should be legal or not.  In either case we no longer
-		 * need this name pointer.
-		 */
-		if (name2 == NULL) {
-			if (!ISC_LIST_EMPTY(*section)) {
-				DO_ERROR(DNS_R_FORMERR);
-			}
+		if (name2 != NULL) {
+			/*
+			 * Drop the new name and re-use its older match.
+			 */
+			dns_message_puttempname(msg, &name);
+			free_name = false;
+			name = name2;
+			name2 = NULL;
+		} else if (ISC_LIST_EMPTY(*section)) {
+			/*
+			 * Keep the first name in the section.
+			 */
 			ISC_LIST_APPEND(*section, name, link);
 			free_name = false;
 		} else {
-			dns_message_puttempname(msg, &name);
-			name = name2;
-			name2 = NULL;
-			free_name = false;
+			/*
+			 * Multiple different names in the question section are
+			 * not allowed, so return FORMERR. In the future, check
+			 * the opcode to see if this should be legal or not.
+			 */
+			DO_ERROR(DNS_R_FORMERR);
 		}
 
 		/*
 		 * Get type and class.
 		 */
-		isc_buffer_remainingregion(source, &r);
-		if (r.length < 4) {
+		if (isc_buffer_remaininglength(source) < 2 + 2) {
 			result = ISC_R_UNEXPECTEDEND;
 			goto cleanup;
 		}
@@ -1100,8 +1102,7 @@ auth_signed(dns_namelist_t *section) {
 static isc_result_t
 getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 	   dns_section_t sectionid, unsigned int options) {
-	isc_region_t r;
-	unsigned int count, rdatalen;
+	unsigned int count, rdatalen, remaining;
 	dns_name_t *name = NULL;
 	dns_name_t *name2 = NULL;
 	dns_rdataset_t *rdataset = NULL;
@@ -1118,7 +1119,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 	bool isedns, issigzero, istsig;
 
 	for (count = 0; count < msg->counts[sectionid]; count++) {
-		int recstart = source->current;
+		int recstart = isc_buffer_consumedlength(source);
 		bool skip_name_search, skip_type_search;
 
 		skip_name_search = false;
@@ -1133,12 +1134,27 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		free_name = true;
 
 		/*
-		 * Parse the name out of this packet.
+		 * Parse the owner name, looking for matches.
+		 *
+		 * If we find an instant match, then the name will remain empty
+		 * until later. We need to examine more of the record before we
+		 * know that we need to search for matching names, or that we
+		 * want to keep multiple copies of matching names. This means
+		 * the following code needs to take care when checking the
+		 * name, using dns_name_isabsolute() to verify it is not empty.
 		 */
-		isc_buffer_remainingregion(source, &r);
-		isc_buffer_setactive(source, r.length);
+		remaining = isc_buffer_remaininglength(source);
+		isc_buffer_setactive(source, remaining);
+		dns_decompress_findowner(dctx);
 		result = dns_name_fromwire(name, source, dctx, NULL);
-		if (result != ISC_R_SUCCESS) {
+		if (result == ISC_R_EXISTS) {
+			/*
+			 * We found an instant match for the name.
+			 */
+			name2 = dns_decompress_getowner(dctx);
+		} else if (result == ISC_R_SUCCESS) {
+			name2 = NULL;
+		} else {
 			goto cleanup;
 		}
 
@@ -1147,8 +1163,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		 * rdatalen bytes remain.  (Some of this is deferred to
 		 * later.)
 		 */
-		isc_buffer_remainingregion(source, &r);
-		if (r.length < 2 + 2 + 4 + 2) {
+		if (isc_buffer_remaininglength(source) < 2 + 2 + 4 + 2) {
 			result = ISC_R_UNEXPECTEDEND;
 			goto cleanup;
 		}
@@ -1220,7 +1235,8 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 			 * must be in the additional data section, and
 			 * it must be the first OPT we've seen.
 			 */
-			if (!dns_name_equal(dns_rootname, name) ||
+			if (!dns_name_isabsolute(name) ||
+			    !dns_name_equal(dns_rootname, name) ||
 			    sectionid != DNS_SECTION_ADDITIONAL ||
 			    msg->opt != NULL)
 			{
@@ -1257,8 +1273,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		 */
 		ttl = isc_buffer_getuint32(source);
 		rdatalen = isc_buffer_getuint16(source);
-		r.length -= (2 + 2 + 4 + 2);
-		if (r.length < rdatalen) {
+		if (isc_buffer_remaininglength(source) < rdatalen) {
 			result = ISC_R_UNEXPECTEDEND;
 			goto cleanup;
 		}
@@ -1320,6 +1335,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 			if (covers == 0) {
 				if (sectionid != DNS_SECTION_ADDITIONAL ||
 				    count != msg->counts[sectionid] - 1 ||
+				    !dns_name_isabsolute(name) ||
 				    !dns_name_equal(name, dns_rootname))
 				{
 					DO_ERROR(DNS_R_BADSIG0);
@@ -1340,6 +1356,52 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		}
 
 		/*
+		 * If we are doing a dynamic update or this is a
+		 * meta-type, don't bother searching for a name, just
+		 * append this one to the end of the message.
+		 */
+		if (preserve_order || msg->opcode == dns_opcode_update ||
+		    skip_name_search)
+		{
+			if (name2 != NULL) {
+				/*
+				 * We found a quick match, so we need to make a
+				 * copy that can be added to the list.
+				 */
+				dns_name_copy(name2, name);
+				name2 = NULL;
+			}
+			if (!isedns && !istsig && !issigzero) {
+				ISC_LIST_APPEND(*section, name, link);
+				free_name = false;
+			}
+		} else {
+			/*
+			 * If we did not find a quick match, scan the section
+			 * for a matching owner name.
+			 */
+			if (name2 == NULL) {
+				name2 = findowner(name, section);
+			}
+			if (name2 == NULL) {
+				/*
+				 * Keep the new name.
+				 */
+				ISC_LIST_APPEND(*section, name, link);
+				free_name = false;
+			} else {
+				/*
+				 * Drop the new name and re-use its older match.
+				 */
+				dns_message_puttempname(msg, &name);
+				free_name = false;
+				name = name2;
+				name2 = NULL;
+			}
+		}
+		INSIST(name2 == NULL);
+
+		/*
 		 * Check the ownername of NSEC3 records
 		 */
 		if (rdtype == dns_rdatatype_nsec3 &&
@@ -1347,39 +1409,6 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t *dctx,
 		{
 			result = DNS_R_BADOWNERNAME;
 			goto cleanup;
-		}
-
-		/*
-		 * If we are doing a dynamic update or this is a meta-type,
-		 * don't bother searching for a name, just append this one
-		 * to the end of the message.
-		 */
-		if (preserve_order || msg->opcode == dns_opcode_update ||
-		    skip_name_search)
-		{
-			if (!isedns && !istsig && !issigzero) {
-				ISC_LIST_APPEND(*section, name, link);
-				free_name = false;
-			}
-		} else {
-			/*
-			 * Run through the section, looking to see if this name
-			 * is already there.  If it is found, put back the
-			 * allocated name since we no longer need it, and set
-			 * our name pointer to point to the name we found.
-			 */
-			name2 = findowner(name, section);
-
-			/*
-			 * If it is a new name, append to the section.
-			 */
-			if (name2 != NULL) {
-				dns_message_puttempname(msg, &name);
-				name = name2;
-			} else {
-				ISC_LIST_APPEND(*section, name, link);
-			}
-			free_name = false;
 		}
 
 		/*
@@ -1558,7 +1587,6 @@ cleanup:
 isc_result_t
 dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 		  unsigned int options) {
-	isc_region_t r;
 	dns_decompress_t dctx;
 	isc_result_t ret;
 	uint16_t tmpflags;
@@ -1588,8 +1616,7 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 		msg->free_saved = 1;
 	}
 
-	isc_buffer_remainingregion(source, &r);
-	if (r.length < DNS_MESSAGE_HEADERLEN) {
+	if (isc_buffer_remaininglength(source) < DNS_MESSAGE_HEADERLEN) {
 		return (ISC_R_UNEXPECTEDEND);
 	}
 
@@ -1607,74 +1634,74 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 	msg->header_ok = 1;
 	msg->state = DNS_SECTION_QUESTION;
 
-	dns_decompress_init(&dctx);
+	dns_decompress_init(&dctx, source);
 
 	ret = getquestions(source, msg, &dctx, options);
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
-		goto truncated;
+		goto cleanup;
 	}
 	if (ret == DNS_R_RECOVERABLE) {
 		seen_problem = true;
 		ret = ISC_R_SUCCESS;
 	}
 	if (ret != ISC_R_SUCCESS) {
-		return (ret);
+		goto cleanup;
 	}
 	msg->question_ok = 1;
 
 	ret = getsection(source, msg, &dctx, DNS_SECTION_ANSWER, options);
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
-		goto truncated;
+		goto cleanup;
 	}
 	if (ret == DNS_R_RECOVERABLE) {
 		seen_problem = true;
 		ret = ISC_R_SUCCESS;
 	}
 	if (ret != ISC_R_SUCCESS) {
-		return (ret);
+		goto cleanup;
 	}
 
 	ret = getsection(source, msg, &dctx, DNS_SECTION_AUTHORITY, options);
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
-		goto truncated;
+		goto cleanup;
 	}
 	if (ret == DNS_R_RECOVERABLE) {
 		seen_problem = true;
 		ret = ISC_R_SUCCESS;
 	}
 	if (ret != ISC_R_SUCCESS) {
-		return (ret);
+		goto cleanup;
 	}
 
 	ret = getsection(source, msg, &dctx, DNS_SECTION_ADDITIONAL, options);
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
-		goto truncated;
+		goto cleanup;
 	}
 	if (ret == DNS_R_RECOVERABLE) {
 		seen_problem = true;
 		ret = ISC_R_SUCCESS;
 	}
 	if (ret != ISC_R_SUCCESS) {
-		return (ret);
+		goto cleanup;
 	}
 
-	isc_buffer_remainingregion(source, &r);
-	if (r.length != 0) {
+	if (isc_buffer_remaininglength(source) != 0) {
 		isc_log_write(dns_lctx, ISC_LOGCATEGORY_GENERAL,
 			      DNS_LOGMODULE_MESSAGE, ISC_LOG_DEBUG(3),
 			      "message has %u byte(s) of trailing garbage",
-			      r.length);
+			      isc_buffer_remaininglength(source));
 	}
 
-truncated:
+cleanup:
+	dns_decompress_invalidate(&dctx);
 
 	if (ret == ISC_R_UNEXPECTEDEND && ignore_tc) {
 		return (DNS_R_RECOVERABLE);
 	}
-	if (seen_problem) {
+	if (ret == ISC_R_SUCCESS && seen_problem) {
 		return (DNS_R_RECOVERABLE);
 	}
-	return (ISC_R_SUCCESS);
+	return (ret);
 }
 
 isc_result_t

@@ -1521,170 +1521,90 @@ set_offsets(const dns_name_t *name, unsigned char *offsets,
 
 isc_result_t
 dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
-		  dns_decompress_t *dctx, isc_buffer_t *target) {
+		  dns_decompress_t *dctx, isc_buffer_t *buffer) {
 	/*
-	 * Copy the name at source into target, decompressing it.
+	 * Copy the name at source into target, maybe decompressing it.
 	 *
 	 *	*** WARNING ***
 	 *
 	 * dns_name_fromwire() deals with raw network data. An error in this
 	 * routine could result in the failure or hijacking of the server.
 	 *
-	 * The description of name compression in RFC 1035 section 4.1.4 is
-	 * subtle wrt certain edge cases. The first important sentence is:
-	 *
-	 * > In this scheme, an entire domain name or a list of labels at the
-	 * > end of a domain name is replaced with a pointer to a prior
-	 * > occurance of the same name.
-	 *
-	 * The key word is "prior". This says that compression pointers must
-	 * point strictly earlier in the message (before our "marker" variable),
-	 * which is enough to prevent DoS attacks due to compression loops.
-	 *
-	 * The next important sentence is:
-	 *
-	 * > If a domain name is contained in a part of the message subject to a
-	 * > length field (such as the RDATA section of an RR), and compression
-	 * > is used, the length of the compressed name is used in the length
-	 * > calculation, rather than the length of the expanded name.
-	 *
-	 * When decompressing, this means that the amount of the source buffer
-	 * that we consumed (which is checked wrt the container's length field)
-	 * is the length of the compressed name. A compressed name is defined as
-	 * a sequence of labels ending with the root label or a compression
-	 * pointer, that is, the segment of the name that dns_name_fromwire()
-	 * examines first.
-	 *
-	 * This matters when handling names that play dirty tricks, like:
-	 *
-	 *	+---+---+---+---+---+---+
-	 *	| 4 | 1 |'a'|192| 0 | 0 |
-	 *	+---+---+---+---+---+---+
-	 *
-	 * We start at octet 1. There is an ordinary single character label "a",
-	 * followed by a compression pointer that refers back to octet zero.
-	 * Here there is a label of length 4, which weirdly re-uses the octets
-	 * we already examined as the data for the label. It is followed by the
-	 * root label,
-	 *
-	 * The specification says that the compressed name ends after the first
-	 * zero octet (after the compression pointer) not the second zero octet,
-	 * even though the second octet is later in the message. This shows the
-	 * correct way to set our "consumed" variable.
+	 * This parser is specialized to handle uncompressed names efficiently.
+	 * When we encounter a compression pointer, we collect however much of
+	 * the name we have so far, and hand over to the decompression routines.
 	 */
 
 	REQUIRE(VALID_NAME(name));
 	REQUIRE(BINDABLE(name));
-	REQUIRE((target != NULL && ISC_BUFFER_VALID(target)) ||
-		(target == NULL && ISC_BUFFER_VALID(name->buffer)));
-
-	if (target == NULL && name->buffer != NULL) {
-		target = name->buffer;
-		isc_buffer_clear(target);
-	}
-
-	uint8_t *const name_buf = isc_buffer_used(target);
-	const uint32_t name_max = ISC_MIN(DNS_NAME_MAXWIRE,
-					  isc_buffer_availablelength(target));
-	uint32_t name_len = 0;
-	MAKE_EMPTY(name); /* in case of failure */
+	REQUIRE((buffer != NULL && ISC_BUFFER_VALID(buffer)) ||
+		(buffer == NULL && ISC_BUFFER_VALID(name->buffer)));
 
 	dns_offsets_t odata;
 	uint8_t *offsets = NULL;
-	uint32_t labels = 0;
 	INIT_OFFSETS(name, offsets, odata);
+	DNS_NAME_RESET(name); /* in case of failure */
 
-	/*
-	 * After chasing a compression pointer, these variables refer to the
-	 * source buffer as follows:
-	 *
-	 * sb --- mr --- cr --- st --- cd --- sm
-	 *
-	 * sb = source_buf (const)
-	 * mr = marker
-	 * cr = cursor
-	 * st = start (const)
-	 * cd = consumed
-	 * sm = source_max (const)
-	 *
-	 * The marker hops backwards for each pointer.
-	 * The cursor steps forwards for each label.
-	 * The amount of the source we consumed is set once.
-	 */
-	const uint8_t *const source_buf = isc_buffer_base(source);
-	const uint8_t *const source_max = isc_buffer_used(source);
+	isc_buffer_t *target = buffer != NULL ? buffer : name->buffer;
+	const uint32_t target_available = isc_buffer_availablelength(target);
+	const uint32_t source_remaining = isc_buffer_remaininglength(source);
 	const uint8_t *const start = isc_buffer_current(source);
-	const uint8_t *marker = start;
-	const uint8_t *cursor = start;
-	const uint8_t *consumed = NULL;
 
+	uint32_t labels = 0;
+	uint32_t name_len = 0;
+	uint32_t max_len = ISC_MIN(DNS_NAME_MAXWIRE,
+				   ISC_MIN(target_available, source_remaining));
 	/*
-	 * One iteration per label.
+	 * One iteration per label. Checking the bounds on the name
+	 * length also ensures we don't overrun the offsets array.
 	 */
-	while (cursor < source_max) {
-		const uint8_t label_len = *cursor++;
-		if (DNS_LABEL_ISNORMAL(label_len)) {
-			/*
-			 * Normal label: record its offset, and check bounds on
-			 * the name length, which also ensures we don't overrun
-			 * the offsets array. Don't touch any source bytes yet!
-			 * The source bounds check will happen when we loop.
-			 */
+	while (name_len < max_len) {
+		uint8_t label_len = start[name_len];
+		if (DNS_LABEL_ISROOT(label_len)) {
+			goto root_label;
+		} else if (DNS_LABEL_ISNORMAL(label_len)) {
 			offsets[labels++] = name_len;
-			/* and then a step to the ri-i-i-i-i-ight */
-			cursor += label_len;
 			name_len += label_len + 1;
-			if (name_len > name_max) {
-				return (name_max == DNS_NAME_MAXWIRE
-						? DNS_R_NAMETOOLONG
-						: ISC_R_NOSPACE);
-			} else if (DNS_LABEL_ISROOT(label_len)) {
-				goto root_label;
-			}
 		} else if (DNS_LABEL_INVALID(label_len)) {
 			return (DNS_R_BADLABELTYPE);
-		} else if (!dns_decompress_getpermitted(dctx)) {
+		} else if (dns_decompress_getpermitted(dctx)) {
+			goto compressed;
+		} else {
 			return (DNS_R_DISALLOWED);
-		} else if (cursor < source_max) {
-			/*
-			 * Compression pointer. Ensure it does not loop.
-			 *
-			 * Copy multiple labels in one go, to make the most of
-			 * memmove() performance. Start at the marker and finish
-			 * just before the pointer's hi+lo bytes, before the
-			 * cursor. Bounds were already checked.
-			 */
-			const uint8_t *pointer = source_buf;
-			pointer += DNS_NAME_PTRTARGET(label_len, *cursor++);
-			if (pointer >= marker) {
-				return (DNS_R_BADPOINTER);
-			}
-			const uint32_t copy_len = (cursor - 2) - marker;
-			uint8_t *const dest = name_buf + name_len - copy_len;
-			memmove(dest, marker, copy_len);
-			consumed = consumed != NULL ? consumed : cursor;
-			/* it's just a jump to the left */
-			cursor = marker = pointer;
 		}
 	}
-	return (ISC_R_UNEXPECTEDEND);
-root_label:;
-	/*
-	 * Copy labels almost like we do for compression pointers,
-	 * from the marker up to and including the root label.
-	 */
-	const uint32_t copy_len = cursor - marker;
-	memmove(name_buf + name_len - copy_len, marker, copy_len);
-	consumed = consumed != NULL ? consumed : cursor;
-	isc_buffer_forward(source, consumed - start);
 
+	if (name_len > DNS_NAME_MAXWIRE) {
+		return (DNS_R_NAMETOOLONG);
+	} else if (name_len > target_available) {
+		return (ISC_R_NOSPACE);
+	} else {
+		return (ISC_R_UNEXPECTEDEND);
+	}
+
+root_label:
+	offsets[labels++] = name_len++;
 	name->attributes.absolute = true;
-	name->ndata = name_buf;
 	name->labels = labels;
 	name->length = name_len;
-	isc_buffer_add(target, name_len);
+	name->ndata = isc_buffer_used(target);
+	isc_buffer_putmem(target, start, name_len);
+
+	if (dns_decompress_getpermitted(dctx)) {
+		dns_decompress_add(dctx, source, name);
+	} else {
+		isc_buffer_forward(source, name_len);
+	}
 
 	return (ISC_R_SUCCESS);
+
+compressed:
+	name->labels = labels;
+	name->length = name_len;
+	name->ndata = isc_buffer_used(target);
+	isc_buffer_putmem(target, start, name_len);
+
+	return (dns_decompress_pointer(dctx, source, name, buffer));
 }
 
 isc_result_t
