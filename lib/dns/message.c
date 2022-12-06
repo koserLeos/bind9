@@ -255,19 +255,18 @@ msgblock_free(isc_mem_t *mctx, dns_msgblock_t *block,
 }
 
 /*
- * Allocate a new dynamic buffer, and attach it to this message as the
- * "current" buffer.  (which is always the last on the list, for our
- * uses)
+ * Allocate a new dynamic buffer, attach it to this message as the
+ * "current" buffer (which is always the last on the list, for our
+ * uses), and return it.
  */
-static isc_result_t
+static isc_buffer_t *
 newbuffer(dns_message_t *msg, unsigned int size) {
 	isc_buffer_t *dynbuf;
 
 	dynbuf = NULL;
 	isc_buffer_allocate(msg->mctx, &dynbuf, size);
-
 	ISC_LIST_APPEND(msg->scratchpad, dynbuf, link);
-	return (ISC_R_SUCCESS);
+	return (dynbuf);
 }
 
 static isc_buffer_t *
@@ -338,24 +337,6 @@ newrdatalist(dns_message_t *msg) {
 out:
 	dns_rdatalist_init(rdatalist);
 	return (rdatalist);
-}
-
-static dns_offsets_t *
-newoffsets(dns_message_t *msg) {
-	dns_msgblock_t *msgblock;
-	dns_offsets_t *offsets;
-
-	msgblock = ISC_LIST_TAIL(msg->offsets);
-	offsets = msgblock_get(msgblock, dns_offsets_t);
-	if (offsets == NULL) {
-		msgblock = msgblock_allocate(msg->mctx, sizeof(dns_offsets_t),
-					     OFFSET_COUNT);
-		ISC_LIST_APPEND(msg->offsets, msgblock, link);
-
-		offsets = msgblock_get(msgblock, dns_offsets_t);
-	}
-
-	return (offsets);
 }
 
 static void
@@ -793,23 +774,26 @@ dns_message_detach(dns_message_t **messagep) {
 	}
 }
 
-static isc_result_t
-findname(dns_name_t **foundname, const dns_name_t *target,
-	 dns_namelist_t *section) {
-	dns_name_t *curr;
+static dns_name_t *
+findowner(const dns_name_t *ntarget, dns_namelist_t *section) {
+	/*
+	 * We know that owner names used by dns_message_parse() are
+	 * really fixednames, so INSIST that they look plausible.
+	 */
+	dns_fixedname_t *target = (dns_fixedname_t *)ntarget;
+	INSIST(ntarget->ndata == target->data);
+	dns_fixedname_hash(target);
 
-	for (curr = ISC_LIST_TAIL(*section); curr != NULL;
-	     curr = ISC_LIST_PREV(curr, link))
+	for (dns_name_t *ncurr = ISC_LIST_TAIL(*section); ncurr != NULL;
+	     ncurr = ISC_LIST_PREV(ncurr, link))
 	{
-		if (dns_name_equal(curr, target)) {
-			if (foundname != NULL) {
-				*foundname = curr;
-			}
-			return (ISC_R_SUCCESS);
+		dns_fixedname_t *curr = (dns_fixedname_t *)ncurr;
+		INSIST(ncurr->ndata == curr->data);
+		if (dns_fixedname_equal(curr, target)) {
+			return (ncurr);
 		}
 	}
-
-	return (ISC_R_NOTFOUND);
+	return (NULL);
 }
 
 isc_result_t
@@ -859,52 +843,12 @@ dns_message_findtype(const dns_name_t *name, dns_rdatatype_t type,
 	return (ISC_R_NOTFOUND);
 }
 
-/*
- * Read a name from buffer "source".
- */
-static isc_result_t
-getname(dns_name_t *name, isc_buffer_t *source, dns_message_t *msg,
-	dns_decompress_t dctx) {
-	isc_buffer_t *scratch;
-	isc_result_t result;
-	unsigned int tries;
-
-	scratch = currentbuffer(msg);
-
-	/*
-	 * First try:  use current buffer.
-	 * Second try:  allocate a new buffer and use that.
-	 */
-	tries = 0;
-	while (tries < 2) {
-		result = dns_name_fromwire(name, source, dctx, 0, scratch);
-
-		if (result == ISC_R_NOSPACE) {
-			tries++;
-
-			result = newbuffer(msg, SCRATCHPAD_SIZE);
-			if (result != ISC_R_SUCCESS) {
-				return (result);
-			}
-
-			scratch = currentbuffer(msg);
-			dns_name_reset(name);
-		} else {
-			return (result);
-		}
-	}
-
-	UNREACHABLE();
-}
-
 static isc_result_t
 getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 	 dns_rdataclass_t rdclass, dns_rdatatype_t rdtype,
 	 unsigned int rdatalen, dns_rdata_t *rdata) {
 	isc_buffer_t *scratch;
 	isc_result_t result;
-	unsigned int tries;
-	unsigned int trysize;
 
 	scratch = currentbuffer(msg);
 
@@ -916,39 +860,20 @@ getrdata(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 	 *     max(SCRATCHPAD_SIZE, 2 * compressed_rdatalen)
 	 *     (the data will fit if it was not more than 50% compressed)
 	 * Subsequent tries: double buffer size on each try.
+	 * dns_rdata_fromwire() will stop the loop if it gets too large.
 	 */
-	tries = 0;
-	trysize = 0;
-	/* XXX possibly change this to a while (tries < 2) loop */
-	for (;;) {
+	result = dns_rdata_fromwire(rdata, rdclass, rdtype, source, dctx, 0,
+				    scratch);
+
+	for (unsigned int size = ISC_MAX(SCRATCHPAD_SIZE, 2 * rdatalen);
+	     result == ISC_R_NOSPACE; size *= 2)
+	{
+		scratch = newbuffer(msg, size);
 		result = dns_rdata_fromwire(rdata, rdclass, rdtype, source,
 					    dctx, 0, scratch);
-
-		if (result == ISC_R_NOSPACE) {
-			if (tries == 0) {
-				trysize = 2 * rdatalen;
-				if (trysize < SCRATCHPAD_SIZE) {
-					trysize = SCRATCHPAD_SIZE;
-				}
-			} else {
-				INSIST(trysize != 0);
-				if (trysize >= 65535) {
-					return (ISC_R_NOSPACE);
-				}
-				/* XXX DNS_R_RRTOOLONG? */
-				trysize *= 2;
-			}
-			tries++;
-			result = newbuffer(msg, trysize);
-			if (result != ISC_R_SUCCESS) {
-				return (result);
-			}
-
-			scratch = currentbuffer(msg);
-		} else {
-			return (result);
-		}
 	}
+
+	return (result);
 }
 
 #define DO_ERROR(r)                          \
@@ -981,7 +906,6 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 	for (count = 0; count < msg->counts[DNS_SECTION_QUESTION]; count++) {
 		name = NULL;
 		dns_message_gettempname(msg, &name);
-		name->offsets = (unsigned char *)newoffsets(msg);
 		free_name = true;
 
 		/*
@@ -989,7 +913,7 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 		 */
 		isc_buffer_remainingregion(source, &r);
 		isc_buffer_setactive(source, r.length);
-		result = getname(name, source, msg, dctx);
+		result = dns_name_fromwire(name, source, dctx, 0, NULL);
 		if (result != ISC_R_SUCCESS) {
 			goto cleanup;
 		}
@@ -1000,7 +924,7 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 		 * name since we no longer need it, and set our name pointer
 		 * to point to the name we found.
 		 */
-		result = findname(&name2, name, section);
+		name2 = findowner(name, section);
 
 		/*
 		 * If it is the first name in the section, accept it.
@@ -1012,7 +936,7 @@ getquestions(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 		 * this should be legal or not.  In either case we no longer
 		 * need this name pointer.
 		 */
-		if (result != ISC_R_SUCCESS) {
+		if (name2 == NULL) {
 			if (!ISC_LIST_EMPTY(*section)) {
 				DO_ERROR(DNS_R_FORMERR);
 			}
@@ -1206,7 +1130,6 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 
 		name = NULL;
 		dns_message_gettempname(msg, &name);
-		name->offsets = (unsigned char *)newoffsets(msg);
 		free_name = true;
 
 		/*
@@ -1214,7 +1137,7 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 		 */
 		isc_buffer_remainingregion(source, &r);
 		isc_buffer_setactive(source, r.length);
-		result = getname(name, source, msg, dctx);
+		result = dns_name_fromwire(name, source, dctx, 0, NULL);
 		if (result != ISC_R_SUCCESS) {
 			goto cleanup;
 		}
@@ -1445,12 +1368,12 @@ getsection(isc_buffer_t *source, dns_message_t *msg, dns_decompress_t dctx,
 			 * allocated name since we no longer need it, and set
 			 * our name pointer to point to the name we found.
 			 */
-			result = findname(&name2, name, section);
+			name2 = findowner(name, section);
 
 			/*
 			 * If it is a new name, append to the section.
 			 */
-			if (result == ISC_R_SUCCESS) {
+			if (name2 != NULL) {
 				dns_message_puttempname(msg, &name);
 				name = name2;
 			} else {
@@ -2436,7 +2359,7 @@ dns_message_findname(dns_message_t *msg, dns_section_t section,
 		     const dns_name_t *target, dns_rdatatype_t type,
 		     dns_rdatatype_t covers, dns_name_t **name,
 		     dns_rdataset_t **rdataset) {
-	dns_name_t *foundname;
+	dns_name_t *foundname = NULL;
 	isc_result_t result;
 
 	/*
@@ -2456,12 +2379,17 @@ dns_message_findname(dns_message_t *msg, dns_section_t section,
 		REQUIRE(rdataset == NULL || *rdataset == NULL);
 	}
 
-	result = findname(&foundname, target, &msg->sections[section]);
+	for (dns_name_t *curr = ISC_LIST_TAIL(msg->sections[section]);
+	     curr != NULL; curr = ISC_LIST_PREV(curr, link))
+	{
+		if (dns_name_equal(curr, target)) {
+			foundname = curr;
+			break;
+		}
+	}
 
-	if (result == ISC_R_NOTFOUND) {
+	if (foundname == NULL) {
 		return (DNS_R_NXDOMAIN);
-	} else if (result != ISC_R_SUCCESS) {
-		return (result);
 	}
 
 	if (name != NULL) {

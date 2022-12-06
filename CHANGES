@@ -1,3 +1,7 @@
+6044.	[performance]	Speed up message parsing by avoiding unnecessary
+			allocations, and by hashing names to reduce the need
+			to compare them in full. [GL !7197]
+
 6043.	[bug]		The key file IO locks objects would never get
 			deleted from the hashtable due to off-by-one error.
 			[GL #3727]

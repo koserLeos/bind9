@@ -62,6 +62,7 @@ struct dns_fixedname {
 	dns_name_t    name;
 	dns_offsets_t offsets;
 	isc_buffer_t  buffer;
+	unsigned int  hash;
 	unsigned char data[DNS_NAME_MAXWIRE];
 };
 
@@ -78,5 +79,11 @@ dns_fixedname_name(dns_fixedname_t *fixed);
 
 dns_name_t *
 dns_fixedname_initname(dns_fixedname_t *fixed);
+
+void
+dns_fixedname_hash(dns_fixedname_t *fixed);
+
+bool
+dns_fixedname_equal(dns_fixedname_t *fixed1, dns_fixedname_t *fixed2);
 
 ISC_LANG_ENDDECLS
