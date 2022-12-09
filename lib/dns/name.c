@@ -162,7 +162,7 @@ dns_name_isvalid(const dns_name_t *name) {
 
 	while (offset != length) {
 		count = *ndata;
-		if (count > 63U) {
+		if (!DNS_LABEL_ISNORMAL(count)) {
 			return (false);
 		}
 		if (offsets != NULL && offsets[nlabels] != offset) {
@@ -176,7 +176,7 @@ dns_name_isvalid(const dns_name_t *name) {
 			return (false);
 		}
 
-		if (count == 0) {
+		if (DNS_LABEL_ISROOT(count)) {
 			break;
 		}
 	}
@@ -254,7 +254,7 @@ dns_name_ismailbox(const dns_name_t *name) {
 
 	ndata = name->ndata;
 	n = *ndata++;
-	INSIST(n <= 63);
+	INSIST(DNS_LABEL_ISNORMAL(n));
 	while (n--) {
 		ch = *ndata++;
 		if (!domainchar(ch)) {
@@ -271,7 +271,7 @@ dns_name_ismailbox(const dns_name_t *name) {
 	 */
 	while (ndata < (name->ndata + name->length)) {
 		n = *ndata++;
-		INSIST(n <= 63);
+		INSIST(DNS_LABEL_ISNORMAL(n));
 		first = true;
 		while (n--) {
 			ch = *ndata++;
@@ -320,7 +320,7 @@ dns_name_ishostname(const dns_name_t *name, bool wildcard) {
 	 */
 	while (ndata < (name->ndata + name->length)) {
 		n = *ndata++;
-		INSIST(n <= 63);
+		INSIST(DNS_LABEL_ISNORMAL(n));
 		first = true;
 		while (n--) {
 			ch = *ndata++;
@@ -378,7 +378,7 @@ dns_name_internalwildcard(const dns_name_t *name) {
 	 */
 	ndata = name->ndata;
 	count = *ndata++;
-	INSIST(count <= 63);
+	INSIST(DNS_LABEL_ISNORMAL(count));
 	ndata += count;
 	label = 1;
 	/*
@@ -386,7 +386,7 @@ dns_name_internalwildcard(const dns_name_t *name) {
 	 */
 	while (label + 1 < name->labels) {
 		count = *ndata++;
-		INSIST(count <= 63);
+		INSIST(DNS_LABEL_ISNORMAL(count));
 		if (count == 1 && *ndata == '*') {
 			return (true);
 		}
@@ -991,7 +991,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 			} else if (c == '\\') {
 				state = ft_escape;
 			} else {
-				if (count >= 63) {
+				if (count >= DNS_LABEL_MAXLEN) {
 					return (DNS_R_LABELTOOLONG);
 				}
 				count++;
@@ -1016,7 +1016,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 			FALLTHROUGH;
 		case ft_escape:
 			if (!isdigit((unsigned char)c)) {
-				if (count >= 63) {
+				if (count >= DNS_LABEL_MAXLEN) {
 					return (DNS_R_LABELTOOLONG);
 				}
 				count++;
@@ -1043,7 +1043,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 				if (value > 255) {
 					return (DNS_R_BADESCAPE);
 				}
-				if (count >= 63) {
+				if (count >= DNS_LABEL_MAXLEN) {
 					return (DNS_R_LABELTOOLONG);
 				}
 				count++;
@@ -1088,7 +1088,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 			POST(nrem);
 			while (n1 > 0) {
 				n2 = *label++;
-				INSIST(n2 <= 63); /* no bitstring support */
+				INSIST(DNS_LABEL_ISNORMAL(n2));
 				*ndata++ = n2;
 				n1 -= n2 + 1;
 				nused += n2 + 1;
@@ -1217,11 +1217,11 @@ dns_name_totext2(const dns_name_t *name, unsigned int options,
 		labels--;
 		count = *ndata++;
 		nlen--;
-		if (count == 0) {
+		if (DNS_LABEL_ISROOT(count)) {
 			saw_root = true;
 			break;
 		}
-		if (count < 64) {
+		if (DNS_LABEL_ISNORMAL(count)) {
 			INSIST(nlen >= count);
 			while (count > 0) {
 				c = *ndata;
@@ -1363,10 +1363,10 @@ dns_name_tofilenametext(const dns_name_t *name, bool omit_final_dot,
 		labels--;
 		count = *ndata++;
 		nlen--;
-		if (count == 0) {
+		if (DNS_LABEL_ISROOT(count)) {
 			break;
 		}
-		if (count < 64) {
+		if (DNS_LABEL_ISNORMAL(count)) {
 			INSIST(nlen >= count);
 			while (count > 0) {
 				c = *ndata;
@@ -1496,14 +1496,14 @@ set_offsets(const dns_name_t *name, unsigned char *offsets,
 	nlabels = 0;
 	absolute = false;
 	while (offset != length) {
-		INSIST(nlabels < 128);
+		INSIST(nlabels < DNS_NAME_MAXLABELS);
 		offsets[nlabels++] = offset;
 		count = *ndata;
-		INSIST(count <= 63);
+		INSIST(DNS_LABEL_ISNORMAL(count));
 		offset += count + 1;
 		ndata += count + 1;
 		INSIST(offset <= length);
-		if (count == 0) {
+		if (DNS_LABEL_ISROOT(count)) {
 			absolute = true;
 			break;
 		}
@@ -1623,7 +1623,7 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 	 */
 	while (cursor < source_max) {
 		const uint8_t label_len = *cursor++;
-		if (label_len < 64) {
+		if (DNS_LABEL_ISNORMAL(label_len)) {
 			/*
 			 * Normal label: record its offset, and check bounds on
 			 * the name length, which also ensures we don't overrun
@@ -1638,10 +1638,10 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 				return (name_max == DNS_NAME_MAXWIRE
 						? DNS_R_NAMETOOLONG
 						: ISC_R_NOSPACE);
-			} else if (label_len == 0) {
+			} else if (DNS_LABEL_ISROOT(label_len)) {
 				goto root_label;
 			}
-		} else if (label_len < 192) {
+		} else if (DNS_LABEL_INVALID(label_len)) {
 			return (DNS_R_BADLABELTYPE);
 		} else if (!dns_decompress_getpermitted(dctx)) {
 			return (DNS_R_DISALLOWED);
@@ -1654,9 +1654,8 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 			 * just before the pointer's hi+lo bytes, before the
 			 * cursor. Bounds were already checked.
 			 */
-			const uint32_t hi = label_len & 0x3F;
-			const uint32_t lo = *cursor++;
-			const uint8_t *pointer = source_buf + (256 * hi + lo);
+			const uint8_t *pointer = source_buf;
+			pointer += DNS_NAME_PTRTARGET(label_len, *cursor++);
 			if (pointer >= marker) {
 				return (DNS_R_BADPOINTER);
 			}
@@ -1720,11 +1719,11 @@ dns_name_towire2(const dns_name_t *name, dns_compress_t *cctx,
 	 * Write a compression pointer directly if the caller passed us
 	 * a pointer to this name's offset that we saved previously.
 	 */
-	if (compress && name_coff != NULL && *name_coff < 0x4000) {
+	if (compress && name_coff != NULL && *name_coff <= DNS_NAME_MAXPTR) {
 		if (isc_buffer_availablelength(target) < 2) {
 			return (ISC_R_NOSPACE);
 		}
-		isc_buffer_putuint16(target, *name_coff | 0xc000);
+		isc_buffer_putuint16(target, *name_coff | DNS_NAME_PTRBITS);
 		return (ISC_R_SUCCESS);
 	}
 
@@ -1748,10 +1747,10 @@ dns_name_towire2(const dns_name_t *name, dns_compress_t *cctx,
 
 	/*
 	 * Return this name's compression offset for use next time, provided
-	 * it isn't too short for compression to help (i.e. it's the root)
+	 * it isn't too short for compression to help (i.e. it isn't the root)
 	 */
 	here = isc_buffer_usedlength(target);
-	if (name_coff != NULL && here < 0x4000 && prefix_length > 1) {
+	if (name_coff != NULL && here <= DNS_NAME_MAXPTR && prefix_length > 1) {
 		*name_coff = (uint16_t)here;
 	}
 
@@ -1770,7 +1769,7 @@ dns_name_towire2(const dns_name_t *name, dns_compress_t *cctx,
 		if (isc_buffer_availablelength(target) < 2) {
 			return (ISC_R_NOSPACE);
 		}
-		isc_buffer_putuint16(target, suffix_coff | 0xc000);
+		isc_buffer_putuint16(target, suffix_coff | DNS_NAME_PTRBITS);
 	}
 
 	return (ISC_R_SUCCESS);

@@ -185,6 +185,38 @@ extern const dns_name_t *dns_wildcardname;
  * Standard size of a wire format name
  */
 #define DNS_NAME_MAXWIRE 255
+/*%
+ * To get the maximum number of labels, remove the root label, allow 2
+ * bytes (length and contents) for each label, and reattach the root.
+ */
+#define DNS_NAME_MAXLABELS (((DNS_NAME_MAXWIRE - 1) / 2) + 1)
+/*%
+ * Maximum length of a normal label
+ */
+#define DNS_LABEL_MAXLEN 63
+
+/*
+ * Tests for label length/type bytes. Note the root is also normal.
+ */
+#define DNS_LABEL_ISROOT(byte)	 ((byte) == 0)
+#define DNS_LABEL_ISNORMAL(byte) ((byte) <= DNS_LABEL_MAXLEN)
+#define DNS_LABEL_ISPTR(byte)	 ((byte) >= 192)
+#define DNS_LABEL_INVALID(byte) \
+	(!DNS_LABEL_ISNORMAL(byte) && !DNS_LABEL_ISPTR(byte))
+
+/*%
+ * Set these bits to turn a compression offset into a pointer on the wire
+ * (like DNS_LABEL_ISPTR)
+ */
+#define DNS_NAME_PTRBITS (192 << 8)
+/*%
+ * Calculate a compression offset from a pointer's bytes on the wire
+ */
+#define DNS_NAME_PTRTARGET(hi, lo) (256 * (hi) + (lo) & ~DNS_NAME_PTRBITS)
+/*%
+ * Maximum value of a name compression offset
+ */
+#define DNS_NAME_MAXPTR DNS_NAME_PTRTARGET(0xFF, 0xFF)
 
 /*
  * Text output filter procedure.

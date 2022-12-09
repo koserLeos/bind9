@@ -53,6 +53,7 @@
 #include <dns/keytable.h>
 #include <dns/log.h>
 #include <dns/message.h>
+#include <dns/name.h>
 #include <dns/ncache.h>
 #include <dns/nsec.h>
 #include <dns/nsec3.h>
@@ -4361,7 +4362,7 @@ resume_qmin(isc_task_t *task, isc_event_t *event) {
 	case ISC_R_FAILURE:
 		if ((fctx->options & DNS_FETCHOPT_QMIN_STRICT) == 0) {
 			/* Disable minimization in relaxed mode */
-			fctx->qmin_labels = DNS_MAX_LABELS + 1;
+			fctx->qmin_labels = DNS_NAME_MAXLABELS;
 			/*
 			 * We store the result. If we succeed in the end
 			 * we'll issue a warning that the server is
@@ -10464,7 +10465,7 @@ fctx_minimize_qname(fetchctx_t *fctx) {
 			fctx->qmin_labels = nlabels;
 		}
 	} else if (fctx->qmin_labels > DNS_QMIN_MAXLABELS) {
-		fctx->qmin_labels = DNS_MAX_LABELS + 1;
+		fctx->qmin_labels = DNS_NAME_MAXLABELS;
 	}
 
 	if (fctx->qmin_labels < nlabels) {

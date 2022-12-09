@@ -162,12 +162,13 @@ match_wirename(uint8_t *a, uint8_t *b, unsigned int len, bool sensitive) {
 static bool
 match_suffix(isc_buffer_t *buffer, unsigned int new_coff, uint8_t *sptr,
 	     unsigned int slen, unsigned int old_coff, bool sensitive) {
-	uint8_t pptr[] = { 0xC0 | (old_coff >> 8), old_coff & 0xff };
+	uint16_t ptr = old_coff | DNS_NAME_PTRBITS;
+	uint8_t pptr[] = { ptr >> 8, ptr & 0xff };
 	uint8_t *bptr = isc_buffer_base(buffer);
 	unsigned int blen = isc_buffer_usedlength(buffer);
 	unsigned int llen = sptr[0] + 1;
 
-	INSIST(llen <= 64 && llen < slen);
+	INSIST(DNS_LABEL_ISNORMAL(llen) && llen < slen);
 
 	if (blen < new_coff + llen) {
 		return (false);
@@ -232,7 +233,7 @@ insert_label(dns_compress_t *cctx, isc_buffer_t *buffer, const dns_name_t *name,
 	 */
 	unsigned int prefix_len = name->offsets[label];
 	unsigned int coff = isc_buffer_usedlength(buffer) + prefix_len;
-	if (coff >= 0x4000 || cctx->count > cctx->mask * 3 / 4) {
+	if (coff > DNS_NAME_MAXPTR || cctx->count > cctx->mask * 3 / 4) {
 		return false;
 	}
 	for (;;) {
