@@ -969,6 +969,33 @@ dns_name_downcase(const dns_name_t *source, dns_name_t *name,
  */
 
 isc_result_t
+dns_name_append(dns_name_t *name, const dns_name_t *suffix,
+		isc_buffer_t *target);
+/*%<
+ *	Appends 'suffix' onto 'name'
+ *
+ * Requires:
+ *
+ *\li	'name' is a valid name.
+ *
+ *\li	'suffix' is a valid name.
+ *
+ *\li	'target' is a valid buffer or 'target' is NULL and 'name' has
+ *	a dedicated buffer.
+ *
+ *\li	If 'name' is absolute, 'suffix' must be empty.
+ *
+ * Ensures:
+ *
+ *\li	On success, the used space in target is updated.
+ *
+ * Returns:
+ *\li	#ISC_R_SUCCESS
+ *\li	#ISC_R_NOSPACE
+ *\li	#DNS_R_NAMETOOLONG
+ */
+
+isc_result_t
 dns_name_concatenate(const dns_name_t *prefix, const dns_name_t *suffix,
 		     dns_name_t *name, isc_buffer_t *target);
 /*%<

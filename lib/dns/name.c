@@ -1776,6 +1776,45 @@ dns_name_towire2(const dns_name_t *name, dns_compress_t *cctx,
 }
 
 isc_result_t
+dns_name_append(dns_name_t *name, const dns_name_t *suffix,
+		isc_buffer_t *target) {
+	unsigned int length;
+
+	/*
+	 * Append 'suffix' onto 'name'
+	 */
+
+	REQUIRE(VALID_NAME(name));
+	REQUIRE(VALID_NAME(suffix));
+	REQUIRE((target != NULL && ISC_BUFFER_VALID(target)) ||
+		(target == NULL && ISC_BUFFER_VALID(name->buffer)));
+	REQUIRE(!dns_name_isabsolute(name) || suffix->labels == 0);
+
+	if (target == NULL) {
+		target = name->buffer;
+	}
+
+	length = name->length + suffix->length;
+	if (length > DNS_NAME_MAXWIRE) {
+		return (DNS_R_NAMETOOLONG);
+	}
+	if (length > isc_buffer_availablelength(target)) {
+		return (ISC_R_NOSPACE);
+	}
+
+	name->length = length;
+	name->labels += suffix->labels;
+	name->attributes.absolute = suffix->attributes.absolute;
+	isc_buffer_putmem(target, suffix->ndata, suffix->length);
+
+	if (name->offsets != NULL) {
+		set_offsets(name, name->offsets, NULL);
+	}
+
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
 dns_name_concatenate(const dns_name_t *prefix, const dns_name_t *suffix,
 		     dns_name_t *name, isc_buffer_t *target) {
 	unsigned char *ndata, *offsets;
