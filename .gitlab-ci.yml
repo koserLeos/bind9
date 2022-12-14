@@ -781,7 +781,7 @@ scan-build:
 gcc:sid:amd64:
   variables:
     CC: gcc
-    CFLAGS: "${CFLAGS_COMMON} -O3"
+    CFLAGS: "${CFLAGS_COMMON} -O3 -Wno-error=deprecated-declarations"
     EXTRA_CONFIGURE: "--with-libidn2 --without-lmdb"
     RUN_MAKE_INSTALL: 1
   <<: *debian_sid_amd64_image
@@ -859,7 +859,7 @@ unit:gcc:tarball:
 gcc:tumbleweed:amd64:
   variables:
     CC: gcc
-    CFLAGS: "${CFLAGS_COMMON} -DDEBUG"
+    CFLAGS: "${CFLAGS_COMMON} -DDEBUG -Wno-error=deprecated-declarations"
     EXTRA_CONFIGURE: "--with-libidn2"
   <<: *tumbleweed_latest_amd64_image
   <<: *build_job
@@ -1177,7 +1177,7 @@ unit:gcc:pkcs11:
 
 clang:freebsd12:amd64:
   variables:
-    CFLAGS: "${CFLAGS_COMMON}"
+    CFLAGS: "${CFLAGS_COMMON} -Wno-error=deprecated-declarations"
     EXTRA_CONFIGURE: "--with-gssapi=krb5-config"
     USER: gitlab-runner
   <<: *freebsd_12_amd64_image
@@ -1256,7 +1256,7 @@ system:clang:openbsd:amd64:
 nolibtool:sid:amd64:
   variables:
     CC: gcc
-    CFLAGS: "${CFLAGS_COMMON}"
+    CFLAGS: "${CFLAGS_COMMON} -Wno-error=deprecated-declarations"
     EXTRA_CONFIGURE: "--with-libidn2 --without-libtool --with-dlopen"
   <<: *debian_sid_amd64_image
   <<: *build_job
