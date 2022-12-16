@@ -95,8 +95,6 @@
 
 #endif /* HAVE_GSSAPI */
 
-#include <bind9/getaddresses.h>
-
 #include "../dig/readline.h"
 
 #define MAXCMD	     (128 * 1024)
@@ -108,7 +106,7 @@
 
 #define DNSDEFAULTPORT 53
 
-/* Number of addresses to request from bind9_getaddresses() */
+/* Number of addresses to request from isc_sockaddr_fromtext() */
 #define MAX_SERVERADDRS 4
 
 static uint16_t dnsport = DNSDEFAULTPORT;
@@ -1017,7 +1015,7 @@ get_addresses(char *host, in_port_t port, isc_sockaddr_t *sockaddr,
 	isc_result_t result;
 
 	isc_loopmgr_blocking(loopmgr);
-	result = bind9_getaddresses(host, port, sockaddr, naddrs, &count);
+	result = isc_sockaddr_fromtext(host, port, sockaddr, naddrs, &count);
 	isc_loopmgr_nonblocking(loopmgr);
 	if (result != ISC_R_SUCCESS) {
 		error("couldn't get address for '%s': %s", host,

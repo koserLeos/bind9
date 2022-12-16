@@ -54,8 +54,6 @@
 #include <dns/types.h>
 #include <dns/view.h>
 
-#include <bind9/getaddresses.h>
-
 #define CHECK(str, x)                                                       \
 	{                                                                   \
 		if ((x) != ISC_R_SUCCESS) {                                 \
@@ -2138,7 +2136,7 @@ main(int argc, char *argv[]) {
 	}
 
 	ns = 0;
-	result = bind9_getaddresses(server, port, &dstaddr, 1, &ns);
+	result = isc_sockaddr_fromtext(server, port, &dstaddr, 1, &ns);
 	if (result != ISC_R_SUCCESS) {
 		fatal("couldn't get address for '%s': %s", server,
 		      isc_result_totext(result));

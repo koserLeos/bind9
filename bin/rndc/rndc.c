@@ -50,8 +50,6 @@
 
 #include <isccfg/namedconf.h>
 
-#include <bind9/getaddresses.h>
-
 #include "util.h"
 
 #define SERVERADDRS 10
@@ -282,7 +280,7 @@ get_addresses(const char *host, in_port_t port) {
 		}
 	} else {
 		count = SERVERADDRS - nserveraddrs;
-		result = bind9_getaddresses(
+		result = isc_sockaddr_fromtext(
 			host, port, &serveraddrs[nserveraddrs], count, &found);
 		nserveraddrs += found;
 	}
