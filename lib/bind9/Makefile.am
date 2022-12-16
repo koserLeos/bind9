@@ -3,12 +3,10 @@ include $(top_srcdir)/Makefile.top
 lib_LTLIBRARIES = libbind9.la
 
 libbind9_ladir = $(includedir)/bind9
-libbind9_la_HEADERS =			\
-	include/bind9/check.h
+libbind9_la_HEADERS =
 
 libbind9_la_SOURCES =		\
-	$(libbind9_la_HEADERS)	\
-	check.c
+	$(libbind9_la_HEADERS)
 
 libbind9_la_CPPFLAGS =		\
 	$(AM_CPPFLAGS)		\
