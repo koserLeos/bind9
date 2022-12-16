@@ -13,6 +13,7 @@
 
 /*! \file */
 
+#include <netdb.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -20,7 +21,6 @@
 #include <isc/hash.h>
 #include <isc/net.h>
 #include <isc/netaddr.h>
-#include <isc/netdb.h>
 #include <isc/netscope.h>
 #include <isc/print.h>
 #include <isc/region.h>
