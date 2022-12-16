@@ -1586,7 +1586,6 @@ AC_CONFIG_FILES([lib/Makefile
 		 lib/isc/Makefile
 		 lib/dns/Makefile
 		 lib/ns/Makefile
-		 lib/irs/Makefile
 		 lib/isccfg/Makefile
 		 lib/isccc/Makefile])
 
