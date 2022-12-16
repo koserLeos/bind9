@@ -67,7 +67,6 @@ libisc_la_HEADERS =			\
 	include/isc/os.h		\
 	include/isc/parseint.h		\
 	include/isc/portset.h		\
-	include/isc/print.h		\
 	include/isc/quota.h		\
 	include/isc/radix.h		\
 	include/isc/random.h		\

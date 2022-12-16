@@ -22,7 +22,6 @@
 #include <isc/net.h>
 #include <isc/netaddr.h>
 #include <isc/netscope.h>
-#include <isc/print.h>
 #include <isc/region.h>
 #include <isc/sockaddr.h>
 #include <isc/string.h>
