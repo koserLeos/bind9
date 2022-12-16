@@ -1,3 +1,9 @@
+6051.	[cleanup]	Only two modules remained in libbind9 and one in
+			libirs. The modules have been moved into the other
+			libraries, and libbind9 and libirs have been removed.
+			Several nugatory headers have been removed from libisc
+			too. [GL !7244]
+
 6050.	[bug]		Changes to the RPZ response-policy min-update-interval
 			and add-soa options now take effect as expected when
 			named is reconfigured. [GL #3740]
