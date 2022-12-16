@@ -23,7 +23,6 @@ libisc_la_HEADERS =			\
 	include/isc/condition.h		\
 	include/isc/counter.h		\
 	include/isc/crc64.h		\
-	include/isc/deprecated.h	\
 	include/isc/dir.h		\
 	include/isc/endian.h		\
 	include/isc/entropy.h		\
