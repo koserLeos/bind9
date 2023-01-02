@@ -649,7 +649,7 @@ More macros are provided for iterating the list:
 
         isc_foo_t *foo;
         for (foo = ISC_LIST_HEAD(foolist);
-             foo != NULL; 
+             foo != NULL;
              foo = ISC_LIST_NEXT(foo, link))
         {
                 /* do things */
@@ -661,6 +661,44 @@ list in reverse order.
 Items can be removed from the list using `ISC_LIST_UNLINK`:
 
         ISC_LIST_UNLINK(foolist, foo, link);
+
+##### Atomic lists
+
+In `<isc/list.h>`, there are also similar macros for atomic
+singly-linked lists.
+
+In general, atomic linked lists have a number of pitfalls that these
+macros avoid by having a restricted API. Firstly, it is difficult to
+implement atomic doubly-linked lists without at least a double-width
+compare-exchange, which is not a widely supported primitive, so this
+list is singly-linked. Secondly, When individual elements can be
+removed from a list (whether doubly-linked or singly-linked), we run
+into the ABA problem, where removes and (re-)inserts race and as a
+result the list gets in a tangle. Safe support for removing individual
+elements requires some kind of garbage collection, or extending list
+pointers with generation counters. Instead the ALIST macros only
+provide a function for emptying the entire list in one go,
+`ISC_ALIST_DRAIN()`. This only requires setting the `head` pointer to
+`NULL`, which cannot cause `ISC_ALIST_PREPEND()` to go wrong.
+
+The `ISC_ALIST` and `ISC_ALINK` macros are used the same way as the
+non-atomic doubly-linked lists described above, except that not all of
+the `ISC_LIST` macros have `ISC_ALIST` equivalents.
+
+As well as read-only iteration as described above, there is an idiom
+for emptying a list and processing its contents:
+
+        isc_foo_t *foo = ISC_ALIST_DRAIN(foolist);
+		while (foo != NULL) {
+				isc_foo_t *next = ISC_ALIST_TAKE(foo, link);
+                /* do things */
+                /* maybe ISC_ALIST_PREPEND(foolist, foo, link) */
+                foo = next;
+        }
+
+There is also an `ISC_ALIST_ADD()` macro, which is a convenience
+wrapper for prepending an element to a list if it has not already been
+added.
 
 #### <a name="names"></a>Names
 

@@ -14,6 +14,8 @@
 #pragma once
 
 #include <isc/assertions.h>
+#include <isc/atomic.h>
+#include <isc/pause.h>
 
 #define ISC_LINK_TOMBSTONE(type) ((type *)-1)
 
@@ -227,3 +229,102 @@
 		INSIST(ISC_LIST_EMPTY(dest));   \
 		ISC_LIST_MOVEUNSAFE(dest, src); \
 	}
+
+/*
+ * An atomic list has an atomic pointer at its head so that multiple
+ * threads can add elements without locking (though they may need to
+ * wait briefly when there is contention). We sidestep the ABA problem
+ * which occurs when elements can be removed individually: instead the
+ * whole list must be drained. This is also why operations on `next`
+ * pointers are not atomic.
+ *
+ * The pointers are wrapped in structs so that their types are
+ * distinct, and to match the ISC_LIST macros.
+ *
+ * See doc/dev/dev.md for examples.
+ */
+
+#define ISC_ALIST(type)                \
+	struct {                       \
+		atomic_ptr(type) head; \
+	}
+#define ISC_ALIST_INITIALIZER \
+	{                     \
+		.head = NULL, \
+	}
+#define ISC_ALIST_INIT(list)        \
+	do {                        \
+		(list).head = NULL; \
+	} while (0)
+
+#define ISC_ALINK(type)     \
+	struct {            \
+		type *next; \
+	}
+#define ISC_ALINK_INITIALIZER_TYPE(type)          \
+	{                                         \
+		.next = ISC_LINK_TOMBSTONE(type), \
+	}
+#define ISC_ALINK_INIT_TYPE(elt, link, type)                 \
+	do {                                                 \
+		(elt)->link.next = ISC_LINK_TOMBSTONE(type); \
+	} while (0)
+
+#define ISC_ALINK_INITIALIZER	  ISC_ALINK_INITIALIZER_TYPE(void)
+#define ISC_ALINK_INIT(elt, link) ISC_ALINK_INIT_TYPE(elt, link, void)
+
+#define ISC_ALIST_NEXT(elt, link) ((elt)->link.next)
+
+#define ISC_ALINK_LINKED_TYPE(elt, link, type) \
+	(ISC_ALIST_NEXT(elt, link) != ISC_LINK_TOMBSTONE(type))
+
+#define ISC_ALINK_LINKED(elt, link) ISC_ALINK_LINKED_TYPE(elt, link, void)
+
+#define ISC_ALIST_TAKE_TYPE(elt, link, type)              \
+	({                                                \
+		type *__next = ISC_ALIST_NEXT(elt, link); \
+		ISC_ALINK_INIT_TYPE(elt, link, type);     \
+		__next;                                   \
+	})
+#define ISC_ALIST_TAKE(elt, link) ISC_ALIST_TAKE_TYPE(elt, link, void)
+
+/*
+ * ATOMIC: for performance, this kind of retry loop should use a weak
+ * CAS with relaxed ordering in the failure case; on success, release
+ * ordering ensures that writing the element contents happens before
+ * reading them, following the acquire in ISC_ALIST_HEAD() and _DRAIN().
+ */
+#define __ISC_ALIST_PREPENDUNSAFE(list, elt, link)                    \
+	do {                                                          \
+		(elt)->link.next = atomic_load_relaxed(&(list).head); \
+		while (!atomic_compare_exchange_weak_explicit(        \
+			&(list).head, &(elt)->link.next, elt,         \
+			memory_order_release, memory_order_relaxed))  \
+		{                                                     \
+			isc_pause();                                  \
+		}                                                     \
+	} while (0)
+
+#define ISC_ALIST_PREPEND(list, elt, link)                     \
+	do {                                                   \
+		ISC_LINK_INSIST(!ISC_ALINK_LINKED(elt, link)); \
+		__ISC_ALIST_PREPENDUNSAFE(list, elt, link);    \
+	} while (0)
+
+#define ISC_ALIST_ADD(list, elt, link)                              \
+	do {                                                        \
+		if (!ISC_ALINK_LINKED(elt, link)) {                 \
+			__ISC_ALIST_PREPENDUNSAFE(list, elt, link); \
+		}                                                   \
+	} while (0)
+
+/*
+ * ATOMIC: acquire ordering pairs with __ISC_ALIST_PREPENDUNSAFE()
+ */
+#define ISC_ALIST_HEAD(list) atomic_load_acquire(&(list).head)
+
+/*
+ * ATOMIC: acquire ordering pairs with __ISC_ALIST_PREPENDUNSAFE()
+ */
+#define ISC_ALIST_DRAIN(list) \
+	atomic_exchange_explicit(&(list).head, NULL, memory_order_acquire)
