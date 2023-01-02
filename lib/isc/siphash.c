@@ -40,11 +40,11 @@
 #define ROTATE64(x, b) (uint64_t)(((x) << (b)) | ((x) >> (64 - (b))))
 
 #define HALF_ROUND64(a, b, c, d, s, t) \
-	a += b;                        \
-	c += d;                        \
-	b = ROTATE64(b, s) ^ a;        \
-	d = ROTATE64(d, t) ^ c;        \
-	a = ROTATE64(a, 32);
+	a += (b);                      \
+	(c) += (d);                    \
+	(b) = ROTATE64(b, s) ^ (a);    \
+	(d) = ROTATE64(d, t) ^ (c);    \
+	(a) = ROTATE64(a, 32);
 
 #define FULL_ROUND64(v0, v1, v2, v3)          \
 	HALF_ROUND64(v0, v1, v2, v3, 13, 16); \
@@ -55,11 +55,11 @@
 #define ROTATE32(x, b) (uint32_t)(((x) << (b)) | ((x) >> (32 - (b))))
 
 #define HALF_ROUND32(a, b, c, d, s, t) \
-	a += b;                        \
-	c += d;                        \
-	b = ROTATE32(b, s) ^ a;        \
-	d = ROTATE32(d, t) ^ c;        \
-	a = ROTATE32(a, 16);
+	a += (b);                      \
+	(c) += (d);                    \
+	(b) = ROTATE32(b, s) ^ (a);    \
+	(d) = ROTATE32(d, t) ^ (c);    \
+	(a) = ROTATE32(a, 16);
 
 #define FULL_ROUND32(v0, v1, v2, v3)        \
 	HALF_ROUND32(v0, v1, v2, v3, 5, 8); \
@@ -68,10 +68,10 @@
 #define HALFSIPROUND FULL_ROUND32
 
 #define U8TO32_ONE(case_sensitive, byte) \
-	(uint32_t)(case_sensitive ? byte : isc__ascii_tolower1(byte))
+	(uint32_t)((case_sensitive) ? (byte) : isc__ascii_tolower1(byte))
 
 #define U8TO64_ONE(case_sensitive, byte) \
-	(uint64_t)(case_sensitive ? byte : isc__ascii_tolower1(byte))
+	(uint64_t)((case_sensitive) ? (byte) : isc__ascii_tolower1(byte))
 
 void
 isc_siphash24(const uint8_t *k, const uint8_t *in, const size_t inlen,

@@ -36,19 +36,20 @@ typedef enum { fw_start = 0, fw_ordinary, fw_newcurrent } fw_state;
 
 #define INIT_OFFSETS(name, var, default_offsets) \
 	if ((name)->offsets != NULL)             \
-		var = (name)->offsets;           \
+		(var) = (name)->offsets;         \
 	else                                     \
-		var = (default_offsets);
+		(var) = (default_offsets);
 
-#define MAKE_EMPTY(name)                           \
-	do {                                       \
-		name->ndata = NULL;                \
-		name->length = 0;                  \
-		name->labels = 0;                  \
-		name->attributes.absolute = false; \
+#define MAKE_EMPTY(name)                             \
+	do {                                         \
+		(name)->ndata = NULL;                \
+		(name)->length = 0;                  \
+		(name)->labels = 0;                  \
+		(name)->attributes.absolute = false; \
 	} while (0)
 
-#define BINDABLE(name) (!name->attributes.readonly && !name->attributes.dynamic)
+#define BINDABLE(name) \
+	(!(name)->attributes.readonly && !(name)->attributes.dynamic)
 
 isc_result_t
 old_name_fromwire(dns_name_t *name, isc_buffer_t *source, dns_decompress_t dctx,

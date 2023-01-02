@@ -215,11 +215,11 @@ client_trace(ns_client_t *client, int level, const char *message) {
  * We use the names SAVE and RESTORE to show the operation being performed,
  * even though the two macros are identical.
  */
-#define SAVE(a, b)                 \
-	do {                       \
-		INSIST(a == NULL); \
-		a = b;             \
-		b = NULL;          \
+#define SAVE(a, b)                   \
+	do {                         \
+		INSIST((a) == NULL); \
+		(a) = b;             \
+		(b) = NULL;          \
 	} while (0)
 #define RESTORE(a, b) SAVE(a, b)
 
@@ -4900,7 +4900,6 @@ again:
 	} else if (found != NULL) {
 		dns_name_copy(&name, found);
 	}
-	return;
 }
 
 static uint32_t
@@ -5430,7 +5429,7 @@ qctx_destroy(query_ctx_t *qctx) {
  */
 #define INITANDSAVE(a, b)   \
 	do {                \
-		a = NULL;   \
+		(a) = NULL; \
 		SAVE(a, b); \
 	} while (0)
 

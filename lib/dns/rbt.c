@@ -61,7 +61,7 @@
 #define CHAIN_MAGIC	   ISC_MAGIC('0', '-', '0', '-')
 #define VALID_CHAIN(chain) ISC_MAGIC_VALID(chain, CHAIN_MAGIC)
 
-#define RBT_HASH_NEXTTABLE(hindex) ((hindex == 0) ? 1 : 0)
+#define RBT_HASH_NEXTTABLE(hindex) (((hindex) == 0) ? 1 : 0)
 
 struct dns_rbt {
 	unsigned int magic;
@@ -79,7 +79,7 @@ struct dns_rbt {
 #define IS_EMPTY(node) ((node)->data == NULL)
 
 #define WANTEMPTYDATA_OR_DATA(options, node) \
-	((options & DNS_RBTFIND_EMPTYDATA) != 0 || node->data != NULL)
+	(((options)&DNS_RBTFIND_EMPTYDATA) != 0 || (node)->data != NULL)
 
 /*%
  * The variable length stuff stored after the node has the following
@@ -94,11 +94,11 @@ struct dns_rbt {
  */
 
 #define NAME(node)	   ((unsigned char *)((node) + 1))
-#define OFFSETS(node)	   (NAME(node) + node->oldnamelen + 1)
+#define OFFSETS(node)	   (NAME(node) + (node)->oldnamelen + 1)
 #define OLDOFFSETLEN(node) (OFFSETS(node)[-1])
 
 #define NODE_SIZE(node) \
-	(sizeof(*node) + node->oldnamelen + OLDOFFSETLEN(node) + 1)
+	(sizeof(*(node)) + (node)->oldnamelen + OLDOFFSETLEN(node) + 1)
 
 /*%
  * Color management.
@@ -206,7 +206,7 @@ static bool
 rehashing_in_progress(dns_rbt_t *rbt);
 
 #define TRY_NEXTTABLE(hindex, rbt) \
-	(hindex == rbt->hindex && rehashing_in_progress(rbt))
+	((hindex) == (rbt)->hindex && rehashing_in_progress(rbt))
 
 static void
 rotate_left(dns_rbtnode_t *node, dns_rbtnode_t **rootp);
@@ -1931,8 +1931,6 @@ addonlevel(dns_rbtnode_t *node, dns_rbtnode_t *current, int order,
 	root->color = BLACK;
 	ENSURE(root->is_root);
 	*rootp = root;
-
-	return;
 }
 
 /*

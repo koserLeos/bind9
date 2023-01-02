@@ -72,8 +72,6 @@ isc_thread_create(isc_threadfunc_t func, isc_threadarg_t arg,
 	PTHREADS_RUNTIME_CHECK(pthread_create, ret);
 
 	pthread_attr_destroy(&attr);
-
-	return;
 }
 
 void

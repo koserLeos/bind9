@@ -119,18 +119,18 @@ typedef struct sdb_rdatasetiter {
 #define MAYBE_LOCK(sdb)	  LOCK(&sdb->implementation->driverlock)
 #define MAYBE_UNLOCK(sdb) UNLOCK(&sdb->implementation->driverlock)
 #else /* ifdef __COVERITY__ */
-#define MAYBE_LOCK(sdb)                                          \
-	do {                                                     \
-		unsigned int flags = sdb->implementation->flags; \
-		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)       \
-			LOCK(&sdb->implementation->driverlock);  \
+#define MAYBE_LOCK(sdb)                                            \
+	do {                                                       \
+		unsigned int flags = (sdb)->implementation->flags; \
+		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)         \
+			LOCK(&(sdb)->implementation->driverlock);  \
 	} while (0)
 
-#define MAYBE_UNLOCK(sdb)                                         \
-	do {                                                      \
-		unsigned int flags = sdb->implementation->flags;  \
-		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)        \
-			UNLOCK(&sdb->implementation->driverlock); \
+#define MAYBE_UNLOCK(sdb)                                           \
+	do {                                                        \
+		unsigned int flags = (sdb)->implementation->flags;  \
+		if ((flags & DNS_SDBFLAG_THREADSAFE) == 0)          \
+			UNLOCK(&(sdb)->implementation->driverlock); \
 	} while (0)
 #endif /* ifdef __COVERITY__ */
 
@@ -581,7 +581,6 @@ currentversion(dns_db_t *db, dns_dbversion_t **versionp) {
 	UNUSED(db);
 
 	*versionp = (void *)&dummy;
-	return;
 }
 
 static isc_result_t
@@ -600,7 +599,6 @@ attachversion(dns_db_t *db, dns_dbversion_t *source,
 
 	UNUSED(db);
 	*targetp = source;
-	return;
 }
 
 static void
@@ -1076,7 +1074,6 @@ printnode(dns_db_t *db, dns_dbnode_t *node, FILE *out) {
 	UNUSED(db);
 	UNUSED(node);
 	UNUSED(out);
-	return;
 }
 
 static isc_result_t

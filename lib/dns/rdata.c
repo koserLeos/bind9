@@ -121,7 +121,7 @@
 
 #define CALL_TOSTRUCT rdata, target, mctx
 
-#define ARGS_FREESTRUCT void *source
+#define ARGS_FREESTRUCT (void *source)
 
 #define CALL_FREESTRUCT source
 

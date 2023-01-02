@@ -656,7 +656,6 @@ fail:
 	strerror_r(errno, strbuf, sizeof(strbuf));
 	named_main_earlywarning("adjusting limit on open files failed: %s",
 				strbuf);
-	return;
 }
 
 void

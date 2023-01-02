@@ -900,7 +900,6 @@ isc__nm_async_streamdnssend(isc__networker_t *worker, isc__netievent_t *ev0) {
 			(void *)send_req);
 
 	isc__nm_uvreq_put(&req, sock);
-	return;
 }
 
 void
