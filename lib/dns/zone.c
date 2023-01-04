@@ -4712,16 +4712,15 @@ process_zone_setnsec3param(dns_zone_t *zone) {
 }
 
 static bool
-isselfsigned(dns_zone_t *zone, dns_name_t *name, dns_rdataset_t *dsset,
-	     dns_rdataset_t *dnskeyset, dns_rdataset_t *rdataset,
-	     dns_rdataset_t *sigrdataset) {
+signed_by_dnskey(dns_zone_t *zone, dns_name_t *name, dns_rdataset_t *dnskeyset,
+		 dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset) {
 	isc_result_t result = ISC_R_NOTFOUND;
 	bool answer;
 	bool ignoretime = DNS_ZONEMD_OPTION(zone, DNS_ZONEMDOPT_ACCEPTEXPIRED);
 	dst_key_t *key = NULL;
 
 	/*
-	 * If rdataset is not associated there is nothing to log.
+	 * If rdataset is not associated there is nothing to verify.
 	 */
 	if (!dns_rdataset_isassociated(rdataset)) {
 		return (false);
@@ -4739,15 +4738,52 @@ isselfsigned(dns_zone_t *zone, dns_name_t *name, dns_rdataset_t *dsset,
 					     sigrdataset, ignoretime,
 					     zone->mctx))
 			{
+				break;
+			}
+			result = dns_rdataset_next(dnskeyset);
+		}
+	}
+
+	if (key != NULL) {
+		dst_key_free(&key);
+	}
+	answer = (result == ISC_R_SUCCESS);
+	dns_zone_log(zone, ISC_LOG_DEBUG(3), "signed_by_dnskey(%u) -> %s",
+		     rdataset->type, answer ? "true" : "false");
+	return (answer);
+}
+
+static bool
+self_signed(dns_zone_t *zone, dns_name_t *name, dns_rdataset_t *dsset,
+	    dns_rdataset_t *dnskeyset, dns_rdataset_t *sigrdataset) {
+	isc_result_t result = ISC_R_NOTFOUND;
+	dns_rdataset_t *rdataset = dnskeyset;
+	bool answer;
+	bool ignoretime = DNS_ZONEMD_OPTION(zone, DNS_ZONEMDOPT_ACCEPTEXPIRED);
+	dst_key_t *key = NULL;
+
+	if (dns_rdataset_isassociated(dnskeyset) &&
+	    dns_rdataset_isassociated(sigrdataset))
+	{
+		result = dns_rdataset_first(dnskeyset);
+		while (result == ISC_R_SUCCESS) {
+			dns_rdata_t rdata = DNS_RDATA_INIT;
+
+			dns_rdataset_current(dnskeyset, &rdata);
+			if (dns_dnssec_signs(&rdata, name, rdataset,
+					     sigrdataset, ignoretime,
+					     zone->mctx))
+			{
 				if (dsset == NULL) {
+					/*
+					 * We don't need to check against
+					 * a trust anchor.
+					 */
 					break;
 				}
 				CHECK(dns_dnssec_keyfromrdata(
 					name, &rdata, zone->mctx, &key));
-				if (result != ISC_R_SUCCESS) {
-					result = ISC_R_SUCCESS;
-					break;
-				}
+
 				for (result = dns_rdataset_first(dsset);
 				     result == ISC_R_SUCCESS;
 				     result = dns_rdataset_next(dsset))
@@ -4793,8 +4829,8 @@ failure:
 	if (key != NULL) {
 		dst_key_free(&key);
 	}
-	answer = result == ISC_R_SUCCESS ? true : false;
-	dns_zone_log(zone, ISC_LOG_DEBUG(3), "isselfsigned(%u) -> %s",
+	answer = (result == ISC_R_SUCCESS);
+	dns_zone_log(zone, ISC_LOG_DEBUG(3), "self_signed(%u) -> %s",
 		     rdataset->type, answer ? "true" : "false");
 	return (answer);
 }
@@ -4972,75 +5008,71 @@ dns_zone_checkzonemd(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version) {
 	}
 
 	/*
-	 * If we are signed the check that zonemdset is
-	 * correctly signed or if it should not exist.
+	 * The zone is signed, check that zonemdset is
+	 * correctly signed, or that it doesn't exist and
+	 * that its nonexistence is not an error.
 	 *
-	 * For a zone to be deemed signed DNSKEY and one of
+	 * For a zone to be deemed signed, DNSKEY and one of
 	 * NSEC or NSEC3PARAM (with 0 flags) need to exist.
 	 */
 	if (dns_rdataset_isassociated(&dnskeyset) &&
 	    (dns_rdataset_isassociated(&nsecset) ||
 	     (dns_rdataset_isassociated(&nsec3paramset) && nsec3paramflagsok)))
 	{
-		bool soaok = isselfsigned(zone, origin, NULL, &dnskeyset,
-					  &soaset, &sigsoaset);
-		bool nsecok = isselfsigned(zone, origin, NULL, &dnskeyset,
-					   &nsecset, &signsecset);
-		bool nsec3ok = isselfsigned(zone, nsec3name, NULL, &dnskeyset,
-					    &nsec3set, &signsec3set);
-		bool dnskeyok = isselfsigned(zone, origin, dssetp, &dnskeyset,
-					     &dnskeyset, &sigdnskeyset);
-		bool zonemdok = isselfsigned(zone, origin, NULL, &dnskeyset,
-					     &zonemdset, &sigzonemdset);
-		bool nsec3paramok = isselfsigned(zone, origin, NULL, &dnskeyset,
-						 &nsec3paramset,
-						 &signsec3paramset);
-		if (!soaok || !dnskeyok) {
+		if (!self_signed(zone, origin, dssetp, &dnskeyset,
+				 &sigdnskeyset))
+		{
 			dns_zone_log(zone, ISC_LOG_INFO,
-				     "ZONEMD: self validation failure %s",
-				     soaok	? "DNSKEY"
-				     : dnskeyok ? "SOA"
-						: "SOA and DNSKEY");
+				     "ZONEMD: self validation failure DNSKEY");
+			CHECK(DNS_R_BADZONE);
+		}
+
+		if (!signed_by_dnskey(zone, origin, &dnskeyset, &soaset,
+				      &sigsoaset))
+		{
+			dns_zone_log(zone, ISC_LOG_INFO,
+				     "ZONEMD: self validation failure SOA");
 			CHECK(DNS_R_BADZONE);
 		}
 
 		if (!dns_rdataset_isassociated(&zonemdset)) {
-			if (nsecok) {
-				if (haszonemdbit(&nsecset)) {
-					dns_zone_log(zone, ISC_LOG_INFO,
-						     "ZONEMD: NSEC says ZONEMD "
-						     "exists but not present");
-					CHECK(DNS_R_BADZONE);
-				}
+			if (signed_by_dnskey(zone, origin, &dnskeyset, &nsecset,
+					     &signsecset) &&
+			    !haszonemdbit(&nsecset))
+			{
 				if (DNS_ZONEMD_OPTION(zone,
 						      DNS_ZONEMDOPT_REQUIRED))
 				{
 					dns_zone_log(zone, ISC_LOG_INFO,
-						     "ZONEMD require but not "
+						     "ZONEMD required but not "
 						     "present");
 					CHECK(DNS_R_BADZONE);
 				}
 				CHECK(ISC_R_NOTFOUND);
 			}
-			if (nsec3ok && nsec3paramok) {
-				if (haszonemdbit(&nsec3set)) {
-					dns_zone_log(zone, ISC_LOG_INFO,
-						     "ZONEMD: NSEC3 says ZONEMD"
-						     " exists but not present");
-					CHECK(DNS_R_BADZONE);
-				}
+
+			if (signed_by_dnskey(zone, nsec3name, &dnskeyset,
+					     &nsec3set, &signsec3set) &&
+			    signed_by_dnskey(zone, origin, &dnskeyset,
+					     &nsec3paramset,
+					     &signsec3paramset) &&
+			    !haszonemdbit(&nsec3set))
+			{
 				if (DNS_ZONEMD_OPTION(zone,
 						      DNS_ZONEMDOPT_REQUIRED))
 				{
 					dns_zone_log(zone, ISC_LOG_INFO,
-						     "ZONEMD require but not "
+						     "ZONEMD required but not "
 						     "present");
 					CHECK(DNS_R_BADZONE);
 				}
 				CHECK(ISC_R_NOTFOUND);
 			}
+
 			CHECK(DNS_R_BADZONE);
-		} else if (!zonemdok) {
+		} else if (!signed_by_dnskey(zone, origin, &dnskeyset,
+					     &zonemdset, &sigzonemdset))
+		{
 			dns_zone_log(zone, ISC_LOG_INFO,
 				     "ZONEMD validation failed");
 			CHECK(DNS_R_BADZONE);
@@ -5051,22 +5083,16 @@ dns_zone_checkzonemd(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version) {
 				     "ZONEMD zone should be signed but isn't");
 			CHECK(DNS_R_BADZONE);
 		}
-		if (DNS_ZONEMD_OPTION(zone, DNS_ZONEMDOPT_DNSSECONLY)) {
-			if (DNS_ZONEMD_OPTION(zone, DNS_ZONEMDOPT_REQUIRED)) {
-				dns_zone_log(zone, ISC_LOG_INFO,
-					     "ZONEMD required but not "
-					     "present");
-				CHECK(DNS_R_BADZONE);
-			}
-			CHECK(ISC_R_NOTFOUND);
-		}
+
 		if (!dns_rdataset_isassociated(&zonemdset)) {
-			if (DNS_ZONEMD_OPTION(zone, DNS_ZONEMDOPT_REQUIRED)) {
+			if (DNS_ZONEMD_OPTION(zone, DNS_ZONEMDOPT_REQUIRED) &&
+			    DNS_ZONEMD_OPTION(zone, DNS_ZONEMDOPT_DNSSECONLY))
+			{
 				dns_zone_log(zone, ISC_LOG_INFO,
-					     "ZONEMD required but not "
-					     "present");
+					     "ZONEMD required but not present");
 				CHECK(DNS_R_BADZONE);
 			}
+
 			CHECK(ISC_R_NOTFOUND);
 		}
 	}
@@ -5120,8 +5146,6 @@ dns_zone_checkzonemd(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version) {
 					dns_rdata_totext(&check, NULL, &b);
 					isc_buffer_init(&b, buf2, sizeof(buf2));
 					dns_rdata_totext(&rdata, NULL, &b);
-					fprintf(stderr, "'%s' != '%s'\n", buf1,
-						buf2);
 					found[zonemd.digest_type] = bad;
 				} else {
 					found[zonemd.digest_type] = good;
@@ -5452,11 +5476,15 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 		}
 
 		result = dns_zone_checkzonemd(zone, db, NULL);
-		if (result == ISC_R_NOTFOUND) {
-			result = dns_zone_verifydb(zone, db, NULL);
-		}
-		if (result != ISC_R_SUCCESS) {
+		if (result == DNS_R_BADZONE) {
 			goto cleanup;
+		}
+
+		if (zone->type == dns_zone_mirror) {
+			result = dns_zone_verifydb(zone, db, NULL);
+			if (result != ISC_R_SUCCESS) {
+				goto cleanup;
+			}
 		}
 
 		if (zone->db != NULL) {
@@ -24549,10 +24577,6 @@ dns_zone_verifydb(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver) {
 	REQUIRE(db != NULL);
 
 	ENTER;
-
-	if (dns_zone_gettype(zone) != dns_zone_mirror) {
-		return (ISC_R_SUCCESS);
-	}
 
 	if (ver == NULL) {
 		dns_db_currentversion(db, &version);

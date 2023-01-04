@@ -364,7 +364,7 @@ axfr_apply_done(void *arg) {
 		if (result == DNS_R_BADZONE) {
 			goto failure;
 		}
-		if (result == ISC_R_NOTFOUND) {
+		if (dns_zone_gettype(xfr->zone) == dns_zone_mirror) {
 			CHECK(dns_zone_verifydb(xfr->zone, xfr->db, NULL));
 		}
 		CHECK(axfr_finalize(xfr));
@@ -487,7 +487,7 @@ ixfr_end_transaction(dns_xfrin_t *xfr) {
 	if (result == DNS_R_BADZONE) {
 		goto failure;
 	}
-	if (result == ISC_R_NOTFOUND) {
+	if (dns_zone_gettype(xfr->zone) == dns_zone_mirror) {
 		CHECK(dns_zone_verifydb(xfr->zone, xfr->db, xfr->ver));
 	}
 	/* XXX enter ready-to-commit state here */
