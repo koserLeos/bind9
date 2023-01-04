@@ -360,10 +360,7 @@ axfr_apply_done(void *arg) {
 
 	if (result == ISC_R_SUCCESS) {
 		CHECK(dns_db_endload(xfr->db, &xfr->axfr));
-		result = dns_zone_checkzonemd(xfr->zone, xfr->db, xfr->ver);
-		if (result == DNS_R_BADZONE) {
-			goto failure;
-		}
+		CHECK(dns_zone_checkzonemd(xfr->zone, xfr->db, xfr->ver));
 		if (dns_zone_gettype(xfr->zone) == dns_zone_mirror) {
 			CHECK(dns_zone_verifydb(xfr->zone, xfr->db, NULL));
 		}
@@ -483,10 +480,7 @@ static isc_result_t
 ixfr_end_transaction(dns_xfrin_t *xfr) {
 	isc_result_t result = ISC_R_SUCCESS;
 
-	result = dns_zone_checkzonemd(xfr->zone, xfr->db, xfr->ver);
-	if (result == DNS_R_BADZONE) {
-		goto failure;
-	}
+	CHECK(dns_zone_checkzonemd(xfr->zone, xfr->db, xfr->ver));
 	if (dns_zone_gettype(xfr->zone) == dns_zone_mirror) {
 		CHECK(dns_zone_verifydb(xfr->zone, xfr->db, xfr->ver));
 	}

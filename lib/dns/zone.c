@@ -4879,7 +4879,7 @@ dns_zone_checkzonemd(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version) {
 	REQUIRE(db != NULL);
 
 	if (!DNS_ZONEMD_OPTION(zone, DNS_ZONEMDOPT_CHECK)) {
-		return (ISC_R_NOTFOUND);
+		return (ISC_R_SUCCESS);
 	}
 
 	origin = &zone->origin;
@@ -5227,6 +5227,9 @@ failure:
 	}
 	dns_zone_log(zone, ISC_LOG_DEBUG(3), "dns_zone_checkzonemd -> %s",
 		     isc_result_totext(result));
+	if (result == ISC_R_NOTFOUND) {
+		result = ISC_R_SUCCESS;
+	}
 	return (result);
 }
 
@@ -5476,7 +5479,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 		}
 
 		result = dns_zone_checkzonemd(zone, db, NULL);
-		if (result == DNS_R_BADZONE) {
+		if (result != ISC_R_SUCCESS) {
 			goto cleanup;
 		}
 
