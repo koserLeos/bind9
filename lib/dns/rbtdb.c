@@ -9443,27 +9443,33 @@ rdataset_getownercase(const dns_rdataset_t *rdataset, dns_name_t *name) {
 	NODE_RDLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
 
 	if (!CASESET(header)) {
-		goto unlock;
+		NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
+			    &nlocktype);
+		return;
 	}
 
 	if (CASEFULLYLOWER(header)) {
+		NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
+			    &nlocktype);
 		isc_ascii_lowercopy(name->ndata, name->ndata, name->length);
-	} else {
-		uint8_t *nd = name->ndata;
-		for (size_t i = 0; i < name->length; i++) {
-			if (mask == (1 << 7)) {
-				bits = header->upper[i / 8];
-				mask = 1;
-			} else {
-				mask <<= 1;
-			}
-			nd[i] = (bits & mask) ? isc_ascii_toupper(nd[i])
-					      : isc_ascii_tolower(nd[i]);
-		}
+		return;
 	}
 
-unlock:
+	uint8_t upper[32];
+	memmove(upper, header->upper, (name->length / 8) + 1);
 	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+
+	uint8_t *nd = name->ndata;
+	for (size_t i = 0; i < name->length; i++) {
+		if (mask == (1 << 7)) {
+			bits = upper[i / 8];
+			mask = 1;
+		} else {
+			mask <<= 1;
+		}
+		nd[i] = (bits & mask) ? isc_ascii_toupper(nd[i])
+				      : isc_ascii_tolower(nd[i]);
+	}
 }
 
 struct rbtdb_glue {
