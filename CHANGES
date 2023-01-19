@@ -1,3 +1,7 @@
+6075.	[func]		Reduce RBTDB nodelock contention by locking less
+			often in decrement_reference() and locking for a
+			shorted time in rdataset_getownercase(). [GL #3811]
+
 6074.	[func]		Refactor the isc_nm_xfr_allowed() function to return
 			isc_result_t instead of boolean. [GL #3808]
 
