@@ -140,7 +140,6 @@ struct isc_mem {
 	char name[16];
 	atomic_size_t total;
 	atomic_size_t inuse;
-	atomic_size_t maxinuse;
 	atomic_bool hi_called;
 	atomic_bool is_overmem;
 	isc_mem_water_t water;
@@ -459,7 +458,6 @@ mem_create(isc_mem_t **ctxp, unsigned int debugging, unsigned int flags) {
 
 	atomic_init(&ctx->total, 0);
 	atomic_init(&ctx->inuse, 0);
-	atomic_init(&ctx->maxinuse, 0);
 	atomic_init(&ctx->hi_water, 0);
 	atomic_init(&ctx->lo_water, 0);
 	atomic_init(&ctx->hi_called, false);
@@ -670,7 +668,6 @@ isc__mem_destroy(isc_mem_t **ctxp FLARG) {
 static bool
 hi_water(isc_mem_t *ctx) {
 	size_t inuse;
-	size_t maxinuse;
 	size_t hiwater = atomic_load_relaxed(&ctx->hi_water);
 
 	if (hiwater == 0) {
@@ -680,17 +677,6 @@ hi_water(isc_mem_t *ctx) {
 	inuse = atomic_load_acquire(&ctx->inuse);
 	if (inuse <= hiwater) {
 		return (false);
-	}
-
-	maxinuse = atomic_load_acquire(&ctx->maxinuse);
-	if (inuse > maxinuse) {
-		(void)atomic_compare_exchange_strong(&ctx->maxinuse, &maxinuse,
-						     inuse);
-
-		if ((ctx->debugging & ISC_MEM_DEBUGUSAGE) != 0) {
-			fprintf(stderr, "maxinuse = %lu\n",
-				(unsigned long)inuse);
-		}
 	}
 
 	if (atomic_load_acquire(&ctx->hi_called)) {
@@ -1023,13 +1009,6 @@ isc_mem_inuse(isc_mem_t *ctx) {
 	REQUIRE(VALID_CONTEXT(ctx));
 
 	return (atomic_load_acquire(&ctx->inuse));
-}
-
-size_t
-isc_mem_maxinuse(isc_mem_t *ctx) {
-	REQUIRE(VALID_CONTEXT(ctx));
-
-	return (atomic_load_acquire(&ctx->maxinuse));
 }
 
 size_t
@@ -1468,11 +1447,6 @@ xml_renderctx(isc_mem_t *ctx, summarystat_t *summary, xmlTextWriterPtr writer) {
 					    (uint64_t)isc_mem_inuse(ctx)));
 	TRY0(xmlTextWriterEndElement(writer)); /* inuse */
 
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "maxinuse"));
-	TRY0(xmlTextWriterWriteFormatString(writer, "%" PRIu64 "",
-					    (uint64_t)isc_mem_maxinuse(ctx)));
-	TRY0(xmlTextWriterEndElement(writer)); /* maxinuse */
-
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "pools"));
 	TRY0(xmlTextWriterWriteFormatString(writer, "%u", ctx->poolcnt));
 	TRY0(xmlTextWriterEndElement(writer)); /* pools */
@@ -1606,10 +1580,6 @@ json_renderctx(isc_mem_t *ctx, summarystat_t *summary, json_object *array) {
 	obj = json_object_new_int64(isc_mem_inuse(ctx));
 	CHECKMEM(obj);
 	json_object_object_add(ctxobj, "inuse", obj);
-
-	obj = json_object_new_int64(isc_mem_maxinuse(ctx));
-	CHECKMEM(obj);
-	json_object_object_add(ctxobj, "maxinuse", obj);
 
 	obj = json_object_new_int64(ctx->poolcnt);
 	CHECKMEM(obj);
