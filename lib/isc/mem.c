@@ -1311,7 +1311,6 @@ isc_mem_references(isc_mem_t *ctx) {
 typedef struct summarystat {
 	uint64_t total;
 	uint64_t inuse;
-	uint64_t malloced;
 	uint64_t contextsize;
 } summarystat_t;
 
@@ -1422,11 +1421,6 @@ isc_mem_renderxml(void *writer0) {
 					    summary.inuse));
 	TRY0(xmlTextWriterEndElement(writer)); /* InUse */
 
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "Malloced"));
-	TRY0(xmlTextWriterWriteFormatString(writer, "%" PRIu64 "",
-					    summary.malloced));
-	TRY0(xmlTextWriterEndElement(writer)); /* InUse */
-
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "ContextSize"));
 	TRY0(xmlTextWriterWriteFormatString(writer, "%" PRIu64 "",
 					    summary.contextsize));
@@ -1534,10 +1528,6 @@ isc_mem_renderjson(void *memobj0) {
 	obj = json_object_new_int64(summary.inuse);
 	CHECKMEM(obj);
 	json_object_object_add(memobj, "InUse", obj);
-
-	obj = json_object_new_int64(summary.malloced);
-	CHECKMEM(obj);
-	json_object_object_add(memobj, "Malloced", obj);
 
 	obj = json_object_new_int64(summary.contextsize);
 	CHECKMEM(obj);
