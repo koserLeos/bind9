@@ -1309,7 +1309,6 @@ isc_mem_references(isc_mem_t *ctx) {
 }
 
 typedef struct summarystat {
-	uint64_t total;
 	uint64_t inuse;
 	uint64_t contextsize;
 } summarystat_t;
@@ -1410,11 +1409,6 @@ isc_mem_renderxml(void *writer0) {
 	TRY0(xmlTextWriterEndElement(writer)); /* contexts */
 
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "summary"));
-
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "TotalUse"));
-	TRY0(xmlTextWriterWriteFormatString(writer, "%" PRIu64 "",
-					    summary.total));
-	TRY0(xmlTextWriterEndElement(writer)); /* TotalUse */
 
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "InUse"));
 	TRY0(xmlTextWriterWriteFormatString(writer, "%" PRIu64 "",
@@ -1520,10 +1514,6 @@ isc_mem_renderjson(void *memobj0) {
 		}
 	}
 	UNLOCK(&contextslock);
-
-	obj = json_object_new_int64(summary.total);
-	CHECKMEM(obj);
-	json_object_object_add(memobj, "TotalUse", obj);
 
 	obj = json_object_new_int64(summary.inuse);
 	CHECKMEM(obj);
