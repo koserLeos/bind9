@@ -138,7 +138,6 @@ struct isc_mem {
 	struct stats stats[STATS_BUCKETS + 1];
 	isc_refcount_t references;
 	char name[16];
-	atomic_size_t total;
 	atomic_size_t inuse;
 	atomic_bool hi_called;
 	atomic_bool is_overmem;
@@ -375,7 +374,6 @@ static void
 mem_getstats(isc_mem_t *ctx, size_t size) {
 	struct stats *stats = stats_bucket(ctx, size);
 
-	atomic_fetch_add_relaxed(&ctx->total, size);
 	atomic_fetch_add_release(&ctx->inuse, size);
 
 	atomic_fetch_add_relaxed(&stats->gets, 1);
@@ -456,7 +454,6 @@ mem_create(isc_mem_t **ctxp, unsigned int debugging, unsigned int flags) {
 	isc_mutex_init(&ctx->lock);
 	isc_refcount_init(&ctx->references, 1);
 
-	atomic_init(&ctx->total, 0);
 	atomic_init(&ctx->inuse, 0);
 	atomic_init(&ctx->hi_water, 0);
 	atomic_init(&ctx->lo_water, 0);
@@ -1011,13 +1008,6 @@ isc_mem_inuse(isc_mem_t *ctx) {
 	return (atomic_load_acquire(&ctx->inuse));
 }
 
-size_t
-isc_mem_total(isc_mem_t *ctx) {
-	REQUIRE(VALID_CONTEXT(ctx));
-
-	return (atomic_load_acquire(&ctx->total));
-}
-
 void
 isc_mem_clearwater(isc_mem_t *mctx) {
 	isc_mem_setwater(mctx, NULL, NULL, 0, 0);
@@ -1435,12 +1425,6 @@ xml_renderctx(isc_mem_t *ctx, summarystat_t *summary, xmlTextWriterPtr writer) {
 		isc_refcount_current(&ctx->references)));
 	TRY0(xmlTextWriterEndElement(writer)); /* references */
 
-	summary->total += isc_mem_total(ctx);
-	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "total"));
-	TRY0(xmlTextWriterWriteFormatString(writer, "%" PRIu64 "",
-					    (uint64_t)isc_mem_total(ctx)));
-	TRY0(xmlTextWriterEndElement(writer)); /* total */
-
 	summary->inuse += isc_mem_inuse(ctx);
 	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "inuse"));
 	TRY0(xmlTextWriterWriteFormatString(writer, "%" PRIu64 "",
@@ -1545,7 +1529,6 @@ json_renderctx(isc_mem_t *ctx, summarystat_t *summary, json_object *array) {
 	MCTXLOCK(ctx);
 
 	summary->contextsize += sizeof(*ctx);
-	summary->total += isc_mem_total(ctx);
 	summary->inuse += isc_mem_inuse(ctx);
 #if ISC_MEM_TRACKLINES
 	if (ctx->debuglist != NULL) {
@@ -1572,10 +1555,6 @@ json_renderctx(isc_mem_t *ctx, summarystat_t *summary, json_object *array) {
 	obj = json_object_new_int64(isc_refcount_current(&ctx->references));
 	CHECKMEM(obj);
 	json_object_object_add(ctxobj, "references", obj);
-
-	obj = json_object_new_int64(isc_mem_total(ctx));
-	CHECKMEM(obj);
-	json_object_object_add(ctxobj, "total", obj);
 
 	obj = json_object_new_int64(isc_mem_inuse(ctx));
 	CHECKMEM(obj);
