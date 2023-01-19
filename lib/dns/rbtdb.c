@@ -2000,8 +2000,9 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
  * threads are decreasing the reference to zero simultaneously and at least
  * one of them is going to free the node.
  *
- * This function returns true if and only if the node reference decreases
- * to zero.
+ * This function returns true if and only if the node reference decreases to
+ * zero, the nodelock reference decreases to zero and the nodelock is in
+ * 'exiting' state.
  *
  * NOTE: Decrementing the reference count of a node to zero does not mean it
  * will be immediately freed.
@@ -2012,39 +2013,37 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		    isc_rwlocktype_t *tlocktypep, bool tryupgrade,
 		    bool pruning) {
 	isc_result_t result;
-	bool locked = *tlocktypep != isc_rwlocktype_none;
+	bool tree_locked = *tlocktypep != isc_rwlocktype_none;
+	bool node_locked = *nlocktypep != isc_rwlocktype_none;
 	bool write_locked = false;
 	rbtdb_nodelock_t *nodelock;
 	int bucket = node->locknum;
 	bool no_reference = true;
 	uint_fast32_t refs;
+	bool exiting;
 
-	REQUIRE(*nlocktypep != isc_rwlocktype_none);
+	if (isc_refcount_decrement(&node->references) > 1) {
+		return (false);
+	}
 
 	nodelock = &rbtdb->node_locks[bucket];
+	if (!node_locked) {
+		NODE_RDLOCK(&nodelock->lock, nlocktypep);
+	}
 
 #define KEEP_NODE(n, r, l)                                  \
 	((n)->data != NULL || ((l) && (n)->down != NULL) || \
 	 (n) == (r)->origin_node || (n) == (r)->nsec3_origin_node)
 
 	/* Handle easy and typical case first. */
-	if (!node->dirty && KEEP_NODE(node, rbtdb, locked)) {
-		if (isc_refcount_decrement(&node->references) == 1) {
-			refs = isc_refcount_decrement(&nodelock->references);
-			INSIST(refs > 0);
-			return (true);
-		} else {
-			return (false);
-		}
+	if (!node->dirty && KEEP_NODE(node, rbtdb, tree_locked)) {
+		refs = isc_refcount_decrement(&nodelock->references);
+		goto restore_locks;
 	}
 
 	/* Upgrade the lock? */
 	if (*nlocktypep == isc_rwlocktype_read) {
 		NODE_FORCEUPGRADE(&nodelock->lock, nlocktypep);
-	}
-
-	if (isc_refcount_decrement(&node->references) > 1) {
-		return (false);
 	}
 
 	if (node->dirty) {
@@ -2097,9 +2096,8 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	}
 
 	refs = isc_refcount_decrement(&nodelock->references);
-	INSIST(refs > 0);
 
-	if (KEEP_NODE(node, rbtdb, (locked || write_locked))) {
+	if (KEEP_NODE(node, rbtdb, (tree_locked || write_locked))) {
 		goto restore_locks;
 	}
 
@@ -2144,11 +2142,17 @@ restore_locks:
 	/*
 	 * Relock a read lock, or unlock the write lock if no lock was held.
 	 */
-	if (!locked && write_locked) {
+	if (!tree_locked && write_locked) {
 		TREE_UNLOCK(&rbtdb->tree_lock, tlocktypep);
 	}
 
-	return (no_reference);
+	exiting = nodelock->exiting;
+
+	if (!node_locked) {
+		NODE_UNLOCK(&nodelock->lock, nlocktypep);
+	}
+
+	return (no_reference && refs == 1 && exiting);
 }
 
 /*
@@ -4468,10 +4472,8 @@ tree_exit:
 		INSIST(node != NULL);
 		lock = &(search.rbtdb->node_locks[node->locknum].lock);
 
-		NODE_RDLOCK(lock, &nlocktype);
 		decrement_reference(search.rbtdb, node, 0, &nlocktype,
 				    &tlocktype, true, false);
-		NODE_UNLOCK(lock, &nlocktype);
 		INSIST(tlocktype == isc_rwlocktype_none);
 	}
 
@@ -5333,10 +5335,8 @@ tree_exit:
 		INSIST(node != NULL);
 		lock = &(search.rbtdb->node_locks[node->locknum].lock);
 
-		NODE_RDLOCK(lock, &nlocktype);
 		decrement_reference(search.rbtdb, node, 0, &nlocktype,
 				    &tlocktype, true, false);
-		NODE_UNLOCK(lock, &nlocktype);
 		INSIST(tlocktype == isc_rwlocktype_none);
 	}
 
@@ -5536,7 +5536,6 @@ detachnode(dns_db_t *db, dns_dbnode_t **targetp) {
 	dns_rbtnode_t *node;
 	bool want_free = false;
 	bool inactive = false;
-	rbtdb_nodelock_t *nodelock;
 	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 	isc_rwlocktype_t tlocktype = isc_rwlocktype_none;
 
@@ -5544,21 +5543,11 @@ detachnode(dns_db_t *db, dns_dbnode_t **targetp) {
 	REQUIRE(targetp != NULL && *targetp != NULL);
 
 	node = (dns_rbtnode_t *)(*targetp);
-	nodelock = &rbtdb->node_locks[node->locknum];
 
-	NODE_RDLOCK(&nodelock->lock, &nlocktype);
+	inactive = decrement_reference(rbtdb, node, 0, &nlocktype, &tlocktype,
+				       true, false);
 
-	if (decrement_reference(rbtdb, node, 0, &nlocktype, &tlocktype, true,
-				false))
-	{
-		if (isc_refcount_current(&nodelock->references) == 0 &&
-		    nodelock->exiting)
-		{
-			inactive = true;
-		}
-	}
-
-	NODE_UNLOCK(&nodelock->lock, &nlocktype);
+	INSIST(nlocktype == isc_rwlocktype_none);
 	INSIST(tlocktype == isc_rwlocktype_none);
 
 	*targetp = NULL;
@@ -8964,7 +8953,6 @@ static void
 dereference_iter_node(rbtdb_dbiterator_t *rbtdbiter) {
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)rbtdbiter->common.db;
 	dns_rbtnode_t *node = rbtdbiter->node;
-	nodelock_t *lock;
 	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 	isc_rwlocktype_t tlocktype = rbtdbiter->tree_locked;
 
@@ -8973,12 +8961,8 @@ dereference_iter_node(rbtdb_dbiterator_t *rbtdbiter) {
 	}
 
 	REQUIRE(tlocktype != isc_rwlocktype_write);
-
-	lock = &rbtdb->node_locks[node->locknum].lock;
-	NODE_RDLOCK(lock, &nlocktype);
 	decrement_reference(rbtdb, node, 0, &nlocktype, &rbtdbiter->tree_locked,
 			    false, false);
-	NODE_UNLOCK(lock, &nlocktype);
 
 	INSIST(rbtdbiter->tree_locked == tlocktype);
 
@@ -9443,27 +9427,33 @@ rdataset_getownercase(const dns_rdataset_t *rdataset, dns_name_t *name) {
 	NODE_RDLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
 
 	if (!CASESET(header)) {
-		goto unlock;
+		NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
+			    &nlocktype);
+		return;
 	}
 
 	if (CASEFULLYLOWER(header)) {
+		NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
+			    &nlocktype);
 		isc_ascii_lowercopy(name->ndata, name->ndata, name->length);
-	} else {
-		uint8_t *nd = name->ndata;
-		for (size_t i = 0; i < name->length; i++) {
-			if (mask == (1 << 7)) {
-				bits = header->upper[i / 8];
-				mask = 1;
-			} else {
-				mask <<= 1;
-			}
-			nd[i] = (bits & mask) ? isc_ascii_toupper(nd[i])
-					      : isc_ascii_tolower(nd[i]);
-		}
+		return;
 	}
 
-unlock:
+	uint8_t upper[32];
+	memmove(upper, header->upper, (name->length / 8) + 1);
 	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+
+	uint8_t *nd = name->ndata;
+	for (size_t i = 0; i < name->length; i++) {
+		if (mask == (1 << 7)) {
+			bits = upper[i / 8];
+			mask = 1;
+		} else {
+			mask <<= 1;
+		}
+		nd[i] = (bits & mask) ? isc_ascii_toupper(nd[i])
+				      : isc_ascii_tolower(nd[i]);
+	}
 }
 
 struct rbtdb_glue {
