@@ -641,7 +641,7 @@ configure_view_nametable(const cfg_obj_t *vconfig, const cfg_obj_t *config,
 		}
 	}
 
-	result = dns_rbt_create(mctx, NULL, NULL, rbtp);
+	result = dns_rbt_create(mctx, NULL, NULL, 1, rbtp);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}

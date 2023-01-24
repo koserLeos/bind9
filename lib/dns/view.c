@@ -2385,7 +2385,7 @@ dns_view_sfd_add(dns_view_t *view, const dns_name_t *name) {
 
 	RWLOCK(&view->sfd_lock, isc_rwlocktype_write);
 	if (view->sfd == NULL) {
-		result = dns_rbt_create(view->mctx, free_sfd, view->mctx,
+		result = dns_rbt_create(view->mctx, free_sfd, view->mctx, 1,
 					&view->sfd);
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 	}

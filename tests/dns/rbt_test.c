@@ -141,11 +141,12 @@ test_context_setup(void) {
 	assert_non_null(ctx);
 
 	ctx->rbt = NULL;
-	result = dns_rbt_create(mctx, delete_data, NULL, &ctx->rbt);
+	result = dns_rbt_create(mctx, delete_data, NULL, 1, &ctx->rbt);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	ctx->rbt_distances = NULL;
-	result = dns_rbt_create(mctx, delete_data, NULL, &ctx->rbt_distances);
+	result = dns_rbt_create(mctx, delete_data, NULL, 1,
+				&ctx->rbt_distances);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	for (i = 0; i < domain_names_count; i++) {
@@ -298,7 +299,7 @@ ISC_RUN_TEST_IMPL(rbt_check_distance_random) {
 
 	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
 
-	result = dns_rbt_create(mctx, delete_data, NULL, &mytree);
+	result = dns_rbt_create(mctx, delete_data, NULL, 1, &mytree);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Names are inserted in random order. */
@@ -373,7 +374,7 @@ ISC_RUN_TEST_IMPL(rbt_check_distance_ordered) {
 
 	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
 
-	result = dns_rbt_create(mctx, delete_data, NULL, &mytree);
+	result = dns_rbt_create(mctx, delete_data, NULL, 1, &mytree);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	/* Names are inserted in sorted order. */
@@ -630,7 +631,7 @@ ISC_RUN_TEST_IMPL(rbt_remove) {
 		size_t start_node;
 
 		/* Create a tree. */
-		result = dns_rbt_create(mctx, delete_data, NULL, &mytree);
+		result = dns_rbt_create(mctx, delete_data, NULL, 1, &mytree);
 		assert_int_equal(result, ISC_R_SUCCESS);
 
 		/* Insert test data into the tree. */
@@ -909,7 +910,7 @@ ISC_RUN_TEST_IMPL(rbt_insert_and_remove) {
 
 	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
 
-	result = dns_rbt_create(mctx, delete_data, NULL, &mytree);
+	result = dns_rbt_create(mctx, delete_data, NULL, 1, &mytree);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	n = isc_mem_get(mctx, sizeof(size_t));

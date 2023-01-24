@@ -16,6 +16,7 @@
 /*! \file dns/rbt.h */
 
 #include <inttypes.h>
+#include <limits.h>
 #include <stdbool.h>
 
 #include <isc/assertions.h>
@@ -41,7 +42,7 @@ ISC_LANG_BEGINDECLS
 
 #define DNS_RBT_USEMAGIC 1
 
-#define DNS_RBT_LOCKLENGTH (sizeof(((dns_rbtnode_t *)0)->locknum) * 8)
+#define DNS_RBT_LOCKLENGTH (sizeof(((dns_rbtnode_t *)0)->locknum) * CHAR_BIT)
 
 #define DNS_RBTNODE_MAGIC ISC_MAGIC('R', 'B', 'N', 'O')
 #if DNS_RBT_USEMAGIC
@@ -263,7 +264,7 @@ typedef struct dns_rbtnodechain {
 *****/
 isc_result_t
 dns_rbt_create(isc_mem_t *mctx, dns_rbtdeleter_t deleter, void *deleter_arg,
-	       dns_rbt_t **rbtp);
+	       uint16_t nlocks, dns_rbt_t **rbtp);
 /*%<
  * Initialize a red-black tree of trees.
  *
@@ -987,4 +988,7 @@ dns__rbtnode_namelen(dns_rbtnode_t *node);
  * Returns the length of the full name of the node. Used only internally
  * and in unit tests.
  */
+
+void
+dns_rbt_enablesanity(dns_rbt_t *rbt);
 ISC_LANG_ENDDECLS

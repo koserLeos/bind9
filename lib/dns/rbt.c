@@ -74,6 +74,8 @@ struct dns_rbt {
 	dns_rbtnode_t **hashtable[2];
 	uint8_t hindex;
 	uint32_t hiter;
+	uint16_t node_lock_count;
+	bool sanity;
 };
 
 #define IS_EMPTY(node) ((node)->data == NULL)
@@ -259,7 +261,7 @@ dns__rbtnode_namelen(dns_rbtnode_t *node) {
  */
 isc_result_t
 dns_rbt_create(isc_mem_t *mctx, dns_rbtdeleter_t deleter, void *deleter_arg,
-	       dns_rbt_t **rbtp) {
+	       uint16_t nlocks, dns_rbt_t **rbtp) {
 	dns_rbt_t *rbt;
 
 	REQUIRE(mctx != NULL);
@@ -270,6 +272,7 @@ dns_rbt_create(isc_mem_t *mctx, dns_rbtdeleter_t deleter, void *deleter_arg,
 	*rbt = (dns_rbt_t){
 		.data_deleter = deleter,
 		.deleter_arg = deleter_arg,
+		.node_lock_count = nlocks,
 	};
 
 	isc_mem_attach(mctx, &rbt->mctx);
@@ -1425,6 +1428,11 @@ dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, bool recurse) {
 
 	freenode(rbt, &node);
 
+	if (parent != NULL && parent->down == NULL && parent->data == NULL) {
+		fprintf(stderr, "Could have deleted:\n");
+		dns_rbt_printnodeinfo(node, stderr);
+	}
+
 	/*
 	 * This function never fails.
 	 */
@@ -1521,7 +1529,7 @@ create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 
 	ISC_LINK_INIT(node, deadlink);
 
-	node->locknum = 0;
+	node->locknum = UINT16_MAX;
 	node->wild = 0;
 	node->dirty = 0;
 	isc_refcount_init(&node->references, 0);
@@ -1717,6 +1725,7 @@ hash_node(dns_rbt_t *rbt, dns_rbtnode_t *node, const dns_name_t *name) {
 	}
 
 	hash_add_node(rbt, node, name);
+	node->locknum = node->hashval % rbt->node_lock_count;
 }
 
 /*
@@ -2216,6 +2225,10 @@ deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, bool unhash,
 			dns_rbtnode_t *node = root;
 			root = root->parent;
 
+			if (node->data == NULL && rbt->sanity) {
+				dns_rbt_printnodeinfo(node, stderr);
+			}
+
 			if (rbt->data_deleter != NULL && node->data != NULL) {
 				rbt->data_deleter(node->data, rbt->deleter_arg);
 			}
@@ -2544,6 +2557,11 @@ dns_rbt_printdot(dns_rbt_t *rbt, bool show_pointers, FILE *f) {
 	fprintf(f, "node [shape = record,height=.1];\n");
 	print_dot_helper(rbt->root, &nodecount, show_pointers, f);
 	fprintf(f, "}\n");
+}
+
+void
+dns_rbt_enablesanity(dns_rbt_t *rbt) {
+	rbt->sanity = true;
 }
 
 /*
