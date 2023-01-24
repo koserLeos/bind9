@@ -1901,11 +1901,13 @@ send_to_prune_tree(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 static void
 cleanup_dead_nodes(dns_rbtdb_t *rbtdb, int bucketnum) {
 	dns_rbtnode_t *node;
-	int count = 10; /* XXXJT: should be adjustable */
+	rbtnodelist_t deadnodes = ISC_LIST_INITIALIZER;
 
-	node = ISC_LIST_HEAD(rbtdb->deadnodes[bucketnum]);
-	while (node != NULL && count > 0) {
-		ISC_LIST_UNLINK(rbtdb->deadnodes[bucketnum], node, deadlink);
+	ISC_LIST_MOVE(deadnodes, rbtdb->deadnodes[bucketnum]);
+
+	node = ISC_LIST_HEAD(deadnodes);
+	while (node != NULL) {
+		ISC_LIST_UNLINK(deadnodes, node, deadlink);
 
 		/*
 		 * We might have reactivated this node without a tree write
@@ -1915,9 +1917,7 @@ cleanup_dead_nodes(dns_rbtdb_t *rbtdb, int bucketnum) {
 		if (isc_refcount_current(&node->references) != 0 ||
 		    node->data != NULL)
 		{
-			node = ISC_LIST_HEAD(rbtdb->deadnodes[bucketnum]);
-			count--;
-			continue;
+			goto next;
 		}
 
 		if (is_leaf(node) && rbtdb->loop != NULL) {
@@ -1936,8 +1936,8 @@ cleanup_dead_nodes(dns_rbtdb_t *rbtdb, int bucketnum) {
 			ISC_LIST_APPEND(rbtdb->deadnodes[bucketnum], node,
 					deadlink);
 		}
-		node = ISC_LIST_HEAD(rbtdb->deadnodes[bucketnum]);
-		count--;
+	next:
+		node = ISC_LIST_HEAD(deadnodes);
 	}
 }
 
@@ -2409,16 +2409,16 @@ cleanup_dead_nodes_callback(void *arg) {
 	isc_rwlocktype_t tlocktype = isc_rwlocktype_none;
 	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
-	TREE_WRLOCK(&rbtdb->tree_lock, &tlocktype);
 	for (locknum = 0; locknum < rbtdb->node_lock_count; locknum++) {
+		TREE_WRLOCK(&rbtdb->tree_lock, &tlocktype);
 		NODE_WRLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
 		cleanup_dead_nodes(rbtdb, locknum);
 		if (ISC_LIST_HEAD(rbtdb->deadnodes[locknum]) != NULL) {
 			again = true;
 		}
 		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
+		TREE_UNLOCK(&rbtdb->tree_lock, &tlocktype);
 	}
-	TREE_UNLOCK(&rbtdb->tree_lock, &tlocktype);
 	if (again) {
 		isc_async_run(rbtdb->loop, cleanup_dead_nodes_callback, rbtdb);
 	} else {
