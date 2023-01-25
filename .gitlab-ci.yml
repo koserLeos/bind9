@@ -305,6 +305,46 @@ stages:
         sudo sh -x bin/tests/system/ifconfig.sh up;
       fi
 
+cross-version-config-tests:
+  stage: system
+  <<: *debian_bullseye_amd64_image
+  <<: *api_schedules_tags_triggers_web_triggering_rules
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON}"
+    BASELINE: v9.19.12
+    # Disable option checking to prevent problems with new default options in
+    # the &configure anchor.
+    EXTRA_CONFIGURE: "--disable-option-checking"
+  script:
+    - autoreconf -fi
+    - *configure
+    - *setup_interfaces
+    - make -j${BUILD_PARALLEL_JOBS:-1}
+    # Build system test binaries.
+    - make -C bin/tests/system -j${TEST_PARALLEL_JOBS:-1} check TESTS="glue"
+    - git clone --branch "${BASELINE}" --depth 1 https://gitlab.isc.org/isc-projects/bind9.git "${BASELINE}"
+    - cd "${BASELINE}"
+    # Drop system tests which can't work because of ABI differences.
+    - sed -i "/\tdyndb\t/d" bin/tests/system/Makefile.am
+    - sed -i "/\thooks\t/d" bin/tests/system/Makefile.am
+    - autoreconf -fi
+    - *configure
+    - make -j${BUILD_PARALLEL_JOBS:-1}
+    - cd bin/tests/system
+    # Neutralize shell and pytests; in effect, "nsX" servers are just started
+    # and stopped, thus configuration checked.
+    - truncate --size=0 */tests{.sh,*.py}
+    # Point $BASELINE system test to BIND 9 binaries in $CI_PROJECT_DIR.
+    - sed -i -E "/^TOP_BUILDDIR=/s|=(.*)|=${CI_PROJECT_DIR}|" conf.sh
+    - make -j${TEST_PARALLEL_JOBS:-1} -k check V=1
+  artifacts:
+    paths:
+      - ${BASELINE}
+    untracked: true
+    expire_in: "1 day"
+    when: on_failure
+
 .system_test_common: &system_test_common
   <<: *default_triggering_rules
   stage: system
