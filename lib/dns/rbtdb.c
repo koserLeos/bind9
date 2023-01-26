@@ -507,8 +507,6 @@ struct dns_rbtdb {
 	rbtdb_version_t *future_version;
 	rbtdb_versionlist_t open_versions;
 	isc_loop_t *loop;
-	dns_dbnode_t *soanode;
-	dns_dbnode_t *nsnode;
 
 	/*
 	 * Maximum length of time to keep using a stale answer past its
@@ -1205,13 +1203,6 @@ maybe_free_rbtdb(dns_rbtdb_t *rbtdb) {
 	unsigned int inactive = 0;
 
 	/* XXX check for open versions here */
-
-	if (rbtdb->soanode != NULL) {
-		dns_db_detachnode((dns_db_t *)rbtdb, &rbtdb->soanode);
-	}
-	if (rbtdb->nsnode != NULL) {
-		dns_db_detachnode((dns_db_t *)rbtdb, &rbtdb->nsnode);
-	}
 
 	/*
 	 * The current version's glue table needs to be freed early
