@@ -137,9 +137,9 @@ typedef struct sdb_rdatasetiter {
 static int dummy;
 
 static isc_result_t
-dns_sdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
-	       dns_rdataclass_t rdclass, unsigned int argc, char *argv[],
-	       void *driverarg, dns_db_t **dbp);
+dns_sdb_create(isc_loop_t *loop, isc_mem_t *mctx, const dns_name_t *origin,
+	       dns_dbtype_t type, dns_rdataclass_t rdclass, unsigned int argc,
+	       char *argv[], void *driverarg, dns_db_t **dbp);
 
 static isc_result_t
 findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
@@ -1259,12 +1259,6 @@ overmem(dns_db_t *db, bool over) {
 	UNUSED(over);
 }
 
-static void
-setloop(dns_db_t *db, isc_loop_t *loop) {
-	UNUSED(db);
-	UNUSED(loop);
-}
-
 static dns_dbmethods_t sdb_methods = {
 	attach,		detach,
 	beginload,	endload,
@@ -1279,18 +1273,17 @@ static dns_dbmethods_t sdb_methods = {
 	addrdataset,	subtractrdataset,
 	deleterdataset, issecure,
 	nodecount,	ispersistent,
-	overmem,	setloop,
-	getoriginnode, /* getoriginnode */
-	NULL,	       /* transfernode */
-	NULL,	       /* getnsec3parameters */
-	NULL,	       /* findnsec3node */
-	NULL,	       /* setsigningtime */
-	NULL,	       /* getsigningtime */
-	NULL,	       /* resigned */
-	NULL,	       /* isdnssec */
-	NULL,	       /* getrrsetstats */
-	NULL,	       /* rpz_attach */
-	NULL,	       /* rpz_ready */
+	overmem,	getoriginnode, /* getoriginnode */
+	NULL,			       /* transfernode */
+	NULL,			       /* getnsec3parameters */
+	NULL,			       /* findnsec3node */
+	NULL,			       /* setsigningtime */
+	NULL,			       /* getsigningtime */
+	NULL,			       /* resigned */
+	NULL,			       /* isdnssec */
+	NULL,			       /* getrrsetstats */
+	NULL,			       /* rpz_attach */
+	NULL,			       /* rpz_ready */
 	findnodeext,	findext,
 	NULL, /* setcachestats */
 	NULL, /* hashsize */
@@ -1304,9 +1297,9 @@ static dns_dbmethods_t sdb_methods = {
 };
 
 static isc_result_t
-dns_sdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
-	       dns_rdataclass_t rdclass, unsigned int argc, char *argv[],
-	       void *driverarg, dns_db_t **dbp) {
+dns_sdb_create(isc_loop_t *loop, isc_mem_t *mctx, const dns_name_t *origin,
+	       dns_dbtype_t type, dns_rdataclass_t rdclass, unsigned int argc,
+	       char *argv[], void *driverarg, dns_db_t **dbp) {
 	dns_sdb_t *sdb;
 	isc_result_t result;
 	char zonestr[DNS_NAME_MAXTEXT + 1];
@@ -1314,6 +1307,7 @@ dns_sdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 	dns_sdbimplementation_t *imp;
 
 	REQUIRE(driverarg != NULL);
+	UNUSED(loop);
 
 	imp = driverarg;
 

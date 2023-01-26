@@ -291,8 +291,8 @@ static isc_result_t
 axfr_makedb(dns_xfrin_ctx_t *xfr, dns_db_t **dbp) {
 	isc_result_t result;
 
-	result = dns_db_create(xfr->mctx, /* XXX */
-			       "rbt",	  /* XXX guess */
+	result = dns_db_create(NULL, xfr->mctx, /* XXX */
+			       "rbt",		/* XXX guess */
 			       &xfr->name, dns_dbtype_zone, xfr->rdclass, 0,
 			       NULL, /* XXX guess */
 			       dbp);

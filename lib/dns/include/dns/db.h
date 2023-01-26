@@ -139,7 +139,6 @@ typedef struct dns_dbmethods {
 	unsigned int (*nodecount)(dns_db_t *db, dns_dbtree_t);
 	bool (*ispersistent)(dns_db_t *db);
 	void (*overmem)(dns_db_t *db, bool overmem);
-	void (*setloop)(dns_db_t *db, isc_loop_t *);
 	isc_result_t (*getoriginnode)(dns_db_t *db, dns_dbnode_t **nodep);
 	void (*transfernode)(dns_db_t *db, dns_dbnode_t **sourcep,
 			     dns_dbnode_t **targetp);
@@ -187,7 +186,7 @@ typedef struct dns_dbmethods {
 	isc_result_t (*setgluecachestats)(dns_db_t *db, isc_stats_t *stats);
 } dns_dbmethods_t;
 
-typedef isc_result_t (*dns_dbcreatefunc_t)(isc_mem_t	    *mctx,
+typedef isc_result_t (*dns_dbcreatefunc_t)(isc_loop_t *loop, isc_mem_t *mctx,
 					   const dns_name_t *name,
 					   dns_dbtype_t	     type,
 					   dns_rdataclass_t  rdclass,
@@ -314,9 +313,10 @@ struct dns_dbonupdatelistener {
  ***/
 
 isc_result_t
-dns_db_create(isc_mem_t *mctx, const char *db_type, const dns_name_t *origin,
-	      dns_dbtype_t type, dns_rdataclass_t rdclass, unsigned int argc,
-	      char *argv[], dns_db_t **dbp);
+dns_db_create(isc_loop_t *loop, isc_mem_t *mctx, const char *db_type,
+	      const dns_name_t *origin, dns_dbtype_t type,
+	      dns_rdataclass_t rdclass, unsigned int argc, char *argv[],
+	      dns_db_t **dbp);
 /*%<
  * Create a new database using implementation 'db_type'.
  *
@@ -1386,16 +1386,6 @@ dns_db_hashsize(dns_db_t *db);
  * Returns:
  * \li	The number of buckets in the database's hash table, or
  *      0 if not implemented.
- */
-
-void
-dns_db_setloop(dns_db_t *db, isc_loop_t *loop);
-/*%<
- * If loop is set then the final detach maybe performed asynchronously.
- *
- * Requires:
- * \li	'db' is a valid database.
- * \li	'loop' to be valid or NULL.
  */
 
 bool

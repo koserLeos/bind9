@@ -45,8 +45,9 @@ ISC_RUN_TEST_IMPL(getoriginnode) {
 
 	UNUSED(state);
 
-	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_zone,
-			       dns_rdataclass_in, 0, NULL, &db);
+	result = dns_db_create(mainloop, mctx, "rbt", dns_rootname,
+			       dns_dbtype_zone, dns_rdataclass_in, 0, NULL,
+			       &db);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_getoriginnode(db, &node);
@@ -68,8 +69,9 @@ ISC_RUN_TEST_IMPL(getsetservestalettl) {
 
 	UNUSED(state);
 
-	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
-			       dns_rdataclass_in, 0, NULL, &db);
+	result = dns_db_create(mainloop, mctx, "rbt", dns_rootname,
+			       dns_dbtype_cache, dns_rdataclass_in, 0, NULL,
+			       &db);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	ttl = 5000;
@@ -106,8 +108,9 @@ ISC_RUN_TEST_IMPL(dns_dbfind_staleok) {
 
 	UNUSED(state);
 
-	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
-			       dns_rdataclass_in, 0, NULL, &db);
+	result = dns_db_create(mainloop, mctx, "rbt", dns_rootname,
+			       dns_dbtype_cache, dns_rdataclass_in, 0, NULL,
+			       &db);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	example = dns_fixedname_initname(&example_fixed);
@@ -248,8 +251,9 @@ ISC_RUN_TEST_IMPL(class) {
 
 	UNUSED(state);
 
-	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_zone,
-			       dns_rdataclass_in, 0, NULL, &db);
+	result = dns_db_create(mainloop, mctx, "rbt", dns_rootname,
+			       dns_dbtype_zone, dns_rdataclass_in, 0, NULL,
+			       &db);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	result = dns_db_load(db, TESTS_DIR "/testdata/db/data.db",
@@ -269,8 +273,9 @@ ISC_RUN_TEST_IMPL(dbtype) {
 	UNUSED(state);
 
 	/* DB has zone semantics */
-	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_zone,
-			       dns_rdataclass_in, 0, NULL, &db);
+	result = dns_db_create(mainloop, mctx, "rbt", dns_rootname,
+			       dns_dbtype_zone, dns_rdataclass_in, 0, NULL,
+			       &db);
 	assert_int_equal(result, ISC_R_SUCCESS);
 	result = dns_db_load(db, TESTS_DIR "/testdata/db/data.db",
 			     dns_masterformat_text, 0);
@@ -280,8 +285,9 @@ ISC_RUN_TEST_IMPL(dbtype) {
 	dns_db_detach(&db);
 
 	/* DB has cache semantics */
-	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
-			       dns_rdataclass_in, 0, NULL, &db);
+	result = dns_db_create(mainloop, mctx, "rbt", dns_rootname,
+			       dns_dbtype_cache, dns_rdataclass_in, 0, NULL,
+			       &db);
 	assert_int_equal(result, ISC_R_SUCCESS);
 	result = dns_db_load(db, TESTS_DIR "/testdata/db/data.db",
 			     dns_masterformat_text, 0);

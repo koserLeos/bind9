@@ -376,33 +376,11 @@ typedef ISC_LIST(dns_rbtnode_t) rbtnodelist_t;
 	(((header)->rdh_ttl > (now)) || \
 	 ((header)->rdh_ttl == (now) && ZEROTTL(header)))
 
-#define DEFAULT_NODE_LOCK_COUNT 7 /*%< Should be prime. */
-
 #define EXPIREDOK(rbtiterator) \
 	(((rbtiterator)->common.options & DNS_DB_EXPIREDOK) != 0)
 
 #define STALEOK(rbtiterator) \
 	(((rbtiterator)->common.options & DNS_DB_STALEOK) != 0)
-
-/*%
- * Number of buckets for cache DB entries (locks, LRU lists, TTL heaps).
- * There is a tradeoff issue about configuring this value: if this is too
- * small, it may cause heavier contention between threads; if this is too large,
- * LRU purge algorithm won't work well (entries tend to be purged prematurely).
- * The default value should work well for most environments, but this can
- * also be configurable at compilation time via the
- * DNS_RBTDB_CACHE_NODE_LOCK_COUNT variable.  This value must be larger than
- * 1 due to the assumption of overmem_purge().
- */
-#ifdef DNS_RBTDB_CACHE_NODE_LOCK_COUNT
-#if DNS_RBTDB_CACHE_NODE_LOCK_COUNT <= 1
-#error "DNS_RBTDB_CACHE_NODE_LOCK_COUNT must be larger than 1"
-#else /* if DNS_RBTDB_CACHE_NODE_LOCK_COUNT <= 1 */
-#define DEFAULT_CACHE_NODE_LOCK_COUNT DNS_RBTDB_CACHE_NODE_LOCK_COUNT
-#endif /* if DNS_RBTDB_CACHE_NODE_LOCK_COUNT <= 1 */
-#else  /* ifdef DNS_RBTDB_CACHE_NODE_LOCK_COUNT */
-#define DEFAULT_CACHE_NODE_LOCK_COUNT 17
-#endif /* DNS_RBTDB_CACHE_NODE_LOCK_COUNT */
 
 typedef struct {
 	nodelock_t lock;
@@ -1184,9 +1162,9 @@ free_rbtdb(dns_rbtdb_t *rbtdb, bool log) {
 		    rbtdb->node_lock_count * sizeof(rbtdb_nodelock_t));
 	TREE_DESTROYLOCK(&rbtdb->tree_lock);
 	isc_refcount_destroy(&rbtdb->references);
-	if (rbtdb->loop != NULL) {
-		isc_loop_detach(&rbtdb->loop);
-	}
+	/* if (rbtdb->loop != NULL) { */
+	/* 	isc_loop_detach(&rbtdb->loop); */
+	/* } */
 
 	RBTDB_DESTROYLOCK(&rbtdb->lock);
 	rbtdb->common.magic = 0;
@@ -7725,24 +7703,6 @@ hashsize(dns_db_t *db) {
 	return (size);
 }
 
-static void
-setloop(dns_db_t *db, isc_loop_t *loop) {
-	dns_rbtdb_t *rbtdb;
-
-	rbtdb = (dns_rbtdb_t *)db;
-
-	REQUIRE(VALID_RBTDB(rbtdb));
-
-	RBTDB_LOCK(&rbtdb->lock, isc_rwlocktype_write);
-	if (rbtdb->loop != NULL) {
-		isc_loop_detach(&rbtdb->loop);
-	}
-	if (loop != NULL) {
-		isc_loop_attach(loop, &rbtdb->loop);
-	}
-	RBTDB_UNLOCK(&rbtdb->lock, isc_rwlocktype_write);
-}
-
 static bool
 ispersistent(dns_db_t *db) {
 	UNUSED(db);
@@ -8133,7 +8093,6 @@ static dns_dbmethods_t zone_methods = { attach,
 					nodecount,
 					ispersistent,
 					overmem,
-					setloop,
 					getoriginnode,
 					NULL, /* transfernode */
 					getnsec3parameters,
@@ -8183,7 +8142,6 @@ static dns_dbmethods_t cache_methods = { attach,
 					 nodecount,
 					 ispersistent,
 					 overmem,
-					 setloop,
 					 getoriginnode,
 					 NULL, /* transfernode */
 					 NULL, /* getnsec3parameters */
@@ -8208,9 +8166,9 @@ static dns_dbmethods_t cache_methods = { attach,
 					 NULL };
 
 isc_result_t
-dns_rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
-		 dns_rdataclass_t rdclass, unsigned int argc, char *argv[],
-		 void *driverarg, dns_db_t **dbp) {
+dns_rbtdb_create(isc_loop_t *loop, isc_mem_t *mctx, const dns_name_t *origin,
+		 dns_dbtype_t type, dns_rdataclass_t rdclass, unsigned int argc,
+		 char *argv[], void *driverarg, dns_db_t **dbp) {
 	dns_rbtdb_t *rbtdb;
 	isc_result_t result;
 	int i;
@@ -8226,9 +8184,15 @@ dns_rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 	/*
 	 * If argv[0] exists, it points to a memory context to use for heap
 	 */
-	if (argc != 0) {
+	if (argc > 0 && argv[0] != NULL) {
 		hmctx = (isc_mem_t *)argv[0];
 	}
+
+	rbtdb->loop = loop;
+
+	/* if (loop != NULL) { */
+	/* 	isc_loop_attach(loop, &rbtdb->loop); */
+	/* } */
 
 	dns_name_init(&rbtdb->common.origin, NULL);
 	rbtdb->common.attributes = 0;
@@ -8250,21 +8214,17 @@ dns_rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 
 	TREE_INITLOCK(&rbtdb->tree_lock);
 
+	if (rbtdb->loop != NULL) {
+		rbtdb->node_lock_count =
+			isc_loopmgr_nloops(isc_loop_getloopmgr(rbtdb->loop));
+	} else {
+		rbtdb->node_lock_count = 1;
+	}
 	/*
-	 * Initialize node_lock_count in a generic way to support future
-	 * extension which allows the user to specify this value on creation.
-	 * Note that when specified for a cache DB it must be larger than 1
-	 * as commented with the definition of DEFAULT_CACHE_NODE_LOCK_COUNT.
+	 * This must be at least 2 for cache due to overmem_purge() assumptions.
 	 */
-	if (rbtdb->node_lock_count == 0) {
-		if (IS_CACHE(rbtdb)) {
-			rbtdb->node_lock_count = DEFAULT_CACHE_NODE_LOCK_COUNT;
-		} else {
-			rbtdb->node_lock_count = DEFAULT_NODE_LOCK_COUNT;
-		}
-	} else if (rbtdb->node_lock_count < 2 && IS_CACHE(rbtdb)) {
-		result = ISC_R_RANGE;
-		goto cleanup_tree_lock;
+	if (IS_CACHE(rbtdb) && rbtdb->node_lock_count < 2) {
+		rbtdb->node_lock_count = 2;
 	}
 	INSIST(rbtdb->node_lock_count < (1 << DNS_RBT_LOCKLENGTH));
 	rbtdb->node_locks = isc_mem_get(mctx, rbtdb->node_lock_count *
@@ -8458,7 +8418,6 @@ cleanup_node_locks:
 	isc_mem_put(mctx, rbtdb->node_locks,
 		    rbtdb->node_lock_count * sizeof(rbtdb_nodelock_t));
 
-cleanup_tree_lock:
 	TREE_DESTROYLOCK(&rbtdb->tree_lock);
 	RBTDB_DESTROYLOCK(&rbtdb->lock);
 	isc_mem_put(mctx, rbtdb, sizeof(*rbtdb));

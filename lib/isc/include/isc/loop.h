@@ -131,10 +131,19 @@ isc_loopmgr_teardown(isc_loopmgr_t *loopmgr, isc_job_cb cb, void *cbarg);
  *\li	'loopmgr' is paused or has not yet been started.
  */
 
+isc_loopmgr_t *
+isc_loop_getloopmgr(isc_loop_t *loop);
+/*%<
+ * Return a pointer to the loopmgr.
+ *
+ * Requires:
+ *\li	'loop' is a valid loop.
+ */
+
 isc_mem_t *
 isc_loop_getmctx(isc_loop_t *loop);
 /*%<
- * Return a pointer to the a memory context that was created for
+ * Return a pointer to the memory context that was created for
  * 'loop' when it was initialized.
  *
  * Requires:

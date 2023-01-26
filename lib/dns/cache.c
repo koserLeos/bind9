@@ -71,6 +71,7 @@ struct dns_cache {
 	isc_mutex_t lock;
 	isc_mem_t *mctx;  /* Main cache memory */
 	isc_mem_t *hmctx; /* Heap memory */
+	isc_loop_t *loop;
 	char *name;
 	isc_refcount_t references;
 
@@ -91,15 +92,16 @@ struct dns_cache {
 static isc_result_t
 cache_create_db(dns_cache_t *cache, dns_db_t **db) {
 	isc_result_t result;
-	char *argv[1] = { 0 };
-
-	/*
+	char *argv[1] = {
+		(char *)cache->hmctx,
+	};
+	/*%<
 	 * For databases of type "rbt" (which is the only cache
 	 * implementation currently in existence) we pass hmctx to
 	 * dns_db_create() via argv[0].
 	 */
-	argv[0] = (char *)cache->hmctx;
-	result = dns_db_create(cache->mctx, "rbt", dns_rootname,
+
+	result = dns_db_create(cache->loop, cache->mctx, "rbt", dns_rootname,
 			       dns_dbtype_cache, cache->rdclass, 1, argv, db);
 	if (result == ISC_R_SUCCESS) {
 		dns_db_setservestalettl(*db, cache->serve_stale_ttl);
@@ -108,13 +110,13 @@ cache_create_db(dns_cache_t *cache, dns_db_t **db) {
 }
 
 isc_result_t
-dns_cache_create(isc_loopmgr_t *loopmgr, dns_rdataclass_t rdclass,
+dns_cache_create(isc_loop_t *loop, dns_rdataclass_t rdclass,
 		 const char *cachename, dns_cache_t **cachep) {
 	isc_result_t result;
 	dns_cache_t *cache = NULL;
 	isc_mem_t *mctx = NULL, *hmctx = NULL;
 
-	REQUIRE(loopmgr != NULL);
+	REQUIRE(loop != NULL);
 	REQUIRE(cachename != NULL);
 	REQUIRE(cachep != NULL && *cachep == NULL);
 
@@ -142,6 +144,8 @@ dns_cache_create(isc_loopmgr_t *loopmgr, dns_rdataclass_t rdclass,
 		.name = isc_mem_strdup(mctx, cachename),
 	};
 
+	isc_loop_attach(loop, &cache->loop);
+
 	isc_mutex_init(&cache->lock);
 
 	isc_refcount_init(&cache->references, 1);
@@ -160,7 +164,6 @@ dns_cache_create(isc_loopmgr_t *loopmgr, dns_rdataclass_t rdclass,
 		goto cleanup_stats;
 	}
 
-	dns_db_setloop(cache->db, isc_loop_main(loopmgr));
 	cache->magic = CACHE_MAGIC;
 
 	/*
@@ -181,6 +184,7 @@ cleanup_stats:
 	isc_stats_detach(&cache->stats);
 cleanup_lock:
 	isc_mutex_destroy(&cache->lock);
+	isc_loop_detach(&cache->loop);
 	isc_mem_free(mctx, cache->name);
 	isc_mem_detach(&cache->hmctx);
 	isc_mem_putanddetach(&cache->mctx, cache, sizeof(*cache));
@@ -201,6 +205,7 @@ cache_free(dns_cache_t *cache) {
 	isc_mutex_destroy(&cache->lock);
 
 	cache->magic = 0;
+	isc_loop_detach(&cache->loop);
 	isc_mem_detach(&cache->hmctx);
 	isc_mem_putanddetach(&cache->mctx, cache, sizeof(*cache));
 }

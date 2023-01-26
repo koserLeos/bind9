@@ -559,7 +559,7 @@ configure_staticstub(const cfg_obj_t *zconfig, dns_zone_t *zone,
 	isc_region_t region;
 
 	/* Create the DB beforehand */
-	RETERR(dns_db_create(mctx, dbtype, dns_zone_getorigin(zone),
+	RETERR(dns_db_create(NULL, mctx, dbtype, dns_zone_getorigin(zone),
 			     dns_dbtype_stub, dns_zone_getclass(zone), 0, NULL,
 			     &db));
 

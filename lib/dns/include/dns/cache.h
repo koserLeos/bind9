@@ -56,7 +56,7 @@ ISC_LANG_BEGINDECLS
  ***	Functions
  ***/
 isc_result_t
-dns_cache_create(isc_loopmgr_t *loopmgr, dns_rdataclass_t rdclass,
+dns_cache_create(isc_loop_t *loop, dns_rdataclass_t rdclass,
 		 const char *cachename, dns_cache_t **cachep);
 /*%<
  * Create a new DNS cache.

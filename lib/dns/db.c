@@ -101,9 +101,10 @@ impfind(const char *name) {
  ***/
 
 isc_result_t
-dns_db_create(isc_mem_t *mctx, const char *db_type, const dns_name_t *origin,
-	      dns_dbtype_t type, dns_rdataclass_t rdclass, unsigned int argc,
-	      char *argv[], dns_db_t **dbp) {
+dns_db_create(isc_loop_t *loop, isc_mem_t *mctx, const char *db_type,
+	      const dns_name_t *origin, dns_dbtype_t type,
+	      dns_rdataclass_t rdclass, unsigned int argc, char *argv[],
+	      dns_db_t **dbp) {
 	dns_dbimplementation_t *impinfo;
 
 	isc_once_do(&once, initialize);
@@ -119,8 +120,9 @@ dns_db_create(isc_mem_t *mctx, const char *db_type, const dns_name_t *origin,
 	impinfo = impfind(db_type);
 	if (impinfo != NULL) {
 		isc_result_t result;
-		result = ((impinfo->create)(mctx, origin, type, rdclass, argc,
-					    argv, impinfo->driverarg, dbp));
+		result = ((impinfo->create)(loop, mctx, origin, type, rdclass,
+					    argc, argv, impinfo->driverarg,
+					    dbp));
 		RWUNLOCK(&implock, isc_rwlocktype_read);
 		return (result);
 	}
@@ -826,13 +828,6 @@ dns_db_hashsize(dns_db_t *db) {
 	}
 
 	return ((db->methods->hashsize)(db));
-}
-
-void
-dns_db_setloop(dns_db_t *db, isc_loop_t *loop) {
-	REQUIRE(DNS_DB_VALID(db));
-
-	(db->methods->setloop)(db, loop);
 }
 
 isc_result_t

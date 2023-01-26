@@ -419,15 +419,6 @@ overmem(dns_db_t *db, bool over) {
 	dns_db_overmem(sampledb->rbtdb, over);
 }
 
-static void
-setloop(dns_db_t *db, isc_loop_t *loop) {
-	sampledb_t *sampledb = (sampledb_t *)db;
-
-	REQUIRE(VALID_SAMPLEDB(sampledb));
-
-	dns_db_setloop(sampledb->rbtdb, loop);
-}
-
 static isc_result_t
 getoriginnode(dns_db_t *db, dns_dbnode_t **nodep) {
 	sampledb_t *sampledb = (sampledb_t *)db;
@@ -563,28 +554,54 @@ hashsize(dns_db_t *db) {
  * determine which implementation of dns_db_*() function to call.
  */
 static dns_dbmethods_t sampledb_methods = {
-	attach,		detach,		beginload,
-	endload,	dump,		currentversion,
-	newversion,	attachversion,	closeversion,
-	findnode,	find,		findzonecut,
-	attachnode,	detachnode,	expirenode,
-	printnode,	createiterator, findrdataset,
-	allrdatasets,	addrdataset,	subtractrdataset,
-	deleterdataset, issecure,	nodecount,
-	ispersistent,	overmem,	setloop,
-	getoriginnode,	transfernode,	getnsec3parameters,
-	findnsec3node,	setsigningtime, getsigningtime,
-	resigned,	isdnssec,	getrrsetstats,
+	attach,
+	detach,
+	beginload,
+	endload,
+	dump,
+	currentversion,
+	newversion,
+	attachversion,
+	closeversion,
+	findnode,
+	find,
+	findzonecut,
+	attachnode,
+	detachnode,
+	expirenode,
+	printnode,
+	createiterator,
+	findrdataset,
+	allrdatasets,
+	addrdataset,
+	subtractrdataset,
+	deleterdataset,
+	issecure,
+	nodecount,
+	ispersistent,
+	overmem,
+	getoriginnode,
+	transfernode,
+	getnsec3parameters,
+	findnsec3node,
+	setsigningtime,
+	getsigningtime,
+	resigned,
+	isdnssec,
+	getrrsetstats,
 	NULL, /* rpz_attach */
 	NULL, /* rpz_ready */
-	findnodeext,	findext,	setcachestats,
-	hashsize,	NULL, /* nodefullname */
-	NULL,		      /* getsize */
-	NULL,		      /* setservestalettl */
-	NULL,		      /* getservestalettl */
-	NULL,		      /* setservestalerefresh */
-	NULL,		      /* getservestalerefresh */
-	NULL,		      /* setgluecachestats */
+	findnodeext,
+	findext,
+	setcachestats,
+	hashsize,
+	NULL, /* nodefullname */
+	NULL, /* getsize */
+	NULL, /* setservestalettl */
+	NULL, /* getservestalettl */
+	NULL, /* setservestalerefresh */
+	NULL, /* getservestalerefresh */
+	NULL, /* setgluecachestats */
 };
 
 /* Auxiliary driver functions. */
@@ -708,9 +725,9 @@ cleanup:
  * @param[in] driverarg Driver-specific parameter from dns_db_register().
  */
 isc_result_t
-create_db(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
-	  dns_rdataclass_t rdclass, unsigned int argc, char *argv[],
-	  void *driverarg, dns_db_t **dbp) {
+create_db(isc_loop_t *loop, isc_mem_t *mctx, const dns_name_t *origin,
+	  dns_dbtype_t type, dns_rdataclass_t rdclass, unsigned int argc,
+	  char *argv[], void *driverarg, dns_db_t **dbp) {
 	sampledb_t *sampledb = NULL;
 	isc_result_t result;
 	dns_dbversion_t *version = NULL;
@@ -748,7 +765,7 @@ create_db(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 	sampledb->inst = driverarg;
 
 	/* Create internal instance of RBT DB implementation from BIND. */
-	CHECK(dns_db_create(mctx, "rbt", origin, dns_dbtype_zone,
+	CHECK(dns_db_create(loop, mctx, "rbt", origin, dns_dbtype_zone,
 			    dns_rdataclass_in, 0, NULL, &sampledb->rbtdb));
 
 	/* Create fake SOA, NS, and A records to make database loadable. */

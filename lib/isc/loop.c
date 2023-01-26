@@ -561,6 +561,13 @@ isc_loop_getmctx(isc_loop_t *loop) {
 	return (loop->mctx);
 }
 
+isc_loopmgr_t *
+isc_loop_getloopmgr(isc_loop_t *loop) {
+	REQUIRE(VALID_LOOP(loop));
+
+	return (loop->loopmgr);
+}
+
 isc_loop_t *
 isc_loop_main(isc_loopmgr_t *loopmgr) {
 	REQUIRE(VALID_LOOPMGR(loopmgr));

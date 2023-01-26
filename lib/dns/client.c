@@ -229,8 +229,9 @@ createview(isc_mem_t *mctx, dns_rdataclass_t rdclass, isc_loopmgr_t *loopmgr,
 		goto cleanup_view;
 	}
 
-	result = dns_db_create(mctx, "rbt", dns_rootname, dns_dbtype_cache,
-			       rdclass, 0, NULL, &view->cachedb);
+	result = dns_db_create(NULL, mctx, "rbt", dns_rootname,
+			       dns_dbtype_cache, rdclass, 0, NULL,
+			       &view->cachedb);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup_view;
 	}

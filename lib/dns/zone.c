@@ -2259,11 +2259,11 @@ zone_load(dns_zone_t *zone, unsigned int flags, bool locked) {
 	dns_zone_logc(zone, DNS_LOGCATEGORY_ZONELOAD, ISC_LOG_DEBUG(1),
 		      "starting load");
 
-	result = dns_db_create(zone->mctx, zone->db_argv[0], &zone->origin,
-			       (zone->type == dns_zone_stub) ? dns_dbtype_stub
-							     : dns_dbtype_zone,
-			       zone->rdclass, zone->db_argc - 1,
-			       zone->db_argv + 1, &db);
+	result = dns_db_create(
+		zone->loop, zone->mctx, zone->db_argv[0], &zone->origin,
+		(zone->type == dns_zone_stub) ? dns_dbtype_stub
+					      : dns_dbtype_zone,
+		zone->rdclass, zone->db_argc - 1, zone->db_argv + 1, &db);
 
 	if (result != ISC_R_SUCCESS) {
 		dns_zone_logc(zone, DNS_LOGCATEGORY_ZONELOAD, ISC_LOG_ERROR,
@@ -2271,7 +2271,6 @@ zone_load(dns_zone_t *zone, unsigned int flags, bool locked) {
 			      isc_result_totext(result));
 		goto cleanup;
 	}
-	dns_db_setloop(db, zone->loop);
 
 	if (zone->type == dns_zone_primary ||
 	    zone->type == dns_zone_secondary || zone->type == dns_zone_mirror)
@@ -11217,7 +11216,8 @@ zone_expire(dns_zone_t *zone) {
 		isc_result_t result;
 		dns_rpz_zone_t *rpz = zone->rpzs->zones[zone->rpz_num];
 
-		CHECK(dns_db_create(zone->mctx, "rbt", &zone->origin,
+		/* FIXME */
+		CHECK(dns_db_create(NULL, zone->mctx, "rbt", &zone->origin,
 				    dns_dbtype_zone, zone->rdclass, 0, NULL,
 				    &db));
 		CHECK(dns_rpz_dbupdate_callback(db, rpz));
@@ -14315,9 +14315,10 @@ ns_query(dns_zone_t *zone, dns_rdataset_t *soardataset, dns_stub_t *stub) {
 			ZONEDB_UNLOCK(&zone->dblock, isc_rwlocktype_read);
 
 			INSIST(zone->db_argc >= 1);
-			result = dns_db_create(zone->mctx, zone->db_argv[0],
-					       &zone->origin, dns_dbtype_stub,
-					       zone->rdclass, zone->db_argc - 1,
+			result = dns_db_create(zone->loop, zone->mctx,
+					       zone->db_argv[0], &zone->origin,
+					       dns_dbtype_stub, zone->rdclass,
+					       zone->db_argc - 1,
 					       zone->db_argv + 1, &stub->db);
 			if (result != ISC_R_SUCCESS) {
 				dns_zone_log(zone, ISC_LOG_ERROR,
@@ -14327,7 +14328,6 @@ ns_query(dns_zone_t *zone, dns_rdataset_t *soardataset, dns_stub_t *stub) {
 					     isc_result_totext(result));
 				goto cleanup;
 			}
-			dns_db_setloop(stub->db, zone->loop);
 		}
 
 		result = dns_db_newversion(stub->db, &stub->version);
@@ -16671,8 +16671,8 @@ receive_secure_db(void *arg) {
 	}
 	ZONEDB_UNLOCK(&zone->dblock, isc_rwlocktype_read);
 
-	result = dns_db_create(zone->mctx, zone->db_argv[0], &zone->origin,
-			       dns_dbtype_zone, zone->rdclass,
+	result = dns_db_create(zone->loop, zone->mctx, zone->db_argv[0],
+			       &zone->origin, dns_dbtype_zone, zone->rdclass,
 			       zone->db_argc - 1, zone->db_argv + 1, &db);
 	if (result != ISC_R_SUCCESS) {
 		goto failure;
@@ -16985,7 +16985,6 @@ zone_replacedb(dns_zone_t *zone, dns_db_t *db, bool dump) {
 		zone_detachdb(zone);
 	}
 	zone_attachdb(zone, db);
-	dns_db_setloop(zone->db, zone->loop);
 	DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_LOADED | DNS_ZONEFLG_NEEDNOTIFY);
 	return (ISC_R_SUCCESS);
 

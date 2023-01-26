@@ -1200,12 +1200,6 @@ overmem(dns_db_t *db, bool over) {
 	UNUSED(over);
 }
 
-static void
-setloop(dns_db_t *db, isc_loop_t *loop) {
-	UNUSED(db);
-	UNUSED(loop);
-}
-
 /*
  * getoriginnode() is used by the update code to find the
  * dns_rdatatype_dnskey record for a zone
@@ -1238,8 +1232,8 @@ static dns_dbmethods_t sdlzdb_methods = {
 	printnode,	createiterator, findrdataset,
 	allrdatasets,	addrdataset,	subtractrdataset,
 	deleterdataset, issecure,	nodecount,
-	ispersistent,	overmem,	setloop,
-	getoriginnode,	NULL,		      /* transfernode */
+	ispersistent,	overmem,	getoriginnode,
+	NULL,				      /* transfernode */
 	NULL,				      /* getnsec3parameters */
 	NULL,				      /* findnsec3node */
 	NULL,				      /* setsigningtime */

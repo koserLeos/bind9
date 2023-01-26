@@ -3507,7 +3507,7 @@ create_empty_zone(dns_zone_t *pzone, dns_name_t *name, dns_view_t *view,
 			}
 		}
 		if (db == NULL) {
-			CHECK(dns_db_create(view->mctx, "rbt", name,
+			CHECK(dns_db_create(NULL, view->mctx, "rbt", name,
 					    dns_dbtype_zone, view->rdclass, 0,
 					    NULL, &db));
 			CHECK(dns_db_newversion(db, &version));
@@ -4713,7 +4713,7 @@ configure_view(dns_view_t *view, dns_viewlist_t *viewlist, cfg_obj_t *config,
 			 * view name but not a forward reference either, then it
 			 * is simply a named cache that is not shared.
 			 */
-			CHECK(dns_cache_create(named_g_loopmgr, view->rdclass,
+			CHECK(dns_cache_create(named_g_mainloop, view->rdclass,
 					       cachename, &cache));
 		}
 		nsc = isc_mem_get(mctx, sizeof(*nsc));
