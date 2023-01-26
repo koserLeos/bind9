@@ -382,6 +382,20 @@ typedef ISC_LIST(dns_rbtnode_t) rbtnodelist_t;
 #define STALEOK(rbtiterator) \
 	(((rbtiterator)->common.options & DNS_DB_STALEOK) != 0)
 
+#define DEFAULT_PERCPU_NODE_LOCK_COUNT 3 /*%< Should be prime. */
+
+/*%
+ * Number of buckets for cache DB entries (locks, LRU lists, TTL heaps).
+ * There is a tradeoff issue about configuring this value: if this is too
+ * small, it may cause heavier contention between threads; if this is too large,
+ * LRU purge algorithm won't work well (entries tend to be purged prematurely).
+ * The default value should work well for most environments, but this can
+ * also be configurable at compilation time via the
+ * DNS_RBTDB_CACHE_NODE_LOCK_COUNT variable.  This value must be larger than
+ * 1 due to the assumption of overmem_purge().
+ */
+#define DEFAULT_CACHE_PERCPU_NODE_LOCK_COUNT 5
+
 typedef struct {
 	nodelock_t lock;
 	/* Protected in the refcount routines. */
@@ -8175,6 +8189,7 @@ dns_rbtdb_create(isc_loop_t *loop, isc_mem_t *mctx, const dns_name_t *origin,
 	dns_name_t name;
 	bool (*sooner)(void *, void *);
 	isc_mem_t *hmctx = mctx;
+	unsigned int workers = 1;
 
 	/* Keep the compiler happy. */
 	UNUSED(driverarg);
@@ -8215,17 +8230,17 @@ dns_rbtdb_create(isc_loop_t *loop, isc_mem_t *mctx, const dns_name_t *origin,
 	TREE_INITLOCK(&rbtdb->tree_lock);
 
 	if (rbtdb->loop != NULL) {
-		rbtdb->node_lock_count =
-			isc_loopmgr_nloops(isc_loop_getloopmgr(rbtdb->loop));
+		workers = isc_loopmgr_nloops(isc_loop_getloopmgr(rbtdb->loop));
+	}
+
+	if (IS_CACHE(rbtdb)) {
+		rbtdb->node_lock_count = workers *
+					 DEFAULT_CACHE_PERCPU_NODE_LOCK_COUNT;
 	} else {
-		rbtdb->node_lock_count = 1;
+		rbtdb->node_lock_count = workers *
+					 DEFAULT_PERCPU_NODE_LOCK_COUNT;
 	}
-	/*
-	 * This must be at least 2 for cache due to overmem_purge() assumptions.
-	 */
-	if (IS_CACHE(rbtdb) && rbtdb->node_lock_count < 2) {
-		rbtdb->node_lock_count = 2;
-	}
+
 	INSIST(rbtdb->node_lock_count < (1 << DNS_RBT_LOCKLENGTH));
 	rbtdb->node_locks = isc_mem_get(mctx, rbtdb->node_lock_count *
 						      sizeof(rbtdb_nodelock_t));
