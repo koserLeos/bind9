@@ -337,8 +337,11 @@ towiresorted(dns_rdataset_t *rdataset, const dns_name_t *owner_name,
 	REQUIRE(countp != NULL);
 	REQUIRE(cctx != NULL && cctx->mctx != NULL);
 
-	want_random = WANT_RANDOM(rdataset);
-	want_cyclic = WANT_CYCLIC(rdataset);
+	/* want_random = WANT_RANDOM(rdataset); */
+	/* want_cyclic = WANT_CYCLIC(rdataset); */
+	want_random = false;
+	want_cyclic = false;
+	order = NULL;
 
 	if ((rdataset->attributes & DNS_RDATASETATTR_QUESTION) != 0) {
 		question = true;
