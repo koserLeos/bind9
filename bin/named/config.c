@@ -103,7 +103,7 @@ options {\n\
 	request-nsid false;\n\
 	reserved-sockets 512;\n\
 	resolver-query-timeout 10;\n\
-	rrset-order { order random; };\n\
+	rrset-order { order none; };\n\
 	secroots-file \"named.secroots\";\n\
 	send-cookie true;\n\
 	serial-query-rate 20;\n\
