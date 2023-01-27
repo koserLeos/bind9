@@ -2498,10 +2498,10 @@ static isc_result_t
 recursionquotatype_attach(ns_client_t *client,
 			  ns_query_rectype_t recursion_type, bool soft_limit) {
 	isc_quota_t **quotap = &client->query.recursions[recursion_type].quota;
-	isc_result_t result;
+	isc_result_t result = ISC_R_SUCCESS;
 
-	result = isc_quota_attach(&client->manager->sctx->recursionquota,
-				  quotap);
+	/* result = isc_quota_attach(&client->manager->sctx->recursionquota, */
+	/* 			  quotap); */
 	switch (result) {
 	case ISC_R_SUCCESS:
 		break;
@@ -2542,7 +2542,7 @@ recursionquotatype_attach_soft(ns_client_t *client,
 static void
 recursionquotatype_detach(ns_client_t *client,
 			  ns_query_rectype_t recursion_type) {
-	isc_quota_detach(&client->query.recursions[recursion_type].quota);
+	/* isc_quota_detach(&client->query.recursions[recursion_type].quota); */
 	ns_stats_decrement(client->manager->sctx->nsstats,
 			   ns_statscounter_recursclients);
 }
