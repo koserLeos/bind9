@@ -181,7 +181,7 @@ dns__rbtnode_getdistance(dns_rbtnode_t *node) {
 /*
  * Forward declarations.
  */
-static isc_result_t
+static void
 create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep);
 
 static void
@@ -222,14 +222,16 @@ static void
 deletefromlevel(dns_rbtnode_t *item, dns_rbtnode_t **rootp);
 
 static void
-deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, bool unhash,
-	       dns_rbtnode_t **nodep);
+deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, dns_rbtnode_t **nodep);
 
 static void
 printnodename(dns_rbtnode_t *node, bool quoted, FILE *f);
 
 static void
 freenode(dns_rbt_t *rbt, dns_rbtnode_t **nodep);
+
+static void
+deletedata(dns_rbt_t *rbt, dns_rbtnode_t *node);
 
 unsigned int
 dns__rbtnode_namelen(dns_rbtnode_t *node) {
@@ -272,13 +274,12 @@ dns_rbt_create(isc_mem_t *mctx, dns_rbtdeleter_t deleter, void *deleter_arg,
 		.data_deleter = deleter,
 		.deleter_arg = deleter_arg,
 		.node_lock_count = nlocks,
+		.magic = RBT_MAGIC,
 	};
 
 	isc_mem_attach(mctx, &rbt->mctx);
 
 	hashtable_new(rbt, 0, ISC_HASH_MIN_BITS);
-
-	rbt->magic = RBT_MAGIC;
 
 	*rbtp = rbt;
 
@@ -301,7 +302,7 @@ dns_rbt_destroy2(dns_rbt_t **rbtp, unsigned int quantum) {
 
 	rbt = *rbtp;
 
-	deletetreeflat(rbt, quantum, false, &rbt->root);
+	deletetreeflat(rbt, quantum, &rbt->root);
 	if (rbt->root != NULL) {
 		return (ISC_R_QUOTA);
 	}
@@ -456,18 +457,16 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	dns_name_clone(name, add_name);
 
 	if (rbt->root == NULL) {
-		result = create_node(rbt->mctx, add_name, &new_current);
-		if (result == ISC_R_SUCCESS) {
-			rbt->nodecount++;
-			new_current->is_root = 1;
+		create_node(rbt->mctx, add_name, &new_current);
+		rbt->nodecount++;
+		new_current->is_root = 1;
 
-			new_current->uppernode = NULL;
+		new_current->uppernode = NULL;
 
-			rbt->root = new_current;
-			*nodep = new_current;
-			hash_node(rbt, new_current, name);
-		}
-		return (result);
+		rbt->root = new_current;
+		*nodep = new_current;
+		hash_node(rbt, new_current, name);
+		return (ISC_R_SUCCESS);
 	}
 
 	level_count = 0;
@@ -580,12 +579,7 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 				 */
 				dns_name_split(&current_name, common_labels,
 					       prefix, suffix);
-				result = create_node(rbt->mctx, suffix,
-						     &new_current);
-
-				if (result != ISC_R_SUCCESS) {
-					break;
-				}
+				create_node(rbt->mctx, suffix, &new_current);
 
 				/*
 				 * Reproduce the tree attributes of the
@@ -689,24 +683,24 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 		}
 	} while (child != NULL);
 
-	if (result == ISC_R_SUCCESS) {
-		result = create_node(rbt->mctx, add_name, &new_current);
+	if (result != ISC_R_SUCCESS) {
+		return (result);
 	}
 
-	if (result == ISC_R_SUCCESS) {
-		if (*root == NULL) {
-			new_current->uppernode = current;
-		} else {
-			new_current->uppernode = (*root)->parent;
-		}
+	create_node(rbt->mctx, add_name, &new_current);
 
-		addonlevel(new_current, current, order, root);
-		rbt->nodecount++;
-		*nodep = new_current;
-		hash_node(rbt, new_current, name);
+	if (*root == NULL) {
+		new_current->uppernode = current;
+	} else {
+		new_current->uppernode = (*root)->parent;
 	}
 
-	return (result);
+	addonlevel(new_current, current, order, root);
+	rbt->nodecount++;
+	*nodep = new_current;
+	hash_node(rbt, new_current, name);
+
+	return (ISC_R_SUCCESS);
 }
 
 /*
@@ -1385,12 +1379,9 @@ dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node,
 
 	INSIST(rbt->nodecount != 0);
 
-	if (node->down != NULL) {
-		if (node->data != NULL && rbt->data_deleter != NULL) {
-			rbt->data_deleter(node->data, rbt->deleter_arg);
-		}
-		node->data = NULL;
+	deletedata(rbt, node);
 
+	if (node->down != NULL) {
 		/*
 		 * Since there is at least one node below this one and
 		 * no recursion was requested, the deletion is
@@ -1415,17 +1406,6 @@ dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node,
 	 * to be removed from this level.
 	 */
 	deletefromlevel(node, parent == NULL ? &rbt->root : &parent->down);
-
-	if (node->data != NULL && rbt->data_deleter != NULL) {
-		rbt->data_deleter(node->data, rbt->deleter_arg);
-	}
-	node->data = NULL;
-
-	unhash_node(rbt, node);
-#if DNS_RBT_USEMAGIC
-	node->magic = 0;
-#endif /* if DNS_RBT_USEMAGIC */
-	isc_refcount_destroy(&node->references);
 
 	freenode(rbt, &node);
 
@@ -1496,7 +1476,7 @@ dns_rbt_formatnodename(dns_rbtnode_t *node, char *printname,
 	return (printname);
 }
 
-static isc_result_t
+static void
 create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	dns_rbtnode_t *node;
 	isc_region_t region;
@@ -1514,27 +1494,15 @@ create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	 */
 	nodelen = sizeof(dns_rbtnode_t) + region.length + labels + 1;
 	node = isc_mem_getx(mctx, nodelen, ISC_MEM_ZERO);
+	*node = (dns_rbtnode_t){
+		.deadlink = ISC_LINK_INITIALIZER,
+		.locknum = UINT16_MAX,
+		.nsec = DNS_RBT_NSEC_NORMAL,
+		.color = BLACK,
+		.magic = DNS_RBTNODE_MAGIC,
+	};
 
-	node->is_root = 0;
-	node->parent = NULL;
-	node->right = NULL;
-	node->left = NULL;
-	node->down = NULL;
-	node->data = NULL;
-
-	node->hashnext = NULL;
-	node->hashval = 0;
-
-	ISC_LINK_INIT(node, deadlink);
-
-	node->locknum = UINT16_MAX;
-	node->wild = 0;
-	node->dirty = 0;
 	isc_refcount_init(&node->references, 0);
-	node->find_callback = 0;
-	node->nsec = DNS_RBT_NSEC_NORMAL;
-
-	node->color = BLACK;
 
 	/*
 	 * The following is stored to make reconstructing a name from the
@@ -1548,7 +1516,7 @@ create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	 *      lib/dns/name.c.
 	 *
 	 * Note: OLDOFFSETLEN *must* be assigned *after* OLDNAMELEN is assigned
-	 * 	 as it uses OLDNAMELEN.
+	 *	 as it uses OLDNAMELEN.
 	 */
 	node->oldnamelen = node->namelen = region.length;
 	OLDOFFSETLEN(node) = node->offsetlen = labels;
@@ -1557,12 +1525,7 @@ create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	memmove(NAME(node), region.base, region.length);
 	memmove(OFFSETS(node), name->offsets, labels);
 
-#if DNS_RBT_USEMAGIC
-	node->magic = DNS_RBTNODE_MAGIC;
-#endif /* if DNS_RBT_USEMAGIC */
 	*nodep = node;
-
-	return (ISC_R_SUCCESS);
 }
 
 /*
@@ -2184,9 +2147,23 @@ deletefromlevel(dns_rbtnode_t *item, dns_rbtnode_t **rootp) {
 }
 
 static void
+deletedata(dns_rbt_t *rbt, dns_rbtnode_t *node) {
+	if (node->data != NULL && rbt->data_deleter != NULL) {
+		rbt->data_deleter(node->data, rbt->deleter_arg);
+	}
+	node->data = NULL;
+}
+
+static void
 freenode(dns_rbt_t *rbt, dns_rbtnode_t **nodep) {
 	dns_rbtnode_t *node = *nodep;
 	*nodep = NULL;
+
+	unhash_node(rbt, node);
+
+	node->magic = 0;
+
+	isc_refcount_destroy(&node->references);
 
 	isc_mem_put(rbt->mctx, node, NODE_SIZE(node));
 
@@ -2194,8 +2171,7 @@ freenode(dns_rbt_t *rbt, dns_rbtnode_t **nodep) {
 }
 
 static void
-deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, bool unhash,
-	       dns_rbtnode_t **nodep) {
+deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, dns_rbtnode_t **nodep) {
 	dns_rbtnode_t *root = *nodep;
 
 	while (root != NULL) {
@@ -2223,20 +2199,10 @@ deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, bool unhash,
 			dns_rbtnode_t *node = root;
 			root = root->parent;
 
-			if (rbt->data_deleter != NULL && node->data != NULL) {
-				rbt->data_deleter(node->data, rbt->deleter_arg);
-			}
-			if (unhash) {
-				unhash_node(rbt, node);
-			}
-			/*
-			 * Note: we don't call unhash_node() here as we
-			 * are destroying the complete RBT tree.
-			 */
-#if DNS_RBT_USEMAGIC
-			node->magic = 0;
-#endif /* if DNS_RBT_USEMAGIC */
+			deletedata(rbt, node);
+
 			freenode(rbt, &node);
+
 			if (quantum != 0 && --quantum == 0) {
 				break;
 			}

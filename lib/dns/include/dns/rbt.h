@@ -40,16 +40,10 @@ ISC_LANG_BEGINDECLS
 #define DNS_RBTFIND_NOPREDECESSOR 0x04
 /*@}*/
 
-#define DNS_RBT_USEMAGIC 1
-
 #define DNS_RBT_LOCKLENGTH (sizeof(((dns_rbtnode_t *)0)->locknum) * CHAR_BIT)
 
-#define DNS_RBTNODE_MAGIC ISC_MAGIC('R', 'B', 'N', 'O')
-#if DNS_RBT_USEMAGIC
+#define DNS_RBTNODE_MAGIC    ISC_MAGIC('R', 'B', 'N', 'O')
 #define DNS_RBTNODE_VALID(n) ISC_MAGIC_VALID(n, DNS_RBTNODE_MAGIC)
-#else /* if DNS_RBT_USEMAGIC */
-#define DNS_RBTNODE_VALID(n) true
-#endif /* if DNS_RBT_USEMAGIC */
 
 /*%
  * This is the structure that is used for each node in the red/black
@@ -66,9 +60,7 @@ enum {
 	DNS_RBT_NSEC_NSEC3 = 3	   /* in nsec3 tree */
 };
 struct dns_rbtnode {
-#if DNS_RBT_USEMAGIC
 	unsigned int magic;
-#endif /* if DNS_RBT_USEMAGIC */
 	/*@{*/
 	/*!
 	 * The following bitfields add up to a total bitwidth of 32.
