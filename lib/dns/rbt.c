@@ -75,7 +75,6 @@ struct dns_rbt {
 	uint8_t hindex;
 	uint32_t hiter;
 	uint16_t node_lock_count;
-	bool sanity;
 };
 
 #define IS_EMPTY(node) ((node)->data == NULL)
@@ -1299,12 +1298,14 @@ dns_rbt_findname(dns_rbt_t *rbt, const dns_name_t *name, unsigned int options,
  * Delete a name from the tree of trees.
  */
 isc_result_t
-dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name, bool recurse) {
-	dns_rbtnode_t *node = NULL;
-	isc_result_t result;
-
+dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name,
+		   dns_rbtnode_t **parentp) {
 	REQUIRE(VALID_RBT(rbt));
 	REQUIRE(dns_name_isabsolute(name));
+	REQUIRE(parentp == NULL || *parentp == NULL);
+
+	dns_rbtnode_t *node = NULL;
+	isc_result_t result;
 
 	/*
 	 * First, find the node.
@@ -1322,18 +1323,21 @@ dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name, bool recurse) {
 	 */
 	result = dns_rbt_findnode(rbt, name, NULL, &node, NULL,
 				  DNS_RBTFIND_NOOPTIONS, NULL, NULL);
-
-	if (result == ISC_R_SUCCESS) {
-		if (node->data != NULL) {
-			result = dns_rbt_deletenode(rbt, node, recurse);
-		} else {
-			result = ISC_R_NOTFOUND;
-		}
-	} else if (result == DNS_R_PARTIALMATCH) {
-		result = ISC_R_NOTFOUND;
+	if (result == DNS_R_PARTIALMATCH) {
+		return (ISC_R_NOTFOUND);
 	}
 
-	return (result);
+	if (result != ISC_R_SUCCESS) {
+		return (result);
+	}
+
+	if (node->data == NULL) {
+		return (ISC_R_NOTFOUND);
+	}
+
+	dns_rbt_deletenode(rbt, node, parentp);
+
+	return (ISC_R_SUCCESS);
 }
 
 /*
@@ -1372,35 +1376,31 @@ dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name, bool recurse) {
  * case where it might fail.  Without trying to join, now this function always
  * succeeds. It still returns isc_result_t, though, so the API wouldn't change.
  */
-isc_result_t
-dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, bool recurse) {
-	dns_rbtnode_t *parent;
-
+void
+dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node,
+		   dns_rbtnode_t **parentp) {
 	REQUIRE(VALID_RBT(rbt));
 	REQUIRE(DNS_RBTNODE_VALID(node));
+	REQUIRE(parentp == NULL || *parentp == NULL);
+
 	INSIST(rbt->nodecount != 0);
 
 	if (node->down != NULL) {
-		if (recurse) {
-			node->down->parent = NULL;
-			deletetreeflat(rbt, 0, true, &node->down);
-		} else {
-			if (node->data != NULL && rbt->data_deleter != NULL) {
-				rbt->data_deleter(node->data, rbt->deleter_arg);
-			}
-			node->data = NULL;
-
-			/*
-			 * Since there is at least one node below this one and
-			 * no recursion was requested, the deletion is
-			 * complete.  The down node from this node might be all
-			 * by itself on a single level, so join_nodes() could
-			 * be used to collapse the tree (with all the caveats
-			 * of the comment at the start of this function).
-			 * But join_nodes() function has now been removed.
-			 */
-			return (ISC_R_SUCCESS);
+		if (node->data != NULL && rbt->data_deleter != NULL) {
+			rbt->data_deleter(node->data, rbt->deleter_arg);
 		}
+		node->data = NULL;
+
+		/*
+		 * Since there is at least one node below this one and
+		 * no recursion was requested, the deletion is
+		 * complete.  The down node from this node might be all
+		 * by itself on a single level, so join_nodes() could
+		 * be used to collapse the tree (with all the caveats
+		 * of the comment at the start of this function).
+		 * But join_nodes() function has now been removed.
+		 */
+		return;
 	}
 
 	/*
@@ -1408,7 +1408,7 @@ dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, bool recurse) {
 	 * that is being deleted.  If the deleted node is the
 	 * top level, parent will be set to NULL.
 	 */
-	parent = get_upper_node(node);
+	dns_rbtnode_t *parent = get_upper_node(node);
 
 	/*
 	 * This node now has no down pointer, so now it needs
@@ -1419,6 +1419,7 @@ dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, bool recurse) {
 	if (node->data != NULL && rbt->data_deleter != NULL) {
 		rbt->data_deleter(node->data, rbt->deleter_arg);
 	}
+	node->data = NULL;
 
 	unhash_node(rbt, node);
 #if DNS_RBT_USEMAGIC
@@ -1428,15 +1429,12 @@ dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, bool recurse) {
 
 	freenode(rbt, &node);
 
-	if (parent != NULL && parent->down == NULL && parent->data == NULL) {
-		fprintf(stderr, "Could have deleted:\n");
-		dns_rbt_printnodeinfo(node, stderr);
+	if (parentp != NULL && parent != NULL && parent->down == NULL &&
+	    parent->data == NULL)
+	{
+		/* Pass the parent pointer to the caller for further cleanup */
+		*parentp = parent;
 	}
-
-	/*
-	 * This function never fails.
-	 */
-	return (ISC_R_SUCCESS);
 }
 
 void
@@ -2225,10 +2223,6 @@ deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, bool unhash,
 			dns_rbtnode_t *node = root;
 			root = root->parent;
 
-			if (node->data == NULL && rbt->sanity) {
-				dns_rbt_printnodeinfo(node, stderr);
-			}
-
 			if (rbt->data_deleter != NULL && node->data != NULL) {
 				rbt->data_deleter(node->data, rbt->deleter_arg);
 			}
@@ -2557,11 +2551,6 @@ dns_rbt_printdot(dns_rbt_t *rbt, bool show_pointers, FILE *f) {
 	fprintf(f, "node [shape = record,height=.1];\n");
 	print_dot_helper(rbt->root, &nodecount, show_pointers, f);
 	fprintf(f, "}\n");
-}
-
-void
-dns_rbt_enablesanity(dns_rbt_t *rbt) {
-	rbt->sanity = true;
 }
 
 /*

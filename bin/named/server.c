@@ -12438,7 +12438,7 @@ again:
 				(*foundkeys)++;
 				dns_rbtnodechain_invalidate(&chain);
 				(void)dns_rbt_deletename(ring->keys,
-							 &tkey->name, false);
+							 &tkey->name, NULL);
 				goto again;
 			}
 		}

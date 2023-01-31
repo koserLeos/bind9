@@ -511,13 +511,10 @@ dns_rbt_findnode(dns_rbt_t *rbt, const dns_name_t *name, dns_name_t *foundname,
  */
 
 isc_result_t
-dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name, bool recurse);
+dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name,
+		   dns_rbtnode_t **parentp);
 /*%<
  * Delete 'name' from the tree of trees.
- *
- * Notes:
- *\li   When 'name' is removed, if recurse is true then all of its
- *      subnames are removed too.
  *
  * Requires:
  *\li   rbt is a valid rbt manager.
@@ -553,38 +550,21 @@ dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name, bool recurse);
  *                      dns_rbt_deletenode.
  */
 
-isc_result_t
-dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, bool recurse);
+void
+dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node,
+		   dns_rbtnode_t **parentp);
 /*%<
  * Delete 'node' from the tree of trees.
- *
- * Notes:
- *\li   When 'node' is removed, if recurse is true then all nodes
- *      in levels down from it are removed too.
  *
  * Requires:
  *\li   rbt is a valid rbt manager.
  *\li   node != NULL.
  *
- * Ensures:
- *\li   Does NOT ensure that any external references to nodes in the tree
- *      are unaffected by node joins.
- *
- *\li   If result is ISC_R_SUCCESS:
- *              'node' does not appear in the tree with data; however,
- *              the node might still exist if it serves as a pointer to
- *              a lower tree level as long as 'recurse' was false, hence
- *              the node could can be found with dns_rbt_findnode when
- *              that function's empty_data_ok parameter is true.
- *
- *\li   If result is ISC_R_NOMEMORY or ISC_R_NOSPACE:
- *              The node was deleted, but the tree structure was not
- *              optimized.
- *
- * Returns:
- *\li   #ISC_R_SUCCESS  Success
- *\li   #ISC_R_NOMEMORY Resource Limit: Out of Memory when joining nodes.
- *\li   #ISC_R_NOSPACE  dns_name_concatenate failed when joining nodes.
+ *\li	'node' does not appear in the tree with data; however,
+ *	the node might still exist if it serves as a pointer to
+ *	a lower tree level, hence the node could can be found
+ *	with dns_rbt_findnode when that function's empty_data_ok
+ *	parameter is true.
  */
 
 void
@@ -989,6 +969,4 @@ dns__rbtnode_namelen(dns_rbtnode_t *node);
  * and in unit tests.
  */
 
-void
-dns_rbt_enablesanity(dns_rbt_t *rbt);
 ISC_LANG_ENDDECLS

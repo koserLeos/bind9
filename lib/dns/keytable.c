@@ -442,8 +442,7 @@ dns_keytable_delete(dns_keytable_t *keytable, const dns_name_t *keyname,
 				  DNS_RBTFIND_NOOPTIONS, NULL, NULL);
 	if (result == ISC_R_SUCCESS) {
 		if (node->data != NULL) {
-			result = dns_rbt_deletenode(keytable->table, node,
-						    false);
+			dns_rbt_deletenode(keytable->table, node, NULL);
 			if (callback != NULL) {
 				(*callback)(keyname, callback_arg);
 			}

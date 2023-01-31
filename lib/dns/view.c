@@ -2418,7 +2418,7 @@ dns_view_sfd_del(dns_view_t *view, const dns_name_t *name) {
 		unsigned int *count = data;
 		INSIST(count != NULL);
 		if (--(*count) == 0U) {
-			result = dns_rbt_deletename(view->sfd, name, false);
+			result = dns_rbt_deletename(view->sfd, name, NULL);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		}
 	}

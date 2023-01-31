@@ -175,7 +175,7 @@ dns_fwdtable_delete(dns_fwdtable_t *fwdtable, const dns_name_t *name) {
 	REQUIRE(VALID_FWDTABLE(fwdtable));
 
 	RWLOCK(&fwdtable->rwlock, isc_rwlocktype_write);
-	result = dns_rbt_deletename(fwdtable->table, name, false);
+	result = dns_rbt_deletename(fwdtable->table, name, NULL);
 	RWUNLOCK(&fwdtable->rwlock, isc_rwlocktype_write);
 
 	return (result);

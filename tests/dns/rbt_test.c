@@ -239,6 +239,70 @@ ISC_RUN_TEST_IMPL(rbt_nodecount) {
 	test_context_teardown(ctx);
 }
 
+static void
+deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node) {
+	dns_rbtnode_t *parent = NULL;
+
+	dns_rbt_deletenode(rbt, node, &parent);
+	if (parent != NULL) {
+		deletenode(rbt, parent);
+	}
+}
+
+static void
+deletename(dns_rbt_t *rbt, const char *domain, uint32_t expected) {
+	isc_result_t result;
+	dns_fixedname_t fname;
+	dns_name_t *name;
+	dns_rbtnode_t *parent = NULL;
+
+	dns_test_namefromstring(domain, &fname);
+	name = dns_fixedname_name(&fname);
+	result = dns_rbt_deletename(rbt, name, &parent);
+	assert_int_equal(result, ISC_R_SUCCESS);
+	if (parent != NULL) {
+		deletenode(rbt, parent);
+	}
+	assert_int_equal(expected, dns_rbt_nodecount(rbt));
+}
+
+/* Test dns_rbt_nodecount() on a tree */
+ISC_RUN_TEST_IMPL(rbt_deletenode) {
+	test_context_t *ctx;
+
+	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
+
+	ctx = test_context_setup();
+
+	assert_int_equal(15, dns_rbt_nodecount(ctx->rbt));
+
+	/* Deleted parent will stay in the tree */
+	deletename(ctx->rbt, "g.h", 15);
+
+	/* Delete node will be delete, but parent stays */
+	deletename(ctx->rbt, "i.g.h", 14);
+
+	/* Delete last child of the 'g.h' parent */
+	deletename(ctx->rbt, "k.g.h", 12);
+
+	/* Delete nodes with direct d.e.f parent */
+	deletename(ctx->rbt, "z.d.e.f", 12);
+	deletename(ctx->rbt, "j.z.d.e.f", 10);
+
+	/* Delete deepest tree */
+	deletename(ctx->rbt, "p.w.y.d.e.f", 9);
+	deletename(ctx->rbt, "o.w.y.d.e.f", 8);
+	deletename(ctx->rbt, "q.w.y.d.e.f", 6);
+
+	deletename(ctx->rbt, "x.d.e.f", 4);
+
+	deletename(ctx->rbt, "a", 3);
+	deletename(ctx->rbt, "c", 2);
+	deletename(ctx->rbt, "b", 0);
+
+	test_context_teardown(ctx);
+}
+
 /* Test dns_rbtnode_get_distance() on a tree */
 ISC_RUN_TEST_IMPL(rbtnode_get_distance) {
 	isc_result_t result;
@@ -675,7 +739,7 @@ ISC_RUN_TEST_IMPL(rbt_remove) {
 
 			name = dns_fixedname_name(&fname);
 
-			result = dns_rbt_deletename(mytree, name, false);
+			result = dns_rbt_deletename(mytree, name, NULL);
 			assert_int_equal(result, ISC_R_SUCCESS);
 		}
 
@@ -852,7 +916,7 @@ remove_nodes(dns_rbt_t *mytree, char **names, size_t *names_count,
 		dns_test_namefromstring(names[node], &fname);
 		name = dns_fixedname_name(&fname);
 
-		result = dns_rbt_deletename(mytree, name, false);
+		result = dns_rbt_deletename(mytree, name, NULL);
 		assert_int_equal(result, ISC_R_SUCCESS);
 
 		isc_mem_free(mctx, names[node]);
@@ -956,7 +1020,7 @@ ISC_RUN_TEST_IMPL(rbt_insert_and_remove) {
 		}
 	}
 
-	result = dns_rbt_deletename(mytree, dns_rootname, false);
+	result = dns_rbt_deletename(mytree, dns_rootname, NULL);
 	assert_int_equal(result, ISC_R_SUCCESS);
 	assert_int_equal(dns_rbt_nodecount(mytree), 0);
 
@@ -1056,13 +1120,13 @@ ISC_RUN_TEST_IMPL(rbt_deletename) {
 	/* Delete a name that doesn't exist */
 	dns_test_namefromstring("z.x.y.w", &fname);
 	name = dns_fixedname_name(&fname);
-	result = dns_rbt_deletename(ctx->rbt, name, false);
+	result = dns_rbt_deletename(ctx->rbt, name, NULL);
 	assert_int_equal(result, ISC_R_NOTFOUND);
 
 	/* Now one that does */
 	dns_test_namefromstring("d.e.f", &fname);
 	name = dns_fixedname_name(&fname);
-	result = dns_rbt_deletename(ctx->rbt, name, false);
+	result = dns_rbt_deletename(ctx->rbt, name, NULL);
 	assert_int_equal(result, ISC_R_NOTFOUND);
 
 	test_context_teardown(ctx);
@@ -1281,6 +1345,7 @@ ISC_RUN_TEST_IMPL(benchmark) {
 ISC_TEST_LIST_START
 ISC_TEST_ENTRY(rbt_create)
 ISC_TEST_ENTRY(rbt_nodecount)
+ISC_TEST_ENTRY(rbt_deletenode)
 ISC_TEST_ENTRY(rbtnode_get_distance)
 ISC_TEST_ENTRY(rbt_check_distance_random)
 ISC_TEST_ENTRY(rbt_check_distance_ordered)

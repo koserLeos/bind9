@@ -149,7 +149,7 @@ dns_zt_unmount(dns_zt_t *zt, dns_zone_t *zone) {
 
 	RWLOCK(&zt->rwlock, isc_rwlocktype_write);
 
-	result = dns_rbt_deletename(zt->table, name, false);
+	result = dns_rbt_deletename(zt->table, name, NULL);
 
 	RWUNLOCK(&zt->rwlock, isc_rwlocktype_write);
 

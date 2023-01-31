@@ -2336,19 +2336,7 @@ del_name(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 	if (nm_data->set.qname == 0 && nm_data->set.ns == 0 &&
 	    nm_data->wild.qname == 0 && nm_data->wild.ns == 0)
 	{
-		result = dns_rbt_deletenode(rpz->rpzs->rbt, nmnode, false);
-		if (result != ISC_R_SUCCESS) {
-			/*
-			 * bin/tests/system/rpz/tests.sh looks for
-			 * "rpz.*failed".
-			 */
-			dns_name_format(src_name, namebuf, sizeof(namebuf));
-			isc_log_write(dns_lctx, DNS_LOGCATEGORY_RPZ,
-				      DNS_LOGMODULE_RBTDB, DNS_RPZ_ERROR_LEVEL,
-				      "rpz del_name(%s) node delete "
-				      "failed: %s",
-				      namebuf, isc_result_totext(result));
-		}
+		dns_rbt_deletenode(rpz->rpzs->rbt, nmnode, NULL);
 	}
 
 	if (exists) {

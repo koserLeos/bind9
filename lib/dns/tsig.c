@@ -178,7 +178,7 @@ remove_fromring(dns_tsigkey_t *tkey) {
 		ISC_LIST_UNLINK(tkey->ring->lru, tkey, link);
 		tkey->ring->generated--;
 	}
-	(void)dns_rbt_deletename(tkey->ring->keys, &tkey->name, false);
+	(void)dns_rbt_deletename(tkey->ring->keys, &tkey->name, NULL);
 }
 
 static void
