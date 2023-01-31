@@ -221,7 +221,7 @@ addonlevel(dns_rbtnode_t *node, dns_rbtnode_t *current, int order,
 static void
 deletefromlevel(dns_rbtnode_t *item, dns_rbtnode_t **rootp);
 
-static void
+static unsigned int
 deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, dns_rbtnode_t **nodep);
 
 static void
@@ -297,12 +297,19 @@ dns_rbt_destroy(dns_rbt_t **rbtp) {
 isc_result_t
 dns_rbt_destroy2(dns_rbt_t **rbtp, unsigned int quantum) {
 	dns_rbt_t *rbt;
+	unsigned int emptycount;
 
 	REQUIRE(rbtp != NULL && VALID_RBT(*rbtp));
 
 	rbt = *rbtp;
 
-	deletetreeflat(rbt, quantum, &rbt->root);
+	fprintf(stderr, "deleting rbt %p .nodecount = %u,", rbt,
+		rbt->nodecount);
+
+	emptycount = deletetreeflat(rbt, quantum, &rbt->root);
+
+	fprintf(stderr, " .emptycount = %u\n", emptycount);
+
 	if (rbt->root != NULL) {
 		return (ISC_R_QUOTA);
 	}
@@ -2183,9 +2190,12 @@ freenode(dns_rbt_t *rbt, dns_rbtnode_t **nodep) {
 	rbt->nodecount--;
 }
 
-static void
+static unsigned int
 deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, dns_rbtnode_t **nodep) {
 	dns_rbtnode_t *root = *nodep;
+	unsigned int count = 0;
+
+	UNUSED(quantum);
 
 	while (root != NULL) {
 		/*
@@ -2212,17 +2222,19 @@ deletetreeflat(dns_rbt_t *rbt, unsigned int quantum, dns_rbtnode_t **nodep) {
 			dns_rbtnode_t *node = root;
 			root = root->parent;
 
+			if (node->data == NULL) {
+				count++;
+			}
+
 			deletedata(rbt, node);
 
 			freenode(rbt, &node);
-
-			if (quantum != 0 && --quantum == 0) {
-				break;
-			}
 		}
 	}
 
 	*nodep = root;
+
+	return (count);
 }
 
 static size_t
