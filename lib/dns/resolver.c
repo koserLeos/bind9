@@ -1712,9 +1712,50 @@ fcount_decr(fetchctx_t *fctx) {
 }
 
 static void
+fctx_sendevent(fetchctx_t *fctx, dns_fetchevent_t *event, isc_result_t result) {
+	isc_task_t *task;
+
+	ISC_LIST_UNLINK(fctx->events, event, ev_link);
+	if (event->ev_type == DNS_EVENT_TRYSTALE) {
+		/*
+		 * Not applicable to TRY STALE events, this function is
+		 * called when the fetch has either completed or timed
+		 * out due to resolver-query-timeout being reached.
+		 */
+		isc_task_detach((isc_task_t **)&event->ev_sender);
+		isc_event_free((isc_event_t **)&event);
+		return;
+	}
+	task = event->ev_sender;
+	event->ev_sender = fctx;
+	event->vresult = fctx->vresult;
+	if (!HAVE_ANSWER(fctx)) {
+		event->result = result;
+	}
+
+	INSIST(event->result != ISC_R_SUCCESS ||
+	       dns_rdataset_isassociated(event->rdataset) ||
+	       fctx->type == dns_rdatatype_any ||
+	       fctx->type == dns_rdatatype_rrsig ||
+	       fctx->type == dns_rdatatype_sig);
+
+	/*
+	 * Negative results must be indicated in event->result.
+	 */
+	if (dns_rdataset_isassociated(event->rdataset) &&
+	    NEGATIVE(event->rdataset))
+	{
+		INSIST(event->result == DNS_R_NCACHENXDOMAIN ||
+		       event->result == DNS_R_NCACHENXRRSET);
+	}
+
+	FCTXTRACE("event");
+	isc_task_sendanddetach(&task, ISC_EVENT_PTR(&event));
+}
+
+static void
 fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 	dns_fetchevent_t *event, *next_event;
-	isc_task_t *task;
 	isc_time_t now;
 
 	/*
@@ -1737,42 +1778,8 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 	     event = next_event)
 	{
 		next_event = ISC_LIST_NEXT(event, ev_link);
-		ISC_LIST_UNLINK(fctx->events, event, ev_link);
-		if (event->ev_type == DNS_EVENT_TRYSTALE) {
-			/*
-			 * Not applicable to TRY STALE events, this function is
-			 * called when the fetch has either completed or timed
-			 * out due to resolver-query-timeout being reached.
-			 */
-			isc_task_detach((isc_task_t **)&event->ev_sender);
-			isc_event_free((isc_event_t **)&event);
-			continue;
-		}
-		task = event->ev_sender;
-		event->ev_sender = fctx;
-		event->vresult = fctx->vresult;
-		if (!HAVE_ANSWER(fctx)) {
-			event->result = result;
-		}
 
-		INSIST(event->result != ISC_R_SUCCESS ||
-		       dns_rdataset_isassociated(event->rdataset) ||
-		       fctx->type == dns_rdatatype_any ||
-		       fctx->type == dns_rdatatype_rrsig ||
-		       fctx->type == dns_rdatatype_sig);
-
-		/*
-		 * Negative results must be indicated in event->result.
-		 */
-		if (dns_rdataset_isassociated(event->rdataset) &&
-		    NEGATIVE(event->rdataset))
-		{
-			INSIST(event->result == DNS_R_NCACHENXDOMAIN ||
-			       event->result == DNS_R_NCACHENXRRSET);
-		}
-
-		FCTXTRACE("event");
-		isc_task_sendanddetach(&task, ISC_EVENT_PTR(&event));
+		fctx_sendevent(fctx, event, result);
 	}
 	UNLOCK(&fctx->lock);
 }
@@ -10579,10 +10586,18 @@ dns_resolver_createfetch(dns_resolver_t *res, const dns_name_t *name,
 
 		uint_fast32_t spillat = atomic_load_relaxed(&res->spillat);
 		if (spillat != 0 && count >= spillat) {
-			INSIST(fctx != NULL);
+			dns_fetchevent_t *event = ISC_LIST_HEAD(fctx->events);
+			while (event != NULL && event->sigrdataset != NULL) {
+				event = ISC_LIST_NEXT(event, ev_link);
+			}
+
+			if (event != NULL) {
+				fctx_sendevent(fctx, event, DNS_R_DROP);
+			} else {
+				result = DNS_R_DROP;
+				goto unlock;
+			}
 			fctx->spilled = true;
-			result = DNS_R_DROP;
-			goto unlock;
 		}
 	} else {
 		result = fctx_create(res, name, type, domain, nameservers,
