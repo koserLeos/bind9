@@ -1651,8 +1651,8 @@ static void
 maybe_rehash(dns_rbt_t *rbt, size_t newcount) {
 	uint32_t newbits = rehash_bits(rbt, newcount);
 
-	if (rbt->hashbits[rbt->hindex] < newbits &&
-	    newbits <= ISC_HASH_MAX_BITS)
+	if (rbt->hashbits[rbt->hindex] != newbits &&
+	    newbits >= ISC_HASH_MIN_BITS && newbits <= ISC_HASH_MAX_BITS)
 	{
 		hashtable_rehash(rbt, newbits);
 	}
@@ -1667,6 +1667,11 @@ static bool
 hashtable_is_overcommited(dns_rbt_t *rbt) {
 	return (rbt->nodecount >= (ISC_HASHSIZE(rbt->hashbits[rbt->hindex]) *
 				   ISC_HASH_OVERCOMMIT));
+}
+
+static bool
+hashtable_is_undercommited(dns_rbt_t *rbt) {
+	return (rbt->nodecount < ISC_HASHSIZE(rbt->hashbits[rbt->hindex] - 1));
 }
 
 /*
@@ -1699,6 +1704,14 @@ unhash_node(dns_rbt_t *rbt, dns_rbtnode_t *dnode) {
 	dns_rbtnode_t *hnode;
 
 	REQUIRE(DNS_RBTNODE_VALID(dnode));
+
+	if (rehashing_in_progress(rbt)) {
+		/* Rehash in progress */
+		hashtable_rehash_one(rbt);
+	} else if (hashtable_is_undercommited(rbt)) {
+		/* Rehash requested */
+		maybe_rehash(rbt, rbt->nodecount);
+	}
 
 	/*
 	 * The node could be either in:
