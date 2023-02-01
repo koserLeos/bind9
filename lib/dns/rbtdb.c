@@ -10063,14 +10063,13 @@ expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header,
 	INSIST(*nlocktypep == isc_rwlocktype_write);
 
 	if (isc_refcount_current(&header->node->references) == 0) {
-		isc_rwlocktype_t nlocktype = isc_rwlocktype_write;
 		/*
 		 * If no one else is using the node, we can clean it up now.
 		 * We first need to gain a new reference to the node to meet a
 		 * requirement of decrement_reference().
 		 */
-		new_reference(rbtdb, header->node, nlocktype);
-		decrement_reference(rbtdb, header->node, 0, &nlocktype,
+		new_reference(rbtdb, header->node, *nlocktypep);
+		decrement_reference(rbtdb, header->node, 0, nlocktypep,
 				    tlocktypep, true);
 
 		if (rbtdb->cachestats == NULL) {
