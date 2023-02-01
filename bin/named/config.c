@@ -149,7 +149,6 @@ options {\n\
 	check-names secondary warn;\n\
 	check-spf warn;\n\
 	check-svcb yes;\n\
-	clients-per-query 10;\n\
 	dnssec-accept-expired no;\n\
 	dnssec-validation " VALIDATION_DEFAULT "; \n"
 #ifdef HAVE_DNSTAP

@@ -3666,16 +3666,9 @@ system.
    server accepts. The default is ``150``.
 
 .. namedconf:statement:: clients-per-query
-   :tags: server
-   :short: Sets the initial minimum number of simultaneous recursive clients accepted by the server for any given query before the server drops additional clients.
+   :tags: deprecated
 
-   This sets the initial value (minimum) number of simultaneous recursive clients
-   for any given query (<qname,qtype,qclass>) that the server accepts before
-   dropping additional clents. :iscman:`named` attempts to self-tune this
-   value and changes are logged. The default value is 10.
-
-   The chosen value should reflect how many queries come in for a given name
-   in the time it takes to resolve that name.
+   This option is deprecated and no longer has any effect, see :any:`max-clients-per-query`.
 
 .. namedconf:statement:: max-clients-per-query
    :tags: server
@@ -3685,16 +3678,15 @@ system.
    given query (<qname,qtype,qclass>) that the server accepts before
    dropping additional clients.
 
-   If the number of queries exceeds :any:`clients-per-query`, :iscman:`named`
+   If the number of queries exceeds :any:`max-clients-per-query`, :iscman:`named`
    assumes that it is dealing with a non-responsive zone and drops additional
-   queries. If it gets a response after dropping queries, it raises the estimate,
-   up to a limit of :any:`max-clients-per-query`. The estimate is then lowered
-   after 20 minutes if it has remained unchanged.
+   queries.
 
    If :any:`max-clients-per-query` is set to zero, there is no upper bound, other
-   than that imposed by :any:`recursive-clients`. If :any:`clients-per-query` is
-   set to zero, :any:`max-clients-per-query` no longer applies and there is no
-   upper bound, other than that imposed by :any:`recursive-clients`.
+   than that imposed by :any:`recursive-clients`.
+
+   The chosen value should reflect how many queries come in for a given name
+   in the time it takes to resolve that name.  The default is 100.
 
 .. namedconf:statement:: fetches-per-zone
    :tags: server, query
@@ -7824,7 +7816,7 @@ Name Server Statistics Counters
     This indicates the number of queries which the server attempted to recurse but for which it discovered an existing query with the same IP address, port, query ID, name, type, and class already being processed. This corresponds to the ``duplicate`` counter of previous versions of BIND 9.
 
 ``QryDropped``
-    This indicates the number of recursive queries for which the server discovered an excessive number of existing recursive queries for the same name, type, and class, and which were subsequently dropped. This is the number of dropped queries due to the reason explained with the :any:`clients-per-query` and :any:`max-clients-per-query` options. This corresponds to the ``dropped`` counter of previous versions of BIND 9.
+    This indicates the number of recursive queries for which the server discovered an excessive number of existing recursive queries for the same name, type, and class, and which were subsequently dropped. This is the number of dropped queries due to the reason explained with the :any:`max-clients-per-query` option. This corresponds to the ``dropped`` counter of previous versions of BIND 9.
 
 ``QryFailure``
     This indicates the number of query failures. This corresponds to the ``failure`` counter of previous versions of BIND 9. Note: this counter is provided mainly for backward compatibility with previous versions; normally, more fine-grained counters such as ``AuthQryRej`` and ``RecQryRej`` that would also fall into this counter are provided, so this counter is not of much interest in practice.

@@ -567,9 +567,6 @@ struct dns_resolver {
 	dns_rbt_t *algorithms;
 	dns_rbt_t *digests;
 	dns_rbt_t *mustbesecure;
-	unsigned int spillatmax;
-	unsigned int spillatmin;
-	isc_timer_t *spillattimer;
 	bool zero_no_soa_ttl;
 	unsigned int query_timeout;
 	unsigned int maxdepth;
@@ -589,7 +586,7 @@ struct dns_resolver {
 	atomic_bool priming;
 
 	/* Locked by lock. */
-	unsigned int spillat; /* clients-per-query */
+	atomic_uint_fast32_t spillat; /* clients-per-query */
 
 	dns_badcache_t *badcache; /* Bad cache. */
 
@@ -1715,18 +1712,10 @@ fcount_decr(fetchctx_t *fctx) {
 }
 
 static void
-spillattimer_countdown(void *arg);
-
-static void
 fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 	dns_fetchevent_t *event, *next_event;
 	isc_task_t *task;
-	unsigned int count = 0;
-	bool logit = false;
 	isc_time_t now;
-	unsigned int old_spillat;
-	unsigned int new_spillat = 0; /* initialized to silence
-				       * compiler warnings */
 
 	/*
 	 * Caller must be holding the fctx lock.
@@ -1784,51 +1773,8 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 
 		FCTXTRACE("event");
 		isc_task_sendanddetach(&task, ISC_EVENT_PTR(&event));
-		count++;
 	}
 	UNLOCK(&fctx->lock);
-
-	if (HAVE_ANSWER(fctx) && fctx->spilled &&
-	    (count < fctx->res->spillatmax || fctx->res->spillatmax == 0))
-	{
-		LOCK(&fctx->res->lock);
-		if (count == fctx->res->spillat &&
-		    !atomic_load_acquire(&fctx->res->exiting))
-		{
-			old_spillat = fctx->res->spillat;
-			fctx->res->spillat += 5;
-			if (fctx->res->spillat > fctx->res->spillatmax &&
-			    fctx->res->spillatmax != 0)
-			{
-				fctx->res->spillat = fctx->res->spillatmax;
-			}
-			new_spillat = fctx->res->spillat;
-			if (new_spillat != old_spillat) {
-				logit = true;
-			}
-
-			/* Timer not running */
-			if (fctx->res->spillattimer == NULL) {
-				isc_interval_t i;
-
-				isc_timer_create(
-					isc_loop_current(fctx->res->loopmgr),
-					spillattimer_countdown, fctx->res,
-					&fctx->res->spillattimer);
-
-				isc_interval_set(&i, 20 * 60, 0);
-				isc_timer_start(fctx->res->spillattimer,
-						isc_timertype_ticker, &i);
-			}
-		}
-		UNLOCK(&fctx->res->lock);
-		if (logit) {
-			isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,
-				      DNS_LOGMODULE_RESOLVER, ISC_LOG_NOTICE,
-				      "clients-per-query increased to %u",
-				      new_spillat);
-		}
-	}
 }
 
 static bool
@@ -10091,34 +10037,6 @@ dns_resolver__destroy(dns_resolver_t *res) {
 	isc_mem_putanddetach(&res->mctx, res, sizeof(*res));
 }
 
-static void
-spillattimer_countdown(void *arg) {
-	dns_resolver_t *res = (dns_resolver_t *)arg;
-	unsigned int spillat = 0;
-
-	REQUIRE(VALID_RESOLVER(res));
-
-	if (atomic_load(&res->exiting)) {
-		isc_timer_destroy(&res->spillattimer);
-		return;
-	}
-
-	LOCK(&res->lock);
-	INSIST(!atomic_load_acquire(&res->exiting));
-	if (res->spillat > res->spillatmin) {
-		spillat = --res->spillat;
-	}
-	if (res->spillat <= res->spillatmin) {
-		isc_timer_destroy(&res->spillattimer);
-	}
-	UNLOCK(&res->lock);
-	if (spillat > 0) {
-		isc_log_write(dns_lctx, DNS_LOGCATEGORY_RESOLVER,
-			      DNS_LOGMODULE_RESOLVER, ISC_LOG_NOTICE,
-			      "clients-per-query decreased to %u", spillat);
-	}
-}
-
 isc_result_t
 dns_resolver_create(dns_view_t *view, isc_loopmgr_t *loopmgr,
 		    isc_taskmgr_t *taskmgr, unsigned int ndisp, isc_nm_t *nm,
@@ -10151,9 +10069,6 @@ dns_resolver_create(dns_view_t *view, isc_loopmgr_t *loopmgr,
 		.dispatchmgr = dispatchmgr,
 		.options = options,
 		.tlsctx_cache = tlsctx_cache,
-		.spillatmin = 10,
-		.spillat = 10,
-		.spillatmax = 100,
 		.retryinterval = 10000,
 		.nonbackofftries = 3,
 		.query_timeout = DEFAULT_QUERY_TIMEOUT,
@@ -10162,6 +10077,8 @@ dns_resolver_create(dns_view_t *view, isc_loopmgr_t *loopmgr,
 		.ntasks = isc_loopmgr_nloops(loopmgr),
 		.alternates = ISC_LIST_INITIALIZER,
 	};
+
+	isc_refcount_init(&res->spillat, 100);
 
 	dns_view_weakattach(view, &res->view);
 	isc_mem_attach(view->mctx, &res->mctx);
@@ -10381,12 +10298,6 @@ dns_resolver_shutdown(dns_resolver_t *res) {
 		}
 		isc_hashmap_iter_destroy(&it);
 		UNLOCK(&res->fctxs_lock);
-
-		LOCK(&res->lock);
-		if (res->spillattimer != NULL) {
-			isc_timer_async_destroy(&res->spillattimer);
-		}
-		UNLOCK(&res->lock);
 	}
 }
 
@@ -10600,8 +10511,6 @@ dns_resolver_createfetch(dns_resolver_t *res, const dns_name_t *name,
 	isc_result_t result = ISC_R_SUCCESS;
 	bool new_fctx = false;
 	unsigned int count = 0;
-	unsigned int spillat;
-	unsigned int spillatmin;
 
 	UNUSED(forwarders);
 
@@ -10637,11 +10546,6 @@ dns_resolver_createfetch(dns_resolver_t *res, const dns_name_t *name,
 		 * we also would never match it again.
 		 */
 
-		LOCK(&res->lock);
-		spillat = res->spillat;
-		spillatmin = res->spillatmin;
-		UNLOCK(&res->lock);
-
 		result = get_attached_fctx(res, name, type, domain, nameservers,
 					   client, options, depth, qc, &fctx,
 					   &new_fctx);
@@ -10672,15 +10576,13 @@ dns_resolver_createfetch(dns_resolver_t *res, const dns_name_t *name,
 				count++;
 			}
 		}
-		if (count >= spillatmin && spillatmin != 0) {
+
+		uint_fast32_t spillat = atomic_load_relaxed(&res->spillat);
+		if (spillat != 0 && count >= spillat) {
 			INSIST(fctx != NULL);
-			if (count >= spillat) {
-				fctx->spilled = true;
-			}
-			if (fctx->spilled) {
-				result = DNS_R_DROP;
-				goto unlock;
-			}
+			fctx->spilled = true;
+			result = DNS_R_DROP;
+			goto unlock;
 		}
 	} else {
 		result = fctx_create(res, name, type, domain, nameservers,
@@ -11257,32 +11159,21 @@ unlock:
 }
 
 void
-dns_resolver_getclientsperquery(dns_resolver_t *resolver, uint32_t *cur,
-				uint32_t *min, uint32_t *max) {
+dns_resolver_getclientsperquery(dns_resolver_t *resolver,
+				uint_fast32_t *clients) {
 	REQUIRE(VALID_RESOLVER(resolver));
 
-	LOCK(&resolver->lock);
-	if (cur != NULL) {
-		*cur = resolver->spillat;
+	if (clients != NULL) {
+		*clients = atomic_load_relaxed(&resolver->spillat);
 	}
-	if (min != NULL) {
-		*min = resolver->spillatmin;
-	}
-	if (max != NULL) {
-		*max = resolver->spillatmax;
-	}
-	UNLOCK(&resolver->lock);
 }
 
 void
-dns_resolver_setclientsperquery(dns_resolver_t *resolver, uint32_t min,
-				uint32_t max) {
+dns_resolver_setclientsperquery(dns_resolver_t *resolver,
+				uint_fast32_t clients) {
 	REQUIRE(VALID_RESOLVER(resolver));
 
-	LOCK(&resolver->lock);
-	resolver->spillatmin = resolver->spillat = min;
-	resolver->spillatmax = max;
-	UNLOCK(&resolver->lock);
+	atomic_store_relaxed(&resolver->spillat, clients);
 }
 
 void

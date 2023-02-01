@@ -2040,7 +2040,7 @@ static cfg_clausedef_t view_clauses[] = {
 	{ "catalog-zones", &cfg_type_catz, 0 },
 	{ "check-names", &cfg_type_checknames, CFG_CLAUSEFLAG_MULTI },
 	{ "cleaning-interval", NULL, CFG_CLAUSEFLAG_ANCIENT },
-	{ "clients-per-query", &cfg_type_uint32, 0 },
+	{ "clients-per-query", &cfg_type_uint32, CFG_CLAUSEFLAG_DEPRECATED },
 	{ "deny-answer-addresses", &cfg_type_denyaddresses, 0 },
 	{ "deny-answer-aliases", &cfg_type_denyaliases, 0 },
 	{ "disable-algorithms", &cfg_type_disablealgorithm,

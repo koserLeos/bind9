@@ -90,7 +90,7 @@ options {
 	check-srv-cname ( fail | warn | ignore );
 	check-svcb <boolean>;
 	check-wildcard <boolean>;
-	clients-per-query <integer>;
+	clients-per-query <integer>; // deprecated
 	cookie-algorithm ( aes | siphash24 );
 	cookie-secret <string>; // may occur multiple times
 	deny-answer-addresses { <address_match_element>; ... } [ except-from { <string>; ... } ];
@@ -392,7 +392,7 @@ view <string> [ <class> ] {
 	check-srv-cname ( fail | warn | ignore );
 	check-svcb <boolean>;
 	check-wildcard <boolean>;
-	clients-per-query <integer>;
+	clients-per-query <integer>; // deprecated
 	deny-answer-addresses { <address_match_element>; ... } [ except-from { <string>; ... } ];
 	deny-answer-aliases { <string>; ... } [ except-from { <string>; ... } ];
 	dialup ( notify | notify-passive | passive | refresh | <boolean> );
