@@ -8586,19 +8586,9 @@ load_configuration(const char *filename, named_server_t *server,
 	configure_server_quota(maps, "update-quota", &server->sctx->updquota);
 
 	max = isc_quota_getmax(&server->sctx->recursionquota);
-	if (max > 1000) {
-		unsigned int margin = ISC_MAX(100, named_g_cpus + 1);
-		if (margin + 100 > max) {
-			isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,
-				      NAMED_LOGMODULE_SERVER, ISC_LOG_ERROR,
-				      "'recursive-clients %d' too low when "
-				      "running with %d worker threads",
-				      max, named_g_cpus);
-			result = ISC_R_RANGE;
-
-			goto cleanup_bindkeys_parser;
-		}
-		softquota = max - margin;
+	if (max < 1000) {
+		isc_quota_max(&server->sctx->recursionquota, 1000);
+		softquota = 900;
 	} else {
 		softquota = (max * 90) / 100;
 	}

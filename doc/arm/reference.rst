@@ -3641,9 +3641,12 @@ system.
    :tags: query
    :short: Specifies the maximum number of concurrent recursive queries the server can perform.
 
-   This sets the maximum number (a "hard quota") of simultaneous recursive lookups
-   the server performs on behalf of clients. The default is
-   ``1000``. Because each recursing client uses a fair bit of memory (on
+   This sets the maximum number (a "hard quota") of simultaneous recursive
+   lookups the server performs on behalf of clients. The default is ``1000000``
+   (one million).  The minimum is ``1000``. Values below the minimum are
+   adjusted to the minimum value.
+
+   Because each recursing client uses a fair bit of memory (on
    the order of 20 kilobytes), the value of the :any:`recursive-clients`
    option may have to be decreased on hosts with limited memory.
 
@@ -3654,9 +3657,7 @@ system.
 
    A "soft quota" is also set. When this lower quota is exceeded,
    incoming requests are accepted, but for each one, a pending request
-   is dropped. If :any:`recursive-clients` is greater than 1000, the
-   soft quota is set to :any:`recursive-clients` minus 100; otherwise it is
-   set to 90% of :any:`recursive-clients`.
+   is dropped. The soft quota is set to 90% of :any:`recursive-clients`.
 
 .. namedconf:statement:: tcp-clients
    :tags: server

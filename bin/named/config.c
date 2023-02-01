@@ -99,7 +99,7 @@ options {\n\
 			    "\
 	prefetch 2 9;\n\
 	recursing-file \"named.recursing\";\n\
-	recursive-clients 1000;\n\
+	recursive-clients 100000;\n\
 	request-nsid false;\n\
 	reserved-sockets 512;\n\
 	resolver-query-timeout 10;\n\
