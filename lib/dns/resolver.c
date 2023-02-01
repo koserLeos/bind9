@@ -11159,16 +11159,6 @@ unlock:
 }
 
 void
-dns_resolver_getclientsperquery(dns_resolver_t *resolver,
-				uint_fast32_t *clients) {
-	REQUIRE(VALID_RESOLVER(resolver));
-
-	if (clients != NULL) {
-		*clients = atomic_load_relaxed(&resolver->spillat);
-	}
-}
-
-void
 dns_resolver_setclientsperquery(dns_resolver_t *resolver,
 				uint_fast32_t clients) {
 	REQUIRE(VALID_RESOLVER(resolver));

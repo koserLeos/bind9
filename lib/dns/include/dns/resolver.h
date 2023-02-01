@@ -541,10 +541,6 @@ dns_resolver_setfetchesperzone(dns_resolver_t *resolver, uint32_t clients);
 uint32_t
 dns_resolver_getfetchesperzone(dns_resolver_t *resolver);
 
-void
-dns_resolver_getclientsperquery(dns_resolver_t *resolver,
-				uint_fast32_t  *clients);
-
 bool
 dns_resolver_getzeronosoattl(dns_resolver_t *resolver);
 
