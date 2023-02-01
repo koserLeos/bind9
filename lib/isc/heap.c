@@ -50,17 +50,21 @@
  * holds true: for every element i > 1, heap_parent(i) has a priority
  * higher than or equal to that of i.
  */
+#ifdef ISC_HEAP_CHECK
 #define HEAPCONDITION(i) \
 	((i) == 1 ||     \
 	 !heap->compare(heap->array[(i)], heap->array[heap_parent(i)]))
+#else
+#define HEAPCONDITION(i) true
+#endif
 
 /*% ISC heap structure. */
 struct isc_heap {
 	unsigned int magic;
 	isc_mem_t *mctx;
-	unsigned int size;
-	unsigned int size_increment;
-	unsigned int last;
+	size_t size;
+	size_t size_increment;
+	size_t last;
 	void **array;
 	isc_heapcompare_t compare;
 	isc_heapindex_t index;
@@ -87,19 +91,16 @@ isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare, isc_heapindex_t idx,
 	REQUIRE(compare != NULL);
 
 	heap = isc_mem_get(mctx, sizeof(*heap));
-	heap->magic = HEAP_MAGIC;
-	heap->size = 0;
-	heap->mctx = NULL;
+	*heap = (isc_heap_t){
+		.size = 0,
+		.size_increment = (size_increment == 0) ? SIZE_INCREMENT
+							: size_increment,
+		.compare = compare,
+		.index = idx,
+		.magic = HEAP_MAGIC,
+	};
+
 	isc_mem_attach(mctx, &heap->mctx);
-	if (size_increment == 0) {
-		heap->size_increment = SIZE_INCREMENT;
-	} else {
-		heap->size_increment = size_increment;
-	}
-	heap->last = 0;
-	heap->array = NULL;
-	heap->compare = compare;
-	heap->index = idx;
 
 	*heapp = heap;
 }
@@ -115,60 +116,60 @@ isc_heap_destroy(isc_heap_t **heapp) {
 
 	if (heap->array != NULL) {
 		isc_mem_put(heap->mctx, heap->array,
-			    heap->size * sizeof(void *));
+			    heap->size * sizeof(heap->array[0]));
 	}
 	heap->magic = 0;
 	isc_mem_putanddetach(&heap->mctx, heap, sizeof(*heap));
 }
 
 static void
-resize(isc_heap_t *heap) {
-	void **new_array;
-	unsigned int new_size;
-
-	REQUIRE(VALID_HEAP(heap));
-
-	new_size = heap->size + heap->size_increment;
-	new_array = isc_mem_get(heap->mctx, new_size * sizeof(void *));
-	if (heap->array != NULL) {
-		memmove(new_array, heap->array, heap->size * sizeof(void *));
-		isc_mem_put(heap->mctx, heap->array,
-			    heap->size * sizeof(void *));
-	}
+upsize(isc_heap_t *heap) {
+	size_t new_size = heap->size + heap->size_increment;
+	heap->array = isc_mem_reget(heap->mctx, heap->array,
+				    heap->size * sizeof(heap->array[0]),
+				    new_size * sizeof(heap->array[0]));
 	heap->size = new_size;
-	heap->array = new_array;
 }
 
 static void
-float_up(isc_heap_t *heap, unsigned int i, void *elt) {
-	unsigned int p;
+downsize(isc_heap_t *heap) {
+	INSIST(heap->size - heap->size_increment > heap->last);
 
-	for (p = heap_parent(i); i > 1 && heap->compare(elt, heap->array[p]);
-	     i = p, p = heap_parent(i))
-	{
-		heap->array[i] = heap->array[p];
-		if (heap->index != NULL) {
-			(heap->index)(heap->array[i], i);
-		}
-	}
+	size_t new_size = heap->size - heap->size_increment;
+	heap->array = isc_mem_reget(heap->mctx, heap->array,
+				    heap->size * sizeof(heap->array[0]),
+				    new_size * sizeof(heap->array[0]));
+	heap->size = new_size;
+}
+
+static void
+store(isc_heap_t *heap, size_t i, void *elt) {
 	heap->array[i] = elt;
 	if (heap->index != NULL) {
 		(heap->index)(heap->array[i], i);
 	}
+}
+
+static void
+float_up(isc_heap_t *heap, size_t i, void *elt) {
+	for (size_t j = heap_parent(i);
+	     i > 1 && heap->compare(elt, heap->array[j]);
+	     i = j, j = heap_parent(i))
+	{
+		store(heap, i, heap->array[j]);
+	}
+	store(heap, i, elt);
 
 	INSIST(HEAPCONDITION(i));
 	heap_check(heap);
 }
 
 static void
-sink_down(isc_heap_t *heap, unsigned int i, void *elt) {
-	unsigned int j, size, half_size;
-	size = heap->last;
-	half_size = size / 2;
-	while (i <= half_size) {
+sink_down(isc_heap_t *heap, size_t i, void *elt) {
+	for (size_t j = heap_left(i); j <= heap->last; i = j, j = heap_left(i))
+	{
 		/* Find the smallest of the (at most) two children. */
-		j = heap_left(i);
-		if (j < size &&
+		if (j < heap->last &&
 		    heap->compare(heap->array[j + 1], heap->array[j]))
 		{
 			j++;
@@ -176,16 +177,9 @@ sink_down(isc_heap_t *heap, unsigned int i, void *elt) {
 		if (heap->compare(elt, heap->array[j])) {
 			break;
 		}
-		heap->array[i] = heap->array[j];
-		if (heap->index != NULL) {
-			(heap->index)(heap->array[i], i);
-		}
-		i = j;
+		store(heap, i, heap->array[j]);
 	}
-	heap->array[i] = elt;
-	if (heap->index != NULL) {
-		(heap->index)(heap->array[i], i);
-	}
+	store(heap, i, elt);
 
 	INSIST(HEAPCONDITION(i));
 	heap_check(heap);
@@ -201,7 +195,7 @@ isc_heap_insert(isc_heap_t *heap, void *elt) {
 	new_last = heap->last + 1;
 	RUNTIME_CHECK(new_last > 0); /* overflow check */
 	if (new_last >= heap->size) {
-		resize(heap);
+		upsize(heap);
 	}
 	heap->last = new_last;
 
@@ -220,6 +214,13 @@ isc_heap_delete(isc_heap_t *heap, unsigned int idx) {
 	if (heap->index != NULL) {
 		(heap->index)(heap->array[idx], 0);
 	}
+
+	if (heap->size > 2 * heap->size_increment &&
+	    heap->last < heap->size - 2 * heap->size_increment)
+	{
+		downsize(heap);
+	}
+
 	if (idx == heap->last) {
 		heap->array[heap->last] = NULL;
 		heap->last--;
