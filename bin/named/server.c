@@ -8586,12 +8586,11 @@ load_configuration(const char *filename, named_server_t *server,
 	configure_server_quota(maps, "update-quota", &server->sctx->updquota);
 
 	max = isc_quota_getmax(&server->sctx->recursionquota);
-	if (max < 1000) {
-		isc_quota_max(&server->sctx->recursionquota, 1000);
-		softquota = 900;
-	} else {
-		softquota = (max * 90) / 100;
+	if (max < UINT32_MAX) {
+		isc_quota_max(&server->sctx->recursionquota, UINT32_MAX);
+		max = UINT32_MAX;
 	}
+	softquota = (max * 90) / 100;
 
 	isc_quota_soft(&server->sctx->recursionquota, softquota);
 
