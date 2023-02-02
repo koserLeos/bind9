@@ -219,8 +219,9 @@ struct dns_db {
 	ISC_LIST(dns_dbonupdatelistener_t) update_listeners;
 };
 
-#define DNS_DBATTR_CACHE 0x01
-#define DNS_DBATTR_STUB	 0x02
+#define DNS_DBATTR_CACHE      0x01
+#define DNS_DBATTR_STUB	      0x02
+#define DNS_DBATTR_DELEGATION 0x04
 
 struct dns_dbonupdatelistener {
 	dns_dbupdate_callback_t onupdate;

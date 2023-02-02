@@ -761,6 +761,8 @@ typedef struct rbtdb_dbiterator {
 
 #define IS_STUB(rbtdb)	(((rbtdb)->common.attributes & DNS_DBATTR_STUB) != 0)
 #define IS_CACHE(rbtdb) (((rbtdb)->common.attributes & DNS_DBATTR_CACHE) != 0)
+#define IS_DELEGCACHE(rbtdb) \
+	(((rbtdb)->common.attributes & DNS_DBATTR_DELEGATION) != 0)
 
 static void
 free_rbtdb(dns_rbtdb_t *rbtdb, bool log);
@@ -8229,6 +8231,10 @@ dns_rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 	} else if (type == dns_dbtype_stub) {
 		rbtdb->common.methods = &zone_methods;
 		rbtdb->common.attributes |= DNS_DBATTR_STUB;
+	} else if (type == dns_dbtype_delegation) {
+		rbtdb->common.methods = &cache_methods;
+		rbtdb->common.attributes |= DNS_DBATTR_CACHE;
+		rbtdb->common.attributes |= DNS_DBATTR_DELEGATION;
 	} else {
 		rbtdb->common.methods = &zone_methods;
 	}
