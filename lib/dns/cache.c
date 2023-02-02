@@ -77,6 +77,7 @@ struct dns_cache {
 	/* Locked by 'lock'. */
 	dns_rdataclass_t rdclass;
 	dns_db_t *db;
+	dns_db_t *nsdb;
 	size_t size;
 	dns_ttl_t serve_stale_ttl;
 	dns_ttl_t serve_stale_refresh;
@@ -89,7 +90,7 @@ struct dns_cache {
  ***/
 
 static isc_result_t
-cache_create_db(dns_cache_t *cache, dns_db_t **db) {
+cache_create_db(dns_cache_t *cache, dns_dbtype_t dbtype, dns_db_t **db) {
 	isc_result_t result;
 	char *argv[1] = { 0 };
 
@@ -99,8 +100,8 @@ cache_create_db(dns_cache_t *cache, dns_db_t **db) {
 	 * dns_db_create() via argv[0].
 	 */
 	argv[0] = (char *)cache->hmctx;
-	result = dns_db_create(cache->mctx, "rbt", dns_rootname,
-			       dns_dbtype_cache, cache->rdclass, 1, argv, db);
+	result = dns_db_create(cache->mctx, "rbt", dns_rootname, dbtype,
+			       cache->rdclass, 1, argv, db);
 	if (result == ISC_R_SUCCESS) {
 		dns_db_setservestalettl(*db, cache->serve_stale_ttl);
 	}
@@ -155,12 +156,19 @@ dns_cache_create(isc_loopmgr_t *loopmgr, dns_rdataclass_t rdclass,
 	/*
 	 * Create the database
 	 */
-	result = cache_create_db(cache, &cache->db);
+	result = cache_create_db(cache, dns_dbtype_cache, &cache->db);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup_stats;
 	}
 
+	result = cache_create_db(cache, dns_dbtype_delegation, &cache->nsdb);
+	if (result != ISC_R_SUCCESS) {
+		goto cleanup_db;
+	}
+
 	dns_db_setloop(cache->db, isc_loop_main(loopmgr));
+	dns_db_setloop(cache->nsdb, isc_loop_main(loopmgr));
+
 	cache->magic = CACHE_MAGIC;
 
 	/*
@@ -169,12 +177,19 @@ dns_cache_create(isc_loopmgr_t *loopmgr, dns_rdataclass_t rdclass,
 	 */
 	result = dns_db_setcachestats(cache->db, cache->stats);
 	if (result != ISC_R_SUCCESS) {
-		goto cleanup_db;
+		goto cleanup_nsdb;
+	}
+
+	result = dns_db_setcachestats(cache->nsdb, cache->stats);
+	if (result != ISC_R_SUCCESS) {
+		goto cleanup_nsdb;
 	}
 
 	*cachep = cache;
 	return (ISC_R_SUCCESS);
 
+cleanup_nsdb:
+	dns_db_detach(&cache->nsdb);
 cleanup_db:
 	dns_db_detach(&cache->db);
 cleanup_stats:
@@ -194,6 +209,7 @@ cache_free(dns_cache_t *cache) {
 	isc_refcount_destroy(&cache->references);
 
 	isc_mem_clearwater(cache->mctx);
+	dns_db_detach(&cache->nsdb);
 	dns_db_detach(&cache->db);
 	isc_mem_free(cache->mctx, cache->name);
 	isc_stats_detach(&cache->stats);
@@ -240,6 +256,17 @@ dns_cache_attachdb(dns_cache_t *cache, dns_db_t **dbp) {
 	UNLOCK(&cache->lock);
 }
 
+void
+dns_cache_attachnsdb(dns_cache_t *cache, dns_db_t **dbp) {
+	REQUIRE(VALID_CACHE(cache));
+	REQUIRE(dbp != NULL && *dbp == NULL);
+	REQUIRE(cache->db != NULL);
+
+	LOCK(&cache->lock);
+	dns_db_attach(cache->nsdb, dbp);
+	UNLOCK(&cache->lock);
+}
+
 const char *
 dns_cache_getname(dns_cache_t *cache) {
 	REQUIRE(VALID_CACHE(cache));
@@ -259,6 +286,7 @@ water(void *arg, int mark) {
 		dns_db_overmem(cache->db, overmem);
 		cache->overmem = overmem;
 		isc_mem_waterack(cache->mctx, mark);
+		/* WMM: Probably some nsdb overmem updates required */
 	}
 	UNLOCK(&cache->lock);
 }
@@ -353,6 +381,7 @@ dns_cache_setservestalerefresh(dns_cache_t *cache, dns_ttl_t interval) {
 	UNLOCK(&cache->lock);
 
 	(void)dns_db_setservestalerefresh(cache->db, interval);
+	(void)dns_db_setservestalerefresh(cache->nsdb, interval);
 }
 
 dns_ttl_t
@@ -369,10 +398,17 @@ dns_cache_getservestalerefresh(dns_cache_t *cache) {
 isc_result_t
 dns_cache_flush(dns_cache_t *cache) {
 	dns_db_t *db = NULL, *olddb;
+	dns_db_t *nsdb = NULL, *oldnsdb;
 	isc_result_t result;
 
-	result = cache_create_db(cache, &db);
+	result = cache_create_db(cache, dns_dbtype_cache, &db);
 	if (result != ISC_R_SUCCESS) {
+		return (result);
+	}
+
+	result = cache_create_db(cache, dns_dbtype_delegation, &nsdb);
+	if (result != ISC_R_SUCCESS) {
+		dns_db_detach(&db);
 		return (result);
 	}
 
@@ -380,9 +416,14 @@ dns_cache_flush(dns_cache_t *cache) {
 	olddb = cache->db;
 	cache->db = db;
 	dns_db_setcachestats(cache->db, cache->stats);
+
+	oldnsdb = cache->nsdb;
+	cache->nsdb = nsdb;
+	dns_db_setcachestats(cache->nsdb, cache->stats);
 	UNLOCK(&cache->lock);
 
 	dns_db_detach(&olddb);
+	dns_db_detach(&oldnsdb);
 
 	return (ISC_R_SUCCESS);
 }
@@ -501,6 +542,42 @@ dns_cache_flushname(dns_cache_t *cache, const dns_name_t *name) {
 	return (dns_cache_flushnode(cache, name, false));
 }
 
+static isc_result_t
+dbns_flushnode(dns_cache_t *cache, const dns_name_t *name, bool tree) {
+	isc_result_t result;
+	dns_dbnode_t *node = NULL;
+	dns_db_t *db = NULL;
+
+	LOCK(&cache->lock);
+	if (cache->nsdb != NULL) {
+		dns_db_attach(cache->nsdb, &db);
+	}
+	UNLOCK(&cache->lock);
+
+	if (db == NULL) {
+		return (ISC_R_SUCCESS);
+	}
+
+	if (tree) {
+		result = cleartree(cache->nsdb, name);
+	} else {
+		result = dns_db_findnode(cache->nsdb, name, false, &node);
+		if (result == ISC_R_NOTFOUND) {
+			result = ISC_R_SUCCESS;
+			goto cleanup_db;
+		}
+		if (result != ISC_R_SUCCESS) {
+			goto cleanup_db;
+		}
+		result = clearnode(cache->nsdb, node);
+		dns_db_detachnode(cache->nsdb, &node);
+	}
+
+cleanup_db:
+	dns_db_detach(&db);
+	return (result);
+}
+
 isc_result_t
 dns_cache_flushnode(dns_cache_t *cache, const dns_name_t *name, bool tree) {
 	isc_result_t result;
@@ -517,7 +594,7 @@ dns_cache_flushnode(dns_cache_t *cache, const dns_name_t *name, bool tree) {
 	}
 	UNLOCK(&cache->lock);
 	if (db == NULL) {
-		return (ISC_R_SUCCESS);
+		return (dbns_flushnode(cache, name, tree));
 	}
 
 	if (tree) {
@@ -537,7 +614,11 @@ dns_cache_flushnode(dns_cache_t *cache, const dns_name_t *name, bool tree) {
 
 cleanup_db:
 	dns_db_detach(&db);
-	return (result);
+
+	if (result != ISC_R_SUCCESS) {
+		return (result);
+	}
+	return (dbns_flushnode(cache, name, tree));
 }
 
 isc_stats_t *
@@ -643,6 +724,7 @@ dns_cache_dumpstats(dns_cache_t *cache, FILE *fp) {
 		"cache NSEC auxiliary database nodes");
 	fprintf(fp, "%20" PRIu64 " %s\n", (uint64_t)dns_db_hashsize(cache->db),
 		"cache database hash buckets");
+	/* WMM: Probably some nsdb stats adaptations needed */
 
 	fprintf(fp, "%20" PRIu64 " %s\n", (uint64_t)isc_mem_inuse(cache->mctx),
 		"cache tree memory in use");
@@ -703,6 +785,7 @@ dns_cache_renderxml(dns_cache_t *cache, void *writer0) {
 	TRY0(renderstat("CacheNSECNodes",
 			dns_db_nodecount(cache->db, dns_dbtree_nsec), writer));
 	TRY0(renderstat("CacheBuckets", dns_db_hashsize(cache->db), writer));
+	/* WMM: Probably some nsdb stats adaptations needed here */
 
 	TRY0(renderstat("TreeMemInUse", isc_mem_inuse(cache->mctx), writer));
 
@@ -775,6 +858,7 @@ dns_cache_renderjson(dns_cache_t *cache, void *cstats0) {
 	obj = json_object_new_int64(dns_db_hashsize(cache->db));
 	CHECKMEM(obj);
 	json_object_object_add(cstats, "CacheBuckets", obj);
+	/* WMM: Probably some nsdb stats adaptations needed here */
 
 	obj = json_object_new_int64(isc_mem_inuse(cache->mctx));
 	CHECKMEM(obj);
