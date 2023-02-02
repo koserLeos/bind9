@@ -2246,6 +2246,16 @@ dns_rdatatype_atparent(dns_rdatatype_t type) {
 }
 
 bool
+dns_rdatatype_isdelegation(dns_rdatatype_t type) {
+	if ((dns_rdatatype_attributes(type) & DNS_RDATATYPEATTR_DELEGATION) !=
+	    0)
+	{
+		return (true);
+	}
+	return (false);
+}
+
+bool
 dns_rdatatype_followadditional(dns_rdatatype_t type) {
 	if ((dns_rdatatype_attributes(type) &
 	     DNS_RDATATYPEATTR_FOLLOWADDITIONAL) != 0)

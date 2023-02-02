@@ -685,6 +685,17 @@ dns_rdatatype_atparent(dns_rdatatype_t type);
  */
 
 bool
+dns_rdatatype_isdelegation(dns_rdatatype_t type);
+/*%<
+ * Return true iff rdata of type 'type' should appear at both the parent and
+ * child side of a zone cut.
+ *
+ * Requires:
+ * \li	'type' is a valid rdata type.
+ *
+ */
+
+bool
 dns_rdatatype_atcname(dns_rdatatype_t type);
 /*%<
  * Return true iff rdata of type 'type' can appear beside a cname.
@@ -745,6 +756,8 @@ dns_rdatatype_attributes(dns_rdatatype_t rdtype);
 #define DNS_RDATATYPEATTR_ATCNAME 0x00000400U
 /*% Follow additional */
 #define DNS_RDATATYPEATTR_FOLLOWADDITIONAL 0x00000800U
+/*% Is present at parent and child apex */
+#define DNS_RDATATYPEATTR_DELEGATION 0x00001000U
 
 dns_rdatatype_t
 dns_rdata_covers(dns_rdata_t *rdata);
