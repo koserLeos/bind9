@@ -212,10 +212,10 @@ typedef isc_rwlock_t treelock_t;
 #define DNS_RBTDB_LIMITLRUUPDATE 1
 #endif
 
-/*% Time after which we update LRU for glue records, 5 minutes */
-#define DNS_RBTDB_LRUUPDATE_GLUE 300
-/*% Time after which we update LRU for all other records, 10 minutes */
-#define DNS_RBTDB_LRUUPDATE_REGULAR 600
+/*% Time after which we update LRU for glue records, 10 seconds */
+#define DNS_RBTDB_LRUUPDATE_GLUE 10
+/*% Time after which we update LRU for all other records, 30 seconds */
+#define DNS_RBTDB_LRUUPDATE_REGULAR 30
 
 /*
  * Allow clients with a virtual time of up to 5 minutes in the past to see
