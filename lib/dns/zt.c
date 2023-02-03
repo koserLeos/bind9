@@ -90,7 +90,7 @@ dns_zt_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, dns_zt_t **ztp) {
 	zt = isc_mem_get(mctx, sizeof(*zt));
 
 	zt->table = NULL;
-	result = dns_rbt_create(mctx, auto_detach, zt, &zt->table);
+	result = dns_rbt_create(mctx, auto_detach, zt, 1, &zt->table);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup_zt;
 	}
@@ -149,7 +149,7 @@ dns_zt_unmount(dns_zt_t *zt, dns_zone_t *zone) {
 
 	RWLOCK(&zt->rwlock, isc_rwlocktype_write);
 
-	result = dns_rbt_deletename(zt->table, name, false);
+	result = dns_rbt_deletename(zt->table, name, NULL);
 
 	RWUNLOCK(&zt->rwlock, isc_rwlocktype_write);
 

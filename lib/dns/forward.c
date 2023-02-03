@@ -49,7 +49,8 @@ dns_fwdtable_create(isc_mem_t *mctx, dns_fwdtable_t **fwdtablep) {
 	fwdtable = isc_mem_get(mctx, sizeof(*fwdtable));
 
 	fwdtable->table = NULL;
-	result = dns_rbt_create(mctx, auto_detach, fwdtable, &fwdtable->table);
+	result = dns_rbt_create(mctx, auto_detach, fwdtable, 1,
+				&fwdtable->table);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup_fwdtable;
 	}
@@ -174,7 +175,7 @@ dns_fwdtable_delete(dns_fwdtable_t *fwdtable, const dns_name_t *name) {
 	REQUIRE(VALID_FWDTABLE(fwdtable));
 
 	RWLOCK(&fwdtable->rwlock, isc_rwlocktype_write);
-	result = dns_rbt_deletename(fwdtable->table, name, false);
+	result = dns_rbt_deletename(fwdtable->table, name, NULL);
 	RWUNLOCK(&fwdtable->rwlock, isc_rwlocktype_write);
 
 	return (result);

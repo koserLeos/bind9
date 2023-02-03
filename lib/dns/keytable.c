@@ -153,7 +153,7 @@ dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep) {
 	keytable = isc_mem_get(mctx, sizeof(*keytable));
 
 	keytable->table = NULL;
-	result = dns_rbt_create(mctx, free_keynode, mctx, &keytable->table);
+	result = dns_rbt_create(mctx, free_keynode, mctx, 1, &keytable->table);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup_keytable;
 	}
@@ -442,8 +442,7 @@ dns_keytable_delete(dns_keytable_t *keytable, const dns_name_t *keyname,
 				  DNS_RBTFIND_NOOPTIONS, NULL, NULL);
 	if (result == ISC_R_SUCCESS) {
 		if (node->data != NULL) {
-			result = dns_rbt_deletenode(keytable->table, node,
-						    false);
+			dns_rbt_deletenode(keytable->table, node, NULL);
 			if (callback != NULL) {
 				(*callback)(keyname, callback_arg);
 			}

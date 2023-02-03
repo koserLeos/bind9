@@ -16,6 +16,7 @@
 /*! \file dns/rbt.h */
 
 #include <inttypes.h>
+#include <limits.h>
 #include <stdbool.h>
 
 #include <isc/assertions.h>
@@ -39,16 +40,10 @@ ISC_LANG_BEGINDECLS
 #define DNS_RBTFIND_NOPREDECESSOR 0x04
 /*@}*/
 
-#define DNS_RBT_USEMAGIC 1
+#define DNS_RBT_LOCKLENGTH (sizeof(((dns_rbtnode_t *)0)->locknum) * CHAR_BIT)
 
-#define DNS_RBT_LOCKLENGTH (sizeof(((dns_rbtnode_t *)0)->locknum) * 8)
-
-#define DNS_RBTNODE_MAGIC ISC_MAGIC('R', 'B', 'N', 'O')
-#if DNS_RBT_USEMAGIC
+#define DNS_RBTNODE_MAGIC    ISC_MAGIC('R', 'B', 'N', 'O')
 #define DNS_RBTNODE_VALID(n) ISC_MAGIC_VALID(n, DNS_RBTNODE_MAGIC)
-#else /* if DNS_RBT_USEMAGIC */
-#define DNS_RBTNODE_VALID(n) true
-#endif /* if DNS_RBT_USEMAGIC */
 
 /*%
  * This is the structure that is used for each node in the red/black
@@ -65,9 +60,7 @@ enum {
 	DNS_RBT_NSEC_NSEC3 = 3	   /* in nsec3 tree */
 };
 struct dns_rbtnode {
-#if DNS_RBT_USEMAGIC
 	unsigned int magic;
-#endif /* if DNS_RBT_USEMAGIC */
 	/*@{*/
 	/*!
 	 * The following bitfields add up to a total bitwidth of 32.
@@ -263,7 +256,7 @@ typedef struct dns_rbtnodechain {
 *****/
 isc_result_t
 dns_rbt_create(isc_mem_t *mctx, dns_rbtdeleter_t deleter, void *deleter_arg,
-	       dns_rbt_t **rbtp);
+	       uint16_t nlocks, dns_rbt_t **rbtp);
 /*%<
  * Initialize a red-black tree of trees.
  *
@@ -510,13 +503,10 @@ dns_rbt_findnode(dns_rbt_t *rbt, const dns_name_t *name, dns_name_t *foundname,
  */
 
 isc_result_t
-dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name, bool recurse);
+dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name,
+		   dns_rbtnode_t **parentp);
 /*%<
  * Delete 'name' from the tree of trees.
- *
- * Notes:
- *\li   When 'name' is removed, if recurse is true then all of its
- *      subnames are removed too.
  *
  * Requires:
  *\li   rbt is a valid rbt manager.
@@ -552,38 +542,21 @@ dns_rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name, bool recurse);
  *                      dns_rbt_deletenode.
  */
 
-isc_result_t
-dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, bool recurse);
+void
+dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node,
+		   dns_rbtnode_t **parentp);
 /*%<
  * Delete 'node' from the tree of trees.
- *
- * Notes:
- *\li   When 'node' is removed, if recurse is true then all nodes
- *      in levels down from it are removed too.
  *
  * Requires:
  *\li   rbt is a valid rbt manager.
  *\li   node != NULL.
  *
- * Ensures:
- *\li   Does NOT ensure that any external references to nodes in the tree
- *      are unaffected by node joins.
- *
- *\li   If result is ISC_R_SUCCESS:
- *              'node' does not appear in the tree with data; however,
- *              the node might still exist if it serves as a pointer to
- *              a lower tree level as long as 'recurse' was false, hence
- *              the node could can be found with dns_rbt_findnode when
- *              that function's empty_data_ok parameter is true.
- *
- *\li   If result is ISC_R_NOMEMORY or ISC_R_NOSPACE:
- *              The node was deleted, but the tree structure was not
- *              optimized.
- *
- * Returns:
- *\li   #ISC_R_SUCCESS  Success
- *\li   #ISC_R_NOMEMORY Resource Limit: Out of Memory when joining nodes.
- *\li   #ISC_R_NOSPACE  dns_name_concatenate failed when joining nodes.
+ *\li	'node' does not appear in the tree with data; however,
+ *	the node might still exist if it serves as a pointer to
+ *	a lower tree level, hence the node could can be found
+ *	with dns_rbt_findnode when that function's empty_data_ok
+ *	parameter is true.
  */
 
 void
@@ -987,4 +960,5 @@ dns__rbtnode_namelen(dns_rbtnode_t *node);
  * Returns the length of the full name of the node. Used only internally
  * and in unit tests.
  */
+
 ISC_LANG_ENDDECLS

@@ -1,3 +1,8 @@
+6084.	[func]		Refactor the way how we cleanup the empty rbtnodes,
+			fix the bucket assignment for implicitly created
+			rbtnodes, and cleanup unused parts of dns_rbt.
+			[GL !7422]
+
 6083.	[bug]		Fix DNSRPS-enabled builds as they were inadvertently
 			broken by changes 5949 and 6042. [GL #3827]
 

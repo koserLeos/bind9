@@ -25,12 +25,17 @@
 
 #include <isc/heap.h>
 #include <isc/mem.h>
+#include <isc/random.h>
 #include <isc/util.h>
 
 #include <tests/isc.h>
 
+#define mctx heap_mctx
+#include "../heap.c"
+#undef mctx
+
 struct e {
-	unsigned int value;
+	uint32_t value;
 	unsigned int index;
 };
 
@@ -50,9 +55,9 @@ idx(void *p, unsigned int i) {
 }
 
 /* test isc_heap_delete() */
-ISC_RUN_TEST_IMPL(isc_heap_delete) {
+ISC_RUN_TEST_IMPL(isc_heap_basic) {
 	isc_heap_t *heap = NULL;
-	struct e e1 = { 100, 0 };
+	struct e e1 = { .value = 100 };
 
 	UNUSED(state);
 
@@ -69,9 +74,82 @@ ISC_RUN_TEST_IMPL(isc_heap_delete) {
 	assert_null(heap);
 }
 
+#define INSERTS	  10000
+#define INCREMENT 64
+
+ISC_RUN_TEST_IMPL(isc_heap_random) {
+	isc_heap_t *heap = NULL;
+	size_t count = 0;
+
+	isc_heap_create(mctx, compare, idx, INCREMENT, &heap);
+	assert_non_null(heap);
+
+	/* Insert couple of random entries */
+	for (size_t i = 0; i < INSERTS; i++) {
+		struct e *e = isc_mem_get(mctx, sizeof(*e));
+		*e = (struct e){ .value = isc_random32() };
+		isc_heap_insert(heap, e);
+		count++;
+	}
+
+	/* Check if we upsized the heap to the expected size */
+	assert_int_equal(heap->size, (INSERTS / INCREMENT + 1) * INCREMENT);
+
+	/* Check the order and delete the entries */
+	uint32_t value = 0;
+	struct e *e = NULL;
+	while ((e = isc_heap_element(heap, 1)) != NULL) {
+		assert_int_equal(e->index, 1);
+		assert_true(e->value >= value);
+
+		value = e->value;
+
+		isc_heap_delete(heap, e->index);
+		isc_mem_put(mctx, e, sizeof(*e));
+		count--;
+	}
+	assert_int_equal(count, 0);
+
+	/* Check if we downsized the heap to the expected size */
+	assert_int_equal(heap->size, INCREMENT * 2);
+
+	isc_heap_destroy(&heap);
+	assert_null(heap);
+}
+
+static void
+free_e(struct e *e, size_t *count) {
+	(*count)--;
+	isc_mem_put(mctx, e, sizeof(*e));
+}
+
+ISC_RUN_TEST_IMPL(isc_heap_foreach) {
+	isc_heap_t *heap = NULL;
+	size_t count = 0;
+
+	isc_heap_create(mctx, compare, NULL, INCREMENT, &heap);
+	assert_non_null(heap);
+
+	/* Insert couple of random entries */
+	for (size_t i = 0; i < INSERTS; i++) {
+		struct e *e = isc_mem_get(mctx, sizeof(*e));
+		*e = (struct e){ .value = isc_random32() };
+		isc_heap_insert(heap, e);
+		count++;
+	}
+
+	isc_heap_foreach(heap, (isc_heapaction_t)free_e, &count);
+	assert_int_equal(count, 0);
+
+	isc_heap_destroy(&heap);
+	assert_null(heap);
+}
+
 ISC_TEST_LIST_START
 
-ISC_TEST_ENTRY(isc_heap_delete)
+ISC_TEST_ENTRY(isc_heap_basic)
+ISC_TEST_ENTRY(isc_heap_random)
+ISC_TEST_ENTRY(isc_heap_foreach)
 
 ISC_TEST_LIST_END
 

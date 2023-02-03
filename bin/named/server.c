@@ -641,7 +641,7 @@ configure_view_nametable(const cfg_obj_t *vconfig, const cfg_obj_t *config,
 		}
 	}
 
-	result = dns_rbt_create(mctx, NULL, NULL, rbtp);
+	result = dns_rbt_create(mctx, NULL, NULL, 1, rbtp);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}
@@ -12438,7 +12438,7 @@ again:
 				(*foundkeys)++;
 				dns_rbtnodechain_invalidate(&chain);
 				(void)dns_rbt_deletename(ring->keys,
-							 &tkey->name, false);
+							 &tkey->name, NULL);
 				goto again;
 			}
 		}

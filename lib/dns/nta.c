@@ -130,7 +130,7 @@ dns_ntatable_create(dns_view_t *view, isc_taskmgr_t *taskmgr,
 	}
 	isc_task_setname(ntatable->task, "ntatable", ntatable);
 
-	result = dns_rbt_create(ntatable->mctx, dns__nta_free, NULL,
+	result = dns_rbt_create(ntatable->mctx, dns__nta_free, NULL, 1,
 				&ntatable->table);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup_task;
@@ -380,8 +380,8 @@ deletenode(dns_ntatable_t *ntatable, const dns_name_t *name) {
 			return (ISC_R_NOTFOUND);
 		}
 
-		result = dns_rbt_deletenode(ntatable->table, node, false);
-		return (result);
+		dns_rbt_deletenode(ntatable->table, node, NULL);
+		return (ISC_R_SUCCESS);
 	case DNS_R_PARTIALMATCH:
 		return (ISC_R_NOTFOUND);
 	default:
@@ -462,8 +462,7 @@ again:
 		      ISC_LOG_INFO, "deleting expired NTA at %s", nb);
 
 	/* We already found the node under the lock, so just delete it */
-	result = dns_rbt_deletenode(ntatable->table, node, false);
-	INSIST(result == ISC_R_SUCCESS);
+	dns_rbt_deletenode(ntatable->table, node, NULL);
 
 	/* Look again */
 	goto again;
