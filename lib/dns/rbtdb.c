@@ -217,12 +217,6 @@ typedef isc_rwlock_t treelock_t;
 /*% Time after which we update LRU for all other records, 30 seconds */
 #define DNS_RBTDB_LRUUPDATE_REGULAR 30
 
-/*
- * Allow clients with a virtual time of up to 5 minutes in the past to see
- * records that would have otherwise have expired.
- */
-#define RBTDB_VIRTUAL 300
-
 struct noqname {
 	dns_name_t name;
 	void *neg;
@@ -4539,7 +4533,7 @@ check_stale_header(dns_rbtnode_t *node, rdatasetheader_t *header,
 		 * it as ancient, and the node as dirty, so it will get
 		 * cleaned up later.
 		 */
-		if ((header->rdh_ttl < search->now - RBTDB_VIRTUAL) &&
+		if ((header->rdh_ttl < search->now) &&
 		    (*nlocktypep == isc_rwlocktype_write ||
 		     NODE_TRYUPGRADE(lock, nlocktypep) == ISC_R_SUCCESS))
 		{
@@ -5606,9 +5600,7 @@ expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 	NODE_WRLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
 
 	for (header = rbtnode->data; header != NULL; header = header->next) {
-		if (header->rdh_ttl + STALE_TTL(header, rbtdb) <=
-		    now - RBTDB_VIRTUAL)
-		{
+		if (header->rdh_ttl + STALE_TTL(header, rbtdb) <= now) {
 			/*
 			 * We don't check if refcurrent(rbtnode) == 0 and try
 			 * to free like we do in cache_find(), because
@@ -5874,7 +5866,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		header_next = header->next;
 		if (!ACTIVE(header, now)) {
 			if ((header->rdh_ttl + STALE_TTL(header, rbtdb) <
-			     now - RBTDB_VIRTUAL) &&
+			     now) &&
 			    (nlocktype == isc_rwlocktype_write ||
 			     NODE_TRYUPGRADE(lock, &nlocktype) ==
 				     ISC_R_SUCCESS))
@@ -6955,8 +6947,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 		header = isc_heap_element(rbtdb->heaps[rbtnode->locknum], 1);
 		if (header != NULL &&
-		    header->rdh_ttl + STALE_TTL(header, rbtdb) <
-			    now - RBTDB_VIRTUAL)
+		    header->rdh_ttl + STALE_TTL(header, rbtdb) < now)
 		{
 			expire_header(rbtdb, header, &nlocktype, &tlocktype,
 				      expire_ttl);
@@ -10022,7 +10013,7 @@ overmem_purge(dns_rbtdb_t *rbtdb, unsigned int locknum_start, isc_stdtime_t now,
 		NODE_WRLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
 
 		header = isc_heap_element(rbtdb->heaps[locknum], 1);
-		if (header && header->rdh_ttl < now - RBTDB_VIRTUAL) {
+		if (header && header->rdh_ttl < now) {
 			expire_header(rbtdb, header, &nlocktype, tlocktypep,
 				      expire_ttl);
 			purgecount--;
