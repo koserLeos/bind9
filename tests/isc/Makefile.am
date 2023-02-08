@@ -170,6 +170,11 @@ udp_test_SOURCES =	\
 	netmgr_common.c \
 	uv_wrap.h
 
+# testing that OPENSSL_cleanup fully cleans up
+check_PROGRAMS += late_cleanup_bug
+late_cleanup_bug_CPPFLAGS = $(OPENSSL_CFLAGS)
+late_cleanup_bug_LDADD = $(OPENSSL_LIBS)
+
 EXTRA_DIST = testdata
 
 include $(top_srcdir)/Makefile.tests
