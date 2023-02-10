@@ -2855,6 +2855,11 @@ find_header:
 				header->closest = newheader->closest;
 				newheader->closest = NULL;
 			}
+			if (header->rrsigs == NULL && newheader->rrsigs != NULL)
+			{
+				header->rrsigs = newheader->rrsigs;
+				newheader->rrsigs = NULL;
+			}
 			dns_slabheader_destroy(&newheader);
 			if (addedrdataset != NULL) {
 				dns__rbtdb_bindrdataset(
@@ -2919,6 +2924,11 @@ find_header:
 			{
 				header->closest = newheader->closest;
 				newheader->closest = NULL;
+			}
+			if (header->rrsigs == NULL && newheader->rrsigs != NULL)
+			{
+				header->rrsigs = newheader->rrsigs;
+				newheader->rrsigs = NULL;
 			}
 			dns_slabheader_destroy(&newheader);
 			if (addedrdataset != NULL) {
@@ -3341,6 +3351,21 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 				return (result);
 			}
 		}
+		if ((rdataset->attributes & DNS_RDATASETATTR_RRSIGS) != 0) {
+			dns_rdataset_t rrsigs = DNS_RDATASET_INIT;
+			result = dns_rdataset_getrrsigs(rdataset, &rrsigs);
+			RUNTIME_CHECK(result == ISC_R_SUCCESS);
+			INSIST(rrsigs.type == dns_rdatatype_rrsig);
+			INSIST(rrsigs.covers == rdataset->type);
+			result = dns_rdataslab_fromrdataset(
+				&rrsigs, rbtdb->common.mctx, &region, 0);
+			dns_rdataset_disassociate(&rrsigs);
+			if (result != ISC_R_SUCCESS) {
+				dns_slabheader_destroy(&newheader);
+				return (result);
+			}
+			newheader->rrsigs = region.base;
+		}
 	}
 
 	/*
@@ -3507,6 +3532,7 @@ dns__rbtdb_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 	newheader->trust = 0;
 	newheader->noqname = NULL;
 	newheader->closest = NULL;
+	newheader->rrsigs = NULL;
 	atomic_init(&newheader->count,
 		    atomic_fetch_add_relaxed(&init_count, 1));
 	newheader->last_used = 0;
@@ -4926,6 +4952,10 @@ dns__rbtdb_deletedata(dns_db_t *db ISC_ATTR_UNUSED,
 		if (header->glue_list) {
 			dns__rbtdb_freeglue(header->glue_list);
 		}
+	}
+	if (header->rrsigs != NULL) {
+		isc_mem_put(rbtdb->common.mctx, header->rrsigs,
+			    dns_rdataslab_size(header->rrsigs, 0));
 	}
 }
 
