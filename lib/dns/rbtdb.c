@@ -2144,6 +2144,38 @@ dns__rbtdb_findnode(dns_db_t *db, const dns_name_t *name, bool create,
 }
 
 void
+dns__rbtdb_bindrrsigs(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
+		      dns_slabheader_t *header, isc_stdtime_t now,
+		      isc_rwlocktype_t locktype,
+		      dns_rdataset_t *rdataset DNS__DB_FLARG) {
+	if (rdataset == NULL) {
+		return;
+	}
+
+	fprintf(stderr, "%s: %u\n", __func__, DNS_TYPEPAIR_TYPE(header->type));
+
+	dns__rbtdb_newref(rbtdb, node, locktype DNS__DB_FLARG_PASS);
+
+	INSIST(rdataset->methods == NULL); /* We must be disassociated. */
+
+	*rdataset = (dns_rdataset_t){
+		.methods = &dns_rdataslab_rdatasetmethods,
+		.rdclass = rbtdb->common.rdclass,
+		.type = dns_rdatatype_rrsig,
+		.covers = DNS_TYPEPAIR_COVERS(header->type),
+		.ttl = header->ttl - now,
+		.trust = header->trust,
+		.slab.db = (dns_db_t *)rbtdb,
+		.slab.node = (dns_dbnode_t *)node,
+		.slab.raw = header->rrsigs,
+		.link = rdataset->link,
+		.count = rdataset->count,
+		.attributes = rdataset->attributes | DNS_RDATASETATTR_KEEPCASE,
+		.magic = rdataset->magic,
+	};
+}
+
+void
 dns__rbtdb_bindrdataset(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 			dns_slabheader_t *header, isc_stdtime_t now,
 			isc_rwlocktype_t locktype,
