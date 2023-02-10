@@ -99,6 +99,10 @@ typedef struct dns_rdatasetmethods {
 	void (*getownercase)(const dns_rdataset_t *rdataset, dns_name_t *name);
 	isc_result_t (*addglue)(dns_rdataset_t	*rdataset,
 				dns_dbversion_t *version, dns_message_t *msg);
+	isc_result_t (*addrrsigs)(dns_rdataset_t *rdataset,
+				  dns_rdataset_t *rrsigs);
+	isc_result_t (*getrrsigs)(dns_rdataset_t *rdataset,
+				  dns_rdataset_t *rrsigs);
 } dns_rdatasetmethods_t;
 
 #define DNS_RDATASET_MAGIC	ISC_MAGIC('D', 'N', 'S', 'R')
@@ -206,6 +210,7 @@ struct dns_rdataset {
 			 */
 			const struct dns_name *noqname, *closest;
 			dns_dbnode_t	      *node;
+			struct dns_rdataset   *rrsigs;
 		} rdlist;
 
 #ifdef USE_DNSRPS
@@ -277,6 +282,7 @@ struct dns_rdataset {
 #define DNS_RDATASETATTR_STALE_WINDOW 0x04000000
 #define DNS_RDATASETATTR_STALE_ADDED  0x08000000
 #define DNS_RDATASETATTR_KEEPCASE     0x10000000
+#define DNS_RDATASETATTR_RRSIGS	      0x20000000 /*%< RRSIGs attached */
 
 /*%
  * _OMITDNSSEC:
@@ -684,5 +690,11 @@ dns_trust_totext(dns_trust_t trust);
 /*%<
  * Display trust in textual form.
  */
+
+isc_result_t
+dns_rdataset_addrrsigs(dns_rdataset_t *rdataset, dns_rdataset_t *rrsigs);
+
+isc_result_t
+dns_rdataset_getrrsigs(dns_rdataset_t *rdataset, dns_rdataset_t *rrsigs);
 
 ISC_LANG_ENDDECLS

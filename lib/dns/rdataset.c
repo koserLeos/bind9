@@ -671,3 +671,33 @@ dns_rdataset_trimttl(dns_rdataset_t *rdataset, dns_rdataset_t *sigrdataset,
 	rdataset->ttl = ttl;
 	sigrdataset->ttl = ttl;
 }
+
+isc_result_t
+dns_rdataset_addrrsigs(dns_rdataset_t *rdataset, dns_rdataset_t *rrsigs) {
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(rdataset->methods != NULL);
+	REQUIRE(DNS_RDATASET_VALID(rrsigs));
+	REQUIRE(rrsigs->methods != NULL);
+	REQUIRE(rrsigs->type == dns_rdatatype_rrsig);
+	REQUIRE(rdataset->type == rrsigs->covers);
+
+	if (rdataset->methods->addrrsigs == NULL) {
+		return (ISC_R_NOTIMPLEMENTED);
+	}
+
+	return ((rdataset->methods->addrrsigs)(rdataset, rrsigs));
+}
+
+isc_result_t
+dns_rdataset_getrrsigs(dns_rdataset_t *rdataset, dns_rdataset_t *rrsigs) {
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(rdataset->methods != NULL);
+	REQUIRE(DNS_RDATASET_VALID(rrsigs));
+	REQUIRE(rrsigs->methods == NULL);
+
+	if (rdataset->methods->getrrsigs == NULL) {
+		return (ISC_R_NOTIMPLEMENTED);
+	}
+
+	return ((rdataset->methods->getrrsigs)(rdataset, rrsigs));
+}

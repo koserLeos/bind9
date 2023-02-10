@@ -152,4 +152,10 @@ dns_rdatalist_setownercase(dns_rdataset_t *rdataset, const dns_name_t *name);
 void
 dns_rdatalist_getownercase(const dns_rdataset_t *rdataset, dns_name_t *name);
 
+isc_result_t
+dns_rdatalist_addrrsigs(dns_rdataset_t *rdataset, dns_rdataset_t *rrsigs);
+
+isc_result_t
+dns_rdatalist_getrrsigs(dns_rdataset_t *rdataset, dns_rdataset_t *rrsigs);
+
 ISC_LANG_ENDDECLS
