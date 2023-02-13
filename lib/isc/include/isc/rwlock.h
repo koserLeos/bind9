@@ -13,6 +13,8 @@
 
 #pragma once
 
+#define USE_PF_RWLOCK 1
+
 #include <inttypes.h>
 #include <stdlib.h>
 
@@ -162,38 +164,12 @@ typedef pthread_rwlock_t isc__rwlock_t;
 
 struct isc_rwlock {
 	/* Unlocked. */
-	unsigned int	    magic;
-	isc_mutex_t	    lock;
-	atomic_int_fast32_t spins;
+	unsigned int magic;
 
-	/*
-	 * When some atomic instructions with hardware assistance are
-	 * available, rwlock will use those so that concurrent readers do not
-	 * interfere with each other through mutex as long as no writers
-	 * appear, massively reducing the lock overhead in the typical case.
-	 *
-	 * The basic algorithm of this approach is the "simple
-	 * writer-preference lock" shown in the following URL:
-	 * http://www.cs.rochester.edu/u/scott/synchronization/pseudocode/rw.html
-	 * but our implementation does not rely on the spin lock unlike the
-	 * original algorithm to be more portable as a user space application.
-	 */
-
-	/* Read or modified atomically. */
-	atomic_int_fast32_t write_requests;
-	atomic_int_fast32_t write_completions;
-	atomic_int_fast32_t cnt_and_flag;
-
-	/* Locked by lock. */
-	isc_condition_t readable;
-	isc_condition_t writeable;
-	unsigned int	readers_waiting;
-
-	/* Locked by rwlock itself. */
-	atomic_uint_fast32_t write_granted;
-
-	/* Unlocked. */
-	unsigned int write_quota;
+	atomic_uint_fast32_t rin;
+	atomic_uint_fast32_t rout;
+	atomic_uint_fast32_t win;
+	atomic_uint_fast32_t wout;
 };
 
 typedef struct isc_rwlock isc_rwlock_t;
