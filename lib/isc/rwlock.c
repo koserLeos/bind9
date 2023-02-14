@@ -410,6 +410,7 @@ isc__rwlock_tryupgrade(isc__rwlock_t *rwl) {
 void
 isc__rwlock_unlock(isc__rwlock_t *rwl, isc_rwlocktype_t type) {
 	int32_t prev_cnt;
+	int_fast32_t write_completions;
 
 	REQUIRE(VALID_RWLOCK(rwl));
 
@@ -418,6 +419,8 @@ isc__rwlock_unlock(isc__rwlock_t *rwl, isc_rwlocktype_t type) {
 #endif /* ifdef ISC_RWLOCK_TRACE */
 
 	if (type == isc_rwlocktype_read) {
+		write_completions =
+			atomic_load_acquire(&rwl->write_completions);
 		prev_cnt = atomic_fetch_sub_release(&rwl->cnt_and_flag,
 						    READER_INCR);
 		/*
@@ -426,7 +429,7 @@ isc__rwlock_unlock(isc__rwlock_t *rwl, isc_rwlocktype_t type) {
 		 * FIFO order.
 		 */
 		if (prev_cnt == READER_INCR &&
-		    atomic_load_acquire(&rwl->write_completions) !=
+		    write_completions !=
 			    atomic_load_acquire(&rwl->write_requests))
 		{
 			LOCK(&rwl->lock);
