@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <isc/atomic.h>
 #include <isc/stack.h>
 #include <isc/types.h>
 #include <isc/uv.h>
@@ -113,7 +114,7 @@
  */
 
 #define ISC_QSBR_PHASE_BITS 2
-#define ISC_QSBR_PHASES	    (1 << ISC_QSBR_PHASE_BITS)
+#define ISC_QSBR_PHASE_MASK ((1 << ISC_QSBR_PHASE_BITS) - 1)
 
 typedef unsigned int isc_qsbr_phase_t;
 /*%<
@@ -134,10 +135,11 @@ isc_qsbreclaimer_t(isc_qsbr_phase_t phase);
  * reclaim everything and needs to be called again.
  */
 
-typedef struct isc_qsbregistered {
+typedef struct isc_qsbregistered isc_qsbregistered_t;
+struct isc_qsbregistered {
 	ISC_SLINK(struct isc_qsbregistered) link;
 	isc_qsbreclaimer_t *func;
-} isc_qsbregistered_t;
+};
 /*%<
  * Each reclaimer callback has a static `isc_qsbregistered_t` object
  * so that QSBR can find it.
@@ -242,7 +244,9 @@ typedef struct isc_qsbr {
 } isc_qsbr_t;
 
 /* see isc/qsbr.c for commentary */
-#define ISC_QSBR_ONE_THREAD (1 << ISC_QSBR_PHASE_BITS)
+#define ISC_QSBR_THREAD_SHIFT ISC_QSBR_PHASE_BITS
+#define ISC_QSBR_THREAD_MASK  (UINT32_MAX << ISC_QSBR_PHASE_BITS)
+#define ISC_QSBR_ONE_THREAD   (1 << ISC_QSBR_THREAD_SHIFT)
 
 /*
  * When we start there is no worker thread yet, so the thread
