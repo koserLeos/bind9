@@ -113,8 +113,21 @@
  * less terse introductions to QSBR and other overview material.
  */
 
-#define ISC_QSBR_PHASE_BITS 2
-#define ISC_QSBR_PHASE_MASK ((1 << ISC_QSBR_PHASE_BITS) - 1)
+#define ISC_QSBR_PHASE_BITS	   2
+#define ISC_QSBR_PHASE_MASK	   ((1 << ISC_QSBR_PHASE_BITS) - 1)
+#define ISC_QSBR_PHASE_LOAD(grace) (grace & ISC_QSBR_PHASE_MASK)
+
+/*
+ * The `qsbr->grace` variable has a thread count in the top bits, and
+ * the phase in the bottom bits. The following functions use the & <<
+ * operators with ISC_QSBR_ONE_THREAD to split and combine the parts.
+ */
+#define ISC_QSBR_THREAD_MASK	(UINT32_MAX ^ ISC_QSBR_PHASE_MASK)
+#define ISC_QSBR_ONE_THREAD	(1 << ISC_QSBR_PHASE_BITS)
+#define ISC_QSBR_THREAD_LOAD(n) (n >> ISC_QSBR_PHASE_BITS)
+
+#define ISC_QSBR_GRACE_STORE(threads, phase) \
+	((threads << ISC_QSBR_PHASE_BITS) + phase)
 
 typedef unsigned int isc_qsbr_phase_t;
 /*%<
@@ -243,20 +256,15 @@ typedef struct isc_qsbr {
 
 } isc_qsbr_t;
 
-/* see isc/qsbr.c for commentary */
-#define ISC_QSBR_THREAD_SHIFT ISC_QSBR_PHASE_BITS
-#define ISC_QSBR_THREAD_MASK  (UINT32_MAX << ISC_QSBR_PHASE_BITS)
-#define ISC_QSBR_ONE_THREAD   (1 << ISC_QSBR_THREAD_SHIFT)
-
 /*
  * When we start there is no worker thread yet, so the thread
  * count is equal to the number of loops. The global phase starts
  * off at one (it must always be nonzero).
  */
-#define ISC_QSBR_INITIALIZER(nloops)                         \
-	(isc_qsbr_t) {                                       \
-		.grace = ISC_QSBR_ONE_THREAD * (nloops) + 1, \
-		.transition_time = isc_time_monotonic(),     \
+#define ISC_QSBR_INITIALIZER(nloops)                      \
+	(isc_qsbr_t) {                                    \
+		.grace = ISC_QSBR_GRACE_STORE(nloops, 1), \
+		.transition_time = isc_time_monotonic(),  \
 	}
 
 /*

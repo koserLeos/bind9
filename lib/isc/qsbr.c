@@ -71,20 +71,11 @@ active_bit(isc_qsbr_phase_t phase) {
 }
 
 /*
- * The `qsbr->grace` variable has a thread count in the top bits, and
- * the phase in the bottom bits. The following functions use the & <<
- * operators with ISC_QSBR_ONE_THREAD to split and combine the parts.
- */
-#define ISC_QSBR_THREAD_SHIFT ISC_QSBR_PHASE_BITS
-#define ISC_QSBR_THREAD_MASK  (UINT32_MAX << ISC_QSBR_PHASE_BITS)
-#define ISC_QSBR_ONE_THREAD   (1 << ISC_QSBR_THREAD_SHIFT)
-
-/*
  * Extract the global phase from the grace period state.
  */
 static isc_qsbr_phase_t
 global_phase(isc_qsbr_t *qsbr, memory_order m_o) {
-	return (atomic_load_explicit(&qsbr->grace, m_o) & ISC_QSBR_PHASE_MASK);
+	return (ISC_QSBR_PHASE_LOAD(atomic_load_explicit(&qsbr->grace, m_o)));
 }
 
 /*
@@ -99,7 +90,7 @@ static bool
 fuzzy_barrier_not_yet(isc_qsbr_t *qsbr) {
 	uint32_t grace = atomic_fetch_sub_acq_rel(&qsbr->grace,
 						  ISC_QSBR_ONE_THREAD);
-	uint32_t threads = grace >> ISC_QSBR_THREAD_SHIFT;
+	uint32_t threads = ISC_QSBR_THREAD_LOAD(grace);
 	return (threads > 1);
 }
 
@@ -115,12 +106,13 @@ static void
 qsbr_shutdown(isc_loopmgr_t *loopmgr) {
 	isc_qsbr_t *qsbr = &loopmgr->qsbr;
 	isc_qsbr_phase_t phase = global_phase(qsbr, memory_order_relaxed);
-	uint32_t threads = isc_loopmgr_nloops(loopmgr) << ISC_QSBR_THREAD_SHIFT;
+	uint32_t threads = isc_loopmgr_nloops(loopmgr);
 
 	while (atomic_load_relaxed(&qsbr->activated) != 0) {
 		reclaim_cb(loopmgr);
 		phase = increment_phase(phase);
-		atomic_store_relaxed(&qsbr->grace, threads + phase);
+		atomic_store_relaxed(&qsbr->grace,
+				     ISC_QSBR_GRACE_STORE(threads, phase));
 	}
 }
 
@@ -232,8 +224,8 @@ phase_transition(isc_loop_t *loop, isc_qsbr_phase_t current_phase) {
 	 * ATOMIC: release, to pair with the load-acquire in `reclaim_cb()`
 	 * which is spawned in a separate worker thread.
 	 */
-	uint32_t grace = (threads << ISC_QSBR_THREAD_SHIFT) + next_phase;
-	atomic_store_release(&qsbr->grace, grace);
+	atomic_store_release(&qsbr->grace,
+			     ISC_QSBR_GRACE_STORE(threads, next_phase));
 
 	if (activated) {
 		isc_work_enqueue(loop, reclaim_cb, reclaimed_cb, loopmgr);
