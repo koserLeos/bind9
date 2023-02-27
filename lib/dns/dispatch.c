@@ -65,11 +65,6 @@ struct dns_dispatchmgr {
 	ISC_LIST(dns_dispatch_t) list;
 
 	dns_qid_t *qid;
-
-	in_port_t *v4ports;    /*%< available ports for IPv4 */
-	unsigned int nv4ports; /*%< # of available ports for IPv4 */
-	in_port_t *v6ports;    /*%< available ports for IPv4 */
-	unsigned int nv6ports; /*%< # of available ports for IPv4 */
 };
 
 typedef enum {
@@ -377,33 +372,17 @@ dns_hash(dns_qid_t *qid, const isc_sockaddr_t *dest, dns_messageid_t id,
 static isc_result_t
 setup_socket(dns_dispatch_t *disp, dns_dispentry_t *resp,
 	     const isc_sockaddr_t *dest, in_port_t *portp) {
-	dns_dispatchmgr_t *mgr = disp->mgr;
-	unsigned int nports;
-	in_port_t *ports = NULL;
 	in_port_t port = *portp;
 
 	if (resp->retries++ > 5) {
 		return (ISC_R_FAILURE);
 	}
 
-	if (isc_sockaddr_pf(&disp->local) == AF_INET) {
-		nports = mgr->nv4ports;
-		ports = mgr->v4ports;
-	} else {
-		nports = mgr->nv6ports;
-		ports = mgr->v6ports;
-	}
-	if (nports == 0) {
-		return (ISC_R_ADDRNOTAVAIL);
-	}
-
 	resp->local = disp->local;
 	resp->peer = *dest;
 
 	if (port == 0) {
-		port = ports[isc_random_uniform(nports)];
 		isc_sockaddr_setport(&resp->local, port);
-		*portp = port;
 	}
 	resp->port = port;
 
@@ -930,53 +909,6 @@ create_default_portset(isc_mem_t *mctx, int family, isc_portset_t **portsetp) {
 	isc_portset_addrange(*portsetp, low, high);
 }
 
-static isc_result_t
-setavailports(dns_dispatchmgr_t *mgr, isc_portset_t *v4portset,
-	      isc_portset_t *v6portset) {
-	in_port_t *v4ports, *v6ports, p = 0;
-	unsigned int nv4ports, nv6ports, i4 = 0, i6 = 0;
-
-	nv4ports = isc_portset_nports(v4portset);
-	nv6ports = isc_portset_nports(v6portset);
-
-	v4ports = NULL;
-	if (nv4ports != 0) {
-		v4ports = isc_mem_get(mgr->mctx, sizeof(in_port_t) * nv4ports);
-	}
-	v6ports = NULL;
-	if (nv6ports != 0) {
-		v6ports = isc_mem_get(mgr->mctx, sizeof(in_port_t) * nv6ports);
-	}
-
-	do {
-		if (isc_portset_isset(v4portset, p)) {
-			INSIST(i4 < nv4ports);
-			v4ports[i4++] = p;
-		}
-		if (isc_portset_isset(v6portset, p)) {
-			INSIST(i6 < nv6ports);
-			v6ports[i6++] = p;
-		}
-	} while (p++ < 65535);
-	INSIST(i4 == nv4ports && i6 == nv6ports);
-
-	if (mgr->v4ports != NULL) {
-		isc_mem_put(mgr->mctx, mgr->v4ports,
-			    mgr->nv4ports * sizeof(in_port_t));
-	}
-	mgr->v4ports = v4ports;
-	mgr->nv4ports = nv4ports;
-
-	if (mgr->v6ports != NULL) {
-		isc_mem_put(mgr->mctx, mgr->v6ports,
-			    mgr->nv6ports * sizeof(in_port_t));
-	}
-	mgr->v6ports = v6ports;
-	mgr->nv6ports = nv6ports;
-
-	return (ISC_R_SUCCESS);
-}
-
 /*
  * Publics.
  */
@@ -1009,8 +941,6 @@ dns_dispatchmgr_create(isc_mem_t *mctx, isc_nm_t *nm,
 
 	create_default_portset(mctx, AF_INET, &v4portset);
 	create_default_portset(mctx, AF_INET6, &v6portset);
-
-	setavailports(mgr, v4portset, v6portset);
 
 	isc_portset_destroy(mctx, &v4portset);
 	isc_portset_destroy(mctx, &v6portset);
@@ -1047,7 +977,10 @@ isc_result_t
 dns_dispatchmgr_setavailports(dns_dispatchmgr_t *mgr, isc_portset_t *v4portset,
 			      isc_portset_t *v6portset) {
 	REQUIRE(VALID_DISPATCHMGR(mgr));
-	return (setavailports(mgr, v4portset, v6portset));
+	UNUSED(v4portset);
+	UNUSED(v6portset);
+
+	return (ISC_R_SUCCESS);
 }
 
 static void
@@ -1067,15 +1000,6 @@ dispatchmgr_destroy(dns_dispatchmgr_t *mgr) {
 
 	if (mgr->stats != NULL) {
 		isc_stats_detach(&mgr->stats);
-	}
-
-	if (mgr->v4ports != NULL) {
-		isc_mem_put(mgr->mctx, mgr->v4ports,
-			    mgr->nv4ports * sizeof(in_port_t));
-	}
-	if (mgr->v6ports != NULL) {
-		isc_mem_put(mgr->mctx, mgr->v6ports,
-			    mgr->nv6ports * sizeof(in_port_t));
 	}
 
 	isc_nm_detach(&mgr->nm);
