@@ -663,7 +663,7 @@ isc__nm_udp_send(isc_nmhandle_t *handle, const isc_region_t *region,
 	REQUIRE(sock->tid == isc_tid());
 
 	worker = sock->worker;
-	maxudp = atomic_load(&worker->netmgr->maxudp);
+	maxudp = atomic_load_relaxed(&worker->netmgr->maxudp);
 	sa = sock->connected ? NULL : &peer->type.sa;
 
 	/*
@@ -698,8 +698,22 @@ isc__nm_udp_send(isc_nmhandle_t *handle, const isc_region_t *region,
 		goto fail;
 	}
 
-	r = uv_udp_send(&uvreq->uv_req.udp_send, &sock->uv_handle.udp,
-			&uvreq->uvbuf, 1, sa, udp_send_cb);
+	/* Try to send synchronously */
+	r = uv_udp_try_send(&sock->uv_handle.udp, &uvreq->uvbuf, 1, sa);
+	if (r >= 0) {
+		RUNTIME_CHECK(r == (int)region->length);
+		isc__nm_sendcb(sock, uvreq, ISC_R_SUCCESS, true);
+		return;
+	}
+
+	/* Send asynchronously */
+
+	if (r == UV_EAGAIN) {
+		/* Try sending the UDP asynchronously */
+		r = uv_udp_send(&uvreq->uv_req.udp_send, &sock->uv_handle.udp,
+				&uvreq->uvbuf, 1, sa, udp_send_cb);
+	}
+
 	if (r < 0) {
 		isc__nm_incstats(sock, STATID_SENDFAIL);
 		result = isc_uverr2result(r);
