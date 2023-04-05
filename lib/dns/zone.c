@@ -639,15 +639,18 @@ struct dns_notify {
 	isc_rlevent_t *rlevent;
 };
 
-#define DNS_NOTIFY_NOSOA   0x0001U
-#define DNS_NOTIFY_STARTUP 0x0002U
+typedef enum dns_notify_flags {
+	DNS_NOTIFY_NOSOA = 1 << 0,
+	DNS_NOTIFY_STARTUP = 1 << 1,
+	DNS_NOTIFY_TCP = 1 << 2,
+} dns_notify_flags_t;
 
 /*%
  * Hold checkds state.
  */
 struct dns_checkds {
 	unsigned int magic;
-	unsigned int flags;
+	dns_notify_flags_t flags;
 	isc_mem_t *mctx;
 	dns_zone_t *zone;
 	dns_adbfind_t *find;
@@ -12191,7 +12194,7 @@ notify_send_toaddr(void *arg) {
 	dns_tsigkey_t *key = NULL;
 	char addrbuf[ISC_SOCKADDR_FORMATSIZE];
 	isc_sockaddr_t src;
-	unsigned int options, timeout;
+	unsigned int options, timeout, udptimeout;
 	bool have_notifysource = false;
 
 	REQUIRE(DNS_NOTIFY_VALID(notify));
@@ -12199,7 +12202,7 @@ notify_send_toaddr(void *arg) {
 	LOCK_ZONE(notify->zone);
 
 	if (DNS_ZONE_FLAG(notify->zone, DNS_ZONEFLG_LOADED) == 0 ||
-	    notify->rlevent->canceled ||
+	    (notify->rlevent != NULL && notify->rlevent->canceled) ||
 	    DNS_ZONE_FLAG(notify->zone, DNS_ZONEFLG_EXITING) ||
 	    notify->zone->view->requestmgr == NULL || notify->zone->db == NULL)
 	{
@@ -12248,12 +12251,12 @@ notify_send_toaddr(void *arg) {
 		char namebuf[DNS_NAME_FORMATSIZE];
 
 		dns_name_format(&key->name, namebuf, sizeof(namebuf));
-		notify_log(notify->zone, ISC_LOG_DEBUG(3),
+		notify_log(notify->zone, ISC_LOG_INFO,
 			   "sending notify to %s : TSIG (%s)", addrbuf,
 			   namebuf);
 	} else {
-		notify_log(notify->zone, ISC_LOG_DEBUG(3),
-			   "sending notify to %s", addrbuf);
+		notify_log(notify->zone, ISC_LOG_INFO, "sending notify to %s",
+			   addrbuf);
 	}
 	options = 0;
 	if (notify->zone->view->peers != NULL) {
@@ -12299,13 +12302,20 @@ notify_send_toaddr(void *arg) {
 		result = ISC_R_NOTIMPLEMENTED;
 		goto cleanup_key;
 	}
-	timeout = 15;
+	udptimeout = 15;
 	if (DNS_ZONE_FLAG(notify->zone, DNS_ZONEFLG_DIALNOTIFY)) {
-		timeout = 30;
+		udptimeout = 30;
+	}
+	timeout = 3 * udptimeout;
+again:
+	if ((notify->flags & DNS_NOTIFY_TCP) != 0) {
+		options |= DNS_REQUESTOPT_TCP;
+		udptimeout = 0;
+		timeout = 15;
 	}
 	result = dns_request_create(
 		notify->zone->view->requestmgr, message, &src, &notify->dst,
-		NULL, NULL, options, key, timeout * 3, timeout, 2,
+		NULL, NULL, options, key, timeout, udptimeout, 2,
 		notify->zone->loop, notify_done, notify, &notify->request);
 	if (result == ISC_R_SUCCESS) {
 		if (isc_sockaddr_pf(&notify->dst) == AF_INET) {
@@ -12315,6 +12325,14 @@ notify_send_toaddr(void *arg) {
 			inc_stats(notify->zone,
 				  dns_zonestatscounter_notifyoutv6);
 		}
+	} else if (result == ISC_R_SHUTTINGDOWN || result == ISC_R_CANCELED) {
+		goto cleanup_key;
+	} else if ((notify->flags & DNS_NOTIFY_TCP) == 0) {
+		notify_log(notify->zone, ISC_LOG_NOTICE,
+			   "notify to %s failed: %s: retrying over TCP",
+			   addrbuf, isc_result_totext(result));
+		notify->flags |= DNS_NOTIFY_TCP;
+		goto again;
 	}
 
 cleanup_key:
@@ -12325,8 +12343,14 @@ cleanup_message:
 	dns_message_detach(&message);
 cleanup:
 	UNLOCK_ZONE(notify->zone);
-	isc_rlevent_free(&notify->rlevent);
+	if (notify->rlevent != NULL) {
+		isc_rlevent_free(&notify->rlevent);
+	}
+
 	if (result != ISC_R_SUCCESS) {
+		notify_log(notify->zone, ISC_LOG_WARNING,
+			   "notify to %s failed: %s", addrbuf,
+			   isc_result_totext(result));
 		notify_destroy(notify, false);
 	}
 }
@@ -15768,18 +15792,36 @@ notify_done(void *arg) {
 			   (int)buf.used, rcode);
 	}
 
+	dns_message_detach(&message);
 	goto done;
 
 fail:
-	notify_log(notify->zone, ISC_LOG_DEBUG(2), "notify to %s failed: %s",
-		   addrbuf, isc_result_totext(result));
-	if (result == ISC_R_TIMEDOUT) {
-		notify_log(notify->zone, ISC_LOG_DEBUG(1),
-			   "notify to %s: retries exceeded", addrbuf);
+	dns_message_detach(&message);
+
+	if (result == ISC_R_SUCCESS) {
+		notify_log(notify->zone, ISC_LOG_INFO,
+			   "notify to %s successful", addrbuf);
+	} else if (result == ISC_R_SHUTTINGDOWN || result == ISC_R_CANCELED) {
+		goto done;
+	} else if ((notify->flags & DNS_NOTIFY_TCP) == 0) {
+		notify_log(notify->zone, ISC_LOG_NOTICE,
+			   "notify to %s failed: %s: retrying over TCP",
+			   addrbuf, isc_result_totext(result));
+		notify->flags |= DNS_NOTIFY_TCP;
+		dns_request_destroy(&notify->request);
+		notify_send_toaddr(notify);
+		return;
+	} else if (result == ISC_R_TIMEDOUT) {
+		notify_log(notify->zone, ISC_LOG_WARNING,
+			   "notify to %s failed: %s: retries exceeded", addrbuf,
+			   isc_result_totext(result));
+	} else {
+		notify_log(notify->zone, ISC_LOG_WARNING,
+			   "notify to %s failed: %s", addrbuf,
+			   isc_result_totext(result));
 	}
 done:
 	notify_destroy(notify, false);
-	dns_message_detach(&message);
 }
 
 struct rss {
