@@ -1615,6 +1615,7 @@ pairwise:
     variables:
       - $PAIRWISE_TESTING
 
+
 pairwise-fips-el8:
   <<: *oraclelinux_8fips_amd64_image
   stage: build
@@ -1622,6 +1623,12 @@ pairwise-fips-el8:
     - job: autoreconf
       artifacts: true
   script:
+      - curl -sSL "https://github.com/microsoft/pict/archive/v3.7.1.tar.gz" | tar -xz -C .
+      - cd "pict-3.7.1"
+      - make -j 
+      - mv pict /usr/bin/
+      - cd .. && rm -rf "pict-3.7.1"
+      - cd $CI_PROJECT_DIR
       - util/pairwise-testing.sh
   artifacts:
     paths:
@@ -1640,6 +1647,12 @@ pairwise-fips-el9:
     - job: autoreconf
       artifacts: true
   script:
+      - curl -sSL "https://github.com/microsoft/pict/archive/v3.7.1.tar.gz" | tar -xz -C .
+      - cd "pict-3.7.1"
+      - make -j 
+      - mv pict /usr/bin/
+      - cd .. && rm -rf "pict-3.7.1"
+      - cd $CI_PROJECT_DIR
       - util/pairwise-testing.sh
   artifacts:
     paths:
