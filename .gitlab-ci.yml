@@ -1619,9 +1619,6 @@ pairwise:
 pairwise-fips-el8:
   <<: *oraclelinux_8fips_amd64_image
   stage: build
-  needs:
-    - job: autoreconf
-      artifacts: true
   script:
     - autoreconf -fi
     - dnf -y in libedit-devel gcc-c++
@@ -1642,9 +1639,6 @@ pairwise-fips-el8:
 pairwise-fips-el9:
   <<: *oraclelinux_9fips_amd64_image
   stage: build
-  needs:
-    - job: autoreconf
-      artifacts: true
   script:
     - autoreconf -fi
     - dnf -y in libedit-devel gcc-c++
