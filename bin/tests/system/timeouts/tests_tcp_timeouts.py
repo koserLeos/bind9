@@ -246,33 +246,81 @@ def test_max_transfer_idle_out(named_port):
 
 
 @pytest_custom_markers.long_test
-def test_max_transfer_time_out(named_port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect(("10.53.0.1", named_port))
+def test_max_transfer_time_in(named_port):
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp.bind(("10.53.0.2", port))
 
-        name = dns.name.from_text("example.")
-        msg = create_msg("example.", "AXFR")
-        (sbytes, stime) = dns.query.send_tcp(sock, msg, timeout())
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    tcp.bind("10.53.0.2", named_port)
+    tcp.listen(100)
 
-        # Receive the initial DNS message with SOA
-        (response, rtime) = dns.query.receive_tcp(
-            sock, timeout(), one_rr_per_rrset=True
-        )
-        soa = response.get_rrset(
-            dns.message.ANSWER, name, dns.rdataclass.IN, dns.rdatatype.SOA
-        )
-        assert soa is not None
+    input = [udp, tcp]
+    while True:
+        try:
+            inputready, outputready, exceptready = select.select(input, [], [])
+        except select.error:
+            break
+        except socket.error:
+            break
+        except KeyboardInterrupt:
+            break
 
-        # The loop should timeout at the 5 minutes (max-transfer-time-out)
-        with pytest.raises(EOFError):
-            while True:
-                time.sleep(1)
-                (response, rtime) = dns.query.receive_tcp(
-                    sock, timeout(), one_rr_per_rrset=True
-                )
-                soa = response.get_rrset(
-                    dns.message.ANSWER, name, dns.rdataclass.IN, dns.rdatatype.SOA
-                )
-                if soa is not None:
-                    break
-        assert soa is None
+        for s in inputready:
+            if s == udp:
+                qrybytes, clientaddr = udp.recvfrom(65535)
+                qry = dns.message.from_wire(qrybytes)
+                answ = dns.message.make_response(qry)
+                answbytes = answ.to_wire()
+                udp.sendto(answbytes, clientaddr)
+            if s == tcp:
+                csock, clientaddr = tcp.accept()
+                qrylen = csock.recv(2)
+                qry = csock.recv(socket.ntoh(qrylen))
+                # Make a long loop here, each record sent in less than 1 minute
+                # so, every 30 seconds?
+                name = dns.name.from_text("example.")
+                answ = create_msg("example", "SOA")
+                csock.send(answ.to_wire())
+    tcp.close()
+    udp.close()
+
+
+@pytest_custom_markers.long_test
+def test_max_transfer_idle_in(named_port):
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp.bind(("10.53.0.2", port))
+
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    tcp.bind("10.53.0.2", named_port)
+    tcp.listen(100)
+
+    input = [udp, tcp]
+    while True:
+        try:
+            inputready, outputready, exceptready = select.select(input, [], [])
+        except select.error:
+            break
+        except socket.error:
+            break
+        except KeyboardInterrupt:
+            break
+
+        for s in inputready:
+            if s == udp:
+                qrybytes, clientaddr = udp.recvfrom(65535)
+                qry = dns.message.from_wire(qrybytes)
+                answ = dns.message.make_response(qry)
+                answbytes = answ.to_wire()
+                udp.sendto(answbytes, clientaddr)
+            if s == tcp:
+                csock, clientaddr = tcp.accept()
+                qrylen = csock.recv(2)
+                qry = csock.recv(socket.ntoh(qrylen))
+                # Send SOA than wait for 1+ minute
+                name = dns.name.from_text("example.")
+                answ = create_msg("example", "SOA")
+                csock.send(answ.to_wire())
+    tcp.close()
+    udp.close()

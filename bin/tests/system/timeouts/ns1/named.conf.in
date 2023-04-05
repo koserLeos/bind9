@@ -32,6 +32,8 @@ options {
 	tcp-keepalive-timeout 70;
 	max-transfer-time-out 5; /* minutes */
 	max-transfer-idle-out 1; /* minutes */
+	max-transfer-time-in 5; /* minutes */
+	max-transfer-idle-in 1; /* minutes */
 };
 
 zone "." {
