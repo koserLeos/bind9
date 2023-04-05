@@ -67,6 +67,12 @@ Bug Fixes
 - Performance of DNSSEC validation in zones with many DNSKEY records
   has been improved. :gl:`#3981`
 
+- When notify source-port would be configured for multiple destinations and
+  zones, the first unresponsive server would block the local ip:port until the
+  timeout making the following notifies to silently fail.  ``named`` now retries
+  sending the notify over the TCP and logs any failures to send notify.
+  :gl:`#4001` :gl:`#4002`
+
 Known Issues
 ~~~~~~~~~~~~
 

@@ -1,3 +1,10 @@
+6148.	[bug]		When notify source-port would be configured for
+			multiple destinations and zones, the first
+			unresponsive server would block the local ip:port
+			until the timeout making the following notifies
+			to silently fail.  Retry over TCP and add more
+			through logging.  [GL #4001, #4002]
+
 6147.	[performance]	Fix the TCP server parent quota use. [GL #3985]
 
 6146.	[performance]	Replace the zone table red-black tree and associated
