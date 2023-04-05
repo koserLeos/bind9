@@ -1614,3 +1614,39 @@ pairwise:
   only:
     variables:
       - $PAIRWISE_TESTING
+
+pairwise-fips-el8:
+  <<: *oraclelinux_8fips_amd64_image
+  stage: build
+  needs:
+    - job: autoreconf
+      artifacts: true
+  script:
+      - util/pairwise-testing.sh
+  artifacts:
+    paths:
+      - pairwise-commands.txt
+      - pairwise-model.txt
+      - pairwise-output.*.txt
+    when: on_failure
+  only:
+    variables:
+      - $PAIRWISE_TESTING
+
+pairwise-fips-el9:
+  <<: *oraclelinux_9fips_amd64_image
+  stage: build
+  needs:
+    - job: autoreconf
+      artifacts: true
+  script:
+      - util/pairwise-testing.sh
+  artifacts:
+    paths:
+      - pairwise-commands.txt
+      - pairwise-model.txt
+      - pairwise-output.*.txt
+    when: on_failure
+  only:
+    variables:
+      - $PAIRWISE_TESTING
