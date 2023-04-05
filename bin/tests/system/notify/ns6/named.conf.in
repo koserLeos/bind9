@@ -12,15 +12,16 @@
  */
 
 options {
-	query-source address 10.53.0.3;
-	notify-source 10.53.0.3;
-	transfer-source 10.53.0.3;
+	query-source address 10.53.0.6;
+	notify-source 10.53.0.6;
+	transfer-source 10.53.0.6;
 	port @PORT@;
 	pid-file "named.pid";
-	listen-on { 10.53.0.3; };
+	listen-on { 10.53.0.6; };
 	listen-on-v6 { none; };
 	recursion yes;
 	notify yes;
+	blackhole { 10.53.0.3; };
 };
 
 zone "." {
@@ -30,20 +31,6 @@ zone "." {
 
 zone "example" {
 	type secondary;
-	primaries { 10.53.0.2; };
+	primaries { 10.53.0.3; };
 	file "example.bk";
-	also-notify {
-		# non-responsive notify recipient (no reply, no ICMP errors)
-		10.53.10.53;
-		# blackhole
-		10.53.0.6;
-		# echo server
-		10.53.0.7;
-	};
-};
-
-zone "notify-source-port-test" {
-	type primary;
-	file "notify-source-port-test.db";
-	notify-source 10.53.0.3 port @EXTRAPORT2@;
 };
