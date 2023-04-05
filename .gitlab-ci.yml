@@ -1623,6 +1623,7 @@ pairwise-fips-el8:
     - job: autoreconf
       artifacts: true
   script:
+      - dnf -y in libedit-devel gcc-c++
       - curl -sSL "https://github.com/microsoft/pict/archive/v3.7.1.tar.gz" | tar -xz -C .
       - cd "pict-3.7.1"
       - make -j 
@@ -1647,6 +1648,7 @@ pairwise-fips-el9:
     - job: autoreconf
       artifacts: true
   script:
+      - dnf -y in libedit-devel gcc-c++
       - curl -sSL "https://github.com/microsoft/pict/archive/v3.7.1.tar.gz" | tar -xz -C .
       - cd "pict-3.7.1"
       - make -j 
