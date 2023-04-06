@@ -132,9 +132,7 @@ isc_thread_join(isc_thread_t thread, isc_threadresult_t *result) {
 	PTHREADS_RUNTIME_CHECK(pthread_join, ret);
 
 	struct thread_wrap *wrap = wrap_v;
-	if (result != NULL) {
-		*result = wrap->result;
-	}
+	OUTARG(result, wrap->result);
 	free(wrap->jemalloc_enforce_init);
 	free(wrap);
 }

@@ -210,11 +210,7 @@ dns_rriterator_current(dns_rriterator_t *it, dns_name_t **name, uint32_t *ttl,
 	dns_rdata_reset(&it->rdata);
 	dns_rdataset_current(&it->rdataset, &it->rdata);
 
-	if (rdataset != NULL) {
-		*rdataset = &it->rdataset;
-	}
+	OUTARG(rdataset, &it->rdataset);
 
-	if (rdata != NULL) {
-		*rdata = &it->rdata;
-	}
+	OUTARG(rdata, &it->rdata);
 }

@@ -984,11 +984,7 @@ named_config_getkeyalgorithm2(const char *str, const dns_name_t **name,
 			UNREACHABLE();
 		}
 	}
-	if (typep != NULL) {
-		*typep = algorithms[i].type;
-	}
-	if (digestbits != NULL) {
-		*digestbits = bits;
-	}
+	OUTARG(typep, algorithms[i].type);
+	OUTARG(digestbits, bits);
 	return (ISC_R_SUCCESS);
 }

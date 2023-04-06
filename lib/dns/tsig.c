@@ -336,9 +336,7 @@ dns_tsigkey_createfromkey(const dns_name_t *name, const dns_name_t *algorithm,
 			      namestr);
 	}
 
-	if (key != NULL) {
-		*key = tkey;
-	}
+	OUTARG(key, tkey);
 
 	if (tkey->restored) {
 		tsig_log(tkey, ISC_LOG_DEBUG(3), "restored from file");

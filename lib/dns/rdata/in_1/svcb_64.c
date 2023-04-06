@@ -247,9 +247,7 @@ finish:
 		isc_textregion_consume(region, 1);
 	}
 	RETERR(uint16_tobuffer(ul, target));
-	if (value != NULL) {
-		*value = ul;
-	}
+	OUTARG(value, ul);
 	return (ISC_R_SUCCESS);
 }
 

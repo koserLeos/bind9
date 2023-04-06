@@ -6841,9 +6841,7 @@ is_answertarget_allowed(fetchctx_t *fctx, dns_name_t *qname, dns_name_t *rname,
 		result = dns_name_concatenate(&prefix, &dname.dname, tname,
 					      NULL);
 		if (result == DNS_R_NAMETOOLONG) {
-			if (chainingp != NULL) {
-				*chainingp = true;
-			}
+			OUTARG(chainingp, true);
 			return (true);
 		}
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
@@ -6852,9 +6850,7 @@ is_answertarget_allowed(fetchctx_t *fctx, dns_name_t *qname, dns_name_t *rname,
 		UNREACHABLE();
 	}
 
-	if (chainingp != NULL) {
-		*chainingp = true;
-	}
+	OUTARG(chainingp, true);
 
 	if (view->denyanswernames == NULL) {
 		return (true);
@@ -10959,15 +10955,9 @@ dns_resolver_getclientsperquery(dns_resolver_t *resolver, uint32_t *cur,
 	REQUIRE(VALID_RESOLVER(resolver));
 
 	LOCK(&resolver->lock);
-	if (cur != NULL) {
-		*cur = resolver->spillat;
-	}
-	if (min != NULL) {
-		*min = resolver->spillatmin;
-	}
-	if (max != NULL) {
-		*max = resolver->spillatmax;
-	}
+	OUTARG(cur, resolver->spillat);
+	OUTARG(min, resolver->spillatmin);
+	OUTARG(max, resolver->spillatmax);
 	UNLOCK(&resolver->lock);
 }
 

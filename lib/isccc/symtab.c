@@ -198,9 +198,7 @@ isccc_symtab_lookup(isccc_symtab_t *symtab, const char *key, unsigned int type,
 		return (ISC_R_NOTFOUND);
 	}
 
-	if (value != NULL) {
-		*value = elt->value;
-	}
+	OUTARG(value, elt->value);
 
 	return (ISC_R_SUCCESS);
 }

@@ -372,9 +372,7 @@ isc_ht_find(const isc_ht_t *ht, const unsigned char *key,
 		return (ISC_R_NOTFOUND);
 	}
 
-	if (valuep != NULL) {
-		*valuep = node->value;
-	}
+	OUTARG(valuep, node->value);
 	return (ISC_R_SUCCESS);
 }
 

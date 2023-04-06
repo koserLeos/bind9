@@ -291,15 +291,11 @@ strtotime(const char *str, int64_t now, int64_t base, bool *setp) {
 	struct tm tm;
 
 	if (isnone(str)) {
-		if (setp != NULL) {
-			*setp = false;
-		}
+		OUTARG(setp, false);
 		return ((isc_stdtime_t)0);
 	}
 
-	if (setp != NULL) {
-		*setp = true;
-	}
+	OUTARG(setp, true);
 
 	if ((str[0] == '0' || str[0] == '-') && str[1] == '\0') {
 		return ((isc_stdtime_t)0);

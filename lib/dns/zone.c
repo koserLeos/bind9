@@ -5455,12 +5455,8 @@ zone_count_ns_rr(dns_zone_t *zone, dns_db_t *db, dns_dbnode_t *node,
 	dns_rdataset_disassociate(&rdataset);
 
 success:
-	if (nscount != NULL) {
-		*nscount = count;
-	}
-	if (errors != NULL) {
-		*errors = ecount;
-	}
+	OUTARG(nscount, count);
+	OUTARG(errors, ecount);
 
 	result = ISC_R_SUCCESS;
 

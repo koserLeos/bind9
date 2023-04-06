@@ -4553,9 +4553,7 @@ getaddresses(dig_lookup_t *lookup, const char *host, isc_result_t *resultp) {
 	result = isc_getaddresses(host, 0, sockaddrs, DIG_MAX_ADDRESSES,
 				  &count);
 	isc_loopmgr_nonblocking(loopmgr);
-	if (resultp != NULL) {
-		*resultp = result;
-	}
+	OUTARG(resultp, result);
 	if (result != ISC_R_SUCCESS) {
 		if (resultp == NULL) {
 			fatal("couldn't get address for '%s': %s", host,

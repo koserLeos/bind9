@@ -286,9 +286,7 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 	atomic_init(&lctx->dynamic, lcfg->dynamic);
 
 	*lctxp = lctx;
-	if (lcfgp != NULL) {
-		*lcfgp = lcfg;
-	}
+	OUTARG(lcfgp, lcfg);
 }
 
 void

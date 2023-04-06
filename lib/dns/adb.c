@@ -3696,25 +3696,15 @@ dns_adb_getquota(dns_adb_t *adb, uint32_t *quotap, uint32_t *freqp,
 		 double *lowp, double *highp, double *discountp) {
 	REQUIRE(DNS_ADB_VALID(adb));
 
-	if (quotap != NULL) {
-		*quotap = adb->quota;
-	}
+	OUTARG(quotap, adb->quota);
 
-	if (freqp != NULL) {
-		*freqp = adb->atr_freq;
-	}
+	OUTARG(freqp, adb->atr_freq);
 
-	if (lowp != NULL) {
-		*lowp = adb->atr_low;
-	}
+	OUTARG(lowp, adb->atr_low);
 
-	if (highp != NULL) {
-		*highp = adb->atr_high;
-	}
+	OUTARG(highp, adb->atr_high);
 
-	if (discountp != NULL) {
-		*discountp = adb->atr_discount;
-	}
+	OUTARG(discountp, adb->atr_discount);
 }
 
 static bool

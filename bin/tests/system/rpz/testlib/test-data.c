@@ -1113,9 +1113,7 @@ sanity_check_data_file(const char *fname, char **errp) {
 	FILE *f = NULL;
 	int result = -1;
 
-	if (errp != NULL) {
-		*errp = NULL;
-	}
+	OUTARG(errp, NULL);
 
 	f = fopen(fname, "r");
 	if (f == NULL) {
