@@ -96,6 +96,16 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
+/*
+ * Optional return values, or out-arguments
+ */
+#define OUTARG(ptr, val)                \
+	({                              \
+		if ((ptr) != NULL) {    \
+			*(ptr) = (val); \
+		}                       \
+	})
+
 /*%
  * Use this in translation units that would otherwise be empty, to
  * suppress compiler warnings.

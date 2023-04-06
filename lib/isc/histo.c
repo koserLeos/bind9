@@ -34,16 +34,6 @@
 #define STRUCT_FLEX_SIZE(pointer, member, count) \
 	(sizeof(*(pointer)) + sizeof(*(pointer)->member) * (count))
 
-/*
- * XXXFANF this should probably be in <isc/util.h> too
- */
-#define OUTARG(ptr, val)                \
-	({                              \
-		if ((ptr) != NULL) {    \
-			*(ptr) = (val); \
-		}                       \
-	})
-
 #define HISTO_MAGIC	    ISC_MAGIC('H', 's', 't', 'o')
 #define HISTO_VALID(p)	    ISC_MAGIC_VALID(p, HISTO_MAGIC)
 #define HISTOMULTI_MAGIC    ISC_MAGIC('H', 'g', 'M', 't')
