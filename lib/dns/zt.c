@@ -157,7 +157,7 @@ dns_zt_unmount(dns_zt_t *zt, dns_zone_t *zone) {
 	REQUIRE(VALID_ZT(zt));
 
 	dns_qpmulti_write(zt->multi, &qp);
-	result = dns_qp_deletename(qp, dns_zone_getorigin(zone));
+	result = dns_qp_deletename(qp, dns_zone_getorigin(zone), NULL, NULL);
 	dns_qp_compact(qp, DNS_QPGC_MAYBE);
 	dns_qpmulti_commit(zt->multi, &qp);
 

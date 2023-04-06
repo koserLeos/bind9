@@ -188,7 +188,11 @@ ISC_RUN_TEST_IMPL(qpiter) {
 		dns_qpkey_t key;
 		size_t len = qpiter_makekey(key, item, pval, ival);
 		if (dns_qp_insert(qp, pval, ival) == ISC_R_EXISTS) {
-			dns_qp_deletekey(qp, key, len);
+			void *pvald = NULL;
+			uint32_t ivald = 0;
+			dns_qp_deletekey(qp, key, len, &pvald, &ivald);
+			assert_ptr_equal(pval, pvald);
+			assert_int_equal(ival, ivald);
 			item[ival] = 0;
 		}
 
@@ -340,7 +344,7 @@ ISC_RUN_TEST_IMPL(partialmatch) {
 
 	/* what if entries in the trie are relative to the zone apex? */
 	dns_qpkey_t rootkey = { SHIFT_NOBYTE };
-	result = dns_qp_deletekey(qp, rootkey, 1);
+	result = dns_qp_deletekey(qp, rootkey, 1, NULL, NULL);
 	assert_int_equal(result, ISC_R_SUCCESS);
 	INSIST(insert[i][0] == '\0');
 	insert_str(qp, insert[i++]);

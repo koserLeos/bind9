@@ -283,9 +283,13 @@ one_transaction(dns_qpmulti_t *qpm) {
 		if (item[i].in_rw) {
 			/* TRACE("delete %zu %.*s", i,
 				 item[i].len, item[i].ascii); */
-			result = dns_qp_deletekey(qpw, item[i].key,
-						  item[i].len);
+			void *pvald = NULL;
+			uint32_t ivald = 0;
+			result = dns_qp_deletekey(qpw, item[i].key, item[i].len,
+						  &pvald, &ivald);
 			ASSERT(result == ISC_R_SUCCESS);
+			ASSERT(pvald == &item[i]);
+			ASSERT(ivald == i);
 			item[i].in_rw = false;
 		} else {
 			/* TRACE("insert %zu %.*s", i,
