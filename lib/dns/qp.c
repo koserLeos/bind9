@@ -1787,8 +1787,6 @@ dns_qp_getkey(dns_qpreadable_t qpr, const dns_qpkey_t search_key,
 	qp_node_t *n = NULL;
 
 	REQUIRE(QP_VALID(qp));
-	REQUIRE(pval_r != NULL);
-	REQUIRE(ival_r != NULL);
 	REQUIRE(search_keylen < sizeof(dns_qpkey_t));
 
 	n = get_root(qp);
@@ -1842,8 +1840,6 @@ dns_qp_findname_parent(dns_qpreadable_t qpr, const dns_name_t *name,
 	} label[DNS_NAME_MAXLABELS];
 
 	REQUIRE(QP_VALID(qp));
-	REQUIRE(pval_r != NULL);
-	REQUIRE(ival_r != NULL);
 
 	searchlen = dns_qpkey_fromname(search, name);
 	if ((options & DNS_QPFIND_NOEXACT) != 0) {

@@ -260,7 +260,6 @@ check_partialmatch(dns_qp_t *qp, struct check_partialmatch check[]) {
 		dns_fixedname_t fixed;
 		dns_name_t *name = dns_fixedname_name(&fixed);
 		void *pval = NULL;
-		uint32_t ival;
 
 #if 0
 		fprintf(stderr, "%s %u %s %s\n", check[i].query,
@@ -269,7 +268,7 @@ check_partialmatch(dns_qp_t *qp, struct check_partialmatch check[]) {
 #endif
 		dns_test_namefromstring(check[i].query, &fixed);
 		result = dns_qp_findname_parent(qp, name, check[i].options,
-						&pval, &ival);
+						&pval, NULL);
 		assert_int_equal(result, check[i].result);
 		if (check[i].found == NULL) {
 			assert_null(pval);

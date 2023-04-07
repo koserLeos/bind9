@@ -159,7 +159,6 @@ random_byte(void) {
 static void
 setup_items(void) {
 	void *pval = NULL;
-	uint32_t ival = ~0U;
 	dns_qp_t *qp = NULL;
 	dns_qp_create(mctx, &test_methods, NULL, &qp);
 	for (size_t i = 0; i < ARRAY_SIZE(item); i++) {
@@ -172,7 +171,7 @@ setup_items(void) {
 			memmove(item[i].ascii, item[i].key, len);
 			qp_test_keytoascii(item[i].ascii, len);
 		} while (dns_qp_getkey(qp, item[i].key, item[i].len, &pval,
-				       &ival) == ISC_R_SUCCESS);
+				       NULL) == ISC_R_SUCCESS);
 		assert_int_equal(dns_qp_insert(qp, &item[i], i), ISC_R_SUCCESS);
 	}
 	dns_qp_destroy(&qp);
