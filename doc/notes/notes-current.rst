@@ -44,6 +44,10 @@ Feature Changes
   those versions do not provide the features required by current BIND 9
   releases. :gl:`#4296`
 
+- The ``tcp-clients`` configuration option now also accepts value as percent of
+  maximum allowed file descriptors.  The default has been changed to ``50%``.
+  :gl:`#3958`
+
 Bug Fixes
 ~~~~~~~~~
 
