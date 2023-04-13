@@ -17,6 +17,7 @@
 
 #include <pwd.h>
 #include <stdbool.h>
+#include <sys/resource.h>
 
 #include <isc/types.h>
 
@@ -44,7 +45,7 @@ named_os_changeuser(void);
 uid_t
 ns_os_uid(void);
 
-void
+rlim_t
 named_os_adjustnofile(void);
 
 void
