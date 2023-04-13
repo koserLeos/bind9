@@ -112,7 +112,7 @@ options {\n\
 	startup-notify-rate 20;\n\
 	statistics-file \"named.stats\";\n\
 	tcp-advertised-timeout 300;\n\
-	tcp-clients 150;\n\
+	tcp-clients 50%;\n\
 	tcp-idle-timeout 300;\n\
 	tcp-initial-timeout 300;\n\
 	tcp-keepalive-timeout 300;\n\

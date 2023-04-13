@@ -8459,7 +8459,6 @@ load_configuration(const char *filename, named_server_t *server,
 	 */
 	configure_server_quota(maps, "transfers-out",
 			       &server->sctx->xfroutquota);
-	configure_server_quota(maps, "tcp-clients", &server->sctx->tcpquota);
 	configure_server_quota(maps, "recursive-clients",
 			       &server->sctx->recursionquota);
 	configure_server_quota(maps, "update-quota", &server->sctx->updquota);
@@ -8483,6 +8482,40 @@ load_configuration(const char *filename, named_server_t *server,
 	}
 
 	isc_quota_soft(&server->sctx->recursionquota, softquota);
+
+	obj = NULL;
+	result = named_config_get(maps, "tcp-clients", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+
+	uint32_t tcp_clients = 0;
+	if (cfg_obj_isstring(obj)) {
+		const char *str = cfg_obj_asstring(obj);
+		INSIST(strcasecmp(str, "unlimited") == 0);
+		tcp_clients = UINT32_MAX;
+	} else if (cfg_obj_ispercentage(obj)) {
+		INSIST(named_g_nofiles != 0);
+		uint32_t tcp_clients_percent = cfg_obj_aspercentage(obj);
+		tcp_clients = named_g_nofiles * tcp_clients_percent / 100;
+
+		cfg_obj_log(obj, named_g_lctx, ISC_LOG_INFO,
+			    "'tcp-clients %" PRIu32 "%%' - setting to %" PRIu32
+			    " (out of %" PRIu32 " file descriptors)",
+			    tcp_clients_percent, tcp_clients,
+			    (uint32_t)named_g_nofiles);
+	} else {
+		uint64_t value = cfg_obj_asuint64(obj);
+		if (value > UINT32_MAX) {
+			cfg_obj_log(obj, named_g_lctx, ISC_LOG_WARNING,
+				    "'tcp-clients "
+				    "%" PRIu64 "' "
+				    "is too large for this "
+				    "system; reducing to %" PRIu32,
+				    value, UINT32_MAX);
+			value = UINT32_MAX;
+		}
+		tcp_clients = (uint32_t)value;
+	}
+	isc_quota_max(&server->sctx->tcpquota, tcp_clients);
 
 	/*
 	 * Set "blackhole". Only legal at options level; there is
