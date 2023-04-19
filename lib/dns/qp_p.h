@@ -489,7 +489,7 @@ struct dns_qp {
 	/*% array of per-chunk allocation counters */
 	qp_usage_t *usage;
 	/*% number of slots in `chunk` and `usage` arrays */
-	qp_chunk_t chunk_max;
+	qp_chunk_t chunk_max, chunk_count;
 	/*% which chunk is used for allocations */
 	qp_chunk_t bump;
 	/*% nodes in the `bump` chunk below `fender` are read only [MT] */

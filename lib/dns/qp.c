@@ -73,8 +73,15 @@ static atomic_uint_fast64_t rollback_time;
 #define LOG_STATS(...)                                                      \
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE, DNS_LOGMODULE_QP, \
 		      ISC_LOG_DEBUG(1), __VA_ARGS__)
+#define LOG_SIZES(qp, time)                                              \
+	LOG_STATS("%s(%" PRIu64 " ns) chunk %u max %u leaf %u"           \
+		  " live %u used %u free %u hold %u",                    \
+		  __func__, time, (qp)->chunk_count, (qp)->chunk_max,    \
+		  (qp)->leaf_count, (qp)->used_count - (qp)->free_count, \
+		  (qp)->used_count, (qp)->free_count, (qp)->hold_count)
 #else
 #define LOG_STATS(...)
+#define LOG_SIZES(...)
 #endif
 
 #if DNS_QP_TRACE
@@ -406,6 +413,7 @@ chunk_alloc(dns_qp_t *qp, qp_chunk_t chunk, qp_weight_t size) {
 	qp->base->ptr[chunk] = chunk_get_raw(qp);
 	qp->usage[chunk] = (qp_usage_t){ .exists = true, .used = size };
 	qp->used_count += size;
+	qp->chunk_count += 1;
 	qp->bump = chunk;
 	qp->fender = 0;
 
@@ -560,6 +568,7 @@ chunk_discount(dns_qp_t *qp, qp_chunk_t chunk) {
 		INSIST(qp->free_count >= qp->usage[chunk].free);
 		qp->used_count -= qp->usage[chunk].used;
 		qp->free_count -= qp->usage[chunk].free;
+		qp->chunk_count -= 1;
 	}
 }
 
@@ -615,9 +624,7 @@ recycle(dns_qp_t *qp) {
 
 	if (free > 0) {
 		LOG_STATS("qp recycle" PRItime "free %u chunks", time, free);
-		LOG_STATS("qp recycle leaf %u live %u used %u free %u hold %u",
-			  qp->leaf_count, qp->used_count - qp->free_count,
-			  qp->used_count, qp->free_count, qp->hold_count);
+		LOG_SIZES(qp, time);
 	}
 }
 
@@ -628,21 +635,42 @@ recycle(dns_qp_t *qp) {
 static bool
 defer_chunk_reclamation(dns_qp_t *qp, isc_qsbr_phase_t phase) {
 	unsigned int reclaim = 0;
+	unsigned int free = 0;
+
+	isc_nanosecs_t start = isc_time_monotonic();
 
 	for (qp_chunk_t chunk = 0; chunk < qp->chunk_max; chunk++) {
 		if (chunk != qp->bump && chunk_usage(qp, chunk) == 0 &&
-		    qp->usage[chunk].exists && qp->usage[chunk].immutable &&
-		    qp->usage[chunk].phase == 0)
+		    qp->usage[chunk].exists)
 		{
-			chunk_discount(qp, chunk);
-			qp->usage[chunk].phase = phase;
-			reclaim++;
+			if (!qp->usage[chunk].immutable) {
+				/* clean up empty mutable chunks right now */
+				chunk_free(qp, chunk);
+				free++;
+			} else if (qp->usage[chunk].phase == 0) {
+				/*
+				 * defer cleanup of empty immutable chunks
+				 * that are not already scheduled for cleanup
+				 */
+				chunk_discount(qp, chunk);
+				qp->usage[chunk].phase = phase;
+				reclaim++;
+			}
 		}
 	}
 
+	isc_nanosecs_t time = isc_time_monotonic() - start;
+	atomic_fetch_add_relaxed(&recycle_time, time);
+
+	if (free > 0) {
+		LOG_STATS("qp defer" PRItime "free %u chunks", time, free);
+	}
 	if (reclaim > 0) {
-		LOG_STATS("qp will reclaim %u chunks in phase %u", reclaim,
-			  phase);
+		LOG_STATS("qp defer" PRItime "%u chunks in phase %u", time,
+			  reclaim, phase);
+	}
+	if (free > 0 || reclaim > 0) {
+		LOG_SIZES(qp, time);
 	}
 
 	return (reclaim > 0);
@@ -679,9 +707,7 @@ reclaim_chunks(dns_qp_t *qp, isc_qsbr_phase_t phase) {
 	if (free > 0) {
 		LOG_STATS("qp reclaim" PRItime "phase %u free %u chunks", time,
 			  phase, free);
-		LOG_STATS("qp reclaim leaf %u live %u used %u free %u hold %u",
-			  qp->leaf_count, qp->used_count - qp->free_count,
-			  qp->used_count, qp->free_count, qp->hold_count);
+		LOG_SIZES(qp, time);
 	}
 
 	return (more);
@@ -765,10 +791,7 @@ marksweep_chunks(dns_qpmulti_t *multi) {
 
 	if (free > 0) {
 		LOG_STATS("qp marksweep" PRItime "free %u chunks", time, free);
-		LOG_STATS(
-			"qp marksweep leaf %u live %u used %u free %u hold %u",
-			qpw->leaf_count, qpw->used_count - qpw->free_count,
-			qpw->used_count, qpw->free_count, qpw->hold_count);
+		LOG_SIZES(qpw, time);
 	}
 }
 
@@ -874,9 +897,7 @@ compact_recursive(dns_qp_t *qp, qp_node_t *parent) {
 
 static void
 compact(dns_qp_t *qp) {
-	LOG_STATS("qp compact before leaf %u live %u used %u free %u hold %u",
-		  qp->leaf_count, qp->used_count - qp->free_count,
-		  qp->used_count, qp->free_count, qp->hold_count);
+	LOG_SIZES(qp, 0LU);
 
 	isc_nanosecs_t start = isc_time_monotonic();
 
@@ -892,10 +913,7 @@ compact(dns_qp_t *qp) {
 	isc_nanosecs_t time = isc_time_monotonic() - start;
 	atomic_fetch_add_relaxed(&compact_time, time);
 
-	LOG_STATS("qp compact" PRItime
-		  "leaf %u live %u used %u free %u hold %u",
-		  time, qp->leaf_count, qp->used_count - qp->free_count,
-		  qp->used_count, qp->free_count, qp->hold_count);
+	LOG_SIZES(qp, time);
 }
 
 void
@@ -1182,16 +1200,19 @@ dns_qpmulti_commit(dns_qpmulti_t *multi, dns_qp_t **qptp) {
 	/* reader_open() below has the matching atomic_load_acquire() */
 	atomic_store_release(&multi->reader, reader); /* COMMIT */
 
-	/* clean up what we can right now */
+	/*
+	 * We don't use AUTOGC here because it is for use when we can only
+	 * recycle mutable chunks; in this case we are (or, after a grace
+	 * period, we will be) able to recycle immutable chunks, and NEEDGC
+	 * takes account of immutable as well as mutable chunks.
+	 */
 	if (qp->transaction_mode == QP_UPDATE || QP_NEEDGC(qp)) {
-		recycle(qp);
-	}
-
-	/* the reclamation phase must be sampled after the commit */
-	isc_qsbr_phase_t phase = isc_qsbr_phase(multi->loopmgr);
-	if (defer_chunk_reclamation(qp, phase)) {
-		ISC_ASTACK_ADD(qsbr_work, multi, cleanup);
-		isc_qsbr_activate(multi->loopmgr, phase);
+		/* the reclamation phase must be sampled after the commit */
+		isc_qsbr_phase_t phase = isc_qsbr_phase(multi->loopmgr);
+		if (defer_chunk_reclamation(qp, phase)) {
+			ISC_ASTACK_ADD(qsbr_work, multi, cleanup);
+			isc_qsbr_activate(multi->loopmgr, phase);
+		}
 	}
 
 	*qptp = NULL;
