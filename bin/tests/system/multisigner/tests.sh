@@ -30,6 +30,7 @@ set_policy "model2" "2" "3600"
 # Key properties and states.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl	 "KEY1" "300"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY1" "yes"
@@ -41,6 +42,7 @@ set_keystate     "KEY1" "STATE_DS"     "omnipresent"
 
 key_clear        "KEY2"
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl	 "KEY2" "300"
 set_keylifetime  "KEY2" "0"
 set_keyalgorithm "KEY2" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY2" "no"
@@ -425,6 +427,8 @@ no_dnssec_in_journal
 #
 set_zone "model2.secondary"
 set_policy "model2" "2" "3600"
+set_keymaxttl "KEY1" "none"
+set_keymaxttl "KEY2" "none"
 
 set_server "ns3" "10.53.0.3"
 check_keys

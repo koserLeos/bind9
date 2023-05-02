@@ -442,7 +442,7 @@ wait_for_done_signing() {
 # ZSK now has lifetime of 60 days (5184000 seconds).
 # The key is removed after Iret = TTLsig + Dprp + Dsgn + retire-safety.
 Lzsk=5184000
-IretZSK=867900
+IretZSK=781800
 
 #
 # Testing good migration.
@@ -470,11 +470,11 @@ rollover_predecessor_keytimes 0
 
 # - Key now has lifetime of 60 days (5184000 seconds).
 #   The key is removed after Iret = TTLsig + Dprp + Dsgn + retire-safety.
-#   TTLsig:        1d (86400 seconds)
+#   TTLsig:        5m (300 seconds)
 #   Dprp:          5m (300 seconds)
 #   Dsgn:          9d (777600 seconds)
 #   retire-safety: 1h (3600 seconds)
-#   IretZSK:       10d65m (867900 seconds)
+#   IretZSK:       9d70m (781800 seconds)
 active=$(key_get KEY2 ACTIVE)
 set_addkeytime "KEY2" "RETIRED"     "${active}"  "${Lzsk}"
 retired=$(key_get KEY2 RETIRED)

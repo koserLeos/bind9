@@ -18,6 +18,8 @@ dnssec-policy "migrate" {
 		ksk key-directory lifetime unlimited algorithm @DEFAULT_ALGORITHM@;
 		zsk key-directory lifetime P60D algorithm @DEFAULT_ALGORITHM@;
 	};
+
+	max-zone-ttl 300;
 };
 
 dnssec-policy "timing-metadata" {
