@@ -2083,6 +2083,7 @@ write_key_state(const dst_key_t *key, int type, const char *directory) {
 		fprintf(fp, "Length: %u\n", key->key_size);
 
 		printnum(key, DST_NUM_LIFETIME, "Lifetime", fp);
+		printnum(key, DST_NUM_MAXTTL, "MaxTTL", fp);
 		printnum(key, DST_NUM_PREDECESSOR, "Predecessor", fp);
 		printnum(key, DST_NUM_SUCCESSOR, "Successor", fp);
 
