@@ -378,6 +378,30 @@ dns_zone_getmaxttl(dns_zone_t *zone);
  */
 
 void
+dns_zone_setdnssecttl(dns_zone_t *zone, uint32_t ttlsig, bool zone_locked);
+/*%<
+ * 	Sets the max ttl of the zone for DNSSEC purposes.
+ *
+ * Requires:
+ *\li	'zone' to be valid initialised zone.
+ *
+ * Returns:
+ *\li	void
+ */
+
+dns_ttl_t
+dns_zone_getdnssecttl(dns_zone_t *zone);
+/*%<
+ * 	Gets the max ttl of the zone for DNSSEC purposes.
+ *
+ * Requires:
+ *\li	'zone' to be valid initialised zone.
+ *
+ * Returns:
+ *\li	dns_ttl_t maximum encountered TTL.
+ */
+
+void
 dns_zone_lock_keyfiles(dns_zone_t *zone);
 /*%<
  *	Lock associated keyfiles for this zone.

@@ -22,6 +22,7 @@
 #include <isc/file.h>
 #include <isc/hash.h>
 #include <isc/hashmap.h>
+#include <isc/heap.h>
 #include <isc/hex.h>
 #include <isc/loop.h>
 #include <isc/md.h>
@@ -238,6 +239,11 @@ struct dns_keymgmt {
 	isc_mem_t *mctx;
 	isc_hashmap_t *table;
 };
+
+typedef struct dns_dnssecttl {
+	dns_ttl_t ttl;
+	isc_time_t expiretime;
+} dns_dnssecttl_t;
 
 /*
  * Initial size of the keymgmt hash table.
@@ -470,10 +476,12 @@ struct dns_zone {
 	uint32_t sourceserial;
 
 	/*%
-	 * soa and maximum zone ttl
+	 * soa and maximum zone ttls
 	 */
 	dns_ttl_t soattl;
 	dns_ttl_t maxttl;
+	dns_ttl_t zonemaxttl;
+	isc_heap_t *dnssecttl;
 
 	/*
 	 * Inline zone signing state.
@@ -1076,6 +1084,33 @@ inc_stats(dns_zone_t *zone, isc_statscounter_t counter) {
 	}
 }
 
+/*%
+ * DNSSEC TTL utility functions.
+ */
+static bool
+larger_ttl(void *v1, void *v2) {
+	dns_dnssecttl_t *ttl1 = v1;
+	dns_dnssecttl_t *ttl2 = v2;
+
+	return (ttl1->ttl > ttl2->ttl);
+};
+
+static void
+dnssecttl_free(void *element, void *memp) {
+	dns_dnssecttl_t *dttl = (dns_dnssecttl_t *)element;
+	isc_mem_t *mctx = (isc_mem_t *)memp;
+	isc_mem_put(mctx, dttl, sizeof(*dttl));
+}
+static bool
+dnssecttl_expired(dns_dnssecttl_t *dttl, isc_time_t now) {
+	REQUIRE(dttl != NULL);
+
+	if (isc_time_isepoch(&dttl->expiretime)) {
+		return (false);
+	}
+	return (isc_time_compare(&dttl->expiretime, &now) == -1);
+}
+
 /***
  ***	Public functions.
  ***/
@@ -1156,6 +1191,8 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx, unsigned int tid) {
 	zone->parentals = r;
 	zone->notify = r;
 	zone->defaultkasp = NULL;
+
+	isc_heap_create(zone->mctx, larger_ttl, NULL, 0, &zone->dnssecttl);
 
 	result = isc_stats_create(mctx, &zone->gluecachestats,
 				  dns_gluecachestatscounter_max);
@@ -1273,6 +1310,11 @@ zone_free(dns_zone_t *zone) {
 	}
 	if (!ISC_LIST_EMPTY(zone->checkds_ok)) {
 		clear_keylist(&zone->checkds_ok, zone->mctx);
+	}
+
+	if (zone->dnssecttl != NULL) {
+		isc_heap_foreach(zone->dnssecttl, dnssecttl_free, zone->mctx);
+		isc_heap_destroy(&zone->dnssecttl);
 	}
 
 	zone->journalsize = -1;
@@ -1782,6 +1824,104 @@ dns_zone_setmaxttl(dns_zone_t *zone, dns_ttl_t maxttl) {
 	UNLOCK_ZONE(zone);
 
 	return;
+}
+
+dns_ttl_t
+dns_zone_getdnssecttl(dns_zone_t *zone) {
+	isc_time_t now = isc_time_now();
+	dns_dnssecttl_t *dttl;
+	unsigned int idx = 1;
+
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	dttl = isc_heap_element(zone->dnssecttl, idx);
+	while (dttl != NULL) {
+		if (!dnssecttl_expired(dttl, now)) {
+			return (dttl->ttl);
+		}
+		idx++;
+		dttl = isc_heap_element(zone->dnssecttl, idx);
+	}
+	return (0);
+}
+
+void
+dns_zone_setdnssecttl(dns_zone_t *zone, dns_ttl_t ttlsig, bool zone_locked) {
+	isc_time_t now = isc_time_now();
+	dns_dnssecttl_t *dttl = NULL;
+	dns_dnssecttl_t *curmax = NULL;
+	unsigned int idx = 1;
+
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	if (!zone_locked) {
+		LOCK_ZONE(zone);
+	}
+
+	curmax = isc_heap_element(zone->dnssecttl, idx);
+	while (curmax != NULL) {
+		/*
+		 * Encountered a higher max zone TTL, update the current max
+		 * TTL.
+		 */
+		if (ttlsig > curmax->ttl) {
+			dns_zone_logc(zone, DNS_LOGCATEGORY_ZONELOAD,
+				      ISC_LOG_DEBUG(1),
+				      "setting TTLsig to %u (was %u)", ttlsig,
+				      curmax->ttl);
+			curmax->ttl = ttlsig;
+			isc_time_settoepoch(&curmax->expiretime);
+			goto unlock_zone;
+		}
+
+		/*
+		 * Encountered a smaller (or equal) max zone TTL, expire the
+		 * existing maximum and insert the new max TTL.
+		 */
+		if (isc_time_isepoch(&curmax->expiretime)) {
+			isc_interval_t i;
+
+			if (ttlsig == curmax->ttl) {
+				/* Equal, nothing to do. */
+				goto unlock_zone;
+			}
+
+			isc_interval_set(&i, curmax->ttl, 0);
+			isc_time_nowplusinterval(&curmax->expiretime, &i);
+
+			dns_zone_logc(zone, DNS_LOGCATEGORY_ZONELOAD,
+				      ISC_LOG_DEBUG(1),
+				      "TTLsig %u set expire time", curmax->ttl);
+		}
+
+		/*
+		 * Max zone TTL already expired/expiring, get next max zone TTL.
+		 */
+		if (dnssecttl_expired(curmax, now)) {
+			dns_zone_logc(zone, DNS_LOGCATEGORY_ZONELOAD,
+				      ISC_LOG_DEBUG(1), "TTLsig %u expired",
+				      curmax->ttl);
+			isc_heap_delete(zone->dnssecttl, idx);
+		} else {
+			idx++;
+			curmax = isc_heap_element(zone->dnssecttl, idx);
+		}
+	}
+
+	/* Not added yet. */
+	dttl = isc_mem_get(zone->mctx, sizeof(*dttl));
+	*dttl = (dns_dnssecttl_t){
+		.ttl = ttlsig,
+	};
+	isc_time_settoepoch(&dttl->expiretime);
+	isc_heap_insert(zone->dnssecttl, dttl);
+	dns_zone_logc(zone, DNS_LOGCATEGORY_ZONELOAD, ISC_LOG_DEBUG(1),
+		      "setting TTLsig to %u", ttlsig);
+
+unlock_zone:
+	if (!zone_locked) {
+		UNLOCK_ZONE(zone);
+	}
 }
 
 static isc_result_t
@@ -2554,6 +2694,17 @@ zone_registerinclude(const char *filename, void *arg) {
 }
 
 static void
+zone_updatemaxttl(dns_ttl_t ttl, void *arg) {
+	dns_zone_t *zone = (dns_zone_t *)arg;
+
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	if (ttl > zone->zonemaxttl) {
+		zone->zonemaxttl = ttl;
+	}
+}
+
+static void
 get_raw_serial(dns_zone_t *raw, dns_masterrawheader_t *rawdata) {
 	isc_result_t result;
 	unsigned int soacount;
@@ -2629,6 +2780,8 @@ zone_startload(dns_db_t *db, dns_zone_t *zone, isc_time_t loadtime) {
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup;
 	}
+
+	zone->zonemaxttl = 0;
 
 	if (zone->zmgr != NULL && zone->db != NULL) {
 		result = dns_master_loadfileasync(
@@ -5066,6 +5219,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 				     DNS_MAX_EXPIRE);
 		zone->soattl = soattl;
 		zone->minimum = minimum;
+
 		DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_HAVETIMERS);
 
 		if (zone->type == dns_zone_secondary ||
@@ -5256,6 +5410,14 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 	}
 
 	zone->loadtime = loadtime;
+
+	/*
+	 * Update maximum zone TTL.
+	 */
+	if (inline_raw(zone) || is_dynamic) {
+		dns_zone_setdnssecttl(zone, zone->zonemaxttl, true);
+	}
+
 	goto done;
 
 cleanup:
@@ -16437,6 +16599,7 @@ receive_secure_serial(void *arg) {
 
 	zone->sourceserial = end;
 	zone->sourceserialset = true;
+
 	zone_needdump(zone, DNS_DUMP_DELAY);
 
 	/*
@@ -16948,6 +17111,7 @@ receive_secure_db(void *arg) {
 	LOCK_ZONE(zone->raw);
 	DNS_ZONE_SETFLAG(zone, DNS_ZONEFLG_NEEDNOTIFY);
 	result = zone_postload(zone, db, loadtime, ISC_R_SUCCESS);
+
 	zone_needdump(zone, 0); /* XXXMPA */
 	UNLOCK_ZONE(zone->raw);
 
@@ -21244,6 +21408,16 @@ zone_rekey(dns_zone_t *zone) {
 		checkds_cancel(zone);
 		clear_keylist(&zone->checkds_ok, zone->mctx);
 		ISC_LIST_INIT(zone->checkds_ok);
+
+		/* Get maximum zone TTL */
+		ttlsig = dns_zone_getdnssecttl(zone);
+		if (ttlsig == 0) {
+			if (inline_secure(zone)) {
+				LOCK_ZONE(zone->raw);
+				ttlsig = dns_zone_getdnssecttl(zone->raw);
+				UNLOCK_ZONE(zone->raw);
+			}
+		}
 		UNLOCK_ZONE(zone);
 
 		result = dns_zone_getdnsseckeys(zone, db, ver, now,
