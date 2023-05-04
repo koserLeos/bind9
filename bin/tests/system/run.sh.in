@@ -34,6 +34,10 @@ date_with_args() (
     date "+%Y-%m-%dT%T%z"
 )
 
+unix_date_with_args() (
+    date "+%s"
+)
+
 stopservers=true
 # baseport == 0 means random
 baseport=0
@@ -160,6 +164,7 @@ stop_servers() {
     fi
 }
 
+date_start=$(unix_date_with_args)
 echostart "S:$systest:$(date_with_args)"
 echoinfo  "T:$systest:1:A"
 echoinfo  "A:$systest:System test $systest"
@@ -307,5 +312,7 @@ find "${systest}" -type f -name "named.run" -exec wc -l {} \; | awk "\$1 > ${NAM
 done
 
 echoend "E:$systest:$(date_with_args)"
+date_end=$(unix_date_with_args)
+echoend "X:$systest:$((date_end-date_start))"
 
 exit $status
