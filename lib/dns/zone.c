@@ -2789,7 +2789,8 @@ zone_startload(dns_db_t *db, dns_zone_t *zone, isc_time_t loadtime) {
 			zone->rdclass, options, 0, &load->callbacks, zone->loop,
 			zone_loaddone, load, &zone->loadctx,
 			zone_registerinclude, zone, zone->mctx,
-			zone->masterformat, zone->maxttl);
+			zone->masterformat, zone->maxttl, zone_updatemaxttl,
+			zone);
 		if (result != ISC_R_SUCCESS) {
 			goto cleanup;
 		}
@@ -2797,15 +2798,17 @@ zone_startload(dns_db_t *db, dns_zone_t *zone, isc_time_t loadtime) {
 		return (DNS_R_CONTINUE);
 	} else if (zone->stream != NULL) {
 		FILE *stream = UNCONST(zone->stream);
-		result = dns_master_loadstream(
-			stream, &zone->origin, &zone->origin, zone->rdclass,
-			options, &load->callbacks, zone->mctx);
+		result = dns_master_loadstream(stream, &zone->origin,
+					       &zone->origin, zone->rdclass,
+					       options, zone_updatemaxttl, zone,
+					       &load->callbacks, zone->mctx);
 	} else {
 		result = dns_master_loadfile(
 			zone->masterfile, &zone->origin, &zone->origin,
 			zone->rdclass, options, 0, &load->callbacks,
 			zone_registerinclude, zone, zone->mctx,
-			zone->masterformat, zone->maxttl);
+			zone->masterformat, zone->maxttl, zone_updatemaxttl,
+			zone);
 	}
 
 cleanup:
@@ -21408,16 +21411,6 @@ zone_rekey(dns_zone_t *zone) {
 		checkds_cancel(zone);
 		clear_keylist(&zone->checkds_ok, zone->mctx);
 		ISC_LIST_INIT(zone->checkds_ok);
-
-		/* Get maximum zone TTL */
-		ttlsig = dns_zone_getdnssecttl(zone);
-		if (ttlsig == 0) {
-			if (inline_secure(zone)) {
-				LOCK_ZONE(zone->raw);
-				ttlsig = dns_zone_getdnssecttl(zone->raw);
-				UNLOCK_ZONE(zone->raw);
-			}
-		}
 		UNLOCK_ZONE(zone);
 
 		result = dns_zone_getdnsseckeys(zone, db, ver, now,
@@ -21438,7 +21431,8 @@ zone_rekey(dns_zone_t *zone) {
 			dns_zone_lock_keyfiles(zone);
 			result = dns_keymgr_run(&zone->origin, zone->rdclass,
 						dir, mctx, &keys, &dnskeys,
-						kasp, now, &nexttime);
+						kasp, zone->dnssecttl, now,
+						&nexttime);
 			dns_zone_unlock_keyfiles(zone);
 
 			if (result != ISC_R_SUCCESS) {

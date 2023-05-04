@@ -112,6 +112,7 @@ struct dns_loadctx {
 
 	/* Members used by all formats */
 	uint32_t maxttl;
+	uint32_t maxzonettl;
 
 	/* Members specific to the text format: */
 	isc_lex_t *lex;
@@ -148,6 +149,9 @@ struct dns_loadctx {
 
 	dns_masterincludecb_t include_cb;
 	void *include_arg;
+
+	dns_maxttlcb_t maxttl_cb;
+	void *maxttl_arg;
 };
 
 struct dns_incctx {
@@ -486,7 +490,8 @@ loadctx_create(dns_masterformat_t format, isc_mem_t *mctx, unsigned int options,
 	       dns_name_t *origin, dns_rdatacallbacks_t *callbacks,
 	       dns_loaddonefunc_t done, void *done_arg,
 	       dns_masterincludecb_t include_cb, void *include_arg,
-	       isc_lex_t *lex, dns_loadctx_t **lctxp) {
+	       dns_maxttlcb_t maxttl_cb, void *maxttl_arg, isc_lex_t *lex,
+	       dns_loadctx_t **lctxp) {
 	dns_loadctx_t *lctx = NULL;
 	isc_region_t r;
 
@@ -512,6 +517,8 @@ loadctx_create(dns_masterformat_t format, isc_mem_t *mctx, unsigned int options,
 		.resign = resign,
 		.include_cb = include_cb,
 		.include_arg = include_arg,
+		.maxttl_cb = maxttl_cb,
+		.maxttl_arg = maxttl_arg,
 		.first = true,
 		.done = done,
 		.callbacks = callbacks,
@@ -2066,6 +2073,9 @@ load_text(dns_loadctx_t *lctx) {
 			result = ISC_R_RANGE;
 			goto log_and_cleanup;
 		}
+		if (lctx->ttl > lctx->maxzonettl) {
+			lctx->maxzonettl = lctx->ttl;
+		}
 
 		ISC_LIST_APPEND(this->rdata, &rdata[rdcount], link);
 		if (ictx->glue != NULL) {
@@ -2105,6 +2115,10 @@ load_text(dns_loadctx_t *lctx) {
 		result = lctx->result;
 	} else if (lctx->seen_include) {
 		result = DNS_R_SEENINCLUDE;
+	}
+
+	if (lctx->maxttl_cb != NULL) {
+		lctx->maxttl_cb(lctx->maxzonettl, lctx->maxttl_arg);
 	}
 
 	goto cleanup;
@@ -2482,6 +2496,9 @@ load_raw(dns_loadctx_t *lctx) {
 			result = ISC_R_RANGE;
 			goto cleanup;
 		}
+		if (lctx->ttl > lctx->maxzonettl) {
+			lctx->maxzonettl = lctx->ttl;
+		}
 
 		/* Rdata contents. */
 		if (rdcount > rdata_size) {
@@ -2589,6 +2606,10 @@ load_raw(dns_loadctx_t *lctx) {
 		}
 	}
 
+	if (result == ISC_R_SUCCESS && lctx->maxttl_cb != NULL) {
+		lctx->maxttl_cb(lctx->maxzonettl, lctx->maxttl_arg);
+	}
+
 	if (result == ISC_R_SUCCESS && lctx->result != ISC_R_SUCCESS) {
 		result = lctx->result;
 	}
@@ -2619,15 +2640,17 @@ dns_master_loadfile(const char *master_file, dns_name_t *top,
 		    dns_rdatacallbacks_t *callbacks,
 		    dns_masterincludecb_t include_cb, void *include_arg,
 		    isc_mem_t *mctx, dns_masterformat_t format,
-		    dns_ttl_t maxttl) {
+		    dns_ttl_t maxttl, dns_maxttlcb_t maxttl_cb,
+		    void *maxttl_arg) {
 	dns_loadctx_t *lctx = NULL;
 	isc_result_t result;
 
 	loadctx_create(format, mctx, options, resign, top, zclass, origin,
-		       callbacks, NULL, NULL, include_cb, include_arg, NULL,
-		       &lctx);
+		       callbacks, NULL, NULL, include_cb, include_arg,
+		       maxttl_cb, maxttl_arg, NULL, &lctx);
 
 	lctx->maxttl = maxttl;
+	lctx->maxzonettl = maxttl;
 
 	result = (lctx->openfile)(lctx, master_file);
 	if (result != ISC_R_SUCCESS) {
@@ -2665,7 +2688,8 @@ dns_master_loadfileasync(const char *master_file, dns_name_t *top,
 			 dns_loadctx_t **lctxp,
 			 dns_masterincludecb_t include_cb, void *include_arg,
 			 isc_mem_t *mctx, dns_masterformat_t format,
-			 uint32_t maxttl) {
+			 dns_ttl_t maxttl, dns_maxttlcb_t maxttl_cb,
+			 void *maxttl_arg) {
 	dns_loadctx_t *lctx = NULL;
 	isc_result_t result;
 
@@ -2673,10 +2697,11 @@ dns_master_loadfileasync(const char *master_file, dns_name_t *top,
 	REQUIRE(done != NULL);
 
 	loadctx_create(format, mctx, options, resign, top, zclass, origin,
-		       callbacks, done, done_arg, include_cb, include_arg, NULL,
-		       &lctx);
+		       callbacks, done, done_arg, include_cb, include_arg,
+		       maxttl_cb, maxttl_arg, NULL, &lctx);
 
 	lctx->maxttl = maxttl;
+	lctx->maxzonettl = maxttl;
 
 	result = (lctx->openfile)(lctx, master_file);
 	if (result != ISC_R_SUCCESS) {
@@ -2693,6 +2718,7 @@ dns_master_loadfileasync(const char *master_file, dns_name_t *top,
 isc_result_t
 dns_master_loadstream(FILE *stream, dns_name_t *top, dns_name_t *origin,
 		      dns_rdataclass_t zclass, unsigned int options,
+		      dns_maxttlcb_t maxttl_cb, void *maxttl_arg,
 		      dns_rdatacallbacks_t *callbacks, isc_mem_t *mctx) {
 	isc_result_t result;
 	dns_loadctx_t *lctx = NULL;
@@ -2700,7 +2726,8 @@ dns_master_loadstream(FILE *stream, dns_name_t *top, dns_name_t *origin,
 	REQUIRE(stream != NULL);
 
 	loadctx_create(dns_masterformat_text, mctx, options, 0, top, zclass,
-		       origin, callbacks, NULL, NULL, NULL, NULL, NULL, &lctx);
+		       origin, callbacks, NULL, NULL, NULL, NULL, maxttl_cb,
+		       maxttl_arg, NULL, &lctx);
 
 	result = isc_lex_openstream(lctx->lex, stream);
 	if (result != ISC_R_SUCCESS) {
@@ -2718,6 +2745,7 @@ cleanup:
 isc_result_t
 dns_master_loadbuffer(isc_buffer_t *buffer, dns_name_t *top, dns_name_t *origin,
 		      dns_rdataclass_t zclass, unsigned int options,
+		      dns_maxttlcb_t maxttl_cb, void *maxttl_arg,
 		      dns_rdatacallbacks_t *callbacks, isc_mem_t *mctx) {
 	isc_result_t result;
 	dns_loadctx_t *lctx = NULL;
@@ -2725,7 +2753,8 @@ dns_master_loadbuffer(isc_buffer_t *buffer, dns_name_t *top, dns_name_t *origin,
 	REQUIRE(buffer != NULL);
 
 	loadctx_create(dns_masterformat_text, mctx, options, 0, top, zclass,
-		       origin, callbacks, NULL, NULL, NULL, NULL, NULL, &lctx);
+		       origin, callbacks, NULL, NULL, NULL, NULL, maxttl_cb,
+		       maxttl_arg, NULL, &lctx);
 
 	result = isc_lex_openbuffer(lctx->lex, buffer);
 	if (result != ISC_R_SUCCESS) {

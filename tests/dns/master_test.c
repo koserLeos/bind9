@@ -152,7 +152,7 @@ test_master(const char *workdir, const char *testfile,
 
 	result = dns_master_loadfile(testfile, &dns_origin, &dns_origin,
 				     dns_rdataclass_in, true, 0, &callbacks,
-				     NULL, NULL, mctx, format, 0);
+				     NULL, NULL, mctx, format, 0, NULL, NULL);
 
 	return (result);
 }
@@ -325,10 +325,11 @@ ISC_RUN_TEST_IMPL(master_includelist) {
 	result = isc_dir_chdir(SRCDIR);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	result = dns_master_loadfile(
-		TESTS_DIR "/testdata/master/master8.data", &dns_origin,
-		&dns_origin, dns_rdataclass_in, 0, true, &callbacks,
-		include_callback, &filename, mctx, dns_masterformat_text, 0);
+	result = dns_master_loadfile(TESTS_DIR "/testdata/master/master8.data",
+				     &dns_origin, &dns_origin,
+				     dns_rdataclass_in, 0, true, &callbacks,
+				     include_callback, &filename, mctx,
+				     dns_masterformat_text, 0, NULL, NULL);
 	assert_int_equal(result, DNS_R_SEENINCLUDE);
 	assert_non_null(filename);
 	if (filename != NULL) {

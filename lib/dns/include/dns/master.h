@@ -112,6 +112,11 @@ typedef struct {
  */
 typedef void (*dns_masterincludecb_t)(const char *file, void *arg);
 
+/*
+ * Method prototype: a callback to update the zone's maxium encountered TTL.
+ */
+typedef void (*dns_maxttlcb_t)(dns_ttl_t ttl, void *arg);
+
 /***
  ***	Function
  ***/
@@ -123,16 +128,19 @@ dns_master_loadfile(const char *master_file, dns_name_t *top,
 		    dns_rdatacallbacks_t *callbacks,
 		    dns_masterincludecb_t include_cb, void *include_arg,
 		    isc_mem_t *mctx, dns_masterformat_t format,
-		    dns_ttl_t maxttl);
+		    dns_ttl_t maxttl, dns_maxttlcb_t maxttl_cb,
+		    void *maxttl_arg);
 
 isc_result_t
 dns_master_loadstream(FILE *stream, dns_name_t *top, dns_name_t *origin,
 		      dns_rdataclass_t zclass, unsigned int options,
+		      dns_maxttlcb_t maxttl_cb, void *maxttl_arg,
 		      dns_rdatacallbacks_t *callbacks, isc_mem_t *mctx);
 
 isc_result_t
 dns_master_loadbuffer(isc_buffer_t *buffer, dns_name_t *top, dns_name_t *origin,
 		      dns_rdataclass_t zclass, unsigned int options,
+		      dns_maxttlcb_t maxttl_cb, void *maxttl_arg,
 		      dns_rdatacallbacks_t *callbacks, isc_mem_t *mctx);
 
 isc_result_t
@@ -143,7 +151,8 @@ dns_master_loadfileasync(const char *master_file, dns_name_t *top,
 			 dns_loaddonefunc_t done, void *done_arg,
 			 dns_loadctx_t **ctxp, dns_masterincludecb_t include_cb,
 			 void *include_arg, isc_mem_t *mctx,
-			 dns_masterformat_t format, uint32_t maxttl);
+			 dns_masterformat_t format, dns_ttl_t maxttl,
+			 dns_maxttlcb_t maxttl_cb, void *maxttl_arg);
 
 /*%<
  * Loads a RFC1035 master file from a file, stream, or buffer

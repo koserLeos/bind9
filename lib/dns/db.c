@@ -336,7 +336,7 @@ dns_db_load(dns_db_t *db, const char *filename, dns_masterformat_t format,
 	}
 	result = dns_master_loadfile(filename, &db->origin, &db->origin,
 				     db->rdclass, options, 0, &callbacks, NULL,
-				     NULL, db->mctx, format, 0);
+				     NULL, db->mctx, format, 0, NULL, NULL);
 	eresult = dns_db_endload(db, &callbacks);
 	/*
 	 * We always call dns_db_endload(), but we only want to return its

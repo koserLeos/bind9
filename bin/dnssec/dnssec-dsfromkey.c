@@ -79,8 +79,8 @@ db_load_from_stream(dns_db_t *db, FILE *fp) {
 		fatal("dns_db_beginload failed: %s", isc_result_totext(result));
 	}
 
-	result = dns_master_loadstream(fp, name, name, rdclass, 0, &callbacks,
-				       mctx);
+	result = dns_master_loadstream(fp, name, name, rdclass, 0, NULL, NULL,
+				       &callbacks, mctx);
 	if (result != ISC_R_SUCCESS) {
 		fatal("can't load from input: %s", isc_result_totext(result));
 	}

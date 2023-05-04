@@ -2899,6 +2899,7 @@ update_action(void *arg) {
 	bool had_dnskey;
 	dns_rdatatype_t privatetype = dns_zone_getprivatetype(zone);
 	dns_ttl_t maxttl = 0;
+	dns_ttl_t dnssecttl = dns_zone_getdnssecttl(zone);
 	uint32_t maxrecords;
 	uint64_t records;
 	bool is_inline, is_maintain, is_signing;
@@ -3211,6 +3212,9 @@ update_action(void *arg) {
 						   "configured max-zone-ttl %d",
 						   maxttl);
 				}
+			}
+			if (ttl > dnssecttl) {
+				dnssecttl = ttl;
 			}
 
 			if (rules != NULL && rules[rule] != NULL) {
@@ -3565,6 +3569,11 @@ update_action(void *arg) {
 		 * Mark the zone as dirty so that it will be written to disk.
 		 */
 		dns_zone_markdirty(zone);
+
+		/*
+		 * Update maximum TTL for DNSSEC purposes.
+		 */
+		dns_zone_setdnssecttl(zone, dnssecttl, false);
 
 		/*
 		 * Notify secondaries of the change we just made.
