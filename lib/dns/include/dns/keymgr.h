@@ -28,7 +28,8 @@ isc_result_t
 dns_keymgr_run(const dns_name_t *origin, dns_rdataclass_t rdclass,
 	       const char *directory, isc_mem_t *mctx,
 	       dns_dnsseckeylist_t *keyring, dns_dnsseckeylist_t *dnskeys,
-	       dns_kasp_t *kasp, isc_stdtime_t now, isc_stdtime_t *nexttime);
+	       dns_kasp_t *kasp, dns_ttl_t maxttl, isc_stdtime_t now,
+	       isc_stdtime_t *nexttime);
 /*%<
  * Manage keys in 'keyring' and update timing data according to 'kasp' policy.
  * Create new keys for 'origin' if necessary in 'directory'.  Append all such

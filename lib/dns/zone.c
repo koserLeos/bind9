@@ -21404,13 +21404,25 @@ zone_rekey(dns_zone_t *zone) {
 	}
 
 	if (kasp != NULL) {
+		dns_ttl_t ttlsig;
+
+		LOCK_ZONE(zone);
 		/*
 		 * Check DS at parental agents. Clear ongoing checks.
 		 */
-		LOCK_ZONE(zone);
 		checkds_cancel(zone);
 		clear_keylist(&zone->checkds_ok, zone->mctx);
 		ISC_LIST_INIT(zone->checkds_ok);
+
+		/* Get maximum zone TTL */
+		ttlsig = dns_zone_getdnssecttl(zone);
+		if (ttlsig == 0) {
+			if (inline_secure(zone)) {
+				LOCK_ZONE(zone->raw);
+				ttlsig = dns_zone_getdnssecttl(zone->raw);
+				UNLOCK_ZONE(zone->raw);
+			}
+		}
 		UNLOCK_ZONE(zone);
 
 		result = dns_zone_getdnsseckeys(zone, db, ver, now,
@@ -21431,8 +21443,7 @@ zone_rekey(dns_zone_t *zone) {
 			dns_zone_lock_keyfiles(zone);
 			result = dns_keymgr_run(&zone->origin, zone->rdclass,
 						dir, mctx, &keys, &dnskeys,
-						kasp, zone->dnssecttl, now,
-						&nexttime);
+						kasp, ttlsig, now, &nexttime);
 			dns_zone_unlock_keyfiles(zone);
 
 			if (result != ISC_R_SUCCESS) {

@@ -33,6 +33,9 @@
 
 #include <dst/dst.h>
 
+/* Fallback TTLsig (maximum zone ttl) */
+#define TTLSIG 86400
+
 #define RETERR(x)                            \
 	do {                                 \
 		result = (x);                \
@@ -131,11 +134,16 @@ keymgr_settime_remove(dns_dnsseckey_t *key, dns_kasp_t *kasp) {
 
 	ret = dst_key_getbool(key->key, DST_BOOL_ZSK, &zsk);
 	if (ret == ISC_R_SUCCESS && zsk) {
+		dns_ttl_t ttlsig = dns_kasp_zonemaxttl(kasp);
+		(void)dst_key_getnum(key->key, DST_NUM_MAXTTL, &ttlsig);
+		if (ttlsig == 0) {
+			ttlsig = TTLSIG;
+		}
+
 		/* ZSK: Iret = Dsgn + Dprp + TTLsig */
-		zsk_remove = retire + dns_kasp_zonemaxttl(kasp) +
-			     dns_kasp_zonepropagationdelay(kasp) +
-			     dns_kasp_retiresafety(kasp) +
-			     dns_kasp_signdelay(kasp);
+		zsk_remove =
+			retire + ttlsig + dns_kasp_zonepropagationdelay(kasp) +
+			dns_kasp_retiresafety(kasp) + dns_kasp_signdelay(kasp);
 	}
 	ret = dst_key_getbool(key->key, DST_BOOL_KSK, &ksk);
 	if (ret == ISC_R_SUCCESS && ksk) {
@@ -178,7 +186,13 @@ keymgr_settime_syncpublish(dns_dnsseckey_t *key, dns_kasp_t *kasp, bool first) {
 	if (first) {
 		/* Also need to wait until the signatures are omnipresent. */
 		isc_stdtime_t zrrsig_present;
-		zrrsig_present = published + dns_kasp_zonemaxttl(kasp) +
+		dns_ttl_t ttlsig = dns_kasp_zonemaxttl(kasp);
+		(void)dst_key_getnum(key->key, DST_NUM_MAXTTL, &ttlsig);
+		if (ttlsig == 0) {
+			ttlsig = TTLSIG;
+		}
+
+		zrrsig_present = published + ttlsig +
 				 dns_kasp_zonepropagationdelay(kasp) +
 				 dns_kasp_publishsafety(kasp);
 		if (zrrsig_present > syncpublish) {
@@ -208,6 +222,7 @@ keymgr_prepublication_time(dns_dnsseckey_t *key, dns_kasp_t *kasp,
 	isc_result_t ret;
 	isc_stdtime_t active, retire, pub, prepub;
 	bool zsk = false, ksk = false;
+	dns_ttl_t ttlsig = dns_kasp_zonemaxttl(kasp);
 
 	REQUIRE(key != NULL);
 	REQUIRE(key->key != NULL);
@@ -215,6 +230,10 @@ keymgr_prepublication_time(dns_dnsseckey_t *key, dns_kasp_t *kasp,
 	active = 0;
 	pub = 0;
 	retire = 0;
+	(void)dst_key_getnum(key->key, DST_NUM_MAXTTL, &ttlsig);
+	if (ttlsig == 0) {
+		ttlsig = TTLSIG;
+	}
 
 	/*
 	 * An active key must have publish and activate timing
@@ -259,7 +278,7 @@ keymgr_prepublication_time(dns_dnsseckey_t *key, dns_kasp_t *kasp,
 				 * No predecessor, wait for zone to be
 				 * completely signed.
 				 */
-				syncpub2 = pub + dns_kasp_zonemaxttl(kasp) +
+				syncpub2 = pub + ttlsig +
 					   dns_kasp_publishsafety(kasp) +
 					   dns_kasp_zonepropagationdelay(kasp);
 			}
@@ -1239,6 +1258,7 @@ keymgr_transition_time(dns_dnsseckey_t *key, int type,
 		       isc_stdtime_t now, isc_stdtime_t *when) {
 	isc_result_t ret;
 	isc_stdtime_t lastchange, dstime, nexttime = now;
+	dns_ttl_t ttlsig;
 
 	/*
 	 * No need to wait if we move things into an uncertain state.
@@ -1311,7 +1331,12 @@ keymgr_transition_time(dns_dnsseckey_t *key, int type,
 			 *
 			 * We will also add the retire-safety interval.
 			 */
-			nexttime = lastchange + dns_kasp_zonemaxttl(kasp) +
+			ttlsig = dns_kasp_zonemaxttl(kasp);
+			(void)dst_key_getnum(key->key, DST_NUM_MAXTTL, &ttlsig);
+			if (ttlsig == 0) {
+				ttlsig = TTLSIG;
+			}
+			nexttime = lastchange + ttlsig +
 				   dns_kasp_zonepropagationdelay(kasp) +
 				   dns_kasp_retiresafety(kasp);
 			/*
@@ -1556,8 +1581,8 @@ transition:
  *
  */
 static void
-keymgr_key_init(dns_dnsseckey_t *key, dns_kasp_t *kasp, isc_stdtime_t now,
-		bool csk) {
+keymgr_key_init(dns_dnsseckey_t *key, dns_kasp_t *kasp, dns_ttl_t maxttl,
+		isc_stdtime_t now, bool csk) {
 	bool ksk, zsk;
 	isc_result_t ret;
 	isc_stdtime_t active = 0, pub = 0, syncpub = 0, retire = 0, remove = 0;
@@ -1568,6 +1593,11 @@ keymgr_key_init(dns_dnsseckey_t *key, dns_kasp_t *kasp, isc_stdtime_t now,
 
 	REQUIRE(key != NULL);
 	REQUIRE(key->key != NULL);
+
+	/* Keep track of the maximum zone TTL. */
+	if (maxttl != 0) {
+		dst_key_setnum(key->key, DST_NUM_MAXTTL, maxttl);
+	}
 
 	/* Initialize role. */
 	ret = dst_key_getbool(key->key, DST_BOOL_KSK, &ksk);
@@ -1584,7 +1614,7 @@ keymgr_key_init(dns_dnsseckey_t *key, dns_kasp_t *kasp, isc_stdtime_t now,
 	/* Get time metadata. */
 	ret = dst_key_gettime(key->key, DST_TIME_ACTIVATE, &active);
 	if (active <= now && ret == ISC_R_SUCCESS) {
-		dns_ttl_t zone_ttl = dns_kasp_zonemaxttl(kasp);
+		dns_ttl_t zone_ttl = maxttl;
 		zone_ttl += dns_kasp_zonepropagationdelay(kasp);
 		if ((active + zone_ttl) <= now) {
 			zrrsig_state = OMNIPRESENT;
@@ -1617,7 +1647,7 @@ keymgr_key_init(dns_dnsseckey_t *key, dns_kasp_t *kasp, isc_stdtime_t now,
 	}
 	ret = dst_key_gettime(key->key, DST_TIME_INACTIVE, &retire);
 	if (retire <= now && ret == ISC_R_SUCCESS) {
-		dns_ttl_t zone_ttl = dns_kasp_zonemaxttl(kasp);
+		dns_ttl_t zone_ttl = maxttl;
 		zone_ttl += dns_kasp_zonepropagationdelay(kasp);
 		if ((retire + zone_ttl) <= now) {
 			zrrsig_state = HIDDEN;
@@ -1667,8 +1697,8 @@ static isc_result_t
 keymgr_key_rollover(dns_kasp_key_t *kaspkey, dns_dnsseckey_t *active_key,
 		    dns_dnsseckeylist_t *keyring, dns_dnsseckeylist_t *newkeys,
 		    const dns_name_t *origin, dns_rdataclass_t rdclass,
-		    dns_kasp_t *kasp, uint32_t lifetime, bool rollover,
-		    isc_stdtime_t now, isc_stdtime_t *nexttime,
+		    dns_kasp_t *kasp, dns_ttl_t maxttl, uint32_t lifetime,
+		    bool rollover, isc_stdtime_t now, isc_stdtime_t *nexttime,
 		    isc_mem_t *mctx) {
 	char keystr[DST_KEY_FORMATSIZE];
 	isc_stdtime_t retire = 0, active = 0, prepub = 0;
@@ -1795,7 +1825,7 @@ keymgr_key_rollover(dns_kasp_key_t *kaspkey, dns_dnsseckey_t *active_key,
 		dst_key_setttl(dst_key, dns_kasp_dnskeyttl(kasp));
 		dst_key_settime(dst_key, DST_TIME_CREATED, now);
 		dns_dnsseckey_create(mctx, &dst_key, &new_key);
-		keymgr_key_init(new_key, kasp, now, csk);
+		keymgr_key_init(new_key, kasp, maxttl, now, csk);
 	} else {
 		new_key = candidate;
 	}
@@ -1973,7 +2003,8 @@ isc_result_t
 dns_keymgr_run(const dns_name_t *origin, dns_rdataclass_t rdclass,
 	       const char *directory, isc_mem_t *mctx,
 	       dns_dnsseckeylist_t *keyring, dns_dnsseckeylist_t *dnskeys,
-	       dns_kasp_t *kasp, isc_stdtime_t now, isc_stdtime_t *nexttime) {
+	       dns_kasp_t *kasp, dns_ttl_t maxttl, isc_stdtime_t now,
+	       isc_stdtime_t *nexttime) {
 	isc_result_t result = ISC_R_SUCCESS;
 	dns_dnsseckeylist_t newkeys;
 	dns_kasp_key_t *kkey;
@@ -2044,7 +2075,7 @@ dns_keymgr_run(const dns_name_t *origin, dns_rdataclass_t rdclass,
 	{
 		bool found_match = false;
 
-		keymgr_key_init(dkey, kasp, now, (numkeys == 1));
+		keymgr_key_init(dkey, kasp, maxttl, now, (numkeys == 1));
 
 		for (kkey = ISC_LIST_HEAD(dns_kasp_keys(kasp)); kkey != NULL;
 		     kkey = ISC_LIST_NEXT(kkey, link))
@@ -2187,9 +2218,10 @@ dns_keymgr_run(const dns_name_t *origin, dns_rdataclass_t rdclass,
 		}
 
 		/* See if this key requires a rollover. */
-		RETERR(keymgr_key_rollover(
-			kkey, active_key, keyring, &newkeys, origin, rdclass,
-			kasp, lifetime, rollover_allowed, now, nexttime, mctx));
+		RETERR(keymgr_key_rollover(kkey, active_key, keyring, &newkeys,
+					   origin, rdclass, kasp, maxttl,
+					   lifetime, rollover_allowed, now,
+					   nexttime, mctx));
 	}
 
 	/* Walked all kasp key configurations.  Append new keys. */
