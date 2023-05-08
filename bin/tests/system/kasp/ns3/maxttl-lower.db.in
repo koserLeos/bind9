@@ -9,9 +9,9 @@
 ; See the COPYRIGHT file distributed with this work for additional
 ; information regarding copyright ownership.
 
-$TTL 300
+$TTL 100
 @		IN	SOA  mname1. . (
-			303     ; serial
+			2       ; serial
 			20      ; refresh (20 seconds)
 			20      ; retry (20 seconds)
 			1814400 ; expire (3 weeks)
@@ -21,6 +21,6 @@ $TTL 300
 			NS	ns3
 ns3			A	10.53.0.3
 
-a			A	10.0.0.11
-b			A	10.0.0.22
-c			A	10.0.0.33
+a			A	10.0.0.1
+b			A	10.0.0.2
+c			A	10.0.0.3

@@ -46,7 +46,7 @@ for zn in default dnssec-keygen some-keys legacy-keys pregenerated \
 	  rumoured rsasha256 rsasha512 ecdsa256 ecdsa384 \
 	  dynamic dynamic-inline-signing inline-signing \
 	  checkds-ksk checkds-doubleksk checkds-csk inherit unlimited \
-	  manual-rollover multisigner-model2
+	  manual-rollover multisigner-model2 maxttl
 do
 	setup "${zn}.kasp"
 	cp template.db.in "$zonefile"

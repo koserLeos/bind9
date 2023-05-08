@@ -348,16 +348,19 @@ n=$((n+1))
 echo_i "modify unsigned zone file and check that new record is signed for zone ${ZONE} ($n)"
 ret=0
 cp "${DIR}/template2.db.in" "${DIR}/${ZONE}.db"
+echo "d.${ZONE}. A 10.0.0.44" >> "${DIR}/${ZONE}.db"
 rndccmd 10.53.0.3 reload "$ZONE" > /dev/null || log_error "rndc reload zone ${ZONE} failed"
 
 update_is_signed() {
-	ip_a=$1
-	ip_d=$2
+	ttl_a=$1
+	ip_a=$2
+	ttl_d=$3
+	ip_d=$4
 
 	if [ "$ip_a" != "-" ]; then
 		dig_with_opts "a.${ZONE}" "@${SERVER}" A > "dig.out.$DIR.test$n.a" || return 1
 		grep "status: NOERROR" "dig.out.$DIR.test$n.a" > /dev/null || return 1
-		grep "a.${ZONE}\..*${DEFAULT_TTL}.*IN.*A.*${ip_a}" "dig.out.$DIR.test$n.a" > /dev/null || return 1
+		grep "a.${ZONE}\..*${ttl_a}.*IN.*A.*${ip_a}" "dig.out.$DIR.test$n.a" > /dev/null || return 1
 		lines=$(get_keys_which_signed A "dig.out.$DIR.test$n.a" | wc -l)
 		test "$lines" -eq 1 || return 1
 		get_keys_which_signed A "dig.out.$DIR.test$n.a" | grep "^${KEY_ID}$" > /dev/null || return 1
@@ -366,14 +369,14 @@ update_is_signed() {
 	if [ "$ip_d" != "-" ]; then
 		dig_with_opts "d.${ZONE}" "@${SERVER}" A > "dig.out.$DIR.test$n".d || return 1
 		grep "status: NOERROR" "dig.out.$DIR.test$n".d > /dev/null || return 1
-		grep "d.${ZONE}\..*${DEFAULT_TTL}.*IN.*A.*${ip_d}" "dig.out.$DIR.test$n".d > /dev/null || return 1
+		grep "d.${ZONE}\..*${ttl_d}.*IN.*A.*${ip_d}" "dig.out.$DIR.test$n".d > /dev/null || return 1
 		lines=$(get_keys_which_signed A "dig.out.$DIR.test$n".d | wc -l)
 		test "$lines" -eq 1 || return 1
 		get_keys_which_signed A "dig.out.$DIR.test$n".d | grep "^${KEY_ID}$" > /dev/null || return 1
 	fi
 }
 
-retry_quiet 10 update_is_signed "10.0.0.11" "10.0.0.44" || ret=1
+retry_quiet 10 update_is_signed "${DEFAULT_TTL}" "10.0.0.11" "${DEFAULT_TTL}" "10.0.0.44" || ret=1
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
 
@@ -398,10 +401,83 @@ check_apex
 check_subdomain
 dnssec_verify
 
+# Test changing the maximum zone TTL.
+set_zone "maxttl.kasp"
+set_policy "default" "1" "3600"
+set_server "ns3" "10.53.0.3"
+# Key properties.
+set_keyrole      "KEY1" "csk"
+set_keylifetime  "KEY1" "0"
+set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
+set_keysigning   "KEY1" "yes"
+set_zonesigning  "KEY1" "yes"
+# DNSKEY, RRSIG (ksk), RRSIG (zsk) are published. DS needs to wait.
+set_keystate "KEY1" "GOAL"         "omnipresent"
+set_keystate "KEY1" "STATE_DNSKEY" "rumoured"
+set_keystate "KEY1" "STATE_KRRSIG" "rumoured"
+set_keystate "KEY1" "STATE_ZRRSIG" "rumoured"
+set_keystate "KEY1" "STATE_DS"     "hidden"
+
+check_keys
+check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
+set_keytimes_csk_policy
+check_keytimes
+check_apex
+check_subdomain
+dnssec_verify
+
+nextpartreset $DIR/named.run
+wait_for_log 3 "zone ${ZONE}/IN (unsigned): setting TTLsig to 300" $DIR/named.run || ret=1
+status=$((status+ret))
+
+# Lower maximum TTL.
+echo_i "check that decreasing maximum zone TTL is registered ($n)"
+n=$((n+1))
+cp ns3/maxttl-lower.db.in "ns3/${ZONE}.db"
+rndccmd 10.53.0.3 reload "$ZONE" > /dev/null || log_error "rndc reload zone ${ZONE} failed"
+wait_for_log_peek 3 "zone ${ZONE}/IN (unsigned): TTLsig 300 set expire time" $DIR/named.run || ret=1
+wait_for_log 3 "zone ${ZONE}/IN (unsigned): setting TTLsig to 100" $DIR/named.run || ret=1
+# Check keys again, should still have the same TTLsig because the higher value
+# hasn't expired yet.
+rndccmd 10.53.0.3 loadkeys "$ZONE" > /dev/null || log_error "rndc loadkeys zone ${ZONE} failed"
+wait_for_log 3 "keymgr: $ZONE done" $DIR/named.run || ret=1
+status=$((status+ret))
+check_keys
+check_keytimes
+
+# Higher maximum TTL.
+echo_i "check that increasing maximum zone TTL is registered ($n)"
+cp ns3/maxttl-higher.db.in "ns3/${ZONE}.db"
+rndccmd 10.53.0.3 reload "$ZONE" > /dev/null || log_error "rndc reload zone ${ZONE} failed"
+wait_for_log 3 "zone ${ZONE}/IN (unsigned): setting TTLsig to 600 (was 300)" $DIR/named.run || ret=1
+# Check keys again, key files should have been updated with the higher value.
+set_keymaxttl "KEY1" "600"
+rndccmd 10.53.0.3 loadkeys "$ZONE" > /dev/null || log_error "rndc loadkeys zone ${ZONE} failed"
+wait_for_log 3 "keymgr: $ZONE done" $DIR/named.run || ret=1
+status=$((status+ret))
+check_keys
+check_keytimes
+
 #
 # Zone: dynamic.kasp
 #
 set_zone "dynamic.kasp"
+set_dynamic
+set_policy "default" "1" "3600"
+set_server "ns3" "10.53.0.3"
+# Key properties, timings and states same as above.
+check_keys
+check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
+set_keytimes_csk_policy
+check_keytimes
+check_apex
+check_subdomain
+dnssec_verify
+
+#
+# Zone: dynamic-inline-signing.kasp
+#
+set_zone "dynamic-inline-signing.kasp"
 set_dynamic
 set_policy "default" "1" "3600"
 set_server "ns3" "10.53.0.3"
@@ -422,12 +498,23 @@ ret=0
 echo zone ${ZONE}
 echo server 10.53.0.3 "$PORT"
 echo update del "a.${ZONE}" 300 A 10.0.0.1
-echo update add "a.${ZONE}" 300 A 10.0.0.101
-echo update add "d.${ZONE}" 300 A 10.0.0.4
+echo update add "a.${ZONE}" 7200 A 10.0.0.101
+echo update add "d.${ZONE}" 7200 A 10.0.0.4
 echo send
 ) | $NSUPDATE
 
-retry_quiet 10 update_is_signed "10.0.0.101" "10.0.0.4" || ret=1
+retry_quiet 10 update_is_signed "7200" "10.0.0.101" "7200" "10.0.0.4" || ret=1
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
+
+# Make sure the maximum TTL for DNSSEC purposes is updated.
+n=$((n+1))
+echo_i "check that max ttl is updated after nsupdate with higher ttl for zone ${ZONE} ($n)"
+ret=0
+set_keymaxttl "KEY1" 7200
+rndccmd 10.53.0.3 loadkeys "$ZONE" > /dev/null || log_error "rndc loadkeys zone ${ZONE} failed"
+wait_for_log 3 "keymgr: $ZONE done" $DIR/named.run
+check_keytimes
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
 
@@ -439,12 +526,22 @@ ret=0
 echo zone ${ZONE}
 echo server 10.53.0.3 "$PORT"
 echo update add "a.${ZONE}" 300 A 10.0.0.1
-echo update del "a.${ZONE}" 300 A 10.0.0.101
-echo update del "d.${ZONE}" 300 A 10.0.0.4
+echo update del "a.${ZONE}" 7200 A 10.0.0.101
+echo update del "d.${ZONE}" 7200 A 10.0.0.4
 echo send
 ) | $NSUPDATE
 
-retry_quiet 10 update_is_signed "10.0.0.1" "-" || ret=1
+retry_quiet 10 update_is_signed "300" "10.0.0.1" "-" "-" || ret=1
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
+
+# Make sure the maximum TTL for DNSSEC purposes is updated.
+n=$((n+1))
+echo_i "check that max ttl stays on the higher ttl after nsupdate with lower ttl for zone ${ZONE} ($n)"
+ret=0
+rndccmd 10.53.0.3 loadkeys "$ZONE" > /dev/null || log_error "rndc loadkeys zone ${ZONE} failed"
+wait_for_log 3 "keymgr: $ZONE done" $DIR/named.run
+check_keytimes
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
 
@@ -454,41 +551,26 @@ echo_i "modify zone file and check that new record is signed for zone ${ZONE} ($
 ret=0
 rndccmd 10.53.0.3 freeze "$ZONE" > /dev/null || log_error "rndc freeze zone ${ZONE} failed"
 sleep 1
-echo "d.${ZONE}. 300 A 10.0.0.44" >> "${DIR}/${ZONE}.db"
-rndccmd 10.53.0.3 thaw "$ZONE" > /dev/null || log_error "rndc thaw zone ${ZONE} failed"
-
-retry_quiet 10 update_is_signed "10.0.0.1" "10.0.0.44" || ret=1
-test "$ret" -eq 0 || echo_i "failed"
-status=$((status+ret))
-
-#
-# Zone: dynamic-inline-signing.kasp
-#
-set_zone "dynamic-inline-signing.kasp"
-set_dynamic
-set_policy "default" "1" "3600"
-set_server "ns3" "10.53.0.3"
-# Key properties, timings and states same as above.
-check_keys
-check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
-set_keytimes_csk_policy
-check_keytimes
-check_apex
-check_subdomain
-dnssec_verify
-
-# Update zone with freeze/thaw.
-n=$((n+1))
-echo_i "modify unsigned zone file and check that new record is signed for zone ${ZONE} ($n)"
-ret=0
-rndccmd 10.53.0.3 freeze "$ZONE" > /dev/null || log_error "rndc freeze zone ${ZONE} failed"
-sleep 1
 cp "${DIR}/template2.db.in" "${DIR}/${ZONE}.db"
+echo "d.${ZONE}. 10600 A 10.0.0.44" >> "${DIR}/${ZONE}.db"
 rndccmd 10.53.0.3 thaw "$ZONE" > /dev/null || log_error "rndc thaw zone ${ZONE} failed"
-
-retry_quiet 10 update_is_signed || ret=1
+retry_quiet 10 update_is_signed "300" "10.0.0.1" "10600" "10.0.0.44" || ret=1
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
+
+# Make sure the maximum TTL for DNSSEC purposes is updated.
+n=$((n+1))
+echo_i "check that max ttl is updated after updating zonefile with higher ttl for zone ${ZONE} ($n)"
+ret=0
+set_keymaxttl "KEY1" 10600
+rndccmd 10.53.0.3 loadkeys "$ZONE" > /dev/null || log_error "rndc loadkeys zone ${ZONE} failed"
+wait_for_log 3 "keymgr: $ZONE done" $DIR/named.run
+check_keytimes
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status+ret))
+
+# Reset the default maximum ttl.
+set_keymaxttl "KEY1" 300
 
 #
 # Zone: inline-signing.kasp

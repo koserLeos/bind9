@@ -203,6 +203,14 @@ zone "multisigner-model2.kasp" {
 	allow-update { any; };
 };
 
+/* Test changing the maximum zone TTL. */
+zone "maxttl.kasp" {
+	type primary;
+	file "maxttl.kasp.db";
+	dnssec-policy "default";
+	inline-signing yes;
+};
+
 /*
  * Different algorithms.
  */
