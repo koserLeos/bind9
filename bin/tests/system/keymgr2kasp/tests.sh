@@ -92,6 +92,7 @@ init_migration_keys() {
 	key_set          "KEY1" "LEGACY" "yes"
 	set_keyrole      "KEY1" "ksk"
 	set_keylifetime  "KEY1" "none"
+	set_keymaxttl    "KEY1" "none"
 	set_keyalgorithm "KEY1" "$1" "$2" "$3"
 	set_keysigning   "KEY1" "yes"
 	set_zonesigning  "KEY1" "no"
@@ -100,6 +101,7 @@ init_migration_keys() {
 	key_set          "KEY2" "LEGACY" "yes"
 	set_keyrole      "KEY2" "zsk"
 	set_keylifetime  "KEY2" "none"
+	set_keymaxttl    "KEY2" "none"
 	set_keyalgorithm "KEY2" "$1" "$2" "$4"
 	set_keysigning   "KEY2" "no"
 	set_zonesigning  "KEY2" "yes"
@@ -440,9 +442,7 @@ wait_for_done_signing() {
 
 # Policy parameters.
 # ZSK now has lifetime of 60 days (5184000 seconds).
-# The key is removed after Iret = TTLsig + Dprp + Dsgn + retire-safety.
 Lzsk=5184000
-IretZSK=781800
 
 #
 # Testing good migration.
@@ -458,23 +458,28 @@ init_migration_states "omnipresent" "rumoured"
 key_set "KEY1" "LEGACY" "no"
 key_set "KEY2" "LEGACY" "no"
 set_keylifetime "KEY1" "${Lksk}"
+set_keymaxttl   "KEY1" 7200
 set_keylifetime "KEY2" "${Lzsk}"
+set_keymaxttl   "KEY2" 7200
 
 # Various signing policy checks.
 check_keys
 wait_for_done_signing
 check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
 
-# Set expected key times:
-rollover_predecessor_keytimes 0
+# Policy parameters.
+# The key is removed after Iret = TTLsig + Dprp + Dsgn + retire-safety.
+# TTLsig:        Variable
+IretZSK=$(key_get KEY2 MAX_TTL)
+# Dprp:          5m (300 seconds)
+IretZSK=$((IretZSK+300))
+# Dsgn:          9d (777600 seconds)
+IretZSK=$((IretZSK+777600))
+# retire-safety: 1h (3600 seconds)
+IretZSK=$((IretZSK+3600))
 
-# - Key now has lifetime of 60 days (5184000 seconds).
-#   The key is removed after Iret = TTLsig + Dprp + Dsgn + retire-safety.
-#   TTLsig:        5m (300 seconds)
-#   Dprp:          5m (300 seconds)
-#   Dsgn:          9d (777600 seconds)
-#   retire-safety: 1h (3600 seconds)
-#   IretZSK:       9d70m (781800 seconds)
+# Set expected key times.
+rollover_predecessor_keytimes 0
 active=$(key_get KEY2 ACTIVE)
 set_addkeytime "KEY2" "RETIRED"     "${active}"  "${Lzsk}"
 retired=$(key_get KEY2 RETIRED)
@@ -506,6 +511,7 @@ key_clear        "KEY1"
 key_set          "KEY1" "LEGACY" "no"
 set_keyrole      "KEY1" "csk"
 set_keylifetime  "KEY1" "0"
+set_keymaxttl    "KEY1" "7200"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
 set_zonesigning  "KEY1" "yes"
@@ -557,6 +563,7 @@ key_set          "KEY1" "LEGACY" "no"
 set_keyrole      "KEY1" "csk"
 key_set          "KEY1" "FLAGS" "256"
 set_keylifetime  "KEY1" "0"
+set_keymaxttl    "KEY1" "7200"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
 set_zonesigning  "KEY1" "yes"
@@ -602,21 +609,27 @@ status=$((status+ret))
 set_zone "migrate-nomatch-algnum.kasp"
 set_policy "migrate-nomatch-algnum" "4" "300"
 set_server "ns3" "10.53.0.3"
+Lksk=0
+Lzsk=5184000
 # The legacy keys need to be retired, but otherwise stay present until the
 # new keys are omnipresent, and can be used to construct a chain of trust.
 init_migration_keys "8" "RSASHA256" "2048" "2048"
 init_migration_states "hidden" "omnipresent"
 key_set "KEY1" "LEGACY" "no"
 key_set "KEY2" "LEGACY" "no"
+set_keymaxttl    "KEY1" "300"
+set_keymaxttl    "KEY2" "300"
 
 set_keyrole      "KEY3" "ksk"
-set_keylifetime  "KEY3" "0"
+set_keylifetime  "KEY3" "${Lksk}"
+set_keymaxttl    "KEY3" "300"
 set_keyalgorithm "KEY3" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY3" "yes"
 set_zonesigning  "KEY3" "no"
 
 set_keyrole      "KEY4" "zsk"
-set_keylifetime  "KEY4" "5184000"
+set_keylifetime  "KEY4" "${Lzsk}"
+set_keymaxttl    "KEY4" "300"
 set_keyalgorithm "KEY4" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY4" "no"
 set_zonesigning  "KEY4" "yes"
@@ -659,15 +672,6 @@ set_addkeytime "KEY1" "REMOVED" "${retired}" "${IretKSK}"
 # - ZSK must be retired since it no longer matches the policy.
 #   P: now-3900s
 #   A: now-12h
-# - The key is removed after the retire interval:
-#   IretZSK = TTLsig + Dprp + Dsgn + retire-safety.
-#   TTLsig:        11h (39600 seconds)
-#   Dprp:          1h (3600 seconds)
-#   Dsgn:          9d (777600 seconds)
-#   retire-safety: 1h (3600 seconds)
-#   IretZSK:       9d13h (824400 seconds)
-IretZSK=824400
-Lzsk=5184000
 created=$(key_get KEY2 CREATED)
 set_addkeytime "KEY2" "PUBLISHED"   "${created}" -3900
 set_addkeytime "KEY2" "ACTIVE"      "${created}" -43200
@@ -675,17 +679,28 @@ keyfile=$(key_get KEY2 BASEFILE)
 grep "; Inactive:" "${keyfile}.key" > retired.test${n}.zsk
 retired=$(awk '{print $3}' < retired.test${n}.zsk)
 set_keytime    "KEY2" "RETIRED" "${retired}"
+# - The key is removed after the retire interval:
+#   IretZSK = TTLsig + Dprp + Dsgn + retire-safety.
+#   TTLsig:        Variable
+IretZSK=$(key_get KEY2 MAX_TTL)
+#   Dprp:          1h (3600 seconds)
+IretZSK=$((IretZSK+3600))
+#   Dsgn:          9d (777600 seconds)
+IretZSK=$((IretZSK+777600))
+#   retire-safety: 1h (3600 seconds)
+IretZSK=$((IretZSK+3600))
 set_addkeytime "KEY2" "REMOVED" "${retired}" "${IretZSK}"
 # - The new KSK is immediately published and activated.
 created=$(key_get KEY3 CREATED)
 set_keytime    "KEY3" "PUBLISHED"   "${created}"
 set_keytime    "KEY3" "ACTIVE"      "${created}"
 # - It takes TTLsig + Dprp + publish-safety hours to propagate the zone.
-#   TTLsig:         11h (39600 seconds)
+#   TTLsig:         Variable
+Ipub=$(key_get KEY3 MAX_TTL)
 #   Dprp:           1h (3600 seconds)
+Ipub=$((Ipub+3600))
 #   publish-safety: 1h (3600 seconds)
-#   Ipub:           13h (46800 seconds)
-Ipub=46800
+Ipub=$((Ipub+3600))
 set_addkeytime "KEY3" "SYNCPUBLISH" "${created}" "${Ipub}"
 # - The ZSK is immediately published and activated.
 created=$(key_get KEY4 CREATED)
@@ -717,6 +732,8 @@ status=$((status+ret))
 set_zone "migrate-nomatch-alglen.kasp"
 set_policy "migrate-nomatch-alglen" "4" "300"
 set_server "ns3" "10.53.0.3"
+Lksk=0
+Lzsk=5184000
 
 # The legacy keys need to be retired, but otherwise stay present until the
 # new keys are omnipresent, and can be used to construct a chain of trust.
@@ -724,15 +741,19 @@ init_migration_keys "8" "RSASHA256" "2048" "2048"
 init_migration_states "hidden" "omnipresent"
 key_set "KEY1" "LEGACY" "no"
 key_set "KEY2" "LEGACY" "no"
+set_keymaxttl    "KEY1" "300"
+set_keymaxttl    "KEY2" "300"
 
 set_keyrole      "KEY3" "ksk"
-set_keylifetime  "KEY3" "0"
+set_keylifetime  "KEY3" "${Lksk}"
+set_keymaxttl    "KEY3" "300"
 set_keyalgorithm "KEY3" "8" "RSASHA256" "3072"
 set_keysigning   "KEY3" "yes"
 set_zonesigning  "KEY3" "no"
 
 set_keyrole      "KEY4" "zsk"
-set_keylifetime  "KEY4" "5184000"
+set_keylifetime  "KEY4" "${Lzsk}"
+set_keymaxttl    "KEY4" "300"
 set_keyalgorithm "KEY4" "8" "RSASHA256" "3072"
 set_keysigning   "KEY4" "no"
 # This key is considered to be prepublished, so it is not yet signing.
@@ -778,13 +799,14 @@ set_addkeytime "KEY1" "REMOVED" "${retired}" "${IretKSK}"
 #   A: now-12h
 # - The key is removed after the retire interval:
 #   IretZSK = TTLsig + Dprp + Dsgn + retire-safety.
-#   TTLsig:         11h (39600 seconds)
+#   TTLsig:         Variable
+IretZSK=$(key_get KEY2 MAX_TTL)
 #   Dprp:           1h (3600 seconds)
+IretZSK=$((IretZSK+3600))
 #   Dsgn:           9d (777600 seconds)
+IretZSK=$((IretZSK+777600))
 #   publish-safety: 1h (3600 seconds)
-#   IretZSK:        9d13h (824400 seconds)
-IretZSK=824400
-Lzsk=5184000
+IretZSK=$((IretZSK+3600))
 created=$(key_get KEY2 CREATED)
 set_addkeytime "KEY2" "PUBLISHED"   "${created}" -3900
 set_addkeytime "KEY2" "ACTIVE"      "${created}" -43200
@@ -798,11 +820,12 @@ created=$(key_get KEY3 CREATED)
 set_keytime    "KEY3" "PUBLISHED"   "${created}"
 set_keytime    "KEY3" "ACTIVE"      "${created}"
 # - It takes TTLsig + Dprp + publish-safety hours to propagate the zone.
-#   TTLsig:         11h (39600 seconds)
+#   TTLsig:         Variable
+Ipub=$(key_get KEY3 MAX_TTL)
 #   Dprp:           1h (3600 seconds)
+Ipub=$((Ipub+3600))
 #   publish-safety: 1h (3600 seconds)
-#   Ipub:           13h (46800 seconds)
-Ipub=46800
+Ipub=$((Ipub+3600))
 set_addkeytime "KEY3" "SYNCPUBLISH" "${created}" "${Ipub}"
 # - The ZSK is immediately published and activated.
 created=$(key_get KEY4 CREATED)
@@ -841,9 +864,14 @@ init_migration_keys "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_B
 init_migration_states "hidden" "omnipresent"
 key_set "KEY1" "LEGACY" "no"
 key_set "KEY2" "LEGACY" "no"
+set_keymaxttl    "KEY1" "300"
+set_keymaxttl    "KEY2" "300"
+Lksk=0
+Lzsk=5184000
 
 set_keyrole      "KEY3" "csk"
 set_keylifetime  "KEY3" "0"
+set_keymaxttl    "KEY3" "300"
 set_keyalgorithm "KEY3" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY3" "yes"
 set_zonesigning  "KEY3" "no"
@@ -886,13 +914,14 @@ set_addkeytime "KEY1" "REMOVED" "${retired}" "${IretKSK}"
 #   A: now-12h
 # - The key is removed after the retire interval:
 #   IretZSK = TTLsig + Dprp + Dsgn + retire-safety.
-#   TTLsig:         11h (39600 seconds)
+#   TTLsig:         Variable
+IretZSK=$(key_get KEY2 MAX_TTL)
 #   Dprp:           1h (3600 seconds)
+IretZSK=$((IretZSK+3600))
 #   Dsgn:           9d (777600 seconds)
+IretZSK=$((IretZSK+777600))
 #   publish-safety: 1h (3600 seconds)
-#   IretZSK:        9d13h (824400 seconds)
-IretZSK=824400
-Lzsk=5184000
+IretZSK=$((IretZSK+3600))
 created=$(key_get KEY2 CREATED)
 set_addkeytime "KEY2" "PUBLISHED"   "${created}" -3900
 set_addkeytime "KEY2" "ACTIVE"      "${created}" -43200
@@ -906,11 +935,12 @@ created=$(key_get KEY3 CREATED)
 set_keytime    "KEY3" "PUBLISHED"   "${created}"
 set_keytime    "KEY3" "ACTIVE"      "${created}"
 # - It takes TTLsig + Dprp + publish-safety hours to propagate the zone.
-#   TTLsig:         11h (39600 seconds)
+#   TTLsig:         Variable
+Ipub=$(key_get KEY3 MAX_TTL)
 #   Dprp:           1h (3600 seconds)
+Ipub=$((Ipub+3600))
 #   publish-safety: 1h (3600 seconds)
-#   Ipub:           13h (46800 seconds)
-Ipub=46800
+Ipub=$((Ipub+3600))
 set_addkeytime "KEY3" "SYNCPUBLISH" "${created}" "${Ipub}"
 
 # Continue signing policy checks.
@@ -934,15 +964,9 @@ status=$((status+ret))
 
 # Policy parameters.
 # KSK has lifetime of 60 days (5184000 seconds).
-# The KSK is removed after Iret = DprpP + TTLds + retire-safety =
-# 4h = 14400 seconds.
 Lksk=5184000
-IretKSK=14400
 # ZSK has lifetime of 60 days (5184000 seconds).
-# The ZSK is removed after Iret = TTLsig + Dprp + Dsgn + retire-safety =
-# 181h = 651600 seconds.
 Lzsk=5184000
-IretZSK=651600
 
 #
 # Testing rumoured state.
@@ -957,7 +981,18 @@ init_migration_states "omnipresent" "rumoured"
 key_set "KEY1" "LEGACY" "no"
 key_set "KEY2" "LEGACY" "no"
 set_keylifetime "KEY1" "${Lksk}"
+set_keymaxttl   "KEY1" "300"
 set_keylifetime "KEY2" "${Lzsk}"
+set_keymaxttl   "KEY2" "300"
+
+# The KSK is removed after Iret = DprpP + TTLds + retire-safety =
+# 4h = 14400 seconds.
+IretKSK=14400
+# The ZSK is removed after Iret = TTLsig + Dprp + Dsgn + retire-safety.
+IretZSK=$(key_get KEY2 MAX_TTL)
+IretZSK=$((IretZSK+3600))
+IretZSK=$((IretZSK+604800)) # Dsgn: 1w
+IretZSK=$((IretZSK+3600))
 
 # Various signing policy checks.
 check_keys
@@ -968,7 +1003,7 @@ check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
 #
 # Tds="now-2h"    (7200)
 # Tkey="now-300s" (300)
-# Tsig="now-11h"  (39600)
+# Tsig="now-300s" (300)
 created=$(key_get KEY1 CREATED)
 set_addkeytime      "KEY1" "PUBLISHED"   "${created}" -300
 set_addkeytime      "KEY1" "ACTIVE"      "${created}" -300
@@ -976,7 +1011,7 @@ set_addkeytime      "KEY1" "SYNCPUBLISH" "${created}"  -7200
 set_retired_removed "KEY1" "${Lksk}" "${IretKSK}"
 created=$(key_get KEY2 CREATED)
 set_addkeytime      "KEY2" "PUBLISHED"   "${created}"  -300
-set_addkeytime      "KEY2" "ACTIVE"      "${created}"  -39600
+set_addkeytime      "KEY2" "ACTIVE"      "${created}"  -300
 set_retired_removed "KEY2" "${Lzsk}" "${IretZSK}"
 
 # Continue signing policy checks.
@@ -1007,7 +1042,9 @@ init_migration_states "omnipresent" "omnipresent"
 key_set "KEY1" "LEGACY" "no"
 key_set "KEY2" "LEGACY" "no"
 set_keylifetime "KEY1" "${Lksk}"
+set_keymaxttl   "KEY1" "300"
 set_keylifetime "KEY2" "${Lzsk}"
+set_keymaxttl   "KEY2" "300"
 
 # Various signing policy checks.
 check_keys
@@ -1018,15 +1055,15 @@ check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
 #
 # Tds="now-3h"     (10800)
 # Tkey="now-3900s" (3900)
-# Tsig="now-12h"   (43200)
+# Tsig="now-3900s" (3900)
 created=$(key_get KEY1 CREATED)
 set_addkeytime      "KEY1" "PUBLISHED"   "${created}" -3900
 set_addkeytime      "KEY1" "ACTIVE"      "${created}" -3900
-set_addkeytime      "KEY1" "SYNCPUBLISH" "${created}"  -10800
+set_addkeytime      "KEY1" "SYNCPUBLISH" "${created}" -10800
 set_retired_removed "KEY1" "${Lksk}" "${IretKSK}"
 created=$(key_get KEY2 CREATED)
 set_addkeytime      "KEY2" "PUBLISHED"   "${created}"  -3900
-set_addkeytime      "KEY2" "ACTIVE"      "${created}"  -43200
+set_addkeytime      "KEY2" "ACTIVE"      "${created}"  -3900
 set_retired_removed "KEY2" "${Lzsk}" "${IretZSK}"
 
 # Continue signing policy checks.
@@ -1053,6 +1090,7 @@ init_view_migration() {
 	key_set          "KEY1" "LEGACY" "yes"
 	set_keyrole      "KEY1" "ksk"
 	set_keylifetime  "KEY1" "0"
+	set_keymaxttl    "KEY1" "300"
 	set_keysigning   "KEY1" "yes"
 	set_zonesigning  "KEY1" "no"
 
@@ -1060,6 +1098,7 @@ init_view_migration() {
 	key_set          "KEY2" "LEGACY" "yes"
 	set_keyrole      "KEY2" "zsk"
 	set_keylifetime  "KEY2" "0"
+	set_keymaxttl    "KEY2" "300"
 	set_keysigning   "KEY2" "no"
 	set_zonesigning  "KEY2" "yes"
 
@@ -1169,12 +1208,14 @@ init_migration_states "omnipresent" "rumoured"
 # However, because the keys have a lifetime, kasp will set the retired time.
 key_set          "KEY1" "LEGACY" "no"
 set_keylifetime  "KEY1" "31536000"
+set_keymaxttl    "KEY1" "300"
 set_keystate     "KEY1" "STATE_DNSKEY" "omnipresent"
 set_keystate     "KEY1" "STATE_KRRSIG" "omnipresent"
 set_keystate     "KEY1" "STATE_DS"     "omnipresent"
 
 key_set          "KEY2" "LEGACY" "no"
 set_keylifetime  "KEY2" "8035200"
+set_keymaxttl    "KEY2" "300"
 set_keystate     "KEY2" "STATE_DNSKEY" "omnipresent"
 set_keystate     "KEY2" "STATE_ZRRSIG" "omnipresent"
 # The ZSK needs to be replaced.
@@ -1182,6 +1223,7 @@ set_keystate     "KEY2" "GOAL" "hidden"
 set_keystate     "KEY3" "GOAL" "omnipresent"
 set_keyrole      "KEY3" "zsk"
 set_keylifetime  "KEY3" "8035200"
+set_keymaxttl    "KEY3" "300"
 set_keyalgorithm "KEY3" "8" "RSASHA256" "2048"
 set_keysigning   "KEY3" "no"
 set_zonesigning  "KEY3" "no" # not yet
@@ -1216,13 +1258,16 @@ set_keytime "KEY2" "ACTIVE" "${published}"
 active=$(key_get KEY2 ACTIVE)
 set_addkeytime "KEY2" "RETIRED" "${active}" "8035200"
 # Retire interval:
-# Sign delay:             9d (14-5)
-# Max zone TTL:           1d
-# Retire safety:          1h
-# Zone propagation delay: 300s
-# Total:                  867900 seconds
+# Max zone TTL:           Variable
+IretZSK=$(key_get KEY2 MAX_TTL)
+# Sign delay:             9d (14-5) (777600 seconds)
+IretZSK=$((IretZSK+777600))
+# Retire safety:          1h (3600 seconds)
+IretZSK=$((IretZSK+3600))
+# Zone propagation delay: 300 seconds
+IretZSK=$((IretZSK+300))
 retired=$(key_get KEY2 RETIRED)
-set_addkeytime "KEY2" "REMOVED" "${retired}" "867900"
+set_addkeytime "KEY2" "REMOVED" "${retired}" "${IretZSK}"
 
 created=$(key_get KEY3 CREATED)
 set_keytime    "KEY3" "PUBLISHED" "${created}"
@@ -1236,13 +1281,16 @@ set_addkeytime "KEY3" "ACTIVE" "${created}" "4200"
 active=$(key_get KEY3 ACTIVE)
 set_addkeytime "KEY3" "RETIRED" "${active}" "8035200"
 # Retire interval:
-# Sign delay:             9d (14-5)
-# Max zone TTL:           1d
-# Retire safety:          1h
-# Zone propagation delay: 300s
-# Total:                  867900 seconds
+# Max zone TTL:           Variable
+Ipub=$(key_get KEY3 MAX_TTL)
+# Sign delay:             9d (14-5) (777600 seconds)
+Ipub=$((Ipub+777600))
+# Retire safety:          1h (3600 seconds)
+Ipub=$((Ipub+3600))
+# Zone propagation delay: 300 seconds
+Ipub=$((Ipub+300))
 retired=$(key_get KEY3 RETIRED)
-set_addkeytime "KEY3" "REMOVED" "${retired}" "867900"
+set_addkeytime "KEY3" "REMOVED" "${retired}" "${Ipub}"
 
 # Continue signing policy checks.
 check_keytimes

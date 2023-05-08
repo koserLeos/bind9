@@ -67,6 +67,7 @@ VIEW3="C1Azf+gGPMmxrUg/WQINP6eV9Y0="
 # PRIVKEY_STAT
 # PUBKEY_STAT
 # STATE_STAT
+# MAX_TTL
 
 key_key() {
 	echo "${1}__${2}"
@@ -133,6 +134,7 @@ key_clear() {
 	key_set "$1" "PRIVKEY_STAT" '0'
 	key_set "$1" "PUBKEY_STAT" '0'
 	key_set "$1" "STATE_STAT" '0'
+	key_set "$1" "MAX_TTL" 'none'
 }
 
 # Start clear.
@@ -249,6 +251,10 @@ set_keyrole() {
 set_keylifetime() {
 	key_set "$1" "EXPECT" "yes"
 	key_set "$1" "LIFETIME" "$2"
+}
+set_keymaxttl() {
+	key_set "$1" "EXPECT" "yes"
+	key_set "$1" "MAX_TTL" "$2"
 }
 # The algorithm value consists of three parts:
 # $2: Algorithm (number)
@@ -493,11 +499,22 @@ check_timingmetadata() {
 	_retired=$(key_get "$1" RETIRED)
 	_revoked=$(key_get "$1" REVOKED)
 	_removed=$(key_get "$1" REMOVED)
+	_maxttl=$(key_get "$1" MAX_TTL)
 
 	# Check timing metadata.
 	n=$((n+1))
 	echo_i "check key timing metadata for key $1 id ${_key_id} zone ${ZONE} ($n)"
 	ret=0
+
+	if [ "$_maxttl" = "none" ]; then
+		if [ "$_legacy" = "no" ]; then
+			grep "MaxTTL: " "${_state_file}" > /dev/null && _log_error "unexpected maxttl in ${_state_file}"
+		fi
+	else
+		if [ "$_legacy" = "no" ]; then
+			grep "MaxTTL: $_maxttl" "${_state_file}" > /dev/null || _log_error "mismatch maxttl in ${_state_file} (expected ${_maxttl})"
+		fi
+	fi
 
 	if [ "$_published" = "none" ]; then
 		grep "; Publish:" "${_key_file}" > /dev/null && _log_error "unexpected publish comment in ${_key_file}"

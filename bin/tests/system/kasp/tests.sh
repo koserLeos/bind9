@@ -265,13 +265,18 @@ status=$((status+ret))
 set_keytimes_csk_policy() {
 	# The first key is immediately published and activated.
 	created=$(key_get KEY1 CREATED)
+	set_keymaxttl   "KEY1" "300"
 	set_keytime     "KEY1" "PUBLISHED"   "${created}"
 	set_keytime     "KEY1" "ACTIVE"      "${created}"
 	# The DS can be published if the DNSKEY and RRSIG records are
-	# OMNIPRESENT.  This happens after max-zone-ttl (1d) plus
-	# publish-safety (1h) plus zone-propagation-delay (300s) =
-	# 86400 + 3600 + 300 = 90300.
-	set_addkeytime  "KEY1" "SYNCPUBLISH" "${created}" 90300
+	# OMNIPRESENT.  This happens after max(TTLsig, TTLkey) plus
+	# publish-safety (1h) plus zone-propagation-delay (300s)
+	_ttl=$(key_get KEY1 MAX_TTL)
+	if [ $_ttl -le $DNSKEY_TTL ]; then
+		_ttl=$DNSKEY_TTL
+	fi
+	_syncpub=$((_ttl+3900))
+	set_addkeytime  "KEY1" "SYNCPUBLISH" "${created}" "${_syncpub}"
 	# Key lifetime is unlimited, so not setting RETIRED and REMOVED.
 }
 
@@ -513,12 +518,14 @@ set_policy "checkds-ksk" "2" "303"
 set_server "ns3" "10.53.0.3"
 # Key properties.
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "300"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY1" "yes"
 set_zonesigning  "KEY1" "no"
 
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "300"
 set_keylifetime  "KEY2" "0"
 set_keyalgorithm "KEY2" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY2" "no"
@@ -583,18 +590,21 @@ set_policy "checkds-doubleksk" "3" "303"
 set_server "ns3" "10.53.0.3"
 # Key properties.
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "300"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY1" "yes"
 set_zonesigning  "KEY1" "no"
 
 set_keyrole      "KEY2" "ksk"
+set_keymaxttl    "KEY2" "300"
 set_keylifetime  "KEY2" "0"
 set_keyalgorithm "KEY2" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY2" "yes"
 set_zonesigning  "KEY2" "no"
 
 set_keyrole      "KEY3" "zsk"
+set_keymaxttl    "KEY3" "300"
 set_keylifetime  "KEY3" "0"
 set_keyalgorithm "KEY3" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY3" "no"
@@ -684,6 +694,7 @@ set_policy "checkds-csk" "1" "303"
 set_server "ns3" "10.53.0.3"
 # Key properties.
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "300"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY1" "yes"
@@ -722,6 +733,7 @@ status=$((status+ret))
 set_keytimes_algorithm_policy() {
 	# The first KSK is immediately published and activated.
 	created=$(key_get KEY1 CREATED)
+
 	set_keytime    "KEY1" "PUBLISHED" "${created}"
 	set_keytime    "KEY1" "ACTIVE"    "${created}"
 	# Key was pregenerated.
@@ -735,10 +747,18 @@ set_keytimes_algorithm_policy() {
 	published=$(key_get KEY1 PUBLISHED)
 
 	# The DS can be published if the DNSKEY and RRSIG records are
-	# OMNIPRESENT.  This happens after max-zone-ttl (1d) plus
-	# publish-safety (1h) plus zone-propagation-delay (300s) =
-	# 86400 + 3600 + 300 = 90300.
-	set_addkeytime "KEY1" "SYNCPUBLISH" "${published}" 90300
+	# OMNIPRESENT.  This happens after max(TTLsig, TTLkey) plus
+	# publish-safety (1h) plus zone-propagation-delay (300s).
+	_ttl=$(key_get KEY1 MAX_TTL)
+	if [ "$_ttl" = "none" ]; then
+		# Default back to 1 day.
+		_ttl=86400
+	fi
+	if [ $_ttl -le $DNSKEY_TTL ]; then
+		_ttl=$DNSKEY_TTL
+	fi
+	_syncpub=$((_ttl+3900))
+	set_addkeytime "KEY1" "SYNCPUBLISH" "${published}" "${_syncpub}"
 	# Key lifetime is 10 years, 315360000 seconds.
 	set_addkeytime "KEY1" "RETIRED"     "${published}" 315360000
 	# The key is removed after the retire time plus DS TTL (1d),
@@ -763,12 +783,20 @@ set_keytimes_algorithm_policy() {
 
 	# Key lifetime for KSK2 is 5 years, 157680000 seconds.
 	set_addkeytime "KEY2" "RETIRED"   "${published}" 157680000
-	# The key is removed after the retire time plus max zone ttl (1d), zone
-	# propagation delay (300s), retire safety (1h), and sign delay
-	# (signature validity minus refresh, 9d) =
-	# 86400 + 300 + 3600 + 777600 = 867900.
+	# The key is removed after the retire time plus maximum zone TTL,
+	# zone propagation delay (300s), retire safety (1h), and sign delay
+	# (signature validity minus refresh, 9d) = TTL + 300 + 3600 + 777600.
+	_Iret=$(key_get KEY2 MAX_TTL)
+	if [ "$_Iret" = "none" ]; then
+		# Default back to 1 day.
+		_Iret=86400
+	fi
+	_Iret=$((_Iret+300))
+	_Iret=$((_Iret+3600))
+	_Iret=$((_Iret+777600))
+
 	retired=$(key_get KEY2 RETIRED)
-	set_addkeytime "KEY2" "REMOVED"   "${retired}"   867900
+	set_addkeytime "KEY2" "REMOVED"   "${retired}"   "${_Iret}"
 
 	# Second ZSK (KEY3).
 	created=$(key_get KEY3 CREATED)
@@ -787,7 +815,7 @@ set_keytimes_algorithm_policy() {
 	# Key lifetime for KSK3 is 1 year, 31536000 seconds.
 	set_addkeytime "KEY3" "RETIRED"   "${published}" 31536000
 	retired=$(key_get KEY3 RETIRED)
-	set_addkeytime "KEY3" "REMOVED"   "${retired}"   867900
+	set_addkeytime "KEY3" "REMOVED"   "${retired}"   "${_Iret}"
 }
 
 #
@@ -801,6 +829,7 @@ then
 	# Key properties.
 	key_clear        "KEY1"
 	set_keyrole      "KEY1" "ksk"
+	set_keymaxttl    "KEY1" "300"
 	set_keylifetime  "KEY1" "315360000"
 	set_keyalgorithm "KEY1" "5" "RSASHA1" "2048"
 	set_keysigning   "KEY1" "yes"
@@ -808,6 +837,7 @@ then
 
 	key_clear        "KEY2"
 	set_keyrole      "KEY2" "zsk"
+	set_keymaxttl    "KEY2" "300"
 	set_keylifetime  "KEY2" "157680000"
 	set_keyalgorithm "KEY2" "5" "RSASHA1" "2048"
 	set_keysigning   "KEY2" "no"
@@ -815,6 +845,7 @@ then
 
 	key_clear        "KEY3"
 	set_keyrole      "KEY3" "zsk"
+	set_keymaxttl    "KEY3" "300"
 	set_keylifetime  "KEY3" "31536000"
 	set_keyalgorithm "KEY3" "5" "RSASHA1" "2000"
 	set_keysigning   "KEY3" "no"
@@ -924,6 +955,7 @@ set_server "ns3" "10.53.0.3"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "300"
 set_keylifetime  "KEY1" "315360000"
 set_keyalgorithm "KEY1" "8" "RSASHA256" "2048"
 set_keysigning   "KEY1" "yes"
@@ -931,6 +963,7 @@ set_zonesigning  "KEY1" "no"
 
 key_clear        "KEY2"
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "300"
 set_keylifetime  "KEY2" "157680000"
 set_keyalgorithm "KEY2" "8" "RSASHA256" "2048"
 set_keysigning   "KEY2" "no"
@@ -938,6 +971,7 @@ set_zonesigning  "KEY2" "yes"
 
 key_clear        "KEY3"
 set_keyrole      "KEY3" "zsk"
+set_keymaxttl    "KEY3" "300"
 set_keylifetime  "KEY3" "31536000"
 set_keyalgorithm "KEY3" "8" "RSASHA256" "3072"
 set_keysigning   "KEY3" "no"
@@ -1050,8 +1084,10 @@ dnssec_verify
 set_zone "secondary.kasp"
 set_policy "rsasha256" "3" "1234"
 set_server "ns3" "10.53.0.3"
-# Key properties, timings and states same as above.
-
+# Key properties, timings and states same as above, except for max-ttl.
+set_keymaxttl "KEY1" "none"
+set_keymaxttl "KEY2" "none"
+set_keymaxttl "KEY3" "none"
 check_keys
 check_dnssecstatus "$SERVER" "$POLICY" "$ZONE"
 set_keytimes_algorithm_policy
@@ -1084,6 +1120,11 @@ _wait_for_done_subdomains() {
 retry_quiet 5 _wait_for_done_subdomains || ret=1
 test "$ret" -eq 0 || echo_i "failed"
 status=$((status+ret))
+
+# Reset expected max-ttl
+set_keymaxttl "KEY1" "300"
+set_keymaxttl "KEY2" "300"
+set_keymaxttl "KEY3" "300"
 
 # TODO: we might want to test:
 # - configuring a zone with too many active keys (should trigger retire).
@@ -1240,6 +1281,7 @@ fi
 set_keytimes_autosign_policy() {
 	# The KSK was published six months ago (with settime).
 	created=$(key_get KEY1 CREATED)
+	set_keymaxttl  "KEY1" "300"
 	set_addkeytime "KEY1" "PUBLISHED"   "${created}" -15552000
 	set_addkeytime "KEY1" "ACTIVE"      "${created}" -15552000
 	set_addkeytime "KEY1" "SYNCPUBLISH" "${created}" -15552000
@@ -1254,19 +1296,27 @@ set_keytimes_autosign_policy() {
 
 	# The ZSK was published six months ago (with settime).
 	created=$(key_get KEY2 CREATED)
+	set_keymaxttl  "KEY2" "300"
 	set_addkeytime "KEY2" "PUBLISHED"   "${created}" -15552000
 	set_addkeytime "KEY2" "ACTIVE"      "${created}" -15552000
 	# Key lifetime for KSK2 is 1 year, 31536000 seconds.
 	active=$(key_get KEY2 ACTIVE)
 	set_addkeytime "KEY2" "RETIRED"     "${active}"  31536000
 	# The key is removed after the retire time plus:
-        # TTLsig (RRSIG TTL):       1 day (86400 seconds)
+        # TTLsig:                   Variable
+	_Iret=$(key_get KEY2 MAX_TTL)
+	if [ "$_Iret" = "none" ]; then
+		# Default back to 1 day.
+		_Iret=86400
+	fi
 	# Dprp (propagation delay): 5 minutes (300 seconds)
+	_Iret=$((_Iret+300))
         # retire-safety:            1 hour (3600 seconds)
+	_Iret=$((_Iret+3600))
         # Dsgn (sign delay):        7 days (604800 seconds)
-        # Iret:                     695100 seconds.
+	_Iret=$((_Iret+604800))
 	retired=$(key_get KEY2 RETIRED)
-	set_addkeytime "KEY2" "REMOVED"     "${retired}" 695100
+	set_addkeytime "KEY2" "REMOVED"     "${retired}" "${_Iret}"
 }
 
 #
@@ -1485,6 +1535,7 @@ set_policy "autosign" "3" "300"
 set_server "ns3" "10.53.0.3"
 # The third key is not yet expected to be signing.
 set_keyrole      "KEY3" "zsk"
+set_keymaxttl    "KEY3" "300"
 set_keylifetime  "KEY3" "31536000"
 set_keyalgorithm "KEY3" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY3" "no"
@@ -1507,7 +1558,11 @@ set_keytimes_autosign_policy
 # The old ZSK is retired.
 created=$(key_get KEY2 CREATED)
 set_keytime    "KEY2" "RETIRED"   "${created}"
-set_addkeytime "KEY2" "REMOVED"   "${created}"   695100
+Iret=$(key_get KEY2 MAX_TTL)
+Iret=$((Iret+300))
+Iret=$((Iret+3600))
+Iret=$((Iret+604800))
+set_addkeytime "KEY2" "REMOVED"   "${created}"   "${Iret}"
 # The new ZSK is immediately published.
 created=$(key_get KEY3 CREATED)
 set_keytime    "KEY3" "PUBLISHED" "${created}"
@@ -1523,7 +1578,7 @@ active=$(key_get KEY3 ACTIVE)
 set_addkeytime "KEY3" "RETIRED"   "${active}"    31536000
 # Iret:                  695100 seconds.
 retired=$(key_get KEY3 RETIRED)
-set_addkeytime "KEY3" "REMOVED"   "${retired}"   695100
+set_addkeytime "KEY3" "REMOVED"   "${retired}"   "${Iret}"
 
 check_keytimes
 check_apex
@@ -1543,6 +1598,7 @@ set_server "ns3" "10.53.0.3"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "300"
 set_keylifetime  "KEY1" "16070400"
 set_keyalgorithm "KEY1" "8" "RSASHA256" "2048"
 set_keysigning   "KEY1" "yes"
@@ -1550,6 +1606,7 @@ set_zonesigning  "KEY1" "no"
 
 key_clear        "KEY2"
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "300"
 set_keylifetime  "KEY2" "16070400"
 set_keyalgorithm "KEY2" "8" "RSASHA256" "2048"
 set_keysigning   "KEY2" "no"
@@ -1596,9 +1653,14 @@ set_keytime "KEY1" "PUBLISHED" "${published}"
 set_keytime "KEY1" "ACTIVE"    "${published}"
 published=$(key_get KEY1 PUBLISHED)
 # The DS can be published if the DNSKEY and RRSIG records are OMNIPRESENT.
-#  This happens after max-zone-ttl (1d) plus publish-safety (1h) plus
-# zone-propagation-delay (300s) = 86400 + 3600 + 300 = 90300.
-set_addkeytime "KEY1" "SYNCPUBLISH" "${published}" 90300
+# This happens after TTLsig plus publish-safety (1h) plus
+# zone-propagation-delay (300s).
+ttl=$(key_get KEY1 MAX_TTL)
+if [ $ttl -le $DNSKEY_TTL ]; then
+	ttl=$DNSKEY_TTL
+fi
+syncpub=$((ttl+3900))
+set_addkeytime "KEY1" "SYNCPUBLISH" "${published}" $syncpub
 # Key lifetime is 6 months, 315360000 seconds.
 set_addkeytime "KEY1" "RETIRED"     "${published}" 16070400
 # The key is removed after the retire time plus DS TTL (1d), parent
@@ -1616,11 +1678,15 @@ set_keytime "KEY2" "ACTIVE"    "${published}"
 published=$(key_get KEY2 PUBLISHED)
 # Key lifetime is 6 months, 315360000 seconds.
 set_addkeytime "KEY2" "RETIRED"     "${published}" 16070400
-# The key is removed after the retire time plus max zone ttl (1d), zone
+# The key is removed after the retire time plus max zone ttl, zone
 # propagation delay (300s), retire safety (1h), and sign delay (signature
-# validity minus refresh, 9d) = 86400 + 300 + 3600 + 777600 = 867900.
+# validity minus refresh, 9d) = TTLsig + 300 + 3600 + 777600 = 867900.
+Iret=$(key_get KEY1 MAX_TTL)
+Iret=$((Iret+300))
+Iret=$((Iret+3600))
+Iret=$((Iret+777600))
 retired=$(key_get KEY2 RETIRED)
-set_addkeytime "KEY2" "REMOVED"   "${retired}"   867900
+set_addkeytime "KEY2" "REMOVED"   "${retired}"   "${Iret}"
 
 check_keytimes
 check_apex
@@ -1989,12 +2055,14 @@ key_clear "KEY4"
 
 # Key properties.
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "3600"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
 set_zonesigning  "KEY1" "no"
 
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "3600"
 set_keylifetime  "KEY2" "0"
 set_keyalgorithm "KEY2" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY2" "no"
@@ -2050,12 +2118,14 @@ key_clear "KEY3"
 key_clear "KEY4"
 # Key properties.
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "3600"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
 set_zonesigning  "KEY1" "no"
 
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "3600"
 set_keylifetime  "KEY2" "0"
 set_keyalgorithm "KEY2" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY2" "no"
@@ -2094,10 +2164,11 @@ retired=$(key_get KEY1 RETIRED)
 rndc_rollover "$SERVER" "$DIR" $(key_get KEY1 ID) "${retired}" "$ZONE"
 # Rollover starts in six months, but lifetime is set to six months plus
 # prepublication duration = 15552000 + 7500 = 15559500 seconds.
+set_keymaxttl    "KEY1" "3600"
 set_keylifetime  "KEY1" "15559500"
-set_addkeytime  "KEY1" "RETIRED" "${active}" 15559500
+set_addkeytime   "KEY1" "RETIRED" "${active}" 15559500
 retired=$(key_get KEY1 RETIRED)
-# Retire interval of this policy is 26h (93600 seconds).
+# Retire interval of this policy is 26h (93600 seconds). REALLY?
 set_addkeytime  "KEY1" "REMOVED" "${retired}" 93600
 
 check_keys
@@ -2112,12 +2183,14 @@ set_policy "manual-rollover" "3" "3600"
 set_keystate "KEY1" "GOAL" "hidden"
 # This key was activated one day ago, so lifetime is set to 1d plus
 # prepublication duration (7500 seconds) = 93900 seconds.
+set_keymaxttl    "KEY1" "3600"
 set_keylifetime  "KEY1" "93900"
 created=$(key_get KEY1 CREATED)
 set_keytime  "KEY1" "RETIRED" "${created}"
 rndc_rollover "$SERVER" "$DIR" $(key_get KEY1 ID) "${created}" "$ZONE"
 # New key is introduced.
 set_keyrole      "KEY3" "ksk"
+set_keymaxttl    "KEY3" "3600"
 set_keylifetime  "KEY3" "0"
 set_keyalgorithm "KEY3" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY3" "yes"
@@ -2139,12 +2212,14 @@ set_policy "manual-rollover" "4" "3600"
 set_keystate "KEY2" "GOAL" "hidden"
 # This key was activated one day ago, so lifetime is set to 1d plus
 # prepublication duration (7500 seconds) = 93900 seconds.
+set_keymaxttl    "KEY2" "3600"
 set_keylifetime  "KEY2" "93900"
 created=$(key_get KEY2 CREATED)
 set_keytime  "KEY2" "RETIRED" "${created}"
 rndc_rollover "$SERVER" "$DIR" $(key_get KEY2 ID) "${created}" "$ZONE"
 # New key is introduced.
 set_keyrole      "KEY4" "zsk"
+set_keymaxttl    "KEY4" "3600"
 set_keylifetime  "KEY4" "0"
 set_keyalgorithm "KEY4" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY4" "no"
@@ -2182,6 +2257,7 @@ set_server "ns3" "10.53.0.3"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "43200"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
@@ -2206,10 +2282,11 @@ created=$(key_get KEY1 CREATED)
 set_keytime     "KEY1" "PUBLISHED"   "${created}"
 set_keytime     "KEY1" "ACTIVE"      "${created}"
 # - The DS can be published if the DNSKEY and RRSIG records are
-#   OMNIPRESENT.  This happens after max-zone-ttl (12h) plus
-#   publish-safety (5m) plus zone-propagation-delay (5m) =
-#   43200 + 300 + 300 = 43800.
-set_addkeytime  "KEY1" "SYNCPUBLISH" "${created}" 43800
+#   OMNIPRESENT.  This happens after plus publish-safety (5m)
+#   plus zone-propagation-delay (5m).
+syncpub=$(key_get KEY1 MAX_TTL)
+syncpub=$((syncpub+600))
+set_addkeytime "KEY1" "SYNCPUBLISH" "${created}" $syncpub
 # - Key lifetime is unlimited, so not setting RETIRED and REMOVED.
 
 # Various signing policy checks.
@@ -2285,7 +2362,7 @@ check_apex
 check_subdomain
 dnssec_verify
 
-# Next key event is when the zone signatures become OMNIPRESENT: max-zone-ttl
+# Next key event is when the zone signatures become OMNIPRESENT: TTLsig
 # plus zone propagation delay plus retire safety minus the already elapsed
 # 900 seconds: 12h + 300s + 20m - 900 = 44700 - 900 = 43800 seconds
 check_next_key_event 43800
@@ -2361,18 +2438,6 @@ check_next_key_event 3600
 # Testing ZSK Pre-Publication rollover.
 #
 
-# Policy parameters.
-# Lksk:      2 years (63072000 seconds)
-# Lzsk:      30 days (2592000 seconds)
-# Iret(KSK): DS TTL (1d) + DprpP (1h) + retire-safety (2d)
-# Iret(KSK): 3d1h (262800 seconds)
-# Iret(ZSK): RRSIG TTL (1d) + Dprp (1h) + Dsgn (1w) + retire-safety (2d)
-# Iret(ZSK): 10d1h (867600 seconds)
-Lksk=63072000
-Lzsk=2592000
-IretKSK=262800
-IretZSK=867600
-
 #
 # Zone: step1.zsk-prepub.autosign.
 #
@@ -2405,9 +2470,16 @@ rollover_predecessor_keytimes() {
 	[ "$Lzsk" = 0 ] || set_retired_removed "KEY2" "${Lzsk}" "${IretZSK}"
 }
 
+# Key lifetimes:
+# Lksk:      2 years (63072000 seconds)
+# Lzsk:      30 days (2592000 seconds)
+Lksk=63072000
+Lzsk=2592000
+
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "86400"
 set_keylifetime  "KEY1" "${Lksk}"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
@@ -2415,6 +2487,7 @@ set_zonesigning  "KEY1" "no"
 
 key_clear        "KEY2"
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "86400"
 set_keylifetime  "KEY2" "${Lzsk}"
 set_keyalgorithm "KEY2" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY2" "no"
@@ -2431,6 +2504,16 @@ set_keystate "KEY2" "STATE_ZRRSIG" "omnipresent"
 # Initially only two keys.
 key_clear "KEY3"
 key_clear "KEY4"
+
+# Calculate retire intervals:
+# Iret(KSK): DS TTL (1d) + DprpP (1h) + retire-safety (2d)
+# Iret(KSK): 3d1h (262800 seconds)
+IretKSK=262800
+# Iret(ZSK): TTLsig + Dprp (1h) + Dsgn (1w) + retire-safety (2d)
+IretZSK=$(key_get KEY2 MAX_TTL)
+IretZSK=$((IretZSK+3600))
+IretZSK=$((IretZSK+604800))
+IretZSK=$((IretZSK+172800))
 
 # Various signing policy checks.
 check_keys
@@ -2457,6 +2540,7 @@ set_server "ns3" "10.53.0.3"
 # New ZSK (KEY3) is prepublished, but not yet signing.
 key_clear        "KEY3"
 set_keyrole      "KEY3" "zsk"
+set_keymaxttl    "KEY3" "86400"
 set_keylifetime  "KEY3" "${Lzsk}"
 set_keyalgorithm "KEY3" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY3" "no"
@@ -2634,17 +2718,11 @@ dnssec_verify
 # Testing KSK Double-KSK rollover.
 #
 
-# Policy parameters.
-# Lksk:      60 days (16070400 seconds)
+# Key lifetimes:
+# Lksk:      60 days (5184000 seconds)
 # Lzsk:      1 year (31536000 seconds)
-# Iret(KSK): DS TTL (1h) + DprpP (1h) + retire-safety (2d)
-# Iret(KSK): 50h (180000 seconds)
-# Iret(ZSK): RRSIG TTL (1d) + Dprp (1h) + Dsgn (1w) + retire-safety (2d)
-# Iret(ZSK): 10d1h (867600 seconds)
 Lksk=5184000
 Lzsk=31536000
-IretKSK=180000
-IretZSK=867600
 
 #
 # Zone: step1.ksk-doubleksk.autosign.
@@ -2656,6 +2734,7 @@ set_server "ns3" "10.53.0.3"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "86400"
 set_keylifetime  "KEY1" "${Lksk}"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
@@ -2663,6 +2742,7 @@ set_zonesigning  "KEY1" "no"
 
 key_clear        "KEY2"
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "86400"
 set_keylifetime  "KEY2" "${Lzsk}"
 set_keyalgorithm "KEY2" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY2" "no"
@@ -2679,6 +2759,16 @@ set_keystate "KEY2" "STATE_ZRRSIG" "omnipresent"
 # Initially only two keys.
 key_clear "KEY3"
 key_clear "KEY4"
+
+# Calculate retire intervals:
+# Iret(KSK): DS TTL (1h) + DprpP (1h) + retire-safety (2d)
+# Iret(KSK): 50h (180000 seconds)
+IretKSK=180000
+# Iret(ZSK): TTLsig + Dprp (1h) + Dsgn (1w) + retire-safety (2d)
+IretZSK=$(key_get KEY2 MAX_TTL)
+IretZSK=$((IretZSK+3600))
+IretZSK=$((IretZSK+604800))
+IretZSK=$((IretZSK+172800))
 
 # Various signing policy checks.
 check_keys
@@ -2706,6 +2796,7 @@ set_server "ns3" "10.53.0.3"
 # New KSK (KEY3) is prepublished (and signs DNSKEY RRset).
 key_clear        "KEY3"
 set_keyrole      "KEY3" "ksk"
+set_keymaxttl    "KEY3" "86400"
 set_keylifetime  "KEY3" "${Lksk}"
 set_keyalgorithm "KEY3" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY3" "yes"
@@ -2901,16 +2992,9 @@ dnssec_verify
 # Testing CSK key rollover (1).
 #
 
-# Policy parameters.
-# Lcsk:      186 days (5184000 seconds)
-# Iret(KSK): DS TTL (1h) + DprpP (1h) + retire-safety (2h)
-# Iret(KSK): 4h (14400 seconds)
-# Iret(ZSK): RRSIG TTL (1d) + Dprp (1h) + Dsgn (25d) + retire-safety (2h)
-# Iret(ZSK): 26d3h (2257200 seconds)
+# Key lifetime:
+# Lcsk:      186 days (16070400 seconds)
 Lcsk=16070400
-IretKSK=14400
-IretZSK=2257200
-IretCSK=$IretZSK
 
 csk_rollover_predecessor_keytimes() {
 	_addtime=$1
@@ -2933,6 +3017,7 @@ set_server "ns3" "10.53.0.3"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "86400"
 set_keylifetime  "KEY1" "${Lcsk}"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
@@ -2947,6 +3032,17 @@ set_keystate "KEY1" "STATE_DS"     "omnipresent"
 key_clear "KEY2"
 key_clear "KEY3"
 key_clear "KEY4"
+
+# Calculate retire interval:
+# Iret(KSK): DS TTL (1h) + DprpP (1h) + retire-safety (2h)
+# Iret(KSK): 4h (14400 seconds)
+IretKSK=14400
+# Iret(ZSK): TTLsig + Dprp (1h) + Dsgn (25d) + retire-safety (2h)
+IretZSK=$(key_get KEY1 MAX_TTL)
+IretZSK=$((IretZSK+3600))
+IretZSK=$((IretZSK+2160000))
+IretZSK=$((IretZSK+7200))
+IretCSK=$IretZSK
 
 # Various signing policy checks.
 check_keys
@@ -2975,6 +3071,7 @@ set_server "ns3" "10.53.0.3"
 # New CSK (KEY2) is prepublished (signs DNSKEY RRset, but not yet other RRsets).
 key_clear        "KEY2"
 set_keyrole      "KEY2" "csk"
+set_keymaxttl    "KEY2" "86400"
 set_keylifetime  "KEY2" "16070400"
 set_keyalgorithm "KEY2" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY2" "yes"
@@ -3263,17 +3360,9 @@ dnssec_verify
 # Testing CSK key rollover (2).
 #
 
-# Policy parameters.
+# Key lifetime:
 # Lcsk:      186 days (16070400 seconds)
-# Dreg:      N/A
-# Iret(KSK): DS TTL (1h) + DprpP (1w) + retire-safety (1h)
-# Iret(KSK): 170h (61200 seconds)
-# Iret(ZSK): RRSIG TTL (1d) + Dprp (1h) + Dsgn (12h) + retire-safety (1h)
-# Iret(ZSK): 38h (136800 seconds)
 Lcsk=16070400
-IretKSK=612000
-IretZSK=136800
-IretCSK=$IretKSK
 
 #
 # Zone: step1.csk-roll2.autosign.
@@ -3285,6 +3374,7 @@ set_server "ns3" "10.53.0.3"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "86400"
 set_keylifetime  "KEY1" "16070400"
 set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY1" "yes"
@@ -3299,6 +3389,18 @@ set_keystate "KEY1" "STATE_DS"     "omnipresent"
 key_clear "KEY2"
 key_clear "KEY3"
 key_clear "KEY4"
+
+# Calculate retire interval:
+# Dreg:      N/A
+# Iret(KSK): DS TTL (1h) + DprpP (1w) + retire-safety (1h)
+# Iret(KSK): 170h (61200 seconds)
+IretKSK=612000
+# Iret(ZSK): TTLsig + Dprp (1h) + Dsgn (12h) + retire-safety (1h)
+IretZSK=$(key_get KEY1 MAX_TTL)
+IretZSK=$((IretZSK+3600))
+IretZSK=$((IretZSK+43200))
+IretZSK=$((IretZSK+3600))
+IretCSK=$IretKSK
 
 # Various signing policy checks.
 check_keys
@@ -3327,6 +3429,7 @@ set_server "ns3" "10.53.0.3"
 # New CSK (KEY2) is prepublished (signs DNSKEY RRset, but not yet other RRsets).
 key_clear        "KEY2"
 set_keyrole      "KEY2" "csk"
+set_keymaxttl    "KEY2" "86400"
 set_keylifetime  "KEY2" "16070400"
 set_keyalgorithm "KEY2" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY2" "yes"
@@ -3656,6 +3759,7 @@ set_server "ns6" "10.53.0.6"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "86400"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY1" "yes"
@@ -3694,6 +3798,7 @@ set_server "ns6" "10.53.0.6"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "21600"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "8" "RSASHA256" "2048"
 set_keysigning   "KEY1" "yes"
@@ -3701,6 +3806,7 @@ set_zonesigning  "KEY1" "no"
 
 key_clear        "KEY2"
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "21600"
 set_keylifetime  "KEY2" "0"
 set_keyalgorithm "KEY2" "8" "RSASHA256" "2048"
 set_keysigning   "KEY2" "no"
@@ -3742,6 +3848,7 @@ set_server "ns6" "10.53.0.6"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "21600"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "8" "RSASHA256" "2048"
 set_keysigning   "KEY1" "yes"
@@ -3784,21 +3891,16 @@ set_zone "step1.going-insecure.kasp"
 set_policy "unsigning" "2" "7200"
 set_server "ns6" "10.53.0.6"
 
-# Policy parameters.
+# Key lifetimes:
 # Lksk:      0
 # Lzsk:      60 days (5184000 seconds)
-# Iret(KSK): DS TTL (1d) + DprpP (1h) + retire-safety (1h)
-# Iret(KSK): 1d2h (93600 seconds)
-# Iret(ZSK): RRSIG TTL (1d) + Dprp (5m) + Dsgn (9d) + retire-safety (1h)
-# Iret(ZSK): 10d1h5m (867900 seconds)
 Lksk=0
 Lzsk=5184000
-IretKSK=93600
-IretZSK=867900
 
 init_migration_insecure() {
 	key_clear        "KEY1"
 	set_keyrole      "KEY1" "ksk"
+	set_keymaxttl    "KEY1" "7200"
 	set_keylifetime  "KEY1" "${Lksk}"
 	set_keyalgorithm "KEY1" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 	set_keysigning   "KEY1" "yes"
@@ -3811,6 +3913,7 @@ init_migration_insecure() {
 
 	key_clear        "KEY2"
 	set_keyrole      "KEY2" "zsk"
+	set_keymaxttl    "KEY2" "7200"
 	set_keylifetime  "KEY2" "${Lzsk}"
 	set_keyalgorithm "KEY2" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 	set_keysigning   "KEY2" "no"
@@ -3824,6 +3927,16 @@ init_migration_insecure() {
 	key_clear "KEY4"
 }
 init_migration_insecure
+
+# Calculate retire intervals:
+# Iret(KSK): DS TTL (1d) + DprpP (1h) + retire-safety (1h)
+# Iret(KSK): 1d2h (93600 seconds)
+IretKSK=93600
+# Iret(ZSK): TTLsig + Dprp (5m) + Dsgn (9d) + retire-safety (1h)
+IretZSK=$(key_get KEY2 MAX_TTL)
+IretZSK=$((IretZSK+300))
+IretZSK=$((IretZSK+777600))
+IretZSK=$((IretZSK+3600))
 
 # Various signing policy checks.
 check_keys
@@ -3865,6 +3978,7 @@ set_policy "default" "1" "3600"
 set_server "ns6" "10.53.0.6"
 # Key properties.
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "3600"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY1" "yes"
@@ -3951,6 +4065,7 @@ set_server "ns6" "10.53.0.6"
 # Key properties.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "86400"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY1" "yes"
@@ -4121,6 +4236,7 @@ set_server "ns6" "10.53.0.6"
 
 # Key properties.
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "86400"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY1" "yes"
@@ -4145,7 +4261,7 @@ dnssec_verify
 # Testing KSK/ZSK algorithm rollover.
 #
 
-# Policy parameters.
+# Key lifetimes:
 # Lksk: unlimited
 # Lzsk: unlimited
 Lksk=0
@@ -4160,6 +4276,7 @@ set_server "ns6" "10.53.0.6"
 # Old RSASHA1 keys.
 key_clear        "KEY1"
 set_keyrole      "KEY1" "ksk"
+set_keymaxttl    "KEY1" "21600"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "8" "RSASHA256" "2048"
 set_keysigning   "KEY1" "yes"
@@ -4167,6 +4284,7 @@ set_zonesigning  "KEY1" "no"
 
 key_clear        "KEY2"
 set_keyrole      "KEY2" "zsk"
+set_keymaxttl    "KEY2" "21600"
 set_keylifetime  "KEY2" "0"
 set_keyalgorithm "KEY2" "8" "RSASHA256" "2048"
 set_keysigning   "KEY2" "no"
@@ -4174,6 +4292,7 @@ set_zonesigning  "KEY2" "yes"
 # New ECDSAP256SHA256 keys.
 key_clear        "KEY3"
 set_keyrole      "KEY3" "ksk"
+set_keymaxttl    "KEY3" "21600"
 set_keylifetime  "KEY3" "0"
 set_keyalgorithm "KEY3" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY3" "yes"
@@ -4181,6 +4300,7 @@ set_zonesigning  "KEY3" "no"
 
 key_clear        "KEY4"
 set_keyrole      "KEY4" "zsk"
+set_keymaxttl    "KEY4" "21600"
 set_keylifetime  "KEY4" "0"
 set_keyalgorithm "KEY4" "13" "ECDSAP256SHA256" "256"
 set_keysigning   "KEY4" "no"
@@ -4230,23 +4350,26 @@ retired=$(awk '{print $3}' < retired.test${n}.zsk)
 set_keytime    "KEY2" "RETIRED"    "${retired}"
 # - The key is removed after the retire interval:
 #   IretZSK = TTLsig + Dprp + Dsgn + retire-safety
-#   TTLsig:        6h (21600 seconds)
+#   TTLsig:        Variable
+IretZSK=$(key_get KEY2 MAX_TTL)
 #   Dprp:          1h (3600 seconds)
+IretZSK=$((IretZSK+3600))
 #   Dsgn:          25d (2160000 seconds)
+IretZSK=$((IretZSK+2160000))
 #   retire-safety: 2h (7200 seconds)
-#   IretZSK:       25d9h (2192400 seconds)
-IretZSK=2192400
+IretZSK=$((IretZSK+7200))
 set_addkeytime "KEY2" "REMOVED"    "${retired}" "${IretZSK}"
 # - The new KSK is published and activated.
 created=$(key_get KEY3 CREATED)
 set_keytime    "KEY3" "PUBLISHED"   "${created}"
 set_keytime    "KEY3" "ACTIVE"      "${created}"
 # - It takes TTLsig + Dprp + publish-safety hours to propagate the zone.
-#   TTLsig:         6h (39600 seconds)
+#   TTLsig:         Variable
+Ipub=$(key_get KEY2 MAX_TTL)
 #   Dprp:           1h (3600 seconds)
+Ipub=$((Ipub+3600))
 #   publish-safety: 1h (3600 seconds)
-#   Ipub:           8h (28800 seconds)
-Ipub=28800
+Ipub=$((Ipub+3600))
 set_addkeytime "KEY3" "SYNCPUBLISH" "${created}" "${Ipub}"
 # - The new ZSK is published and activated.
 created=$(key_get KEY4 CREATED)
@@ -4314,10 +4437,10 @@ check_subdomain
 dnssec_verify
 
 # Next key event is when all zone signatures are signed with the new
-# algorithm.  This is the max-zone-ttl plus zone propagation delay
-# plus retire safety: 6h + 1h + 2h.  But three hours have already passed
+# algorithm.  This is the TTLsig (6h) plus zone propagation delay (1h)
+# plus retire safety (2h). But three hours have already passed
 # (the time it took to make the DNSKEY omnipresent), so the next event
-# should be scheduled in 6 hour: 21600 seconds.  Prevent intermittent
+# should be scheduled in 6 hours: 21600 seconds.  Prevent intermittent
 # false positives on slow platforms by subtracting the number of seconds
 # which passed between key creation and invoking 'rndc reconfig'.
 next_time=$((21600-time_passed))
@@ -4488,8 +4611,8 @@ check_subdomain
 dnssec_verify
 
 # Next key event is when the RSASHA1 signatures become HIDDEN.  This happens
-# after the max-zone-ttl plus zone propagation delay plus retire safety
-# (6h + 1h + 2h) minus the time already passed since the UNRETENTIVE state has
+# after the TTLsig (6h) plus zone propagation delay (1h) plus retire safety
+# (2h) minus the time already passed since the UNRETENTIVE state has
 # been reached (2h): 9h - 2h = 7h = 25200 seconds. Prevent intermittent
 # false positives on slow platforms by subtracting the number of seconds
 # which passed between key creation and invoking 'rndc reconfig'.
@@ -4549,7 +4672,7 @@ check_next_key_event 3600
 # Testing CSK algorithm rollover.
 #
 
-# Policy parameters.
+# Key lifetime:
 # Lcsk: unlimited
 Lcksk=0
 
@@ -4562,6 +4685,7 @@ set_server "ns6" "10.53.0.6"
 # Old RSASHA1 key.
 key_clear	 "KEY1"
 set_keyrole      "KEY1" "csk"
+set_keymaxttl    "KEY1" "21600"
 set_keylifetime  "KEY1" "0"
 set_keyalgorithm "KEY1" "8" "RSASHA256" "2048"
 set_keysigning   "KEY1" "yes"
@@ -4569,6 +4693,7 @@ set_zonesigning  "KEY1" "yes"
 # New ECDSAP256SHA256 key.
 key_clear        "KEY2"
 set_keyrole      "KEY2" "csk"
+set_keymaxttl    "KEY2" "21600"
 set_keylifetime  "KEY2" "0"
 set_keyalgorithm "KEY2" "$DEFAULT_ALGORITHM_NUMBER" "$DEFAULT_ALGORITHM" "$DEFAULT_BITS"
 set_keysigning   "KEY2" "yes"
@@ -4601,24 +4726,27 @@ grep "; Inactive:" "${keyfile}.key" > retired.test${n}.ksk
 retired=$(awk '{print $3}' < retired.test${n}.ksk)
 set_keytime    "KEY1" "RETIRED"    "${retired}"
 # - The key is removed after the retire interval:
-#   IretZSK = TTLsig + Dprp + Dsgn + retire-safety
-#   TTLsig:        6h (21600 seconds)
+#   IretCSK = TTLsig + Dprp + Dsgn + retire-safety
+#   TTLsig:        Variable
+IretCSK=$(key_get KEY1 MAX_TTL)
 #   Dprp:          1h (3600 seconds)
+IretCSK=$((IretCSK+3600))
 #   Dsgn:          25d (2160000 seconds)
+IretCSK=$((IretCSK+2160000))
 #   retire-safety: 2h (7200 seconds)
-#   IretZSK:       25d9h (2192400 seconds)
-IretCSK=2192400
+IretCSK=$((IretCSK+7200))
 set_addkeytime "KEY1" "REMOVED"    "${retired}" "${IretCSK}"
 # - The new CSK is published and activated.
 created=$(key_get KEY2 CREATED)
 set_keytime    "KEY2" "PUBLISHED"   "${created}"
 set_keytime    "KEY2" "ACTIVE"      "${created}"
 # - It takes TTLsig + Dprp + publish-safety hours to propagate the zone.
-#   TTLsig:         6h (39600 seconds)
+#   TTLsig:         Variable
+Ipub=$(key_get KEY2 MAX_TTL)
 #   Dprp:           1h (3600 seconds)
+Ipub=$((Ipub+3600))
 #   publish-safety: 1h (3600 seconds)
-#   Ipub:           8h (28800 seconds)
-Ipub=28800
+Ipub=$((Ipub+3600))
 set_addkeytime "KEY2" "SYNCPUBLISH" "${created}" "${Ipub}"
 
 # Continue signing policy checks.
@@ -4673,8 +4801,8 @@ check_subdomain
 dnssec_verify
 
 # Next key event is when all zone signatures are signed with the new
-# algorithm.  This is the max-zone-ttl plus zone propagation delay
-# plus retire safety: 6h + 1h + 2h.  But three hours have already passed
+# algorithm.  This is the TTLsig (6h) plus zone propagation delay (1h)
+# plus retire safety (2h).  But three hours have already passed
 # (the time it took to make the DNSKEY omnipresent), so the next event
 # should be scheduled in 6 hour: 21600 seconds.  Prevent intermittent
 # false positives on slow platforms by subtracting the number of seconds
@@ -4815,8 +4943,8 @@ check_subdomain
 dnssec_verify
 
 # Next key event is when the RSASHA1 signatures become HIDDEN.  This happens
-# after the max-zone-ttl plus zone propagation delay plus retire safety
-# (6h + 1h + 2h) minus the time already passed since the UNRETENTIVE state has
+# after the TTLsig (6h) plus zone propagation delay (1h) plus retire safety
+# (2h) minus the time already passed since the UNRETENTIVE state has
 # been reached (2h): 9h - 2h = 7h = 25200 seconds.  Prevent intermittent
 # false positives on slow platforms by subtracting the number of seconds
 # which passed between key creation and invoking 'rndc reconfig'.

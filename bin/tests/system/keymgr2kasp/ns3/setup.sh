@@ -122,7 +122,7 @@ setup rumoured.kasp
 echo "$zone" >> zones
 Tds="now-2h"
 Tkey="now-300s"
-Tsig="now-11h"
+Tsig="now-300s" # less than maximum zone ttl
 ksktimes="-P ${Tkey} -A ${Tkey} -P sync ${Tds}"
 zsktimes="-P ${Tkey} -A ${Tsig}"
 KSK=$($KEYGEN -a $DEFAULT_ALGORITHM -L 300 -f KSK $ksktimes $zone 2> keygen.out.$zone.1)
@@ -137,7 +137,7 @@ setup omnipresent.kasp
 echo "$zone" >> zones
 Tds="now-3h"     # Time according to dnssec-policy that DS will be OMNIPRESENT
 Tkey="now-3900s" # DNSKEY TTL + propagation delay
-Tsig="now-12h"   # Zone's maximum TTL + propagation delay
+Tsig="now-3900s" # Zone's maximum TTL + propagation delay
 ksktimes="-P ${Tkey} -A ${Tkey} -P sync ${Tds}"
 zsktimes="-P ${Tkey} -A ${Tsig}"
 KSK=$($KEYGEN -a $DEFAULT_ALGORITHM -L 300 -f KSK $ksktimes $zone 2> keygen.out.$zone.1)
