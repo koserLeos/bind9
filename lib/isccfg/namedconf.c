@@ -2209,7 +2209,7 @@ static cfg_clausedef_t dnssecpolicy_clauses[] = {
 	{ "cds-digest-types", &cfg_type_algorithmlist, 0 },
 	{ "dnskey-ttl", &cfg_type_duration, 0 },
 	{ "keys", &cfg_type_kaspkeys, 0 },
-	{ "max-zone-ttl", &cfg_type_duration, 0 },
+	{ "max-zone-ttl", &cfg_type_maxduration, 0 },
 	{ "nsec3param", &cfg_type_nsec3, 0 },
 	{ "parent-ds-ttl", &cfg_type_duration, 0 },
 	{ "parent-propagation-delay", &cfg_type_duration, 0 },

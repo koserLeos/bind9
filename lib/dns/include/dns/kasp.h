@@ -121,7 +121,7 @@ struct dns_kasp {
 #define DNS_KASP_PUBLISH_SAFETY	     "3600"
 #define DNS_KASP_PURGE_KEYS	     "P90D"
 #define DNS_KASP_RETIRE_SAFETY	     "3600"
-#define DNS_KASP_ZONE_MAXTTL	     "86400"
+#define DNS_KASP_ZONE_MAXTTL	     "0"
 #define DNS_KASP_ZONE_PROPDELAY	     "300"
 #define DNS_KASP_PARENT_PROPDELAY    "3600"
 
