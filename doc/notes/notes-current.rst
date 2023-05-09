@@ -30,7 +30,10 @@ Removed Features
 Feature Changes
 ~~~~~~~~~~~~~~~
 
-- None.
+- When using :any:`dnssec-policy`, the maximum zone TTL is now being derived
+  when loading the zone. You can now also set the value to "unlimited", allowing
+  the built-in policies "default" and "insecure" to be used on zones with a
+  very high TTL. :gl:`#1756`
 
 - Return BADCOOKIE for out-of-date or otherwise bad, well formed
   DNS SERVER COOKIES.  Previously these were silently treated as

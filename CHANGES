@@ -1,3 +1,6 @@
+6209.	[func]		dnssec-policy now keeps track of the maximum zone TTL
+			when loading the zone. [GL #1756]
+
 6208.	[func]		Return BADCOOKIE for out-of-date or otherwise bad, well
 			formed DNS SERVER COOKIES. [GL #4194]
 
