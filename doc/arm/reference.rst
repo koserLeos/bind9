@@ -6303,7 +6303,7 @@ The following options can be specified in a :any:`dnssec-policy` statement:
     must be more than the publication interval (which is the sum of
     :any:`dnskey-ttl`, :any:`publish-safety`, and :any:`zone-propagation-delay`).
     It must also be more than the retire interval (which is the sum of
-    :any:`max-zone-ttl`, :any:`retire-safety` and :any:`zone-propagation-delay`
+    the maximum zone TTL, :any:`retire-safety` and :any:`zone-propagation-delay`
     for ZSKs, and the sum of :any:`parent-ds-ttl`, :any:`retire-safety`, and
     :any:`parent-propagation-delay` for KSKs and CSKs). BIND 9 treats a key
     lifetime that is too short as an error.
@@ -6386,9 +6386,13 @@ The following options can be specified in a :any:`dnssec-policy` statement:
    :any:`max-zone-ttl` option guarantees that the largest TTL in the
    zone is no higher than a known and predictable value.
 
-   The default value ``PT24H`` (24 hours).  A value of zero is treated
-   as if the default value were in use.
+   Setting :any:`max-zone-ttl` to zero is equivalent to "unlimited", which is
+   also the default.
 
+   When using :any:`dnssec-policy` on a :any:`secondary <type secondary>`
+   zone, the maximum zone TTL is not maintained and :any:`max-zone-ttl`
+   should not be set to "unlimited", but should be set to whatever the primary
+   accepts as maximum zone TTL.
 
 .. namedconf:statement:: nsec3param
    :tags: dnssec
