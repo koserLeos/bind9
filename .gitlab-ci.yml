@@ -84,7 +84,8 @@ stages:
 
 .linux-amd64: &linux_amd64
   tags:
-    - linux
+    - linux-test
+    - runner-manager
     - amd64
 
 .linux-stress-amd64: &linux_stress_amd64
