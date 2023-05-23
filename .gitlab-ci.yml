@@ -231,6 +231,9 @@ stages:
   <<: *base_image
   stage: autoconf
   script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     - autoreconf -fi
   artifacts:
     untracked: true
@@ -282,6 +285,9 @@ stages:
   <<: *default_triggering_rules
   stage: build
   before_script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     - test -w "${CCACHE_DIR}" && export PATH="/usr/lib/ccache:${PATH}"
     - test -n "${OUT_OF_TREE_WORKSPACE}" && mkdir "${OUT_OF_TREE_WORKSPACE}" && cd "${OUT_OF_TREE_WORKSPACE}"
   script:
@@ -316,6 +322,9 @@ stages:
   <<: *default_triggering_rules
   stage: system
   before_script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     - test -n "${OUT_OF_TREE_WORKSPACE}" && cd "${OUT_OF_TREE_WORKSPACE}"
     - *setup_interfaces
   script:
@@ -367,6 +376,9 @@ stages:
   stage: unit
   before_script:
     - test -n "${OUT_OF_TREE_WORKSPACE}" && cd "${OUT_OF_TREE_WORKSPACE}"
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
   script:
     - make -j${TEST_PARALLEL_JOBS:-1} -k unit V=1
   after_script:
@@ -407,6 +419,9 @@ stages:
 .docs: &docs_job
   stage: docs
   script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     - *configure
     - make -j${BUILD_PARALLEL_JOBS:-1} -k doc V=1
     - qpdf --check doc/arm/_build/latex/Bv9ARM.pdf
@@ -534,6 +549,9 @@ tarball-create:
   <<: *base_image
   <<: *default_triggering_rules
   script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     - ./configure --enable-maintainer-mode
     - make maintainer-clean
     - autoreconf -fi
@@ -771,6 +789,9 @@ scan-build:
     CONFIGURE: "${SCAN_BUILD} ./configure"
     EXTRA_CONFIGURE: "--with-libidn2"
   script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     - *configure
     - *scan_build
   needs:
@@ -1319,6 +1340,9 @@ respdiff-short:asan:
     EXTRA_CONFIGURE: "--without-jemalloc"
     MAX_DISAGREEMENTS_PERCENTAGE: "0.5"
   script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     - bash respdiff.sh -s named -q "${PWD}/10k_a.txt" -c 3 -w "${PWD}/rspworkdir" "${CI_PROJECT_DIR}" "/usr/local/respdiff-reference-bind/sbin/named"
 
 respdiff-short:tsan:
@@ -1332,6 +1356,9 @@ respdiff-short:tsan:
     MAX_DISAGREEMENTS_PERCENTAGE: "0.5"
     TSAN_OPTIONS: "${TSAN_OPTIONS_DEFAULT}"
   script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     - bash respdiff.sh -s named -q "${PWD}/10k_a.txt" -c 3 -w "${PWD}/rspworkdir" "${CI_PROJECT_DIR}" "/usr/local/respdiff-reference-bind/sbin/named"
   after_script:
     - *find_python
@@ -1569,6 +1596,9 @@ gcov:
     - job: system:gcc:bullseye:amd64
       artifacts: true
   script:
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
     # *.gcno and *.gcda files generated for shared library objects are created
     # in directories in which gcovr is unable to process them properly
     # (.../.libs/...).  Move such *.gcno and *.gcda files one level higher.
