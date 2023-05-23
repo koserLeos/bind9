@@ -237,7 +237,7 @@ stages:
     - autoreconf -fi
   artifacts:
     untracked: true
-    path:
+    paths:
       - resource-monitor/*.json
 
 .configure: &configure
@@ -312,7 +312,7 @@ stages:
   artifacts:
     untracked: true
     when: always
-    path:
+    paths:
       - resource-monitor/*.json
 
 .setup_interfaces: &setup_interfaces
@@ -353,7 +353,7 @@ stages:
     when: always
     reports:
       junit: junit.xml
-    path:
+    paths:
       - resource-monitor/*.json
 
 .system_test_gcov: &system_test_gcov_job
@@ -361,7 +361,7 @@ stages:
   artifacts:
     untracked: true
     when: always
-    path:
+    paths:
       - resource-monitor/*.json
 
 .system_test_tsan: &system_test_tsan_job
@@ -378,7 +378,7 @@ stages:
     when: always
     reports:
       junit: junit.xml
-    path:
+    paths:
       - resource-monitor/*.json
 
 .unit_test_common: &unit_test_common
@@ -406,7 +406,7 @@ stages:
     when: always
     reports:
       junit: junit.xml
-    path:
+    paths:
       - resource-monitor/*.json
 
 .unit_test_gcov: &unit_test_gcov_job
@@ -414,7 +414,7 @@ stages:
   artifacts:
     untracked: true
     when: always
-  path:
+  paths:
     - resource-monitor/*.json
 
 .unit_test_tsan: &unit_test_tsan_job
@@ -429,7 +429,7 @@ stages:
     when: always
     reports:
       junit: junit.xml
-    path:
+    paths:
       - resource-monitor/*.json
 
 .docs: &docs_job
