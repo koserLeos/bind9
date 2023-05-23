@@ -237,6 +237,8 @@ stages:
     - autoreconf -fi
   artifacts:
     untracked: true
+    path:
+      - resource-monitor/*.json
 
 .configure: &configure
     - ${CONFIGURE}
@@ -310,6 +312,8 @@ stages:
   artifacts:
     untracked: true
     when: always
+    path:
+      - resource-monitor/*.json
 
 .setup_interfaces: &setup_interfaces
     - if [ "$(id -u)" -eq "0" ]; then
@@ -349,12 +353,16 @@ stages:
     when: always
     reports:
       junit: junit.xml
+    path:
+      - resource-monitor/*.json
 
 .system_test_gcov: &system_test_gcov_job
   <<: *system_test_common
   artifacts:
     untracked: true
     when: always
+    path:
+      - resource-monitor/*.json
 
 .system_test_tsan: &system_test_tsan_job
   <<: *system_test_common
@@ -370,6 +378,8 @@ stages:
     when: always
     reports:
       junit: junit.xml
+    path:
+      - resource-monitor/*.json
 
 .unit_test_common: &unit_test_common
   <<: *default_triggering_rules
@@ -396,12 +406,16 @@ stages:
     when: always
     reports:
       junit: junit.xml
+    path:
+      - resource-monitor/*.json
 
 .unit_test_gcov: &unit_test_gcov_job
   <<: *unit_test_common
   artifacts:
     untracked: true
     when: always
+  path:
+    - resource-monitor/*.json
 
 .unit_test_tsan: &unit_test_tsan_job
   <<: *unit_test_common
@@ -415,6 +429,8 @@ stages:
     when: always
     reports:
       junit: junit.xml
+    path:
+      - resource-monitor/*.json
 
 .docs: &docs_job
   stage: docs
@@ -441,6 +457,7 @@ stages:
   artifacts:
     paths:
       - bind-qa/bind9/respdiff
+      - resource-monitor/*.json
     exclude:
       - bind-qa/bind9/respdiff/rspworkdir/data.mdb # Exclude a 10 GB file.
     untracked: true
@@ -563,6 +580,7 @@ tarball-create:
     paths:
       - diff.patch
       - bind-*.tar.${TARBALL_EXTENSION}
+      - resource-monitor/*.json
     when: always
   needs:
     - job: autoreconf
@@ -579,6 +597,8 @@ docs:
       artifacts: true
   artifacts:
     untracked: true
+    paths:
+      - resource-monitor/*.json
 
 docs:tarball:
   <<: *default_triggering_rules
@@ -799,6 +819,7 @@ scan-build:
       artifacts: true
   artifacts:
     paths:
+      - resource-monitor/*.json
       - scan-build.reports/
     when: on_failure
 
@@ -1625,6 +1646,7 @@ gcov:
   coverage: /^TOTAL.*\s+(\d+\%)$/
   artifacts:
     paths:
+      - resource-monitor/*.json
       - coverage*.html
       - coverage.txt
       - coverage.xml
@@ -1642,9 +1664,13 @@ pairwise:
     - job: autoreconf
       artifacts: true
   script:
-      - util/pairwise-testing.sh
+    - ls -1 /sys/fs/cgroup
+    - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
+    - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
+    - util/pairwise-testing.sh
   artifacts:
     paths:
+      - resource-monitor/*.json
       - pairwise-commands.txt
       - pairwise-model.txt
       - pairwise-output.*.txt
