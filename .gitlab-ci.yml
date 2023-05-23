@@ -385,10 +385,10 @@ stages:
   <<: *default_triggering_rules
   stage: unit
   before_script:
-    - test -n "${OUT_OF_TREE_WORKSPACE}" && cd "${OUT_OF_TREE_WORKSPACE}"
     - ls -1 /sys/fs/cgroup
     - git clone --depth 1 --branch ci_test https://gitlab.isc.org/isc-projects/resource-monitor
     - ( cd resource-monitor; ./monitor.py --cgroup-base-dir /sys/fs/cgroup/ ) &
+    - test -n "${OUT_OF_TREE_WORKSPACE}" && cd "${OUT_OF_TREE_WORKSPACE}"
   script:
     - make -j${TEST_PARALLEL_JOBS:-1} -k unit V=1
   after_script:
@@ -414,8 +414,8 @@ stages:
   artifacts:
     untracked: true
     when: always
-  paths:
-    - resource-monitor/*.json
+    paths:
+      - resource-monitor/*.json
 
 .unit_test_tsan: &unit_test_tsan_job
   <<: *unit_test_common
