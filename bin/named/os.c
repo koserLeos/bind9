@@ -613,7 +613,7 @@ ns_os_uid(void) {
 	return (runas_pw->pw_uid);
 }
 
-void
+rlim_t
 named_os_adjustnofile(void) {
 	int r;
 	struct rlimit rl;
@@ -634,7 +634,7 @@ named_os_adjustnofile(void) {
 			      "maximum allowed value: "
 			      "%" PRIu64,
 			      (uint64_t)rl.rlim_max);
-		return;
+		return (rl.rlim_cur);
 	}
 
 	rl.rlim_cur = rl.rlim_max;
@@ -649,13 +649,13 @@ named_os_adjustnofile(void) {
 		      "%" PRIu64 " to "
 		      "%" PRIu64,
 		      (uint64_t)rlim_old, (uint64_t)rl.rlim_cur);
-	return;
+	return (rl.rlim_cur);
 
 fail:
 	strerror_r(errno, strbuf, sizeof(strbuf));
 	named_main_earlywarning("adjusting limit on open files failed: %s",
 				strbuf);
-	return;
+	return (0);
 }
 
 void

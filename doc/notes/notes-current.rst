@@ -46,6 +46,10 @@ Feature Changes
   server for a delegation-heavy zone(s) shortly after loading such zone(s).
   :gl:`#4045`
 
+- The ``tcp-clients`` configuration option now also accepts value as percent of
+  maximum allowed file descriptors.  The default has been changed to ``50%``.
+  :gl:`#3958`
+
 Bug Fixes
 ~~~~~~~~~
 

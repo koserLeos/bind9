@@ -1,3 +1,7 @@
+6183.	[performance]	Change the "tcp-clients" value to allow specifying
+			percents of the maximum allowed file descriptors and
+			set the default value to 50%. [GL #3958]
+
 6182.	[cleanup]	Remove configure checks for epoll, kqueue and
 			/dev/poll. [GL #4098]
 
@@ -71,6 +75,8 @@
 			file. [GL #3991]
 
 6160.	[bug]		'delv +ns' could print duplicate output. [GL #4020]
+=======
+>>>>>>> 25abcb8750 (Add CHANGES and release note for [GL #3958])
 
 6159.	[bug]		Fix use-after-free bug in TCP accept connection
 			failure. [GL #4018]
