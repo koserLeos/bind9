@@ -6255,6 +6255,11 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_message_t *message,
 		/*
 		 * Enforce the configure maximum cache TTL.
 		 */
+		if (rdataset->type == dns_rdatatype_ds &&
+		    rdataset->ttl > 5 * 60)
+		{
+			rdataset->ttl = 5 * 60;
+		}
 		if (rdataset->ttl > res->view->maxcachettl) {
 			rdataset->ttl = res->view->maxcachettl;
 		}
