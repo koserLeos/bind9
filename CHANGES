@@ -1,3 +1,6 @@
+6371.	[func]		Change the QSBR flavor of Userspace-RCU as default.
+			[GL #4102]
+
 6370.	[bug]		Wrong source address used for IPv6 notify messages.
 			[GL #4669]
 
