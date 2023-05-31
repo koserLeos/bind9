@@ -160,6 +160,8 @@ shutdown_cb(uv_async_t *handle) {
 	isc_loop_t *loop = uv_handle_get_data(handle);
 	isc_loopmgr_t *loopmgr = loop->loopmgr;
 
+	loop->shuttingdown = true;
+
 	/* Make sure, we can't be called again */
 	uv_close(&loop->shutdown_trigger, shutdown_trigger_close_cb);
 
@@ -611,4 +613,11 @@ isc_loop_now(isc_loop_t *loop) {
 	};
 
 	return (t);
+}
+
+bool
+isc_loop_shuttingdown(isc_loop_t *loop) {
+	REQUIRE(VALID_LOOP(loop));
+
+	return (loop->shuttingdown);
 }
