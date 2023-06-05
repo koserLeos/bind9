@@ -10,5 +10,10 @@
 # information regarding copyright ownership.
 
 
+import pytest
+
+
+# "rrl" system tests fails intermittently, see #172.
+@pytest.mark.serial
 def test_rrl(run_tests_sh):
     run_tests_sh()

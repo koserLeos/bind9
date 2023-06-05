@@ -355,7 +355,10 @@ stages:
     - *find_pytest
     - cd bin/tests/system
     - >
-      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -n "$TEST_PARALLEL_JOBS" | tee pytest.out.txt
+      "$PYTEST" -m "serial" | tee pytest.out.txt || ret=FAIL
+    - >
+      "$PYTEST" -m "not serial" --junit-xml="$CI_PROJECT_DIR"/junit.xml -n "$TEST_PARALLEL_JOBS" | tee -a pytest.out.txt || ret=FAIL
+    - if [ "${ret}" = "FAIL" ]; then exit 1; fi
     - '( ! grep -F "grep: warning:" pytest.out.txt )'
   after_script:
     - *display_pytest_failures

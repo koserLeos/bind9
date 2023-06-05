@@ -9,6 +9,11 @@
 # See the COPYRIGHT file distributed with this work for additional
 # information regarding copyright ownership.
 
+import pytest
 
+
+# "tcp:checking that BIND 9 doesn't crash on long TCP messages" check fails
+# intermittently, see #4038.
+@pytest.mark.serial
 def test_tcp(run_tests_sh):
     run_tests_sh()

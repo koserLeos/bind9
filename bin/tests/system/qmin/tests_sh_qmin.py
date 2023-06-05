@@ -10,5 +10,10 @@
 # information regarding copyright ownership.
 
 
+import pytest
+
+
+# "qmin" system test fails intermittently, see #904.
+@pytest.mark.serial
 def test_qmin(run_tests_sh):
     run_tests_sh()
