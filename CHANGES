@@ -1,3 +1,7 @@
+6188.	[cleanup]	Ensure that the size calculation does not overflow
+			when allocating memory for an array.
+			[GL #4120] [GL #4121] [GL #4122]
+
 6187.	[bug]		Address view shutdown INSIST when accessing the
 			zonetable. [GL #4093]
 
