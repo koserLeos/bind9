@@ -706,6 +706,16 @@ AC_CHECK_FUNCS([sched_yield pthread_yield pthread_yield_np])
 AC_CHECK_FUNCS([pthread_setname_np pthread_set_name_np])
 AC_CHECK_HEADERS([pthread_np.h], [], [], [#include <pthread.h>])
 
+# jemalloc
+AC_ARG_ENABLE([jemalloc],
+	      [AS_HELP_STRING([--enable-jemalloc],
+			      [Enable using the jemalloc memory allocator])],
+	      [], [enable_jemalloc=no])
+AS_IF([test "$enable_jemalloc" = "yes"],
+      [PKG_CHECK_MODULES([JEMALLOC], [jemalloc])
+       CFLAGS="$CFLAGS $JEMALLOC_CFLAGS"
+       LIBS="$LIBS $JEMALLOC_LIBS"])
+
 # libuv
 PKG_CHECK_MODULES([LIBUV], [libuv >= 1.37.0], [],
 		  [PKG_CHECK_MODULES([LIBUV], [libuv >= 1.0.0 libuv < 1.35.0], [],
