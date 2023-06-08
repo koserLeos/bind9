@@ -21,6 +21,7 @@
 #include <isc/attributes.h>
 #include <isc/lang.h>
 #include <isc/mutex.h>
+#include <isc/overflow.h>
 #include <isc/types.h>
 
 ISC_LANG_BEGINDECLS
@@ -92,6 +93,23 @@ extern unsigned int isc_mem_defaultflags;
 #endif /* if !ISC_MEM_USE_INTERNAL_MALLOC */
 
 /*%
+ * The isc_mem_get/put family are intended to make it easier to
+ * allocate arrays more safely, with checked arithmetic. Like
+ * `calloc()` there are two `size_t` arguments: a count of elements,
+ * and the size of each element, in that order. Unlike `calloc()` you
+ * must explicitly pass `ISC_MEM_ZERO` if you want the memory cleared.
+ *
+ * The overflow checks are implemented inside the macros in this
+ * header so that the compiler can see that the element size is
+ * constant: it should always be `sizeof(something)`.
+ *
+ * The `fx` versions of the functions are for allocating structures
+ * with flexible array members, where the third size, `size_t base`,
+ * is the size of the structure, and `count` and `size` describe the
+ * array.
+ */
+
+/*%
  * isc_mem_putanddetach() is a convenience function for use where you
  * have a structure with an attached memory context.
  *
@@ -154,12 +172,38 @@ extern unsigned int isc_mem_defaultflags;
 #endif
 #define ISC_MEM_ZERO ((int)0x40)
 
-#define isc_mem_get(c, s)     isc__mem_get((c), (s), 0 _ISC_MEM_FILELINE)
-#define isc_mem_getx(c, s, f) isc__mem_get((c), (s), (f)_ISC_MEM_FILELINE)
-#define isc_mem_reget(c, p, o, n) \
-	isc__mem_reget((c), (p), (o), (n), 0 _ISC_MEM_FILELINE)
-#define isc_mem_regetx(c, p, o, n, f) \
-	isc__mem_reget((c), (p), (o), (n), (f)_ISC_MEM_FILELINE)
+#define isc_mem_getfx(mctx, count, size, base, flags)              \
+	isc__mem_get(mctx, ISC_CHECKED_MUL_ADD(count, size, base), \
+		     flags _ISC_MEM_FILELINE)
+
+#define isc_mem_regetfx(mctx, ptr, oldcount, newcount, size, base, flags)    \
+	isc__mem_reget(mctx, ptr, ISC_CHECKED_MUL_ADD(oldcount, size, base), \
+		       ISC_CHECKED_MUL_ADD(newcount, size, base),            \
+		       flags _ISC_MEM_FILELINE)
+
+#define isc__mem_putfun(putfun, mctx, ptr, count, size, base, flags)      \
+	do {                                                              \
+		putfun(mctx, ptr, ISC_CHECKED_MUL_ADD(count, size, base), \
+		       flags _ISC_MEM_FILELINE);                          \
+		(ptr) = NULL;                                             \
+	} while (0)
+
+#define isc_mem_putfx(x, p, c, s, b, f) \
+	isc__mem_putfun(isc__mem_put, x, p, c, s, b, f)
+#define isc_mem_putanddetachfx(x, p, c, s, b, f) \
+	isc__mem_putfun(isc__mem_putanddetach, x, p, c, s, b, f)
+#define isc_mem_putanddetach(x, p, c, s) \
+	isc_mem_putanddetachfx(x, p, c, s, 0, 0)
+#define isc_mem_putanddetachx(x, p, c, s, f) \
+	isc_mem_putanddetachfx(x, p, c, s, 0, f)
+
+#define isc_mem_get(x, c, s)		 isc_mem_getfx(x, c, s, 0, 0)
+#define isc_mem_getx(x, c, s, f)	 isc_mem_getfx(x, c, s, 0, f)
+#define isc_mem_reget(x, p, o, n, s)	 isc_mem_regetfx(x, p, o, n, s, 0, 0)
+#define isc_mem_regetx(x, p, o, n, s, f) isc_mem_regetfx(x, p, o, n, s, 0, f)
+#define isc_mem_put(x, p, c, s)		 isc_mem_putfx(x, p, c, s, 0, 0)
+#define isc_mem_putx(x, p, c, s, f)	 isc_mem_putfx(x, p, c, s, 0, f)
+
 #define isc_mem_allocate(c, s) isc__mem_allocate((c), (s), 0 _ISC_MEM_FILELINE)
 #define isc_mem_allocatex(c, s, f) \
 	isc__mem_allocate((c), (s), (f)_ISC_MEM_FILELINE)
@@ -174,26 +218,6 @@ extern unsigned int isc_mem_defaultflags;
 	isc__mem_strndup((c), (p), (l)_ISC_MEM_FILELINE)
 #define isc_mempool_get(c) isc__mempool_get((c)_ISC_MEM_FILELINE)
 
-#define isc_mem_put(c, p, s)                                      \
-	do {                                                      \
-		isc__mem_put((c), (p), (s), 0 _ISC_MEM_FILELINE); \
-		(p) = NULL;                                       \
-	} while (0)
-#define isc_mem_putx(c, p, s, f)                                   \
-	do {                                                       \
-		isc__mem_put((c), (p), (s), (f)_ISC_MEM_FILELINE); \
-		(p) = NULL;                                        \
-	} while (0)
-#define isc_mem_putanddetach(c, p, s)                                      \
-	do {                                                               \
-		isc__mem_putanddetach((c), (p), (s), 0 _ISC_MEM_FILELINE); \
-		(p) = NULL;                                                \
-	} while (0)
-#define isc_mem_putanddetachx(c, p, s, f)                                   \
-	do {                                                                \
-		isc__mem_putanddetach((c), (p), (s), (f)_ISC_MEM_FILELINE); \
-		(p) = NULL;                                                 \
-	} while (0)
 #define isc_mem_free(c, p)                                    \
 	do {                                                  \
 		isc__mem_free((c), (p), 0 _ISC_MEM_FILELINE); \
