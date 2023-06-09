@@ -422,12 +422,11 @@ ACCESS_OPTIONMAX(padding, SERVER_PADDING_BIT, uint16_t, padding, 512)
 					const isc_sockaddr_t *value) {       \
 		REQUIRE(DNS_PEER_VALID(peer));                               \
 		if (peer->element != NULL) {                                 \
-			isc_mem_put(peer->mem, peer->element,                \
+			isc_mem_put(peer->mem, peer->element, 1,             \
 				    sizeof(*peer->element));                 \
-			peer->element = NULL;                                \
 		}                                                            \
 		if (value != NULL) {                                         \
-			peer->element = isc_mem_get(peer->mem,               \
+			peer->element = isc_mem_get(peer->mem, 1,            \
 						    sizeof(*peer->element)); \
 			*peer->element = *value;                             \
 		}                                                            \
