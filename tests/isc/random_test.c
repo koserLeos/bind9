@@ -641,35 +641,45 @@ binarymatrixrank(uint16_t *values, size_t length) {
  ***/
 
 /* Ensure the RNG has been automatically seeded. */
-ISC_RUN_TEST_IMPL(isc_random32_initialized) {
+// ISC_RUN_TEST_IMPL(isc_random32_initialized)
+void run_test_isc_random32_initialized(void **state __attribute__((unused)));
+void run_test_isc_random32_initialized(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	assert_int_not_equal(isc_random32(), 0);
 }
 
 /* Monobit test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random32_monobit) {
+// ISC_RUN_TEST_IMPL(isc_random32_monobit)
+void run_test_isc_random32_monobit(void **state __attribute__((unused)));
+void run_test_isc_random32_monobit(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(monobit, ISC_RANDOM32);
 }
 
 /* Runs test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random32_runs) {
+// ISC_RUN_TEST_IMPL(isc_random32_runs)
+void run_test_isc_random32_runs(void **state __attribute__((unused)));
+void run_test_isc_random32_runs(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(runs, ISC_RANDOM32);
 }
 
 /* Block frequency test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random32_blockfrequency) {
+// ISC_RUN_TEST_IMPL(isc_random32_blockfrequency)
+void run_test_isc_random32_blockfrequency(void **state __attribute__((unused)));
+void run_test_isc_random32_blockfrequency(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(blockfrequency, ISC_RANDOM32);
 }
 
 /* Binary matrix rank test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random32_binarymatrixrank) {
+// ISC_RUN_TEST_IMPL(isc_random32_binarymatrixrank)
+void run_test_isc_random32_binarymatrixrank(void **state __attribute__((unused)));
+void run_test_isc_random32_binarymatrixrank(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(binarymatrixrank, ISC_RANDOM32);
@@ -680,28 +690,36 @@ ISC_RUN_TEST_IMPL(isc_random32_binarymatrixrank) {
  ***/
 
 /* Monobit test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random_bytes_monobit) {
+// ISC_RUN_TEST_IMPL(isc_random_bytes_monobit)
+void run_test_isc_random_bytes_monobit(void **state __attribute__((unused)));
+void run_test_isc_random_bytes_monobit(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(monobit, ISC_RANDOM_BYTES);
 }
 
 /* Runs test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random_bytes_runs) {
+// ISC_RUN_TEST_IMPL(isc_random_bytes_runs)
+void run_test_isc_random_bytes_runs(void **state __attribute__((unused)));
+void run_test_isc_random_bytes_runs(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(runs, ISC_RANDOM_BYTES);
 }
 
 /* Block frequency test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random_bytes_blockfrequency) {
+// ISC_RUN_TEST_IMPL(isc_random_bytes_blockfrequency)
+void run_test_isc_random_bytes_blockfrequency(void **state __attribute__((unused)));
+void run_test_isc_random_bytes_blockfrequency(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(blockfrequency, ISC_RANDOM_BYTES);
 }
 
 /* Binary matrix rank test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random_bytes_binarymatrixrank) {
+// ISC_RUN_TEST_IMPL(isc_random_bytes_binarymatrixrank)
+void run_test_isc_random_bytes_binarymatrixrank(void **state __attribute__((unused)));
+void run_test_isc_random_bytes_binarymatrixrank(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(binarymatrixrank, ISC_RANDOM_BYTES);
@@ -712,28 +730,36 @@ ISC_RUN_TEST_IMPL(isc_random_bytes_binarymatrixrank) {
  ***/
 
 /* Monobit test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random_uniform_monobit) {
+// ISC_RUN_TEST_IMPL(isc_random_uniform_monobit)
+void run_test_isc_random_uniform_monobit(void **state __attribute__((unused)));
+void run_test_isc_random_uniform_monobit(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(monobit, ISC_RANDOM_UNIFORM);
 }
 
 /* Runs test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random_uniform_runs) {
+// ISC_RUN_TEST_IMPL(isc_random_uniform_runs)
+void run_test_isc_random_uniform_runs(void **state __attribute__((unused)));
+void run_test_isc_random_uniform_runs(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(runs, ISC_RANDOM_UNIFORM);
 }
 
 /* Block frequency test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random_uniform_blockfrequency) {
+// ISC_RUN_TEST_IMPL(isc_random_uniform_blockfrequency)
+void run_test_isc_random_uniform_blockfrequency(void **state __attribute__((unused)));
+void run_test_isc_random_uniform_blockfrequency(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(blockfrequency, ISC_RANDOM_UNIFORM);
 }
 
 /* Binary matrix rank test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_random_uniform_binarymatrixrank) {
+// ISC_RUN_TEST_IMPL(isc_random_uniform_binarymatrixrank)
+void run_test_isc_random_uniform_binarymatrixrank(void **state __attribute__((unused)));
+void run_test_isc_random_uniform_binarymatrixrank(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(binarymatrixrank, ISC_RANDOM_UNIFORM);
@@ -742,28 +768,36 @@ ISC_RUN_TEST_IMPL(isc_random_uniform_binarymatrixrank) {
 /* Tests for isc_nonce_bytes() function */
 
 /* Monobit test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_nonce_bytes_monobit) {
+// ISC_RUN_TEST_IMPL(isc_nonce_bytes_monobit)
+void run_test_isc_nonce_bytes_monobit(void **state __attribute__((unused)));
+void run_test_isc_nonce_bytes_monobit(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(monobit, ISC_NONCE_BYTES);
 }
 
 /* Runs test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_nonce_bytes_runs) {
+// ISC_RUN_TEST_IMPL(isc_nonce_bytes_runs)
+void run_test_isc_nonce_bytes_runs(void **state __attribute__((unused)));
+void run_test_isc_nonce_bytes_runs(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(runs, ISC_NONCE_BYTES);
 }
 
 /* Block frequency test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_nonce_bytes_blockfrequency) {
+// ISC_RUN_TEST_IMPL(isc_nonce_bytes_blockfrequency)
+void run_test_isc_nonce_bytes_blockfrequency(void **state __attribute__((unused)));
+void run_test_isc_nonce_bytes_blockfrequency(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(blockfrequency, ISC_NONCE_BYTES);
 }
 
 /* Binary matrix rank test for the RANDOM */
-ISC_RUN_TEST_IMPL(isc_nonce_bytes_binarymatrixrank) {
+// ISC_RUN_TEST_IMPL(isc_nonce_bytes_binarymatrixrank)
+void run_test_isc_nonce_bytes_binarymatrixrank(void **state __attribute__((unused)));
+void run_test_isc_nonce_bytes_binarymatrixrank(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	random_test(binarymatrixrank, ISC_NONCE_BYTES);

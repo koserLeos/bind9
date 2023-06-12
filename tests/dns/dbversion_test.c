@@ -126,7 +126,9 @@ teardown_test(void **state) {
  * Check dns_db_attachversion() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(attachversion) {
+// ISC_RUN_TEST_IMPL(attachversion)
+void run_test_attachversion(void **state __attribute__((unused)));
+void run_test_attachversion(void **state __attribute__((unused))) {
 	dns_dbversion_t *v = NULL;
 
 	UNUSED(state);
@@ -143,7 +145,9 @@ ISC_RUN_TEST_IMPL(attachversion) {
  * Check dns_db_closeversion() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(closeversion) {
+// ISC_RUN_TEST_IMPL(closeversion)
+void run_test_closeversion(void **state __attribute__((unused)));
+void run_test_closeversion(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	assert_non_null(v1);
@@ -157,7 +161,9 @@ ISC_RUN_TEST_IMPL(closeversion) {
  * Check dns_db_find() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(find) {
+// ISC_RUN_TEST_IMPL(find)
+void run_test_find(void **state __attribute__((unused)));
+void run_test_find(void **state __attribute__((unused))) {
 	isc_result_t res;
 	dns_rdataset_t rdataset;
 	dns_fixedname_t fixed;
@@ -186,7 +192,9 @@ ISC_RUN_TEST_IMPL(find) {
  * Check dns_db_allrdatasets() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(allrdatasets) {
+// ISC_RUN_TEST_IMPL(allrdatasets)
+void run_test_allrdatasets(void **state __attribute__((unused)));
+void run_test_allrdatasets(void **state __attribute__((unused))) {
 	isc_result_t res;
 	dns_dbnode_t *node = NULL;
 	dns_rdatasetiter_t *iterator = NULL;
@@ -212,7 +220,9 @@ ISC_RUN_TEST_IMPL(allrdatasets) {
  * Check dns_db_findrdataset() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(findrdataset) {
+// ISC_RUN_TEST_IMPL(findrdataset)
+void run_test_findrdataset(void **state __attribute__((unused)));
+void run_test_findrdataset(void **state __attribute__((unused))) {
 	isc_result_t res;
 	dns_rdataset_t rdataset;
 	dns_dbnode_t *node = NULL;
@@ -243,7 +253,9 @@ ISC_RUN_TEST_IMPL(findrdataset) {
  * Check dns_db_deleterdataset() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(deleterdataset) {
+// ISC_RUN_TEST_IMPL(deleterdataset)
+void run_test_deleterdataset(void **state __attribute__((unused)));
+void run_test_deleterdataset(void **state __attribute__((unused))) {
 	isc_result_t res;
 	dns_dbnode_t *node = NULL;
 
@@ -265,7 +277,9 @@ ISC_RUN_TEST_IMPL(deleterdataset) {
  * Check dns_db_subtractrdataset() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(subtract) {
+// ISC_RUN_TEST_IMPL(subtract)
+void run_test_subtract(void **state __attribute__((unused)));
+void run_test_subtract(void **state __attribute__((unused))) {
 	isc_result_t res;
 	dns_rdataset_t rdataset;
 	dns_rdatalist_t rdatalist;
@@ -304,7 +318,9 @@ ISC_RUN_TEST_IMPL(subtract) {
  * Check dns_db_dump() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(dump) {
+// ISC_RUN_TEST_IMPL(dump)
+void run_test_dump(void **state __attribute__((unused)));
+void run_test_dump(void **state __attribute__((unused))) {
 	isc_result_t res;
 	FILE *f = NULL;
 
@@ -324,7 +340,9 @@ ISC_RUN_TEST_IMPL(dump) {
  * Check dns_db_addrdataset() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(addrdataset) {
+// ISC_RUN_TEST_IMPL(addrdataset)
+void run_test_addrdataset(void **state __attribute__((unused)));
+void run_test_addrdataset(void **state __attribute__((unused))) {
 	isc_result_t res;
 	dns_rdataset_t rdataset;
 	dns_dbnode_t *node = NULL;
@@ -356,7 +374,9 @@ ISC_RUN_TEST_IMPL(addrdataset) {
  * Check dns_db_getnsec3parameters() passes with matching db and version,
  * and asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(getnsec3parameters) {
+// ISC_RUN_TEST_IMPL(getnsec3parameters)
+void run_test_getnsec3parameters(void **state __attribute__((unused)));
+void run_test_getnsec3parameters(void **state __attribute__((unused))) {
 	isc_result_t res;
 	dns_hash_t hash;
 	uint8_t flags;
@@ -378,7 +398,9 @@ ISC_RUN_TEST_IMPL(getnsec3parameters) {
  * Check dns_db_resigned() passes with matching db and version, and
  * asserts with mis-matching db and version.
  */
-ISC_RUN_TEST_IMPL(resigned) {
+// ISC_RUN_TEST_IMPL(resigned)
+void run_test_resigned(void **state __attribute__((unused)));
+void run_test_resigned(void **state __attribute__((unused))) {
 	isc_result_t res;
 	dns_rdataset_t rdataset, added;
 	dns_dbnode_t *node = NULL;

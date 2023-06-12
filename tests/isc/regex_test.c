@@ -35,7 +35,9 @@
 #include <tests/isc.h>
 
 /* test isc_regex_validate() */
-ISC_RUN_TEST_IMPL(regex_validate) {
+// ISC_RUN_TEST_IMPL(regex_validate)
+void run_test_regex_validate(void **state __attribute__((unused)));
+void run_test_regex_validate(void **state __attribute__((unused))) {
 	/*
 	 *  test regex were generated using http://code.google.com/p/regfuzz/
 	 *  modified to use only printable characters

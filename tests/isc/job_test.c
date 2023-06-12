@@ -84,7 +84,9 @@ job_run_cb(void *arg) {
 	isc_job_run(isc_loop_current(loopmgr), &ta->job, job_cb, ta);
 }
 
-ISC_RUN_TEST_IMPL(isc_job_run) {
+// ISC_RUN_TEST_IMPL(isc_job_run)
+void run_test_isc_job_run(void **state __attribute__((unused)));
+void run_test_isc_job_run(void **state __attribute__((unused))) {
 	atomic_init(&scheduled, 0);
 	atomic_init(&executed, 0);
 
@@ -124,7 +126,9 @@ job_multiple(void *arg) {
 	isc_loopmgr_shutdown(loopmgr);
 }
 
-ISC_RUN_TEST_IMPL(isc_job_multiple) {
+// ISC_RUN_TEST_IMPL(isc_job_multiple)
+void run_test_isc_job_multiple(void **state __attribute__((unused)));
+void run_test_isc_job_multiple(void **state __attribute__((unused))) {
 	string[0] = '\0';
 	isc_loop_setup(isc_loop_main(loopmgr), job_multiple, loopmgr);
 	isc_loopmgr_run(loopmgr);

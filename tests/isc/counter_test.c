@@ -29,7 +29,9 @@
 #include <tests/isc.h>
 
 /* test isc_counter object */
-ISC_RUN_TEST_IMPL(isc_counter) {
+// ISC_RUN_TEST_IMPL(isc_counter)
+void run_test_isc_counter(void **state __attribute__((unused)));
+void run_test_isc_counter(void **state __attribute__((unused))) {
 	isc_result_t result;
 	isc_counter_t *counter = NULL;
 	int i;

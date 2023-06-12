@@ -163,7 +163,9 @@ nsec3param_change_test(const nsec3param_change_test_params_t *test) {
 	dns_zone_detach(&zone);
 }
 
-ISC_RUN_TEST_IMPL(nsec3param_change) {
+// ISC_RUN_TEST_IMPL(nsec3param_change)
+void run_test_nsec3param_change(void **state __attribute__((unused)));
+void run_test_nsec3param_change(void **state __attribute__((unused))) {
 	size_t i;
 
 	/*

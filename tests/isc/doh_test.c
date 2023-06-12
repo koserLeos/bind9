@@ -1126,7 +1126,9 @@ ISC_LOOP_TEST_IMPL(doh_bad_connect_uri) {
 	isc_loop_teardown(mainloop, listen_sock_close, listen_sock);
 }
 
-ISC_RUN_TEST_IMPL(doh_parse_GET_query_string) {
+// ISC_RUN_TEST_IMPL(doh_parse_GET_query_string)
+void run_test_doh_parse_GET_query_string(void **state __attribute__((unused)));
+void run_test_doh_parse_GET_query_string(void **state __attribute__((unused))) {
 	/* valid */
 	{
 		bool ret;
@@ -1347,7 +1349,9 @@ ISC_RUN_TEST_IMPL(doh_parse_GET_query_string) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(doh_base64url_to_base64) {
+// ISC_RUN_TEST_IMPL(doh_base64url_to_base64)
+void run_test_doh_base64url_to_base64(void **state __attribute__((unused)));
+void run_test_doh_base64url_to_base64(void **state __attribute__((unused))) {
 	char *res;
 	size_t res_len = 0;
 	/* valid */
@@ -1483,7 +1487,9 @@ ISC_RUN_TEST_IMPL(doh_base64url_to_base64) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(doh_base64_to_base64url) {
+// ISC_RUN_TEST_IMPL(doh_base64_to_base64url)
+void run_test_doh_base64_to_base64url(void **state __attribute__((unused)));
+void run_test_doh_base64_to_base64url(void **state __attribute__((unused))) {
 	char *res;
 	size_t res_len = 0;
 	/* valid */
@@ -1619,7 +1625,9 @@ ISC_RUN_TEST_IMPL(doh_base64_to_base64url) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(doh_path_validation) {
+// ISC_RUN_TEST_IMPL(doh_path_validation)
+void run_test_doh_path_validation(void **state __attribute__((unused)));
+void run_test_doh_path_validation(void **state __attribute__((unused))) {
 	assert_true(isc_nm_http_path_isvalid("/"));
 	assert_true(isc_nm_http_path_isvalid(ISC_NM_HTTP_DEFAULT_PATH));
 	assert_false(isc_nm_http_path_isvalid("laaaa"));
@@ -1651,7 +1659,9 @@ ISC_RUN_TEST_IMPL(doh_path_validation) {
 	assert_true(isc_nm_http_path_isvalid("/123"));
 }
 
-ISC_RUN_TEST_IMPL(doh_connect_makeuri) {
+// ISC_RUN_TEST_IMPL(doh_connect_makeuri)
+void run_test_doh_connect_makeuri(void **state __attribute__((unused)));
+void run_test_doh_connect_makeuri(void **state __attribute__((unused))) {
 	struct in_addr localhostv4 = { .s_addr = ntohl(INADDR_LOOPBACK) };
 	isc_sockaddr_t sa;
 	char uri[256];

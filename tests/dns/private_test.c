@@ -144,7 +144,9 @@ make_nsec3(nsec3_testcase_t *testcase, dns_rdata_t *private,
 }
 
 /* convert private signing records to text */
-ISC_RUN_TEST_IMPL(private_signing_totext) {
+// ISC_RUN_TEST_IMPL(private_signing_totext)
+void run_test_private_signing_totext(void **state __attribute__((unused)));
+void run_test_private_signing_totext(void **state __attribute__((unused))) {
 	dns_rdata_t private;
 	int i;
 
@@ -176,7 +178,9 @@ ISC_RUN_TEST_IMPL(private_signing_totext) {
 }
 
 /* convert private chain records to text */
-ISC_RUN_TEST_IMPL(private_nsec3_totext) {
+// ISC_RUN_TEST_IMPL(private_nsec3_totext)
+void run_test_private_nsec3_totext(void **state __attribute__((unused)));
+void run_test_private_nsec3_totext(void **state __attribute__((unused))) {
 	dns_rdata_t private;
 	int i;
 

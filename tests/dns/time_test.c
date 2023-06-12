@@ -32,7 +32,9 @@
 #define TEST_ORIGIN "test"
 
 /* value = 0xfffffffff <-> 19691231235959 */
-ISC_RUN_TEST_IMPL(epoch_minus_one) {
+// ISC_RUN_TEST_IMPL(epoch_minus_one)
+void run_test_epoch_minus_one(void **state __attribute__((unused)));
+void run_test_epoch_minus_one(void **state __attribute__((unused))) {
 	const char *test_text = "19691231235959";
 	const uint32_t test_time = 0xffffffff;
 	isc_result_t result;
@@ -53,7 +55,9 @@ ISC_RUN_TEST_IMPL(epoch_minus_one) {
 }
 
 /* value = 0x000000000 <-> 19700101000000*/
-ISC_RUN_TEST_IMPL(epoch) {
+// ISC_RUN_TEST_IMPL(epoch)
+void run_test_epoch(void **state __attribute__((unused)));
+void run_test_epoch(void **state __attribute__((unused))) {
 	const char *test_text = "19700101000000";
 	const uint32_t test_time = 0x00000000;
 	isc_result_t result;
@@ -74,7 +78,9 @@ ISC_RUN_TEST_IMPL(epoch) {
 }
 
 /* value = 0x7fffffff <-> 20380119031407 */
-ISC_RUN_TEST_IMPL(half_maxint) {
+// ISC_RUN_TEST_IMPL(half_maxint)
+void run_test_half_maxint(void **state __attribute__((unused)));
+void run_test_half_maxint(void **state __attribute__((unused))) {
 	const char *test_text = "20380119031407";
 	const uint32_t test_time = 0x7fffffff;
 	isc_result_t result;
@@ -95,7 +101,9 @@ ISC_RUN_TEST_IMPL(half_maxint) {
 }
 
 /* value = 0x80000000 <-> 20380119031408 */
-ISC_RUN_TEST_IMPL(half_plus_one) {
+// ISC_RUN_TEST_IMPL(half_plus_one)
+void run_test_half_plus_one(void **state __attribute__((unused)));
+void run_test_half_plus_one(void **state __attribute__((unused))) {
 	const char *test_text = "20380119031408";
 	const uint32_t test_time = 0x80000000;
 	isc_result_t result;
@@ -116,7 +124,9 @@ ISC_RUN_TEST_IMPL(half_plus_one) {
 }
 
 /* value = 0xef68f5d0 <-> 19610307130000 */
-ISC_RUN_TEST_IMPL(fifty_before) {
+// ISC_RUN_TEST_IMPL(fifty_before)
+void run_test_fifty_before(void **state __attribute__((unused)));
+void run_test_fifty_before(void **state __attribute__((unused))) {
 	isc_result_t result;
 	const char *test_text = "19610307130000";
 	const uint32_t test_time = 0xef68f5d0;
@@ -137,7 +147,9 @@ ISC_RUN_TEST_IMPL(fifty_before) {
 }
 
 /* value = 0x4d74d6d0 <-> 20110307130000 */
-ISC_RUN_TEST_IMPL(some_ago) {
+// ISC_RUN_TEST_IMPL(some_ago)
+void run_test_some_ago(void **state __attribute__((unused)));
+void run_test_some_ago(void **state __attribute__((unused))) {
 	const char *test_text = "20110307130000";
 	const uint32_t test_time = 0x4d74d6d0;
 	isc_result_t result;

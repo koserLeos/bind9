@@ -867,7 +867,9 @@ key_required(void **state, dns_rdatatype_t type, size_t size) {
 }
 
 /* APL RDATA manipulations */
-ISC_RUN_TEST_IMPL(apl) {
+// ISC_RUN_TEST_IMPL(apl)
+void run_test_apl(void **state __attribute__((unused)));
+void run_test_apl(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = {
 		/* empty list */
 		TEXT_VALID(""),
@@ -949,7 +951,9 @@ ISC_RUN_TEST_IMPL(apl) {
  *
  * ATMA RRs cause no additional section processing.
  */
-ISC_RUN_TEST_IMPL(atma) {
+// ISC_RUN_TEST_IMPL(atma)
+void run_test_atma(void **state __attribute__((unused)));
+void run_test_atma(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { TEXT_VALID("00"),
 				TEXT_VALID_CHANGED("0.0", "00"),
 				/*
@@ -1017,7 +1021,9 @@ ISC_RUN_TEST_IMPL(atma) {
 }
 
 /* AMTRELAY RDATA manipulations */
-ISC_RUN_TEST_IMPL(amtrelay) {
+// ISC_RUN_TEST_IMPL(amtrelay)
+void run_test_amtrelay(void **state __attribute__((unused)));
+void run_test_amtrelay(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = {
 		TEXT_INVALID(""), TEXT_INVALID("0"), TEXT_INVALID("0 0"),
 		/* gateway type 0 */
@@ -1093,7 +1099,9 @@ ISC_RUN_TEST_IMPL(amtrelay) {
 		    dns_rdatatype_amtrelay, sizeof(dns_rdata_amtrelay_t));
 }
 
-ISC_RUN_TEST_IMPL(cdnskey) {
+// ISC_RUN_TEST_IMPL(cdnskey)
+void run_test_cdnskey(void **state __attribute__((unused)));
+void run_test_cdnskey(void **state __attribute__((unused))) {
 	key_required(state, dns_rdatatype_cdnskey, sizeof(dns_rdata_cdnskey_t));
 }
 
@@ -1161,7 +1169,9 @@ ISC_RUN_TEST_IMPL(cdnskey) {
  *    must understand the semantics associated with a bit in the Type Bit
  *    Map field that has been set to 1.
  */
-ISC_RUN_TEST_IMPL(csync) {
+// ISC_RUN_TEST_IMPL(csync)
+void run_test_csync(void **state __attribute__((unused)));
+void run_test_csync(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { TEXT_INVALID(""),
 				TEXT_INVALID("0"),
 				TEXT_VALID("0 0"),
@@ -1220,7 +1230,9 @@ ISC_RUN_TEST_IMPL(csync) {
 		    dns_rdatatype_csync, sizeof(dns_rdata_csync_t));
 }
 
-ISC_RUN_TEST_IMPL(dnskey) {
+// ISC_RUN_TEST_IMPL(dnskey)
+void run_test_dnskey(void **state __attribute__((unused)));
+void run_test_dnskey(void **state __attribute__((unused))) {
 	key_required(state, dns_rdatatype_dnskey, sizeof(dns_rdata_dnskey_t));
 }
 
@@ -1284,7 +1296,9 @@ ISC_RUN_TEST_IMPL(dnskey) {
  *    character ("-", ASCII 45).  White space is permitted within Base64
  *    data.
  */
-ISC_RUN_TEST_IMPL(doa) {
+// ISC_RUN_TEST_IMPL(doa)
+void run_test_doa(void **state __attribute__((unused)));
+void run_test_doa(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = {
 		/*
 		 * Valid, non-empty DOA-DATA.
@@ -1497,7 +1511,9 @@ ISC_RUN_TEST_IMPL(doa) {
  *    DNSKEY RR size.  As of the time of this writing, the only defined
  *    digest algorithm is SHA-1, which produces a 20 octet digest.
  */
-ISC_RUN_TEST_IMPL(ds) {
+// ISC_RUN_TEST_IMPL(ds)
+void run_test_ds(void **state __attribute__((unused)));
+void run_test_ds(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = {
 		/*
 		 * Invalid, empty record.
@@ -1763,7 +1779,9 @@ ISC_RUN_TEST_IMPL(ds) {
  *    All fields are in network byte order ("big-endian", per [RFC1700],
  *    Data Notation).
  */
-ISC_RUN_TEST_IMPL(edns_client_subnet) {
+// ISC_RUN_TEST_IMPL(edns_client_subnet)
+void run_test_edns_client_subnet(void **state __attribute__((unused)));
+void run_test_edns_client_subnet(void **state __attribute__((unused))) {
 	wire_ok_t wire_ok[] = {
 		/*
 		 * Option code with no content.
@@ -1850,7 +1868,9 @@ ISC_RUN_TEST_IMPL(edns_client_subnet) {
  * significant.  For readability, whitespace may be included in the value
  * field and should be ignored when reading a master file.
  */
-ISC_RUN_TEST_IMPL(eid) {
+// ISC_RUN_TEST_IMPL(eid)
+void run_test_eid(void **state __attribute__((unused)));
+void run_test_eid(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { TEXT_VALID("AABBCC"),
 				TEXT_VALID_CHANGED("AA bb cc", "AABBCC"),
 				TEXT_INVALID("aab"),
@@ -1871,7 +1891,9 @@ ISC_RUN_TEST_IMPL(eid) {
 /*
  * test that an oversized HIP record will be rejected
  */
-ISC_RUN_TEST_IMPL(hip) {
+// ISC_RUN_TEST_IMPL(hip)
+void run_test_hip(void **state __attribute__((unused)));
+void run_test_hip(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = {
 		/* RFC 8005 examples. */
 		TEXT_VALID_LOOP(0, "2 200100107B1A74DF365639CC39F1D578 "
@@ -1983,7 +2005,9 @@ ISC_RUN_TEST_IMPL(hip) {
  *    as one or two <character-string>s, i.e., count followed by
  *    characters.
  */
-ISC_RUN_TEST_IMPL(isdn) {
+// ISC_RUN_TEST_IMPL(isdn)
+void run_test_isdn(void **state __attribute__((unused)));
+void run_test_isdn(void **state __attribute__((unused))) {
 	wire_ok_t wire_ok[] = { /*
 				 * "".
 				 */
@@ -2013,7 +2037,9 @@ ISC_RUN_TEST_IMPL(isdn) {
 /*
  * KEY tests.
  */
-ISC_RUN_TEST_IMPL(key) {
+// ISC_RUN_TEST_IMPL(key)
+void run_test_key(void **state __attribute__((unused)));
+void run_test_key(void **state __attribute__((unused))) {
 	wire_ok_t wire_ok[] = {
 		/*
 		 * RDATA is comprised of:
@@ -2093,7 +2119,9 @@ ISC_RUN_TEST_IMPL(key) {
 /*
  * LOC tests.
  */
-ISC_RUN_TEST_IMPL(loc) {
+// ISC_RUN_TEST_IMPL(loc)
+void run_test_loc(void **state __attribute__((unused)));
+void run_test_loc(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = {
 		TEXT_VALID_CHANGED("0 N 0 E 0", "0 0 0.000 N 0 0 0.000 E 0.00m "
 						"1m 10000m 10m"),
@@ -2161,7 +2189,9 @@ ISC_RUN_TEST_IMPL(loc) {
  * significant.  For readability, whitespace may be included in the value
  * field and should be ignored when reading a master file.
  */
-ISC_RUN_TEST_IMPL(nimloc) {
+// ISC_RUN_TEST_IMPL(nimloc)
+void run_test_nimloc(void **state __attribute__((unused)));
+void run_test_nimloc(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { TEXT_VALID("AABBCC"),
 				TEXT_VALID_CHANGED("AA bb cc", "AABBCC"),
 				TEXT_INVALID("aab"),
@@ -2245,7 +2275,9 @@ ISC_RUN_TEST_IMPL(nimloc) {
  *    Bits representing pseudo-types MUST be clear, as they do not appear
  *    in zone data.  If encountered, they MUST be ignored upon being read.
  */
-ISC_RUN_TEST_IMPL(nsec) {
+// ISC_RUN_TEST_IMPL(nsec)
+void run_test_nsec(void **state __attribute__((unused)));
+void run_test_nsec(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { TEXT_INVALID(""), TEXT_INVALID("."),
 				TEXT_VALID(". RRSIG"), TEXT_SENTINEL() };
 	wire_ok_t wire_ok[] = { WIRE_INVALID(0x00), WIRE_INVALID(0x00, 0x00),
@@ -2262,7 +2294,9 @@ ISC_RUN_TEST_IMPL(nsec) {
  *
  * RFC 5155.
  */
-ISC_RUN_TEST_IMPL(nsec3) {
+// ISC_RUN_TEST_IMPL(nsec3)
+void run_test_nsec3(void **state __attribute__((unused)));
+void run_test_nsec3(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { TEXT_INVALID(""),
 				TEXT_INVALID("."),
 				TEXT_INVALID(". RRSIG"),
@@ -2287,7 +2321,9 @@ ISC_RUN_TEST_IMPL(nsec3) {
 }
 
 /* NXT RDATA manipulations */
-ISC_RUN_TEST_IMPL(nxt) {
+// ISC_RUN_TEST_IMPL(nxt)
+void run_test_nxt(void **state __attribute__((unused)));
+void run_test_nxt(void **state __attribute__((unused))) {
 	compare_ok_t compare_ok[] = {
 		COMPARE("a. A SIG", "a. A SIG", 0),
 		/*
@@ -2310,7 +2346,9 @@ ISC_RUN_TEST_IMPL(nxt) {
 		    dns_rdatatype_nxt, sizeof(dns_rdata_nxt_t));
 }
 
-ISC_RUN_TEST_IMPL(rkey) {
+// ISC_RUN_TEST_IMPL(rkey)
+void run_test_rkey(void **state __attribute__((unused)));
+void run_test_rkey(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { /*
 				 * Valid, flags set to 0 and a key is present.
 				 */
@@ -2345,7 +2383,9 @@ ISC_RUN_TEST_IMPL(rkey) {
 }
 
 /* SSHFP RDATA manipulations */
-ISC_RUN_TEST_IMPL(sshfp) {
+// ISC_RUN_TEST_IMPL(sshfp)
+void run_test_sshfp(void **state __attribute__((unused)));
+void run_test_sshfp(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { TEXT_INVALID(""),     /* too short */
 				TEXT_INVALID("0"),    /* reserved, too short */
 				TEXT_VALID("0 0"),    /* no finger print */
@@ -2465,7 +2505,9 @@ ISC_RUN_TEST_IMPL(sshfp) {
  * port 25; if zero, SMTP service is not supported on the specified
  * address.
  */
-ISC_RUN_TEST_IMPL(wks) {
+// ISC_RUN_TEST_IMPL(wks)
+void run_test_wks(void **state __attribute__((unused)));
+void run_test_wks(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = { /*
 				 * Valid, IPv4 address in dotted-quad form.
 				 */
@@ -2506,7 +2548,9 @@ ISC_RUN_TEST_IMPL(wks) {
 		    dns_rdatatype_wks, sizeof(dns_rdata_in_wks_t));
 }
 
-ISC_RUN_TEST_IMPL(https_svcb) {
+// ISC_RUN_TEST_IMPL(https_svcb)
+void run_test_https_svcb(void **state __attribute__((unused)));
+void run_test_https_svcb(void **state __attribute__((unused))) {
 	/*
 	 * Known keys: mandatory, apln, no-default-alpn, port,
 	 *             ipv4hint, port, ipv6hint, dohpath.
@@ -2854,7 +2898,9 @@ ISC_RUN_TEST_IMPL(https_svcb) {
  *
  */
 
-ISC_RUN_TEST_IMPL(zonemd) {
+// ISC_RUN_TEST_IMPL(zonemd)
+void run_test_zonemd(void **state __attribute__((unused)));
+void run_test_zonemd(void **state __attribute__((unused))) {
 	text_ok_t text_ok[] = {
 		TEXT_INVALID(""),
 		/* No digest scheme or digest type*/
@@ -3025,7 +3071,9 @@ ISC_RUN_TEST_IMPL(zonemd) {
 		    dns_rdatatype_zonemd, sizeof(dns_rdata_zonemd_t));
 }
 
-ISC_RUN_TEST_IMPL(atcname) {
+// ISC_RUN_TEST_IMPL(atcname)
+void run_test_atcname(void **state __attribute__((unused)));
+void run_test_atcname(void **state __attribute__((unused))) {
 	unsigned int i;
 
 #define UNR "# Unexpected result from dns_rdatatype_atcname for type %u\n"
@@ -3051,7 +3099,9 @@ ISC_RUN_TEST_IMPL(atcname) {
 #undef UNR
 }
 
-ISC_RUN_TEST_IMPL(atparent) {
+// ISC_RUN_TEST_IMPL(atparent)
+void run_test_atparent(void **state __attribute__((unused)));
+void run_test_atparent(void **state __attribute__((unused))) {
 	unsigned int i;
 
 #define UNR "# Unexpected result from dns_rdatatype_atparent for type %u\n"
@@ -3075,7 +3125,9 @@ ISC_RUN_TEST_IMPL(atparent) {
 #undef UNR
 }
 
-ISC_RUN_TEST_IMPL(iszonecutauth) {
+// ISC_RUN_TEST_IMPL(iszonecutauth)
+void run_test_iszonecutauth(void **state __attribute__((unused)));
+void run_test_iszonecutauth(void **state __attribute__((unused))) {
 	unsigned int i;
 #define UNR "# Unexpected result from dns_rdatatype_iszonecutauth for type %u\n"
 	for (i = 0; i < 0xffffU; i++) {

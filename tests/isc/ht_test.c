@@ -294,38 +294,50 @@ test_ht_iterator(void) {
 }
 
 /* 1 bit, 120 elements test, full rehashing */
-ISC_RUN_TEST_IMPL(isc_ht_1_120) {
+// ISC_RUN_TEST_IMPL(isc_ht_1_120)
+void run_test_isc_ht_1_120(void **state __attribute__((unused)));
+void run_test_isc_ht_1_120(void **state __attribute__((unused))) {
 	test_ht_full(1, 120);
 	return;
 }
 
 /* 6 bit, 1000 elements test, full rehashing */
-ISC_RUN_TEST_IMPL(isc_ht_6_1000) {
+// ISC_RUN_TEST_IMPL(isc_ht_6_1000)
+void run_test_isc_ht_6_1000(void **state __attribute__((unused)));
+void run_test_isc_ht_6_1000(void **state __attribute__((unused))) {
 	test_ht_full(6, 1000);
 	return;
 }
 
 /* 24 bit, 200K elements test, no rehashing */
-ISC_RUN_TEST_IMPL(isc_ht_24_200000) {
+// ISC_RUN_TEST_IMPL(isc_ht_24_200000)
+void run_test_isc_ht_24_200000(void **state __attribute__((unused)));
+void run_test_isc_ht_24_200000(void **state __attribute__((unused))) {
 	UNUSED(state);
 	test_ht_full(24, 200000);
 }
 
 /* 15 bit, 45K elements test, full rehashing */
-ISC_RUN_TEST_IMPL(isc_ht_1_48000) {
+// ISC_RUN_TEST_IMPL(isc_ht_1_48000)
+void run_test_isc_ht_1_48000(void **state __attribute__((unused)));
+void run_test_isc_ht_1_48000(void **state __attribute__((unused))) {
 	UNUSED(state);
 	test_ht_full(1, 48000);
 }
 
 /* 8 bit, 20k elements test, partial rehashing */
-ISC_RUN_TEST_IMPL(isc_ht_8_20000) {
+// ISC_RUN_TEST_IMPL(isc_ht_8_20000)
+void run_test_isc_ht_8_20000(void **state __attribute__((unused)));
+void run_test_isc_ht_8_20000(void **state __attribute__((unused))) {
 	UNUSED(state);
 	test_ht_full(8, 20000);
 }
 
 /* test hashtable iterator */
 
-ISC_RUN_TEST_IMPL(isc_ht_iterator) {
+// ISC_RUN_TEST_IMPL(isc_ht_iterator)
+void run_test_isc_ht_iterator(void **state __attribute__((unused)));
+void run_test_isc_ht_iterator(void **state __attribute__((unused))) {
 	UNUSED(state);
 	test_ht_iterator();
 }

@@ -36,7 +36,9 @@
 #define TEST_ORIGIN "test"
 
 /* test that dns_acl_isinsecure works */
-ISC_RUN_TEST_IMPL(dns_acl_isinsecure) {
+// ISC_RUN_TEST_IMPL(dns_acl_isinsecure)
+void run_test_dns_acl_isinsecure(void **state __attribute__((unused)));
+void run_test_dns_acl_isinsecure(void **state __attribute__((unused))) {
 	isc_result_t result;
 	dns_acl_t *any = NULL;
 	dns_acl_t *none = NULL;

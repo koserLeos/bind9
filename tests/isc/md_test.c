@@ -67,13 +67,17 @@ _reset(void **state) {
 	return (0);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_new) {
+// ISC_RUN_TEST_IMPL(isc_md_new)
+void run_test_isc_md_new(void **state __attribute__((unused)));
+void run_test_isc_md_new(void **state __attribute__((unused))) {
 	isc_md_t *md = isc_md_new();
 	assert_non_null(md);
 	isc_md_free(md); /* Cleanup */
 }
 
-ISC_RUN_TEST_IMPL(isc_md_free) {
+// ISC_RUN_TEST_IMPL(isc_md_free)
+void run_test_isc_md_free(void **state __attribute__((unused)));
+void run_test_isc_md_free(void **state __attribute__((unused))) {
 	isc_md_t *md = isc_md_new();
 	assert_non_null(md);
 	isc_md_free(md);   /* Test freeing valid message digest context */
@@ -111,7 +115,9 @@ isc_md_test(isc_md_t *md, const isc_md_type_t *type, const char *buf,
 	assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_init) {
+// ISC_RUN_TEST_IMPL(isc_md_init)
+void run_test_isc_md_init(void **state __attribute__((unused)));
+void run_test_isc_md_init(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 	assert_non_null(md);
 
@@ -140,7 +146,9 @@ ISC_RUN_TEST_IMPL(isc_md_init) {
 	assert_int_equal(isc_md_reset(md), ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_update) {
+// ISC_RUN_TEST_IMPL(isc_md_update)
+void run_test_isc_md_update(void **state __attribute__((unused)));
+void run_test_isc_md_update(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 	assert_non_null(md);
 
@@ -152,7 +160,9 @@ ISC_RUN_TEST_IMPL(isc_md_update) {
 			 ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_reset) {
+// ISC_RUN_TEST_IMPL(isc_md_reset)
+void run_test_isc_md_reset(void **state __attribute__((unused)));
+void run_test_isc_md_reset(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 #if 0
 	unsigned char digest[ISC_MAX_MD_SIZE] ISC_ATTR_UNUSED;
@@ -179,7 +189,9 @@ ISC_RUN_TEST_IMPL(isc_md_reset) {
 #endif /* if 0 */
 }
 
-ISC_RUN_TEST_IMPL(isc_md_final) {
+// ISC_RUN_TEST_IMPL(isc_md_final)
+void run_test_isc_md_final(void **state __attribute__((unused)));
+void run_test_isc_md_final(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 	assert_non_null(md);
 
@@ -195,7 +207,9 @@ ISC_RUN_TEST_IMPL(isc_md_final) {
 	assert_int_equal(isc_md_final(md, digest, NULL), ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_md5) {
+// ISC_RUN_TEST_IMPL(isc_md_md5)
+void run_test_isc_md_md5(void **state __attribute__((unused)));
+void run_test_isc_md_md5(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 
 	if (isc_fips_mode()) {
@@ -224,7 +238,9 @@ ISC_RUN_TEST_IMPL(isc_md_md5) {
 		    "57EDF4A22BE3C955AC49DA2E2107B67A", 1);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_sha1) {
+// ISC_RUN_TEST_IMPL(isc_md_sha1)
+void run_test_isc_md_sha1(void **state __attribute__((unused)));
+void run_test_isc_md_sha1(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 	isc_md_test(md, ISC_MD_SHA1, NULL, 0, NULL, 0);
 	isc_md_test(md, ISC_MD_SHA1, TEST_INPUT(""),
@@ -267,7 +283,9 @@ ISC_RUN_TEST_IMPL(isc_md_sha1) {
 		    "CB0082C8F197D260991BA6A460E76E202BAD27B3", 1);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_sha224) {
+// ISC_RUN_TEST_IMPL(isc_md_sha224)
+void run_test_isc_md_sha224(void **state __attribute__((unused)));
+void run_test_isc_md_sha224(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 
 	isc_md_test(md, ISC_MD_SHA224, NULL, 0, NULL, 0);
@@ -326,7 +344,9 @@ ISC_RUN_TEST_IMPL(isc_md_sha224) {
 		    1);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_sha256) {
+// ISC_RUN_TEST_IMPL(isc_md_sha256)
+void run_test_isc_md_sha256(void **state __attribute__((unused)));
+void run_test_isc_md_sha256(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 
 	isc_md_test(md, ISC_MD_SHA256, NULL, 0, NULL, 0);
@@ -387,7 +407,9 @@ ISC_RUN_TEST_IMPL(isc_md_sha256) {
 		    1);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_sha384) {
+// ISC_RUN_TEST_IMPL(isc_md_sha384)
+void run_test_isc_md_sha384(void **state __attribute__((unused)));
+void run_test_isc_md_sha384(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 
 	isc_md_test(md, ISC_MD_SHA384, NULL, 0, NULL, 0);
@@ -463,7 +485,9 @@ ISC_RUN_TEST_IMPL(isc_md_sha384) {
 		    1);
 }
 
-ISC_RUN_TEST_IMPL(isc_md_sha512) {
+// ISC_RUN_TEST_IMPL(isc_md_sha512)
+void run_test_isc_md_sha512(void **state __attribute__((unused)));
+void run_test_isc_md_sha512(void **state __attribute__((unused))) {
 	isc_md_t *md = *state;
 
 	isc_md_test(md, ISC_MD_SHA512, NULL, 0, NULL, 0);

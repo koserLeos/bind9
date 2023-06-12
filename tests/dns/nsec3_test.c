@@ -112,7 +112,9 @@ nsec3param_salttotext_test(const nsec3param_salttotext_test_params_t *params) {
  * check that appropriate max iterations is returned for different
  * key size mixes
  */
-ISC_RUN_TEST_IMPL(max_iterations) {
+// ISC_RUN_TEST_IMPL(max_iterations)
+void run_test_max_iterations(void **state __attribute__((unused)));
+void run_test_max_iterations(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	iteration_test(TESTS_DIR "/testdata/nsec3/1024.db", 150);
@@ -123,7 +125,9 @@ ISC_RUN_TEST_IMPL(max_iterations) {
 }
 
 /* check dns_nsec3param_salttotext() */
-ISC_RUN_TEST_IMPL(nsec3param_salttotext) {
+// ISC_RUN_TEST_IMPL(nsec3param_salttotext)
+void run_test_nsec3param_salttotext(void **state __attribute__((unused)));
+void run_test_nsec3param_salttotext(void **state __attribute__((unused))) {
 	size_t i;
 
 	const nsec3param_salttotext_test_params_t tests[] = {

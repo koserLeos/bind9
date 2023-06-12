@@ -34,7 +34,9 @@
 #include <tests/isc.h>
 
 /* Hash function test */
-ISC_RUN_TEST_IMPL(isc_hash_function) {
+// ISC_RUN_TEST_IMPL(isc_hash_function)
+void run_test_isc_hash_function(void **state __attribute__((unused)));
+void run_test_isc_hash_function(void **state __attribute__((unused))) {
 	unsigned int h1;
 	unsigned int h2;
 
@@ -66,7 +68,9 @@ ISC_RUN_TEST_IMPL(isc_hash_function) {
 }
 
 /* Hash function initializer test */
-ISC_RUN_TEST_IMPL(isc_hash_initializer) {
+// ISC_RUN_TEST_IMPL(isc_hash_initializer)
+void run_test_isc_hash_initializer(void **state __attribute__((unused)));
+void run_test_isc_hash_initializer(void **state __attribute__((unused))) {
 	unsigned int h1;
 	unsigned int h2;
 

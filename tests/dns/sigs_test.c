@@ -289,7 +289,9 @@ updatesigs_test(const updatesigs_test_params_t *test, dns_zone_t *zone,
 }
 
 /* dns__zone_updatesigs() tests */
-ISC_RUN_TEST_IMPL(updatesigs_next) {
+// ISC_RUN_TEST_IMPL(updatesigs_next)
+void run_test_updatesigs_next(void **state __attribute__((unused)));
+void run_test_updatesigs_next(void **state __attribute__((unused))) {
 	dst_key_t *zone_keys[DNS_MAXZONEKEYS];
 	dns_zone_t *zone = NULL;
 	dns_db_t *db = NULL;

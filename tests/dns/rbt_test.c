@@ -208,7 +208,9 @@ check_test_data(dns_rbt_t *rbt) {
 }
 
 /* Test the creation of an rbt */
-ISC_RUN_TEST_IMPL(rbt_create) {
+// ISC_RUN_TEST_IMPL(rbt_create)
+void run_test_rbt_create(void **state __attribute__((unused)));
+void run_test_rbt_create(void **state __attribute__((unused))) {
 	test_context_t *ctx;
 	bool tree_ok;
 
@@ -225,7 +227,9 @@ ISC_RUN_TEST_IMPL(rbt_create) {
 }
 
 /* Test dns_rbt_nodecount() on a tree */
-ISC_RUN_TEST_IMPL(rbt_nodecount) {
+// ISC_RUN_TEST_IMPL(rbt_nodecount)
+void run_test_rbt_nodecount(void **state __attribute__((unused)));
+void run_test_rbt_nodecount(void **state __attribute__((unused))) {
 	test_context_t *ctx;
 
 	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
@@ -238,7 +242,9 @@ ISC_RUN_TEST_IMPL(rbt_nodecount) {
 }
 
 /* Test dns_rbtnode_get_distance() on a tree */
-ISC_RUN_TEST_IMPL(rbtnode_get_distance) {
+// ISC_RUN_TEST_IMPL(rbtnode_get_distance)
+void run_test_rbtnode_get_distance(void **state __attribute__((unused)));
+void run_test_rbtnode_get_distance(void **state __attribute__((unused))) {
 	isc_result_t result;
 	test_context_t *ctx;
 	const char *name_str = "a.";
@@ -288,7 +294,9 @@ ISC_RUN_TEST_IMPL(rbtnode_get_distance) {
  * path from a sub-tree's root to a node is no more than
  * 2log(n). This check verifies that the tree is balanced.
  */
-ISC_RUN_TEST_IMPL(rbt_check_distance_random) {
+// ISC_RUN_TEST_IMPL(rbt_check_distance_random)
+void run_test_rbt_check_distance_random(void **state __attribute__((unused)));
+void run_test_rbt_check_distance_random(void **state __attribute__((unused))) {
 	dns_rbt_t *mytree = NULL;
 	const unsigned int log_num_nodes = 16;
 	isc_result_t result;
@@ -363,7 +371,9 @@ ISC_RUN_TEST_IMPL(rbt_check_distance_random) {
  * path from a sub-tree's root to a node is no more than
  * 2log(n). This check verifies that the tree is balanced.
  */
-ISC_RUN_TEST_IMPL(rbt_check_distance_ordered) {
+// ISC_RUN_TEST_IMPL(rbt_check_distance_ordered)
+void run_test_rbt_check_distance_ordered(void **state __attribute__((unused)));
+void run_test_rbt_check_distance_ordered(void **state __attribute__((unused))) {
 	dns_rbt_t *mytree = NULL;
 	const unsigned int log_num_nodes = 16;
 	isc_result_t result;
@@ -450,7 +460,9 @@ compare_labelsequences(dns_rbtnode_t *node, const char *labelstr) {
 }
 
 /* Test insertion into a tree */
-ISC_RUN_TEST_IMPL(rbt_insert) {
+// ISC_RUN_TEST_IMPL(rbt_insert)
+void run_test_rbt_insert(void **state __attribute__((unused)));
+void run_test_rbt_insert(void **state __attribute__((unused))) {
 	isc_result_t result;
 	test_context_t *ctx;
 	dns_rbtnode_t *node;
@@ -610,7 +622,9 @@ ISC_RUN_TEST_IMPL(rbt_insert) {
  * as a red-black tree. This test checks node deletion when upper nodes
  * have data.
  */
-ISC_RUN_TEST_IMPL(rbt_remove) {
+// ISC_RUN_TEST_IMPL(rbt_remove)
+void run_test_rbt_remove(void **state __attribute__((unused)));
+void run_test_rbt_remove(void **state __attribute__((unused))) {
 	isc_result_t result;
 	size_t j;
 
@@ -898,7 +912,9 @@ check_tree(dns_rbt_t *mytree, char **names, size_t names_count) {
  * forest. The number of nodes in the tree level doesn't grow
  * over 1024.
  */
-ISC_RUN_TEST_IMPL(rbt_insert_and_remove) {
+// ISC_RUN_TEST_IMPL(rbt_insert_and_remove)
+void run_test_rbt_insert_and_remove(void **state __attribute__((unused)));
+void run_test_rbt_insert_and_remove(void **state __attribute__((unused))) {
 	isc_result_t result;
 	dns_rbt_t *mytree = NULL;
 	size_t *n;
@@ -962,7 +978,9 @@ ISC_RUN_TEST_IMPL(rbt_insert_and_remove) {
 }
 
 /* Test findname return values */
-ISC_RUN_TEST_IMPL(rbt_findname) {
+// ISC_RUN_TEST_IMPL(rbt_findname)
+void run_test_rbt_findname(void **state __attribute__((unused)));
+void run_test_rbt_findname(void **state __attribute__((unused))) {
 	isc_result_t result;
 	test_context_t *ctx = NULL;
 	dns_fixedname_t fname, found;
@@ -1007,7 +1025,9 @@ ISC_RUN_TEST_IMPL(rbt_findname) {
 }
 
 /* Test addname return values */
-ISC_RUN_TEST_IMPL(rbt_addname) {
+// ISC_RUN_TEST_IMPL(rbt_addname)
+void run_test_rbt_addname(void **state __attribute__((unused)));
+void run_test_rbt_addname(void **state __attribute__((unused))) {
 	isc_result_t result;
 	test_context_t *ctx = NULL;
 	dns_fixedname_t fname;
@@ -1041,7 +1061,9 @@ ISC_RUN_TEST_IMPL(rbt_addname) {
 }
 
 /* Test deletename return values */
-ISC_RUN_TEST_IMPL(rbt_deletename) {
+// ISC_RUN_TEST_IMPL(rbt_deletename)
+void run_test_rbt_deletename(void **state __attribute__((unused)));
+void run_test_rbt_deletename(void **state __attribute__((unused))) {
 	isc_result_t result;
 	test_context_t *ctx = NULL;
 	dns_fixedname_t fname;
@@ -1067,7 +1089,9 @@ ISC_RUN_TEST_IMPL(rbt_deletename) {
 }
 
 /* Test nodechain */
-ISC_RUN_TEST_IMPL(rbt_nodechain) {
+// ISC_RUN_TEST_IMPL(rbt_nodechain)
+void run_test_rbt_nodechain(void **state __attribute__((unused)));
+void run_test_rbt_nodechain(void **state __attribute__((unused))) {
 	isc_result_t result;
 	test_context_t *ctx;
 	dns_fixedname_t fname, found, expect;
@@ -1125,7 +1149,9 @@ ISC_RUN_TEST_IMPL(rbt_nodechain) {
 }
 
 /* Test addname return values */
-ISC_RUN_TEST_IMPL(rbtnode_namelen) {
+// ISC_RUN_TEST_IMPL(rbtnode_namelen)
+void run_test_rbtnode_namelen(void **state __attribute__((unused)));
+void run_test_rbtnode_namelen(void **state __attribute__((unused))) {
 	isc_result_t result;
 	test_context_t *ctx = NULL;
 	dns_rbtnode_t *node;
@@ -1203,7 +1229,9 @@ find_thread(void *arg) {
 }
 
 /* Benchmark RBT implementation */
-ISC_RUN_TEST_IMPL(benchmark) {
+// ISC_RUN_TEST_IMPL(benchmark)
+void run_test_benchmark(void **state __attribute__((unused)));
+void run_test_benchmark(void **state __attribute__((unused))) {
 	isc_result_t result;
 	char namestr[sizeof("name18446744073709551616.example.org.")];
 	unsigned int r;

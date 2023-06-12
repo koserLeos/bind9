@@ -74,7 +74,9 @@ _reset(void **state) {
 	return (0);
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_new) {
+// ISC_RUN_TEST_IMPL(isc_hmac_new)
+void run_test_isc_hmac_new(void **state __attribute__((unused)));
+void run_test_isc_hmac_new(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	isc_hmac_t *hmac = isc_hmac_new();
@@ -82,7 +84,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_new) {
 	isc_hmac_free(hmac); /* Cleanup */
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_free) {
+// ISC_RUN_TEST_IMPL(isc_hmac_free)
+void run_test_isc_hmac_free(void **state __attribute__((unused)));
+void run_test_isc_hmac_free(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	isc_hmac_t *hmac = isc_hmac_new();
@@ -125,7 +129,9 @@ isc_hmac_test(isc_hmac_t *hmac, const void *key, size_t keylen,
 	assert_int_equal(isc_hmac_reset(hmac), ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_init) {
+// ISC_RUN_TEST_IMPL(isc_hmac_init)
+void run_test_isc_hmac_init(void **state __attribute__((unused)));
+void run_test_isc_hmac_init(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 	assert_non_null(hmac);
 
@@ -163,7 +169,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_init) {
 	assert_int_equal(isc_hmac_reset(hmac), ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_update) {
+// ISC_RUN_TEST_IMPL(isc_hmac_update)
+void run_test_isc_hmac_update(void **state __attribute__((unused)));
+void run_test_isc_hmac_update(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 	assert_non_null(hmac);
 
@@ -175,7 +183,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_update) {
 			 ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_reset) {
+// ISC_RUN_TEST_IMPL(isc_hmac_reset)
+void run_test_isc_hmac_reset(void **state __attribute__((unused)));
+void run_test_isc_hmac_reset(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 #if 0
 	unsigned char digest[ISC_MAX_MD_SIZE] ISC_ATTR_UNUSED;
@@ -203,7 +213,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_reset) {
 #endif /* if 0 */
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_final) {
+// ISC_RUN_TEST_IMPL(isc_hmac_final)
+void run_test_isc_hmac_final(void **state __attribute__((unused)));
+void run_test_isc_hmac_final(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 	assert_non_null(hmac);
 
@@ -221,7 +233,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_final) {
 	expect_assert_failure(isc_hmac_final(hmac, digest, NULL));
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_md5) {
+// ISC_RUN_TEST_IMPL(isc_hmac_md5)
+void run_test_isc_hmac_md5(void **state __attribute__((unused)));
+void run_test_isc_hmac_md5(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 
 	if (isc_fips_mode()) {
@@ -323,7 +337,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_md5) {
 #endif /* if 0 */
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_sha1) {
+// ISC_RUN_TEST_IMPL(isc_hmac_sha1)
+void run_test_isc_hmac_sha1(void **state __attribute__((unused)));
+void run_test_isc_hmac_sha1(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 
 	/* Test 0 */
@@ -406,7 +422,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_sha1) {
 		      "E8E99D0F45237D786D6BBAA7965C7808BBFF1A91", 1);
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_sha224) {
+// ISC_RUN_TEST_IMPL(isc_hmac_sha224)
+void run_test_isc_hmac_sha224(void **state __attribute__((unused)));
+void run_test_isc_hmac_sha224(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 
 	/* Test 0 */
@@ -529,7 +547,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_sha224) {
 		      1);
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_sha256) {
+// ISC_RUN_TEST_IMPL(isc_hmac_sha256)
+void run_test_isc_hmac_sha256(void **state __attribute__((unused)));
+void run_test_isc_hmac_sha256(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 
 	/* Test 0 */
@@ -652,7 +672,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_sha256) {
 		      1);
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_sha384) {
+// ISC_RUN_TEST_IMPL(isc_hmac_sha384)
+void run_test_isc_hmac_sha384(void **state __attribute__((unused)));
+void run_test_isc_hmac_sha384(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 
 	/* Test 0 */
@@ -781,7 +803,9 @@ ISC_RUN_TEST_IMPL(isc_hmac_sha384) {
 		      1);
 }
 
-ISC_RUN_TEST_IMPL(isc_hmac_sha512) {
+// ISC_RUN_TEST_IMPL(isc_hmac_sha512)
+void run_test_isc_hmac_sha512(void **state __attribute__((unused)));
+void run_test_isc_hmac_sha512(void **state __attribute__((unused))) {
 	isc_hmac_t *hmac = *state;
 
 	/* Test 0 */

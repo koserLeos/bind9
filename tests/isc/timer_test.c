@@ -178,7 +178,9 @@ ticktock(void *arg) {
  */
 
 /* timer type ticker */
-ISC_RUN_TEST_IMPL(ticker) {
+// ISC_RUN_TEST_IMPL(ticker)
+void run_test_ticker(void **state __attribute__((unused)));
+void run_test_ticker(void **state __attribute__((unused))) {
 	isc_interval_t interval;
 
 	UNUSED(state);
@@ -236,7 +238,9 @@ test_idle(void *arg) {
 }
 
 /* timer type once idles out */
-ISC_RUN_TEST_IMPL(once_idle) {
+// ISC_RUN_TEST_IMPL(once_idle)
+void run_test_once_idle(void **state __attribute__((unused)));
+void run_test_once_idle(void **state __attribute__((unused))) {
 	isc_interval_t interval;
 
 	UNUSED(state);
@@ -305,7 +309,9 @@ test_reset(void *arg) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(reset) {
+// ISC_RUN_TEST_IMPL(reset)
+void run_test_reset(void **state __attribute__((unused)));
+void run_test_reset(void **state __attribute__((unused))) {
 	isc_interval_t interval;
 
 	UNUSED(state);

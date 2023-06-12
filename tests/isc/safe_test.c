@@ -30,7 +30,9 @@
 #include <tests/isc.h>
 
 /* test isc_safe_memequal() */
-ISC_RUN_TEST_IMPL(isc_safe_memequal) {
+// ISC_RUN_TEST_IMPL(isc_safe_memequal)
+void run_test_isc_safe_memequal(void **state __attribute__((unused)));
+void run_test_isc_safe_memequal(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	assert_true(isc_safe_memequal("test", "test", 4));
@@ -44,7 +46,9 @@ ISC_RUN_TEST_IMPL(isc_safe_memequal) {
 }
 
 /* test isc_safe_memwipe() */
-ISC_RUN_TEST_IMPL(isc_safe_memwipe) {
+// ISC_RUN_TEST_IMPL(isc_safe_memwipe)
+void run_test_isc_safe_memwipe(void **state __attribute__((unused)));
+void run_test_isc_safe_memwipe(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	/* These should pass. */

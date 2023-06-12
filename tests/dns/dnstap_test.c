@@ -67,7 +67,9 @@ setup(void **state) {
 }
 
 /* set up dnstap environment */
-ISC_RUN_TEST_IMPL(dns_dt_create) {
+// ISC_RUN_TEST_IMPL(dns_dt_create)
+void run_test_dns_dt_create(void **state __attribute__((unused)));
+void run_test_dns_dt_create(void **state __attribute__((unused))) {
 	isc_result_t result;
 	dns_dtenv_t *dtenv = NULL;
 	struct fstrm_iothr_options *fopt;
@@ -121,7 +123,9 @@ ISC_RUN_TEST_IMPL(dns_dt_create) {
 }
 
 /* send dnstap messages */
-ISC_RUN_TEST_IMPL(dns_dt_send) {
+// ISC_RUN_TEST_IMPL(dns_dt_send)
+void run_test_dns_dt_send(void **state __attribute__((unused)));
+void run_test_dns_dt_send(void **state __attribute__((unused))) {
 	isc_result_t result;
 	dns_dtenv_t *dtenv = NULL;
 	dns_dthandle_t *handle = NULL;
@@ -280,7 +284,9 @@ ISC_RUN_TEST_IMPL(dns_dt_send) {
 }
 
 /* dnstap message to text */
-ISC_RUN_TEST_IMPL(dns_dt_totext) {
+// ISC_RUN_TEST_IMPL(dns_dt_totext)
+void run_test_dns_dt_totext(void **state __attribute__((unused)));
+void run_test_dns_dt_totext(void **state __attribute__((unused))) {
 	isc_result_t result;
 	dns_dthandle_t *handle = NULL;
 	uint8_t *data;

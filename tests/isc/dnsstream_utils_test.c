@@ -79,7 +79,9 @@ teardown_test_dnsasm(void **state) {
 	return (0);
 }
 
-ISC_RUN_TEST_IMPL(dnsbuffer_generic_test) {
+// ISC_RUN_TEST_IMPL(dnsbuffer_generic_test)
+void run_test_dnsbuffer_generic_test(void **state __attribute__((unused)));
+void run_test_dnsbuffer_generic_test(void **state __attribute__((unused))) {
 	uint8_t buf[STATIC_BUFFER_SIZE / 2] = { 0 };
 	isc_buffer_t *dnsbuf = (isc_buffer_t *)*state;
 	isc_region_t reg = { 0 };
@@ -199,7 +201,9 @@ ISC_RUN_TEST_IMPL(dnsbuffer_generic_test) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(dnsbuffer_resize_alloc_test) {
+// ISC_RUN_TEST_IMPL(dnsbuffer_resize_alloc_test)
+void run_test_dnsbuffer_resize_alloc_test(void **state __attribute__((unused)));
+void run_test_dnsbuffer_resize_alloc_test(void **state __attribute__((unused))) {
 	uint8_t buf[STATIC_BUFFER_SIZE / 2] = { 0 };
 	isc_buffer_t *dnsbuf = (isc_buffer_t *)*state;
 	size_t i = 0, n = 0;
@@ -234,7 +238,9 @@ ISC_RUN_TEST_IMPL(dnsbuffer_resize_alloc_test) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(dnsbuffer_be_test) {
+// ISC_RUN_TEST_IMPL(dnsbuffer_be_test)
+void run_test_dnsbuffer_be_test(void **state __attribute__((unused)));
+void run_test_dnsbuffer_be_test(void **state __attribute__((unused))) {
 	isc_buffer_t *dnsbuf = (isc_buffer_t *)*state;
 	const uint16_t u16 = 0xBEEF;
 	uint16_t *pu16;
@@ -336,7 +342,9 @@ verify_dnsmsg_regions(isc_dnsstream_assembler_t *dnsasm,
 	return (vdata->cont_on_success);
 }
 
-ISC_RUN_TEST_IMPL(dnsasm_sequence_test) {
+// ISC_RUN_TEST_IMPL(dnsasm_sequence_test)
+void run_test_dnsasm_sequence_test(void **state __attribute__((unused)));
+void run_test_dnsasm_sequence_test(void **state __attribute__((unused))) {
 	isc_dnsstream_assembler_t *dnsasm = (isc_dnsstream_assembler_t *)*state;
 	verify_cbdata_t cbdata = { 0 };
 	size_t verified = 0;
@@ -374,7 +382,9 @@ ISC_RUN_TEST_IMPL(dnsasm_sequence_test) {
 	assert_true(isc_dnsstream_assembler_result(dnsasm) == ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(dnsasm_multiple_messages_test) {
+// ISC_RUN_TEST_IMPL(dnsasm_multiple_messages_test)
+void run_test_dnsasm_multiple_messages_test(void **state __attribute__((unused)));
+void run_test_dnsasm_multiple_messages_test(void **state __attribute__((unused))) {
 	isc_dnsstream_assembler_t *dnsasm = (isc_dnsstream_assembler_t *)*state;
 	isc_buffer_t dnsbuf;
 	verify_cbdata_t cbdata = { 0 };
@@ -431,7 +441,9 @@ ISC_RUN_TEST_IMPL(dnsasm_multiple_messages_test) {
 	assert_true(isc_dnsstream_assembler_result(dnsasm) == ISC_R_NOMORE);
 }
 
-ISC_RUN_TEST_IMPL(dnsasm_torn_apart_test) {
+// ISC_RUN_TEST_IMPL(dnsasm_torn_apart_test)
+void run_test_dnsasm_torn_apart_test(void **state __attribute__((unused)));
+void run_test_dnsasm_torn_apart_test(void **state __attribute__((unused))) {
 	isc_dnsstream_assembler_t *dnsasm = (isc_dnsstream_assembler_t *)*state;
 	verify_cbdata_t cbdata = { 0 };
 	size_t verified = 0;
@@ -455,7 +467,9 @@ ISC_RUN_TEST_IMPL(dnsasm_torn_apart_test) {
 	assert_true(isc_dnsstream_assembler_result(dnsasm) == ISC_R_SUCCESS);
 }
 
-ISC_RUN_TEST_IMPL(dnsasm_error_data_test) {
+// ISC_RUN_TEST_IMPL(dnsasm_error_data_test)
+void run_test_dnsasm_error_data_test(void **state __attribute__((unused)));
+void run_test_dnsasm_error_data_test(void **state __attribute__((unused))) {
 	isc_dnsstream_assembler_t *dnsasm = (isc_dnsstream_assembler_t *)*state;
 	verify_cbdata_t cbdata = { 0 };
 	size_t verified = 0;
@@ -497,7 +511,9 @@ ISC_RUN_TEST_IMPL(dnsasm_error_data_test) {
 	assert_true(isc_dnsstream_assembler_result(dnsasm) == ISC_R_NOMORE);
 }
 
-ISC_RUN_TEST_IMPL(dnsasm_torn_randomly_test) {
+// ISC_RUN_TEST_IMPL(dnsasm_torn_randomly_test)
+void run_test_dnsasm_torn_randomly_test(void **state __attribute__((unused)));
+void run_test_dnsasm_torn_randomly_test(void **state __attribute__((unused))) {
 	isc_dnsstream_assembler_t *dnsasm = (isc_dnsstream_assembler_t *)*state;
 	verify_cbdata_t cbdata = { 0 };
 	verify_regions_cbdata_t cbdata_regions = { 0 };
@@ -592,7 +608,9 @@ ISC_RUN_TEST_IMPL(dnsasm_torn_randomly_test) {
 	dnsasm->cbarg = NULL; /* to make GCC happy about dangling pointers */
 }
 
-ISC_RUN_TEST_IMPL(dnsasm_clear_buffer_within_cb_test) {
+// ISC_RUN_TEST_IMPL(dnsasm_clear_buffer_within_cb_test)
+void run_test_dnsasm_clear_buffer_within_cb_test(void **state __attribute__((unused)));
+void run_test_dnsasm_clear_buffer_within_cb_test(void **state __attribute__((unused))) {
 	isc_dnsstream_assembler_t *dnsasm = (isc_dnsstream_assembler_t *)*state;
 	verify_cbdata_t cbdata = { 0 };
 	size_t verified = 0;

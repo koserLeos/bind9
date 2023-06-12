@@ -248,13 +248,17 @@ rdatasetstats(void **state, bool servestale) {
  * Test that rdatasetstats counters are properly set when moving from
  * active -> stale -> ancient.
  */
-ISC_RUN_TEST_IMPL(active_stale_ancient) { rdatasetstats(state, true); }
+// ISC_RUN_TEST_IMPL(active_stale_ancient)
+void run_test_active_stale_ancient(void **state __attribute__((unused)));
+void run_test_active_stale_ancient(void **state __attribute__((unused))) { rdatasetstats(state, true); }
 
 /*
  * Test that rdatasetstats counters are properly set when moving from
  * active -> ancient.
  */
-ISC_RUN_TEST_IMPL(active_ancient) { rdatasetstats(state, false); }
+// ISC_RUN_TEST_IMPL(active_ancient)
+void run_test_active_ancient(void **state __attribute__((unused)));
+void run_test_active_ancient(void **state __attribute__((unused))) { rdatasetstats(state, false); }
 
 ISC_TEST_LIST_START
 ISC_TEST_ENTRY(active_stale_ancient)

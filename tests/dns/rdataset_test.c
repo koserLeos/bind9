@@ -31,7 +31,9 @@
 #include <tests/dns.h>
 
 /* test trimming of rdataset TTLs */
-ISC_RUN_TEST_IMPL(trimttl) {
+// ISC_RUN_TEST_IMPL(trimttl)
+void run_test_trimttl(void **state __attribute__((unused)));
+void run_test_trimttl(void **state __attribute__((unused))) {
 	dns_rdataset_t rdataset, sigrdataset;
 	dns_rdata_rrsig_t rrsig;
 	isc_stdtime_t ttltimenow, ttltimeexpire;

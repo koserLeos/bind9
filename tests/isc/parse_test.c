@@ -32,7 +32,9 @@
 #include <tests/isc.h>
 
 /* Test for 32 bit overflow on 64 bit machines in isc_parse_uint32 */
-ISC_RUN_TEST_IMPL(parse_overflow) {
+// ISC_RUN_TEST_IMPL(parse_overflow)
+void run_test_parse_overflow(void **state __attribute__((unused)));
+void run_test_parse_overflow(void **state __attribute__((unused))) {
 	isc_result_t result;
 	uint32_t output;
 

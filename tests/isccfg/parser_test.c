@@ -91,7 +91,9 @@ append(void *arg, const char *str, int len) {
 	snprintf(buf + l, 1024 - l, "%.*s", len, str);
 }
 
-ISC_RUN_TEST_IMPL(addzoneconf) {
+// ISC_RUN_TEST_IMPL(addzoneconf)
+void run_test_addzoneconf(void **state __attribute__((unused)));
+void run_test_addzoneconf(void **state __attribute__((unused))) {
 	isc_result_t result;
 	isc_buffer_t b;
 	cfg_parser_t *p = NULL;
@@ -144,7 +146,9 @@ ISC_RUN_TEST_IMPL(addzoneconf) {
 }
 
 /* test cfg_parse_buffer() */
-ISC_RUN_TEST_IMPL(parse_buffer) {
+// ISC_RUN_TEST_IMPL(parse_buffer)
+void run_test_parse_buffer(void **state __attribute__((unused)));
+void run_test_parse_buffer(void **state __attribute__((unused))) {
 	isc_result_t result;
 	unsigned char text[] = "options\n{\nrecursion yes;\n};\n";
 	isc_buffer_t buf1, buf2;
@@ -183,7 +187,9 @@ ISC_RUN_TEST_IMPL(parse_buffer) {
 }
 
 /* test cfg_map_firstclause() */
-ISC_RUN_TEST_IMPL(cfg_map_firstclause) {
+// ISC_RUN_TEST_IMPL(cfg_map_firstclause)
+void run_test_cfg_map_firstclause(void **state __attribute__((unused)));
+void run_test_cfg_map_firstclause(void **state __attribute__((unused))) {
 	const char *name = NULL;
 	const void *clauses = NULL;
 	unsigned int idx;
@@ -195,7 +201,9 @@ ISC_RUN_TEST_IMPL(cfg_map_firstclause) {
 }
 
 /* test cfg_map_nextclause() */
-ISC_RUN_TEST_IMPL(cfg_map_nextclause) {
+// ISC_RUN_TEST_IMPL(cfg_map_nextclause)
+void run_test_cfg_map_nextclause(void **state __attribute__((unused)));
+void run_test_cfg_map_nextclause(void **state __attribute__((unused))) {
 	const char *name = NULL;
 	const void *clauses = NULL;
 	unsigned int idx;

@@ -30,7 +30,9 @@
 #include <tests/isc.h>
 
 /* test stats */
-ISC_RUN_TEST_IMPL(isc_stats_basic) {
+// ISC_RUN_TEST_IMPL(isc_stats_basic)
+void run_test_isc_stats_basic(void **state __attribute__((unused)));
+void run_test_isc_stats_basic(void **state __attribute__((unused))) {
 	isc_stats_t *stats = NULL;
 	isc_result_t result;
 

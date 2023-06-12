@@ -54,7 +54,9 @@ shutdown_loopmgr(void *arg) {
 	isc_loopmgr_shutdown(loopmgr);
 }
 
-ISC_RUN_TEST_IMPL(isc_loopmgr) {
+// ISC_RUN_TEST_IMPL(isc_loopmgr)
+void run_test_isc_loopmgr(void **state __attribute__((unused)));
+void run_test_isc_loopmgr(void **state __attribute__((unused))) {
 	atomic_store(&scheduled, 0);
 
 	isc_loopmgr_setup(loopmgr, count, loopmgr);
@@ -73,7 +75,9 @@ runjob(void *arg ISC_ATTR_UNUSED) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(isc_loopmgr_runjob) {
+// ISC_RUN_TEST_IMPL(isc_loopmgr_runjob)
+void run_test_isc_loopmgr_runjob(void **state __attribute__((unused)));
+void run_test_isc_loopmgr_runjob(void **state __attribute__((unused))) {
 	atomic_store(&scheduled, 0);
 
 	isc_loopmgr_setup(loopmgr, runjob, loopmgr);
@@ -100,7 +104,9 @@ pause_loopmgr(void *arg) {
 	isc_loopmgr_resume(loopmgr);
 }
 
-ISC_RUN_TEST_IMPL(isc_loopmgr_pause) {
+// ISC_RUN_TEST_IMPL(isc_loopmgr_pause)
+void run_test_isc_loopmgr_pause(void **state __attribute__((unused)));
+void run_test_isc_loopmgr_pause(void **state __attribute__((unused))) {
 	isc_loop_setup(mainloop, pause_loopmgr, loopmgr);
 	isc_loop_setup(mainloop, shutdown_loopmgr, loopmgr);
 	isc_loopmgr_run(loopmgr);
@@ -113,7 +119,9 @@ send_sigint(void *arg) {
 	kill(getpid(), SIGINT);
 }
 
-ISC_RUN_TEST_IMPL(isc_loopmgr_sigint) {
+// ISC_RUN_TEST_IMPL(isc_loopmgr_sigint)
+void run_test_isc_loopmgr_sigint(void **state __attribute__((unused)));
+void run_test_isc_loopmgr_sigint(void **state __attribute__((unused))) {
 	isc_loop_setup(mainloop, send_sigint, loopmgr);
 	isc_loopmgr_run(loopmgr);
 }
@@ -125,7 +133,9 @@ send_sigterm(void *arg) {
 	kill(getpid(), SIGINT);
 }
 
-ISC_RUN_TEST_IMPL(isc_loopmgr_sigterm) {
+// ISC_RUN_TEST_IMPL(isc_loopmgr_sigterm)
+void run_test_isc_loopmgr_sigterm(void **state __attribute__((unused)));
+void run_test_isc_loopmgr_sigterm(void **state __attribute__((unused))) {
 	isc_loop_setup(mainloop, send_sigterm, loopmgr);
 	isc_loopmgr_run(loopmgr);
 }

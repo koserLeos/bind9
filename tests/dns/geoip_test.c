@@ -124,7 +124,9 @@ entry_exists(dns_geoip_subtype_t subtype, const char *addr) {
  * present in all databases, 192.0.2.128 should only be present in the country
  * database, ::1 should be absent from all databases).
  */
-ISC_RUN_TEST_IMPL(baseline) {
+// ISC_RUN_TEST_IMPL(baseline)
+void run_test_baseline(void **state __attribute__((unused)));
+void run_test_baseline(void **state __attribute__((unused))) {
 	dns_geoip_subtype_t subtype;
 
 	UNUSED(state);
@@ -202,7 +204,9 @@ do_lookup_string_v6(const char *addr, dns_geoip_subtype_t subtype,
 }
 
 /* GeoIP country matching */
-ISC_RUN_TEST_IMPL(country) {
+// ISC_RUN_TEST_IMPL(country)
+void run_test_country(void **state __attribute__((unused)));
+void run_test_country(void **state __attribute__((unused))) {
 	bool match;
 
 	UNUSED(state);
@@ -227,7 +231,9 @@ ISC_RUN_TEST_IMPL(country) {
 }
 
 /* GeoIP country (ipv6) matching */
-ISC_RUN_TEST_IMPL(country_v6) {
+// ISC_RUN_TEST_IMPL(country_v6)
+void run_test_country_v6(void **state __attribute__((unused)));
+void run_test_country_v6(void **state __attribute__((unused))) {
 	bool match;
 
 	UNUSED(state);
@@ -246,7 +252,9 @@ ISC_RUN_TEST_IMPL(country_v6) {
 }
 
 /* GeoIP city (ipv4) matching */
-ISC_RUN_TEST_IMPL(city) {
+// ISC_RUN_TEST_IMPL(city)
+void run_test_city(void **state __attribute__((unused)));
+void run_test_city(void **state __attribute__((unused))) {
 	bool match;
 
 	UNUSED(state);
@@ -283,7 +291,9 @@ ISC_RUN_TEST_IMPL(city) {
 }
 
 /* GeoIP city (ipv6) matching */
-ISC_RUN_TEST_IMPL(city_v6) {
+// ISC_RUN_TEST_IMPL(city_v6)
+void run_test_city_v6(void **state __attribute__((unused)));
+void run_test_city_v6(void **state __attribute__((unused))) {
 	bool match;
 
 	UNUSED(state);
@@ -323,7 +333,9 @@ ISC_RUN_TEST_IMPL(city_v6) {
 }
 
 /* GeoIP asnum matching */
-ISC_RUN_TEST_IMPL(asnum) {
+// ISC_RUN_TEST_IMPL(asnum)
+void run_test_asnum(void **state __attribute__((unused)));
+void run_test_asnum(void **state __attribute__((unused))) {
 	bool match;
 
 	UNUSED(state);
@@ -337,7 +349,9 @@ ISC_RUN_TEST_IMPL(asnum) {
 }
 
 /* GeoIP isp matching */
-ISC_RUN_TEST_IMPL(isp) {
+// ISC_RUN_TEST_IMPL(isp)
+void run_test_isp(void **state __attribute__((unused)));
+void run_test_isp(void **state __attribute__((unused))) {
 	bool match;
 
 	UNUSED(state);
@@ -352,7 +366,9 @@ ISC_RUN_TEST_IMPL(isp) {
 }
 
 /* GeoIP org matching */
-ISC_RUN_TEST_IMPL(org) {
+// ISC_RUN_TEST_IMPL(org)
+void run_test_org(void **state __attribute__((unused)));
+void run_test_org(void **state __attribute__((unused))) {
 	bool match;
 
 	UNUSED(state);
@@ -367,7 +383,9 @@ ISC_RUN_TEST_IMPL(org) {
 }
 
 /* GeoIP domain matching */
-ISC_RUN_TEST_IMPL(domain) {
+// ISC_RUN_TEST_IMPL(domain)
+void run_test_domain(void **state __attribute__((unused)));
+void run_test_domain(void **state __attribute__((unused))) {
 	bool match;
 
 	UNUSED(state);

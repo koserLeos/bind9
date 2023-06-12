@@ -79,7 +79,9 @@ typedef struct aes_testcase {
 } aes_testcase_t;
 
 /* AES 128 test vectors */
-ISC_RUN_TEST_IMPL(isc_aes128_test) {
+// ISC_RUN_TEST_IMPL(isc_aes128_test)
+void run_test_isc_aes128_test(void **state __attribute__((unused)));
+void run_test_isc_aes128_test(void **state __attribute__((unused))) {
 	aes_testcase_t testcases[] = { /* Test 1 (KAT ECBVarTxt128 #3) */
 				       { "00000000000000000000000000000000",
 					 "F0000000000000000000000000000000",
@@ -125,7 +127,9 @@ ISC_RUN_TEST_IMPL(isc_aes128_test) {
 }
 
 /* AES 192 test vectors */
-ISC_RUN_TEST_IMPL(isc_aes192_test) {
+// ISC_RUN_TEST_IMPL(isc_aes192_test)
+void run_test_isc_aes192_test(void **state __attribute__((unused)));
+void run_test_isc_aes192_test(void **state __attribute__((unused))) {
 	aes_testcase_t testcases[] = {
 		/* Test 1 (KAT ECBVarTxt192 #3) */
 		{ "000000000000000000000000000000000000000000000000",
@@ -170,7 +174,9 @@ ISC_RUN_TEST_IMPL(isc_aes192_test) {
 }
 
 /* AES 256 test vectors */
-ISC_RUN_TEST_IMPL(isc_aes256_test) {
+// ISC_RUN_TEST_IMPL(isc_aes256_test)
+void run_test_isc_aes256_test(void **state __attribute__((unused)));
+void run_test_isc_aes256_test(void **state __attribute__((unused))) {
 	aes_testcase_t testcases[] = { /* Test 1 (KAT ECBVarTxt256 #3) */
 				       { "00000000000000000000000000000000"
 					 "00000000000000000000000000000000",

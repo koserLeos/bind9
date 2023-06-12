@@ -35,7 +35,9 @@
 #include <tests/isc.h>
 
 /* reserve space in dynamic buffers */
-ISC_RUN_TEST_IMPL(isc_buffer_reserve) {
+// ISC_RUN_TEST_IMPL(isc_buffer_reserve)
+void run_test_isc_buffer_reserve(void **state __attribute__((unused)));
+void run_test_isc_buffer_reserve(void **state __attribute__((unused))) {
 	isc_result_t result;
 	isc_buffer_t *b;
 
@@ -96,7 +98,9 @@ ISC_RUN_TEST_IMPL(isc_buffer_reserve) {
 }
 
 /* dynamic buffer automatic reallocation */
-ISC_RUN_TEST_IMPL(isc_buffer_dynamic) {
+// ISC_RUN_TEST_IMPL(isc_buffer_dynamic)
+void run_test_isc_buffer_dynamic(void **state __attribute__((unused)));
+void run_test_isc_buffer_dynamic(void **state __attribute__((unused))) {
 	isc_buffer_t *b;
 	size_t last_length = 10;
 	int i;
@@ -138,7 +142,9 @@ ISC_RUN_TEST_IMPL(isc_buffer_dynamic) {
 }
 
 /* copy a region into a buffer */
-ISC_RUN_TEST_IMPL(isc_buffer_copyregion) {
+// ISC_RUN_TEST_IMPL(isc_buffer_copyregion)
+void run_test_isc_buffer_copyregion(void **state __attribute__((unused)));
+void run_test_isc_buffer_copyregion(void **state __attribute__((unused))) {
 	unsigned char data[] = { 0x11, 0x22, 0x33, 0x44 };
 	isc_buffer_t *b = NULL;
 	isc_result_t result;
@@ -168,7 +174,9 @@ ISC_RUN_TEST_IMPL(isc_buffer_copyregion) {
 }
 
 /* sprintf() into a buffer */
-ISC_RUN_TEST_IMPL(isc_buffer_printf) {
+// ISC_RUN_TEST_IMPL(isc_buffer_printf)
+void run_test_isc_buffer_printf(void **state __attribute__((unused)));
+void run_test_isc_buffer_printf(void **state __attribute__((unused))) {
 	unsigned int used, prev_used;
 	const char *empty_fmt;
 	isc_result_t result;

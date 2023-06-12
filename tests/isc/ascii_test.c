@@ -88,7 +88,9 @@ struct {
 	{ "prefixbar", "prefixfoo", -1 },
 };
 
-ISC_RUN_TEST_IMPL(upperlower) {
+// ISC_RUN_TEST_IMPL(upperlower)
+void run_test_upperlower(void **state __attribute__((unused)));
+void run_test_upperlower(void **state __attribute__((unused))) {
 	UNUSED(state);
 
 	for (size_t n = 0; n < ARRAY_SIZE(same); n++) {
@@ -107,7 +109,9 @@ ISC_RUN_TEST_IMPL(upperlower) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(lowerequal) {
+// ISC_RUN_TEST_IMPL(lowerequal)
+void run_test_lowerequal(void **state __attribute__((unused)));
+void run_test_lowerequal(void **state __attribute__((unused))) {
 	for (size_t n = 0; n < ARRAY_SIZE(same); n++) {
 		const uint8_t *a = (void *)same[n][0];
 		const uint8_t *b = (void *)same[n][1];
@@ -122,7 +126,9 @@ ISC_RUN_TEST_IMPL(lowerequal) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(lowercmp) {
+// ISC_RUN_TEST_IMPL(lowercmp)
+void run_test_lowercmp(void **state __attribute__((unused)));
+void run_test_lowercmp(void **state __attribute__((unused))) {
 	for (size_t n = 0; n < ARRAY_SIZE(same); n++) {
 		const uint8_t *a = (void *)same[n][0];
 		const uint8_t *b = (void *)same[n][1];
@@ -137,7 +143,9 @@ ISC_RUN_TEST_IMPL(lowercmp) {
 	}
 }
 
-ISC_RUN_TEST_IMPL(exhaustive) {
+// ISC_RUN_TEST_IMPL(exhaustive)
+void run_test_exhaustive(void **state __attribute__((unused)));
+void run_test_exhaustive(void **state __attribute__((unused))) {
 	for (uint64_t ab = 0; ab < (1 << 16); ab++) {
 		uint8_t a = ab >> 8;
 		uint8_t b = ab & 0xFF;

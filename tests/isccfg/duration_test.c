@@ -100,7 +100,9 @@ output(void *closure, const char *text, int textlen) {
 }
 
 /* test cfg_obj_asduration() and cfg_print_duration() */
-ISC_RUN_TEST_IMPL(duration) {
+// ISC_RUN_TEST_IMPL(duration)
+void run_test_duration(void **state __attribute__((unused)));
+void run_test_duration(void **state __attribute__((unused))) {
 	isc_result_t result;
 	/*
 	 * When 'out' is NULL, the printed result is expected to be the same as
