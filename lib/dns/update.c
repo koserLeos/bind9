@@ -1532,7 +1532,7 @@ dns_update_signaturesinc(dns_update_log_t *log, dns_zone_t *zone, dns_db_t *db,
 		if (statep == NULL) {
 			state = &mystate;
 		} else {
-			state = isc_mem_get(diff->mctx, sizeof(*state));
+			state = isc_mem_get(diff->mctx, 1, sizeof(*state));
 		}
 
 		dns_diff_init(diff->mctx, &state->diffnames);
@@ -2187,7 +2187,7 @@ failure:
 	if (state != &mystate) {
 		*statep = NULL;
 		state->magic = 0;
-		isc_mem_put(diff->mctx, state, sizeof(*state));
+		isc_mem_put(diff->mctx, state, 1, sizeof(*state));
 	}
 
 	return (result);

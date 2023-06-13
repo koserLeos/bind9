@@ -60,7 +60,7 @@ static void
 smallname_from_name(/* isc_mem_t *mctx, */ const dns_name_t *name, void **valp,
 		    uint32_t *ctxp) {
 	size_t size = sizeof(isc_refcount_t) + name->length + name->labels;
-	*valp = isc_mem_get(mctx, size);
+	*valp = isc_mem_get(mctx, size, sizeof(char));
 	*ctxp = name->labels << 8 | name->length;
 	isc_refcount_init(smallname_refcount(*valp, *ctxp), 0);
 	memmove(smallname_ndata(*valp, *ctxp), name->ndata, name->length);
@@ -71,7 +71,7 @@ static void
 smallname_free(/* isc_mem_t *mctx, */ void *pval, uint32_t ival) {
 	size_t size = sizeof(isc_refcount_t);
 	size += smallname_length(pval, ival) + smallname_labels(pval, ival);
-	isc_mem_put(mctx, pval, size);
+	isc_mem_put(mctx, pval, size, sizeof(char));
 }
 
 static void
@@ -177,7 +177,7 @@ main(int argc, char *argv[]) {
 	}
 
 	filesize = (size_t)fileoff;
-	filetext = isc_mem_get(mctx, filesize + 1);
+	filetext = isc_mem_get(mctx, filesize + 1, sizeof(char));
 	fp = fopen(filename, "r");
 	if (fp == NULL || fread(filetext, 1, filesize, fp) < filesize) {
 		fprintf(stderr, "read(%s): %s\n", filename, strerror(errno));

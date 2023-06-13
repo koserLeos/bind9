@@ -99,7 +99,7 @@ destroy(dns_db_t *db) {
 
 	dns_db_detach(&sampledb->rbtdb);
 	dns_name_free(&sampledb->common.origin, sampledb->common.mctx);
-	isc_mem_putanddetach(&sampledb->common.mctx, sampledb,
+	isc_mem_putanddetach(&sampledb->common.mctx, sampledb, 1,
 			     sizeof(*sampledb));
 }
 
@@ -677,7 +677,7 @@ create_db(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 
 	a_addr.s_addr = 0x0100007fU;
 
-	sampledb = isc_mem_getx(mctx, sizeof(*sampledb), ISC_MEM_ZERO);
+	sampledb = isc_mem_getx(mctx, 1, sizeof(*sampledb), ISC_MEM_ZERO);
 
 	isc_mem_attach(mctx, &sampledb->common.mctx);
 	dns_name_init(&sampledb->common.origin, NULL);
@@ -717,7 +717,7 @@ cleanup:
 			dns_name_free(&sampledb->common.origin, mctx);
 		}
 
-		isc_mem_putanddetach(&sampledb->common.mctx, sampledb,
+		isc_mem_putanddetach(&sampledb->common.mctx, sampledb, 1,
 				     sizeof(*sampledb));
 	}
 

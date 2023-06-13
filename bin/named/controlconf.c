@@ -154,9 +154,10 @@ free_controlkey(controlkey_t *key, isc_mem_t *mctx) {
 		isc_mem_free(mctx, key->keyname);
 	}
 	if (key->secret.base != NULL) {
-		isc_mem_put(mctx, key->secret.base, key->secret.length);
+		isc_mem_put(mctx, key->secret.base, key->secret.length,
+			    sizeof(char));
 	}
-	isc_mem_put(mctx, key, sizeof(*key));
+	isc_mem_put(mctx, key, 1, sizeof(*key));
 }
 
 static void
@@ -184,7 +185,7 @@ free_listener(controllistener_t *listener) {
 	}
 	isc_mutex_destroy(&listener->connections_lock);
 
-	isc_mem_putanddetach(&listener->mctx, listener, sizeof(*listener));
+	isc_mem_putanddetach(&listener->mctx, listener, 1, sizeof(*listener));
 }
 
 #if NAMED_CONTROLCONF_TRACE
@@ -306,7 +307,7 @@ conn_cleanup(controlconnection_t *conn) {
 	}
 	if (conn->secret.rstart != NULL) {
 		isc_mem_put(listener->mctx, conn->secret.rstart,
-			    REGION_SIZE(conn->secret));
+			    REGION_SIZE(conn->secret), sizeof(char));
 	}
 	if (conn->text != NULL) {
 		isc_buffer_free(&conn->text);
@@ -440,7 +441,8 @@ control_recvmessage(isc_nmhandle_t *handle ISC_ATTR_UNUSED, isc_result_t result,
 
 		isccc_ccmsg_toregion(&conn->ccmsg, &ccregion);
 		conn->secret.rstart = isc_mem_get(listener->mctx,
-						  key->secret.length);
+						  key->secret.length,
+						  sizeof(char));
 		memmove(conn->secret.rstart, key->secret.base,
 			key->secret.length);
 		conn->secret.rend = conn->secret.rstart + key->secret.length;
@@ -451,7 +453,7 @@ control_recvmessage(isc_nmhandle_t *handle ISC_ATTR_UNUSED, isc_result_t result,
 			break;
 		}
 		isc_mem_put(listener->mctx, conn->secret.rstart,
-			    REGION_SIZE(conn->secret));
+			    REGION_SIZE(conn->secret), sizeof(char));
 	}
 
 	if (key == NULL) {
@@ -575,14 +577,15 @@ conn_free(controlconnection_t *conn) {
 		      NAMED_LOGMODULE_CONTROL, ISC_LOG_DEBUG(3),
 		      "freeing control connection");
 
-	isc_mem_put(listener->mctx, conn, sizeof(*conn));
+	isc_mem_put(listener->mctx, conn, 1, sizeof(*conn));
 
 	controllistener_detach(&listener);
 }
 
 static void
 newconnection(controllistener_t *listener, isc_nmhandle_t *handle) {
-	controlconnection_t *conn = isc_mem_get(listener->mctx, sizeof(*conn));
+	controlconnection_t *conn = isc_mem_get(listener->mctx, 1,
+						sizeof(*conn));
 	isc_log_write(named_g_lctx, NAMED_LOGCATEGORY_GENERAL,
 		      NAMED_LOGMODULE_CONTROL, ISC_LOG_DEBUG(3),
 		      "allocate new control connection");
@@ -694,7 +697,7 @@ controlkeylist_fromcfg(const cfg_obj_t *keylist, isc_mem_t *mctx,
 		obj = cfg_listelt_value(element);
 		str = cfg_obj_asstring(obj);
 		newstr = isc_mem_strdup(mctx, str);
-		key = isc_mem_get(mctx, sizeof(*key));
+		key = isc_mem_get(mctx, 1, sizeof(*key));
 		key->keyname = newstr;
 		key->algorithm = DST_ALG_UNKNOWN;
 		key->secret.base = NULL;
@@ -774,7 +777,8 @@ register_keys(const cfg_obj_t *control, const cfg_obj_t *keylist,
 
 			keyid->secret.length = isc_buffer_usedlength(&b);
 			keyid->secret.base = isc_mem_get(mctx,
-							 keyid->secret.length);
+							 keyid->secret.length,
+							 sizeof(char));
 			memmove(keyid->secret.base, isc_buffer_base(&b),
 				keyid->secret.length);
 		}
@@ -816,7 +820,7 @@ get_rndckey(isc_mem_t *mctx, controlkeylist_t *keyids) {
 			     &config));
 	CHECK(cfg_map_get(config, "key", &key));
 
-	keyid = isc_mem_get(mctx, sizeof(*keyid));
+	keyid = isc_mem_get(mctx, 1, sizeof(*keyid));
 	keyid->keyname = isc_mem_strdup(mctx,
 					cfg_obj_asstring(cfg_map_getname(key)));
 	keyid->secret.base = NULL;
@@ -858,7 +862,8 @@ get_rndckey(isc_mem_t *mctx, controlkeylist_t *keyids) {
 	}
 
 	keyid->secret.length = isc_buffer_usedlength(&b);
-	keyid->secret.base = isc_mem_get(mctx, keyid->secret.length);
+	keyid->secret.base = isc_mem_get(mctx, keyid->secret.length,
+					 sizeof(char));
 	memmove(keyid->secret.base, isc_buffer_base(&b), keyid->secret.length);
 	ISC_LIST_APPEND(*keyids, keyid, link);
 	keyid = NULL;
@@ -1075,7 +1080,7 @@ add_listener(named_controls_t *cp, controllistener_t **listenerp,
 	isc_result_t result = ISC_R_SUCCESS;
 	int pf;
 
-	listener = isc_mem_get(mctx, sizeof(*listener));
+	listener = isc_mem_get(mctx, 1, sizeof(*listener));
 	*listener = (controllistener_t){ .controls = cp,
 					 .address = *addr,
 					 .type = type };
@@ -1434,7 +1439,7 @@ isc_result_t
 named_controls_create(named_server_t *server, named_controls_t **ctrlsp) {
 	isc_mem_t *mctx = server->mctx;
 	isc_result_t result;
-	named_controls_t *controls = isc_mem_get(mctx, sizeof(*controls));
+	named_controls_t *controls = isc_mem_get(mctx, 1, sizeof(*controls));
 
 	*controls = (named_controls_t){
 		.server = server,
@@ -1449,7 +1454,7 @@ named_controls_create(named_server_t *server, named_controls_t **ctrlsp) {
 
 	if (result != ISC_R_SUCCESS) {
 		isc_mutex_destroy(&controls->symtab_lock);
-		isc_mem_put(server->mctx, controls, sizeof(*controls));
+		isc_mem_put(server->mctx, controls, 1, sizeof(*controls));
 		return (result);
 	}
 	*ctrlsp = controls;
@@ -1467,5 +1472,5 @@ named_controls_destroy(named_controls_t **ctrlsp) {
 	isccc_symtab_destroy(&controls->symtab);
 	UNLOCK(&controls->symtab_lock);
 	isc_mutex_destroy(&controls->symtab_lock);
-	isc_mem_put(controls->server->mctx, controls, sizeof(*controls));
+	isc_mem_put(controls->server->mctx, controls, 1, sizeof(*controls));
 }

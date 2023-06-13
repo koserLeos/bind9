@@ -133,7 +133,7 @@ add_tsig(dst_context_t *tsigctx, dns_tsigkey_t *key, isc_buffer_t *target) {
 	CHECK(dst_context_adddata(tsigctx, &r));
 
 	CHECK(dst_key_sigsize(key->key, &sigsize));
-	tsig.signature = isc_mem_get(mctx, sigsize);
+	tsig.signature = isc_mem_get(mctx, sigsize, sizeof(char));
 	isc_buffer_init(&sigbuf, tsig.signature, sigsize);
 	CHECK(dst_context_sign(tsigctx, &sigbuf));
 	tsig.siglen = isc_buffer_usedlength(&sigbuf);
@@ -160,7 +160,7 @@ add_tsig(dst_context_t *tsigctx, dns_tsigkey_t *key, isc_buffer_t *target) {
 	}
 cleanup:
 	if (tsig.signature != NULL) {
-		isc_mem_put(mctx, tsig.signature, sigsize);
+		isc_mem_put(mctx, tsig.signature, sigsize, sizeof(char));
 	}
 	if (dynbuf != NULL) {
 		isc_buffer_free(&dynbuf);
@@ -182,13 +182,13 @@ printmessage(dns_message_t *msg) {
 	}
 
 	do {
-		buf = isc_mem_get(mctx, len);
+		buf = isc_mem_get(mctx, len, sizeof(char));
 
 		isc_buffer_init(&b, buf, len);
 		result = dns_message_totext(msg, &dns_master_style_debug, 0,
 					    &b);
 		if (result == ISC_R_NOSPACE) {
-			isc_mem_put(mctx, buf, len);
+			isc_mem_put(mctx, buf, len, sizeof(char));
 			len *= 2;
 		} else if (result == ISC_R_SUCCESS) {
 			printf("%.*s\n", (int)isc_buffer_usedlength(&b), buf);
@@ -196,7 +196,7 @@ printmessage(dns_message_t *msg) {
 	} while (result == ISC_R_NOSPACE);
 
 	if (buf != NULL) {
-		isc_mem_put(mctx, buf, len);
+		isc_mem_put(mctx, buf, len, sizeof(char));
 	}
 }
 

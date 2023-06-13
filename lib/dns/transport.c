@@ -144,7 +144,7 @@ dns_transport_get_mode(dns_transport_t *transport) {
 dns_transport_t *
 dns_transport_new(const dns_name_t *name, dns_transport_type_t type,
 		  dns_transport_list_t *list) {
-	dns_transport_t *transport = isc_mem_get(list->mctx,
+	dns_transport_t *transport = isc_mem_get(list->mctx, 1,
 						 sizeof(*transport));
 	*transport = (dns_transport_t){ .type = type };
 	isc_refcount_init(&transport->references, 1);
@@ -596,7 +596,8 @@ transport_destroy(dns_transport_t *transport) {
 		isc_mem_free(transport->mctx, transport->tls.tlsname);
 	}
 
-	isc_mem_putanddetach(&transport->mctx, transport, sizeof(*transport));
+	isc_mem_putanddetach(&transport->mctx, transport, 1,
+			     sizeof(*transport));
 }
 
 void
@@ -648,7 +649,7 @@ dns_transport_find(const dns_transport_type_t type, const dns_name_t *name,
 
 dns_transport_list_t *
 dns_transport_list_new(isc_mem_t *mctx) {
-	dns_transport_list_t *list = isc_mem_get(mctx, sizeof(*list));
+	dns_transport_list_t *list = isc_mem_get(mctx, 1, sizeof(*list));
 
 	*list = (dns_transport_list_t){ 0 };
 
@@ -691,7 +692,7 @@ transport_list_destroy(dns_transport_list_t *list) {
 		}
 	}
 	isc_rwlock_destroy(&list->lock);
-	isc_mem_putanddetach(&list->mctx, list, sizeof(*list));
+	isc_mem_putanddetach(&list->mctx, list, 1, sizeof(*list));
 }
 
 void

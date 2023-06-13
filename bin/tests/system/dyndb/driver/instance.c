@@ -114,7 +114,7 @@ new_sample_instance(isc_mem_t *mctx, const char *db_name, int argc, char **argv,
 
 	REQUIRE(sample_instp != NULL && *sample_instp == NULL);
 
-	sample_instance_t *inst = isc_mem_getx(mctx, sizeof(*inst),
+	sample_instance_t *inst = isc_mem_getx(mctx, 1, sizeof(*inst),
 					       ISC_MEM_ZERO);
 	isc_mem_attach(mctx, &inst->mctx);
 
@@ -224,5 +224,5 @@ destroy_sample_instance(sample_instance_t **instp) {
 	dns_view_detach(&inst->view);
 	dns_zonemgr_detach(&inst->zmgr);
 
-	isc_mem_putanddetach(&inst->mctx, inst, sizeof(*inst));
+	isc_mem_putanddetach(&inst->mctx, inst, 1, sizeof(*inst));
 }

@@ -1700,7 +1700,7 @@ send_update(ns_client_t *client, dns_zone_t *zone) {
 	 */
 	if (ssutable != NULL) {
 		ruleslen = request->counts[DNS_SECTION_UPDATE];
-		rules = isc_mem_getx(mctx, sizeof(*rules) * ruleslen,
+		rules = isc_mem_getx(mctx, ruleslen, sizeof(*rules),
 				     ISC_MEM_ZERO);
 	}
 
@@ -1892,7 +1892,7 @@ send_update(ns_client_t *client, dns_zone_t *zone) {
 		CHECK(DNS_R_DROP);
 	}
 
-	uev = isc_mem_get(client->manager->mctx, sizeof(*uev));
+	uev = isc_mem_get(client->manager->mctx, 1, sizeof(*uev));
 	*uev = (update_t){
 		.zone = zone,
 		.client = client,
@@ -1912,7 +1912,7 @@ failure:
 	}
 
 	if (rules != NULL) {
-		isc_mem_put(mctx, rules, sizeof(*rules) * ruleslen);
+		isc_mem_put(mctx, rules, ruleslen, sizeof(*rules));
 	}
 
 	if (ssutable != NULL) {
@@ -3599,7 +3599,7 @@ common:
 	}
 
 	if (rules != NULL) {
-		isc_mem_put(mctx, rules, sizeof(*rules) * ruleslen);
+		isc_mem_put(mctx, rules, ruleslen, sizeof(*rules));
 	}
 
 	if (ssutable != NULL) {
@@ -3640,7 +3640,7 @@ updatedone_action(void *arg) {
 	if (uev->zone != NULL) {
 		dns_zone_detach(&uev->zone);
 	}
-	isc_mem_put(client->manager->mctx, uev, sizeof(*uev));
+	isc_mem_put(client->manager->mctx, uev, 1, sizeof(*uev));
 	isc_nmhandle_detach(&client->updatehandle);
 }
 
@@ -3655,7 +3655,7 @@ forward_fail(void *arg) {
 	respond(client, DNS_R_SERVFAIL);
 
 	isc_quota_release(&client->manager->sctx->updquota);
-	isc_mem_put(client->manager->mctx, uev, sizeof(*uev));
+	isc_mem_put(client->manager->mctx, uev, 1, sizeof(*uev));
 	isc_nmhandle_detach(&client->updatehandle);
 }
 
@@ -3687,7 +3687,7 @@ forward_done(void *arg) {
 	dns_message_detach(&uev->answer);
 
 	isc_quota_release(&client->manager->sctx->updquota);
-	isc_mem_put(client->manager->mctx, uev, sizeof(*uev));
+	isc_mem_put(client->manager->mctx, uev, 1, sizeof(*uev));
 	isc_nmhandle_detach(&client->reqhandle);
 	isc_nmhandle_detach(&client->updatehandle);
 }
@@ -3737,7 +3737,7 @@ send_forward(ns_client_t *client, dns_zone_t *zone) {
 		return (DNS_R_DROP);
 	}
 
-	uev = isc_mem_get(client->manager->mctx, sizeof(*uev));
+	uev = isc_mem_get(client->manager->mctx, 1, sizeof(*uev));
 	*uev = (update_t){
 		.zone = zone,
 		.client = client,

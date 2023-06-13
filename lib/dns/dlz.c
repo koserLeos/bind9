@@ -199,7 +199,7 @@ dns_dlzcreate(isc_mem_t *mctx, const char *dlzname, const char *drivername,
 	}
 
 	/* Allocate memory to hold the DLZ database driver */
-	db = isc_mem_get(mctx, sizeof(*db));
+	db = isc_mem_get(mctx, 1, sizeof(*db));
 	*db = (dns_dlzdb_t){
 		.implementation = impinfo,
 	};
@@ -231,7 +231,7 @@ failure:
 
 	/* impinfo->methods->create failed. */
 	isc_mem_free(mctx, db->dlzname);
-	isc_mem_put(mctx, db, sizeof(*db));
+	isc_mem_put(mctx, db, 1, sizeof(*db));
 	return (result);
 }
 
@@ -263,7 +263,7 @@ dns_dlzdestroy(dns_dlzdb_t **dbp) {
 	destroy = db->implementation->methods->destroy;
 	(*destroy)(db->implementation->driverarg, db->dbdata);
 	/* return memory and detach */
-	isc_mem_putanddetach(&db->mctx, db, sizeof(*db));
+	isc_mem_putanddetach(&db->mctx, db, 1, sizeof(*db));
 }
 
 /*%
@@ -318,7 +318,7 @@ dns_dlzregister(const char *drivername, const dns_dlzmethods_t *methods,
 	 * Allocate memory for a dlz_implementation object.  Error if
 	 * we cannot.
 	 */
-	dlz_imp = isc_mem_get(mctx, sizeof(*dlz_imp));
+	dlz_imp = isc_mem_get(mctx, 1, sizeof(*dlz_imp));
 	*dlz_imp = (dns_dlzimplementation_t){
 		.name = drivername,
 		.methods = methods,
@@ -391,7 +391,7 @@ dns_dlzunregister(dns_dlzimplementation_t **dlzimp) {
 	 * Return the memory back to the available memory pool and
 	 * remove it from the memory context.
 	 */
-	isc_mem_putanddetach(&dlz_imp->mctx, dlz_imp, sizeof(*dlz_imp));
+	isc_mem_putanddetach(&dlz_imp->mctx, dlz_imp, 1, sizeof(*dlz_imp));
 
 	/* Unlock the dlz_implementations list. */
 	RWUNLOCK(&dlz_implock, isc_rwlocktype_write);

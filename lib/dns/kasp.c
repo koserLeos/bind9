@@ -42,7 +42,7 @@ dns_kasp_create(isc_mem_t *mctx, const char *name, dns_kasp_t **kaspp) {
 	REQUIRE(name != NULL);
 	REQUIRE(kaspp != NULL && *kaspp == NULL);
 
-	kasp = isc_mem_get(mctx, sizeof(*kasp));
+	kasp = isc_mem_get(mctx, 1, sizeof(*kasp));
 	*kasp = k;
 
 	kasp->mctx = NULL;
@@ -83,13 +83,13 @@ destroy(dns_kasp_t *kasp) {
 	{
 		digest_next = ISC_LIST_NEXT(digest, link);
 		ISC_LIST_UNLINK(kasp->digests, digest, link);
-		isc_mem_put(kasp->mctx, digest, sizeof(*digest));
+		isc_mem_put(kasp->mctx, digest, 1, sizeof(*digest));
 	}
 	INSIST(ISC_LIST_EMPTY(kasp->digests));
 
 	isc_mutex_destroy(&kasp->lock);
 	isc_mem_free(kasp->mctx, kasp->name);
-	isc_mem_putanddetach(&kasp->mctx, kasp, sizeof(*kasp));
+	isc_mem_putanddetach(&kasp->mctx, kasp, 1, sizeof(*kasp));
 }
 
 void
@@ -368,7 +368,7 @@ dns_kasp_key_create(dns_kasp_t *kasp, dns_kasp_key_t **keyp) {
 	REQUIRE(DNS_KASP_VALID(kasp));
 	REQUIRE(keyp != NULL && *keyp == NULL);
 
-	key = isc_mem_get(kasp->mctx, sizeof(*key));
+	key = isc_mem_get(kasp->mctx, 1, sizeof(*key));
 	key->mctx = NULL;
 	isc_mem_attach(kasp->mctx, &key->mctx);
 
@@ -386,7 +386,7 @@ void
 dns_kasp_key_destroy(dns_kasp_key_t *key) {
 	REQUIRE(key != NULL);
 
-	isc_mem_putanddetach(&key->mctx, key, sizeof(*key));
+	isc_mem_putanddetach(&key->mctx, key, 1, sizeof(*key));
 }
 
 uint32_t
@@ -564,7 +564,7 @@ dns_kasp_adddigest(dns_kasp_t *kasp, dns_dsdigest_t alg) {
 		}
 	}
 
-	digest = isc_mem_get(kasp->mctx, sizeof(*digest));
+	digest = isc_mem_get(kasp->mctx, 1, sizeof(*digest));
 	digest->digest = alg;
 	ISC_LINK_INIT(digest, link);
 	ISC_LIST_APPEND(kasp->digests, digest, link);

@@ -1090,7 +1090,8 @@ isc_buffer_allocate(isc_mem_t	      *mctx, isc_buffer_t **restrict dbufp,
 		    const unsigned int length) {
 	REQUIRE(dbufp != NULL && *dbufp == NULL);
 
-	isc_buffer_t *dbuf = isc_mem_get(mctx, sizeof(*dbuf) + length);
+	isc_buffer_t *dbuf = isc_mem_getfx(mctx, length, sizeof(char),
+					   sizeof(*dbuf), 0);
 	uint8_t	     *bdata = (uint8_t *)dbuf + sizeof(*dbuf);
 
 	isc_buffer_init(dbuf, bdata, length);
@@ -1112,7 +1113,7 @@ isc_buffer_clearmctx(isc_buffer_t *restrict b) {
 	REQUIRE(ISC_BUFFER_VALID(b));
 
 	if (b->dynamic) {
-		isc_mem_put(b->mctx, b->base, b->length);
+		isc_mem_put(b->mctx, b->base, b->length, sizeof(char));
 		b->dynamic = false;
 	}
 
@@ -1149,14 +1150,14 @@ isc_buffer_reserve(isc_buffer_t *restrict dbuf, const unsigned int size) {
 
 	if (!dbuf->dynamic) {
 		void *old_base = dbuf->base;
-		dbuf->base = isc_mem_get(dbuf->mctx, len);
+		dbuf->base = isc_mem_get(dbuf->mctx, len, sizeof(char));
 		if (old_base != NULL) {
 			memmove(dbuf->base, old_base, dbuf->used);
 		}
 		dbuf->dynamic = true;
 	} else {
-		dbuf->base = isc_mem_reget(dbuf->mctx, dbuf->base, dbuf->length,
-					   len);
+		dbuf->base = isc_mem_reget(dbuf->mctx, dbuf->base,
+					   dbuf->length, len, sizeof(char));
 	}
 	dbuf->length = (unsigned int)len;
 
@@ -1177,7 +1178,7 @@ isc_buffer_free(isc_buffer_t **restrict dbufp) {
 	isc_buffer_clearmctx(dbuf);
 
 	isc_buffer_invalidate(dbuf);
-	isc_mem_put(mctx, dbuf, sizeof(*dbuf) + extra);
+	isc_mem_putfx(mctx, dbuf, extra, sizeof(char), sizeof(*dbuf), 0);
 }
 
 static inline isc_result_t

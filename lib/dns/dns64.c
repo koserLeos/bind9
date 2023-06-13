@@ -75,7 +75,7 @@ dns_dns64_create(isc_mem_t *mctx, const isc_netaddr_t *prefix,
 		REQUIRE(memcmp(suffix->type.in6.s6_addr, zeros, nbytes) == 0);
 	}
 
-	dns64 = isc_mem_get(mctx, sizeof(dns_dns64_t));
+	dns64 = isc_mem_get(mctx, 1, sizeof(dns_dns64_t));
 	memset(dns64->bits, 0, sizeof(dns64->bits));
 	memmove(dns64->bits, prefix->type.in6.s6_addr, prefixlen / 8);
 	if (suffix != NULL) {
@@ -123,7 +123,7 @@ dns_dns64_destroy(dns_dns64_t **dns64p) {
 	if (dns64->excluded != NULL) {
 		dns_acl_detach(&dns64->excluded);
 	}
-	isc_mem_putanddetach(&dns64->mctx, dns64, sizeof(*dns64));
+	isc_mem_putanddetach(&dns64->mctx, dns64, 1, sizeof(*dns64));
 }
 
 isc_result_t

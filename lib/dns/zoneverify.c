@@ -404,7 +404,7 @@ record_nsec3(const vctx_t *vctx, const unsigned char *rawhash,
 
 	len = sizeof(*element) + nsec3->next_length * 2 + nsec3->salt_length;
 
-	element = isc_mem_getx(vctx->mctx, len, ISC_MEM_ZERO);
+	element = isc_mem_getx(vctx->mctx, len, sizeof(char), ISC_MEM_ZERO);
 	element->hash = nsec3->hash;
 	element->salt_length = nsec3->salt_length;
 	element->next_length = nsec3->next_length;
@@ -1052,7 +1052,7 @@ free_element(isc_mem_t *mctx, struct nsec3_chain_fixed *e) {
 	size_t len;
 
 	len = sizeof(*e) + e->salt_length + 2 * e->next_length;
-	isc_mem_put(mctx, e, len);
+	isc_mem_put(mctx, e, len, sizeof(char));
 }
 
 static void
@@ -1707,7 +1707,7 @@ verify_nodes(vctx_t *vctx, isc_result_t *vresult) {
 	zonecut = NULL;
 
 	count = dns_rdataset_count(&vctx->keyset);
-	dstkeys = isc_mem_get(vctx->mctx, sizeof(*dstkeys) * count);
+	dstkeys = isc_mem_get(vctx->mctx, count, sizeof(*dstkeys));
 
 	for (result = dns_rdataset_first(&vctx->keyset);
 	     result == ISC_R_SUCCESS; result = dns_rdataset_next(&vctx->keyset))
@@ -1898,7 +1898,7 @@ done:
 	while (nkeys-- > 0U) {
 		dst_key_free(&dstkeys[nkeys]);
 	}
-	isc_mem_put(vctx->mctx, dstkeys, sizeof(*dstkeys) * count);
+	isc_mem_put(vctx->mctx, dstkeys, count, sizeof(*dstkeys));
 	if (dbiter != NULL) {
 		dns_dbiterator_destroy(&dbiter);
 	}

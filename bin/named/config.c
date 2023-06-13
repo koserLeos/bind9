@@ -559,7 +559,7 @@ named_config_getname(isc_mem_t *mctx, const cfg_obj_t *obj,
 		return (ISC_R_SUCCESS);
 	}
 
-	*namep = isc_mem_get(mctx, sizeof(**namep));
+	*namep = isc_mem_get(mctx, 1, sizeof(**namep));
 	dns_name_init(*namep, NULL);
 
 	objstr = cfg_obj_asstring(obj);
@@ -569,7 +569,7 @@ named_config_getname(isc_mem_t *mctx, const cfg_obj_t *obj,
 	result = dns_name_fromtext(dns_fixedname_name(&fname), &b, dns_rootname,
 				   0, NULL);
 	if (result != ISC_R_SUCCESS) {
-		isc_mem_put(mctx, *namep, sizeof(**namep));
+		isc_mem_put(mctx, *namep, 1, sizeof(**namep));
 		*namep = NULL;
 		return (result);
 	}
@@ -580,19 +580,13 @@ named_config_getname(isc_mem_t *mctx, const cfg_obj_t *obj,
 
 #define grow_array(mctx, array, newlen, oldlen)                       \
 	if (newlen >= oldlen) {                                       \
-		size_t newsize = (newlen + 16) * sizeof(array[0]);    \
-		size_t oldsize = oldlen * sizeof(array[0]);           \
-		array = isc_mem_regetx(mctx, array, oldsize, newsize, \
-				       ISC_MEM_ZERO);                 \
+		array = isc_mem_regetx(mctx, array, oldlen, (newlen + 16), sizeof(array[0]), ISC_MEM_ZERO);                 \
 		oldlen = newlen + 16;                                 \
 	}
 
 #define shrink_array(mctx, array, newlen, oldlen)                     \
 	if (newlen < oldlen) {                                        \
-		size_t newsize = newlen * sizeof(array[0]);           \
-		size_t oldsize = oldlen * sizeof(array[0]);           \
-		array = isc_mem_regetx(mctx, array, oldsize, newsize, \
-				       ISC_MEM_ZERO);                 \
+		array = isc_mem_regetx(mctx, array, oldlen, newlen, sizeof(array[0]), ISC_MEM_ZERO);                 \
 		oldlen = newlen;                                      \
 	}
 
@@ -810,10 +804,10 @@ resume:
 	shrink_array(mctx, sources, i, srccount);
 
 	if (lists != NULL) {
-		isc_mem_put(mctx, lists, listcount * sizeof(lists[0]));
+		isc_mem_put(mctx, lists, listcount, sizeof(lists[0]));
 	}
 	if (stack != NULL) {
-		isc_mem_put(mctx, stack, stackcount * sizeof(stack[0]));
+		isc_mem_put(mctx, stack, stackcount, sizeof(stack[0]));
 	}
 
 	INSIST(keycount == addrcount);
@@ -831,7 +825,7 @@ resume:
 
 cleanup:
 	if (addrs != NULL) {
-		isc_mem_put(mctx, addrs, addrcount * sizeof(addrs[0]));
+		isc_mem_put(mctx, addrs, addrcount, sizeof(addrs[0]));
 	}
 	if (keys != NULL) {
 		for (size_t j = 0; j < i; j++) {
@@ -841,9 +835,9 @@ cleanup:
 			if (dns_name_dynamic(keys[j])) {
 				dns_name_free(keys[j], mctx);
 			}
-			isc_mem_put(mctx, keys[j], sizeof(*keys[j]));
+			isc_mem_put(mctx, keys[j], 1, sizeof(*keys[j]));
 		}
-		isc_mem_put(mctx, keys, keycount * sizeof(keys[0]));
+		isc_mem_put(mctx, keys, keycount, sizeof(keys[0]));
 	}
 	if (tlss != NULL) {
 		for (size_t j = 0; j < i; j++) {
@@ -853,18 +847,18 @@ cleanup:
 			if (dns_name_dynamic(tlss[j])) {
 				dns_name_free(tlss[j], mctx);
 			}
-			isc_mem_put(mctx, tlss[j], sizeof(*tlss[j]));
+			isc_mem_put(mctx, tlss[j], 1, sizeof(*tlss[j]));
 		}
-		isc_mem_put(mctx, tlss, tlscount * sizeof(tlss[0]));
+		isc_mem_put(mctx, tlss, tlscount, sizeof(tlss[0]));
 	}
 	if (sources != NULL) {
-		isc_mem_put(mctx, sources, srccount * sizeof(sources[0]));
+		isc_mem_put(mctx, sources, srccount, sizeof(sources[0]));
 	}
 	if (lists != NULL) {
-		isc_mem_put(mctx, lists, listcount * sizeof(lists[0]));
+		isc_mem_put(mctx, lists, listcount, sizeof(lists[0]));
 	}
 	if (stack != NULL) {
-		isc_mem_put(mctx, stack, stackcount * sizeof(stack[0]));
+		isc_mem_put(mctx, stack, stackcount, sizeof(stack[0]));
 	}
 	return (result);
 }

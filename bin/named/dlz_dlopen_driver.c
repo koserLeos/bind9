@@ -223,7 +223,7 @@ dlopen_dlz_create(const char *dlzname, unsigned int argc, char *argv[],
 	}
 
 	isc_mem_create(&mctx);
-	cd = isc_mem_get(mctx, sizeof(*cd));
+	cd = isc_mem_get(mctx, 1, sizeof(*cd));
 	*cd = (dlopen_data_t){
 		.mctx = mctx,
 		.dl_path = isc_mem_strdup(mctx, argv[1]),
@@ -348,7 +348,7 @@ dlopen_dlz_destroy(void *driverarg, void *dbdata) {
 	isc_mutex_destroy(&cd->lock);
 	isc_mem_free(cd->mctx, cd->dl_path);
 	isc_mem_free(cd->mctx, cd->dlzname);
-	isc_mem_putanddetach(&cd->mctx, cd, sizeof(*cd));
+	isc_mem_putanddetach(&cd->mctx, cd, 1, sizeof(*cd));
 }
 
 /*

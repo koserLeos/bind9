@@ -106,15 +106,15 @@ keynode_detach(isc_mem_t *mctx, dns_keynode_t **keynodep) {
 				ISC_LIST_UNLINK(knode->dslist->rdata, rdata,
 						link);
 				isc_mem_put(mctx, rdata->data,
-					    DNS_DS_BUFFERSIZE);
-				isc_mem_put(mctx, rdata, sizeof(*rdata));
+					    DNS_DS_BUFFERSIZE, sizeof(char));
+				isc_mem_put(mctx, rdata, 1, sizeof(*rdata));
 			}
 
-			isc_mem_put(mctx, knode->dslist,
+			isc_mem_put(mctx, knode->dslist, 1,
 				    sizeof(*knode->dslist));
 			knode->dslist = NULL;
 		}
-		isc_mem_putanddetach(&knode->mctx, knode,
+		isc_mem_putanddetach(&knode->mctx, knode, 1,
 				     sizeof(dns_keynode_t));
 	}
 }
@@ -138,7 +138,7 @@ dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep) {
 
 	REQUIRE(keytablep != NULL && *keytablep == NULL);
 
-	keytable = isc_mem_get(mctx, sizeof(*keytable));
+	keytable = isc_mem_get(mctx, 1, sizeof(*keytable));
 
 	keytable->table = NULL;
 	result = dns_rbt_create(mctx, free_keynode, mctx, &keytable->table);
@@ -157,7 +157,7 @@ dns_keytable_create(isc_mem_t *mctx, dns_keytable_t **keytablep) {
 	return (ISC_R_SUCCESS);
 
 cleanup_keytable:
-	isc_mem_putanddetach(&mctx, keytable, sizeof(*keytable));
+	isc_mem_putanddetach(&mctx, keytable, 1, sizeof(*keytable));
 
 	return (result);
 }
@@ -183,7 +183,7 @@ dns_keytable_detach(dns_keytable_t **keytablep) {
 		dns_rbt_destroy(&keytable->table);
 		isc_rwlock_destroy(&keytable->rwlock);
 		keytable->magic = 0;
-		isc_mem_putanddetach(&keytable->mctx, keytable,
+		isc_mem_putanddetach(&keytable->mctx, keytable, 1,
 				     sizeof(*keytable));
 	}
 }
@@ -196,10 +196,10 @@ add_ds(dns_keynode_t *knode, dns_rdata_ds_t *ds, isc_mem_t *mctx) {
 	bool exists = false;
 	isc_buffer_t b;
 
-	dsrdata = isc_mem_get(mctx, sizeof(*dsrdata));
+	dsrdata = isc_mem_get(mctx, 1, sizeof(*dsrdata));
 	dns_rdata_init(dsrdata);
 
-	data = isc_mem_get(mctx, DNS_DS_BUFFERSIZE);
+	data = isc_mem_get(mctx, DNS_DS_BUFFERSIZE, sizeof(char));
 	isc_buffer_init(&b, data, DNS_DS_BUFFERSIZE);
 
 	result = dns_rdata_fromstruct(dsrdata, dns_rdataclass_in,
@@ -209,7 +209,7 @@ add_ds(dns_keynode_t *knode, dns_rdata_ds_t *ds, isc_mem_t *mctx) {
 	RWLOCK(&knode->rwlock, isc_rwlocktype_write);
 
 	if (knode->dslist == NULL) {
-		knode->dslist = isc_mem_get(mctx, sizeof(*knode->dslist));
+		knode->dslist = isc_mem_get(mctx, 1, sizeof(*knode->dslist));
 		dns_rdatalist_init(knode->dslist);
 		knode->dslist->rdclass = dns_rdataclass_in;
 		knode->dslist->type = dns_rdatatype_ds;
@@ -238,8 +238,9 @@ add_ds(dns_keynode_t *knode, dns_rdata_ds_t *ds, isc_mem_t *mctx) {
 	}
 
 	if (exists) {
-		isc_mem_put(mctx, dsrdata->data, DNS_DS_BUFFERSIZE);
-		isc_mem_put(mctx, dsrdata, sizeof(*dsrdata));
+		isc_mem_put(mctx, dsrdata->data, DNS_DS_BUFFERSIZE,
+			    sizeof(char));
+		isc_mem_put(mctx, dsrdata, 1, sizeof(*dsrdata));
 	} else {
 		ISC_LIST_APPEND(knode->dslist->rdata, dsrdata, link);
 	}
@@ -325,7 +326,7 @@ new_keynode(dns_rdata_ds_t *ds, dns_keytable_t *keytable, bool managed,
 	REQUIRE(VALID_KEYTABLE(keytable));
 	REQUIRE(!initial || managed);
 
-	knode = isc_mem_get(keytable->mctx, sizeof(dns_keynode_t));
+	knode = isc_mem_get(keytable->mctx, 1, sizeof(dns_keynode_t));
 	*knode = (dns_keynode_t){ .magic = KEYNODE_MAGIC };
 
 	dns_rdataset_init(&knode->dsset);

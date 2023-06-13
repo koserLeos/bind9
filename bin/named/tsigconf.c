@@ -96,7 +96,7 @@ add_initial_keys(const cfg_obj_t *list, dns_tsig_keyring_t *ring,
 
 		secretstr = cfg_obj_asstring(secretobj);
 		secretalloc = secretlen = strlen(secretstr) * 3 / 4;
-		secret = isc_mem_get(mctx, secretlen);
+		secret = isc_mem_get(mctx, secretlen, sizeof(char));
 		isc_buffer_init(&secretbuf, secret, secretlen);
 		ret = isc_base64_decodestring(secretstr, &secretbuf);
 		if (ret != ISC_R_SUCCESS) {
@@ -108,7 +108,7 @@ add_initial_keys(const cfg_obj_t *list, dns_tsig_keyring_t *ring,
 		ret = dns_tsigkey_create(&keyname, alg, secret, secretlen,
 					 false, false, NULL, now, now, mctx,
 					 ring, &tsigkey);
-		isc_mem_put(mctx, secret, secretalloc);
+		isc_mem_put(mctx, secret, secretalloc, sizeof(char));
 		secret = NULL;
 		if (ret != ISC_R_SUCCESS) {
 			goto failure;
@@ -127,7 +127,7 @@ failure:
 		    "configuring key '%s': %s", keyid, isc_result_totext(ret));
 
 	if (secret != NULL) {
-		isc_mem_put(mctx, secret, secretalloc);
+		isc_mem_put(mctx, secret, secretalloc, sizeof(char));
 	}
 	return (ret);
 }

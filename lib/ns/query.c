@@ -657,7 +657,7 @@ query_freefreeversions(ns_client_t *client, bool everything) {
 		if (i > 3 || everything) {
 			ISC_LIST_UNLINK(client->query.freeversions, dbversion,
 					link);
-			isc_mem_put(client->manager->mctx, dbversion,
+			isc_mem_put(client->manager->mctx, dbversion, 1,
 				    sizeof(*dbversion));
 		}
 	}
@@ -727,7 +727,7 @@ query_reset(ns_client_t *client, bool everything) {
 	}
 	if (client->query.dns64_aaaaok != NULL) {
 		isc_mem_put(client->manager->mctx, client->query.dns64_aaaaok,
-			    client->query.dns64_aaaaoklen * sizeof(bool));
+			    client->query.dns64_aaaaoklen, sizeof(bool));
 		client->query.dns64_aaaaok = NULL;
 		client->query.dns64_aaaaoklen = 0;
 	}
@@ -772,7 +772,8 @@ query_reset(ns_client_t *client, bool everything) {
 		rpz_st_clear(client);
 		if (everything) {
 			INSIST(client->query.rpz_st->rpsdb == NULL);
-			isc_mem_put(client->manager->mctx, client->query.rpz_st,
+			isc_mem_put(client->manager->mctx,
+				    client->query.rpz_st, 1,
 				    sizeof(*client->query.rpz_st));
 			client->query.rpz_st = NULL;
 		}
@@ -2479,7 +2480,7 @@ free_fresp(ns_client_t *client, dns_fetchresponse_t **frespp) {
 	}
 
 	*frespp = NULL;
-	isc_mem_putanddetach(&fresp->mctx, fresp, sizeof(*fresp));
+	isc_mem_putanddetach(&fresp->mctx, fresp, 1, sizeof(*fresp));
 }
 
 static isc_result_t
@@ -4180,7 +4181,7 @@ rpz_rewrite(ns_client_t *client, dns_rdatatype_t qtype, isc_result_t qresult,
 #endif /* ifndef USE_DNSRPS */
 
 	if (st == NULL) {
-		st = isc_mem_get(client->manager->mctx, sizeof(*st));
+		st = isc_mem_get(client->manager->mctx, 1, sizeof(*st));
 		st->state = 0;
 		st->rpsdb = NULL;
 	}
@@ -4961,7 +4962,7 @@ dns64_aaaaok(ns_client_t *client, dns_rdataset_t *rdataset,
 	}
 
 	count = dns_rdataset_count(rdataset);
-	aaaaok = isc_mem_get(client->manager->mctx, sizeof(bool) * count);
+	aaaaok = isc_mem_get(client->manager->mctx, count, sizeof(bool));
 
 	isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
 	if (dns_dns64_aaaaok(dns64, &netaddr, client->signer, env, flags,
@@ -4975,14 +4976,14 @@ dns64_aaaaok(ns_client_t *client, dns_rdataset_t *rdataset,
 			}
 		}
 		if (aaaaok != NULL) {
-			isc_mem_put(client->manager->mctx, aaaaok,
-				    sizeof(bool) * count);
+			isc_mem_put(client->manager->mctx, aaaaok, count,
+				    sizeof(bool));
 		}
 		return (true);
 	}
 	if (aaaaok != NULL) {
-		isc_mem_put(client->manager->mctx, aaaaok,
-			    sizeof(bool) * count);
+		isc_mem_put(client->manager->mctx, aaaaok, count,
+			    sizeof(bool));
 	}
 	return (false);
 }
@@ -6272,7 +6273,7 @@ fetch_callback(void *arg) {
 		if (resp->result != ISC_R_CANCELED) {
 			query_lookup_stale(client);
 		}
-		isc_mem_putanddetach(&resp->mctx, resp, sizeof(*resp));
+		isc_mem_putanddetach(&resp->mctx, resp, 1, sizeof(*resp));
 		return;
 	}
 	/*
@@ -6900,10 +6901,10 @@ query_hookresume(void *arg) {
 		}
 	}
 
-	isc_mem_put(hctx->mctx, rev, sizeof(*rev));
+	isc_mem_put(hctx->mctx, rev, 1, sizeof(*rev));
 	hctx->destroy(&hctx);
 	qctx_destroy(qctx);
-	isc_mem_put(client->manager->mctx, qctx, sizeof(*qctx));
+	isc_mem_put(client->manager->mctx, qctx, 1, sizeof(*qctx));
 }
 
 isc_result_t
@@ -6924,7 +6925,8 @@ ns_query_hookasync(query_ctx_t *qctx, ns_query_starthookasync_t runasync,
 		goto cleanup;
 	}
 
-	saved_qctx = isc_mem_get(client->manager->mctx, sizeof(*saved_qctx));
+	saved_qctx = isc_mem_get(client->manager->mctx, 1,
+				 sizeof(*saved_qctx));
 	qctx_save(qctx, saved_qctx);
 	result = runasync(saved_qctx, client->manager->mctx, arg,
 			  client->manager->loop, query_hookresume, client,
@@ -6967,7 +6969,7 @@ cleanup:
 		qctx_clean(saved_qctx);
 		qctx_freedata(saved_qctx);
 		qctx_destroy(saved_qctx);
-		isc_mem_put(client->manager->mctx, saved_qctx,
+		isc_mem_put(client->manager->mctx, saved_qctx, 1,
 			    sizeof(*saved_qctx));
 	}
 	qctx->detach_client = true;
@@ -11708,7 +11710,8 @@ log_tat(ns_client_t *client) {
 	if (client->query.qtype == dns_rdatatype_dnskey) {
 		uint16_t keytags = client->keytag_len / 2;
 		size_t len = taglen = sizeof("65000") * keytags + 1;
-		char *cp = tags = isc_mem_get(client->manager->mctx, taglen);
+		char *cp = tags = isc_mem_get(client->manager->mctx, taglen,
+					      sizeof(char));
 		int i = 0;
 
 		INSIST(client->keytag != NULL);
@@ -11734,7 +11737,7 @@ log_tat(ns_client_t *client) {
 		      ISC_LOG_INFO, "trust-anchor-telemetry '%s/%s' from %s%s",
 		      namebuf, classbuf, clientbuf, tags != NULL ? tags : "");
 	if (tags != NULL) {
-		isc_mem_put(client->manager->mctx, tags, taglen);
+		isc_mem_put(client->manager->mctx, tags, taglen, sizeof(char));
 	}
 }
 

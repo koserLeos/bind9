@@ -284,7 +284,7 @@ new_session(isc_mem_t *mctx, isc_tlsctx_t *tctx,
 	REQUIRE(sessionp != NULL && *sessionp == NULL);
 	REQUIRE(mctx != NULL);
 
-	session = isc_mem_get(mctx, sizeof(isc_nm_http_session_t));
+	session = isc_mem_get(mctx, 1, sizeof(isc_nm_http_session_t));
 	*session = (isc_nm_http_session_t){ .magic = HTTP2_SESSION_MAGIC,
 					    .tlsctx = tctx };
 	isc_refcount_init(&session->references, 1);
@@ -340,7 +340,7 @@ isc__nm_httpsession_detach(isc_nm_http_session_t **sessionp) {
 	(void)isc_refcount_current(&session->references);
 
 	session->magic = 0;
-	isc_mem_putanddetach(&session->mctx, session,
+	isc_mem_putanddetach(&session->mctx, session, 1,
 			     sizeof(isc_nm_http_session_t));
 }
 
@@ -381,7 +381,7 @@ new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
 	uri = sock->h2.session->handle->sock->h2.connect.uri;
 	post = sock->h2.session->handle->sock->h2.connect.post;
 
-	stream = isc_mem_get(mctx, sizeof(http_cstream_t));
+	stream = isc_mem_get(mctx, 1, sizeof(http_cstream_t));
 	*stream = (http_cstream_t){ .stream_id = -1,
 				    .post = post,
 				    .uri = isc_mem_strdup(mctx, uri) };
@@ -391,13 +391,15 @@ new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
 			       &stream->up);
 	if (result != ISC_R_SUCCESS) {
 		isc_mem_free(mctx, stream->uri);
-		isc_mem_put(mctx, stream, sizeof(http_cstream_t));
+		isc_mem_put(mctx, stream, 1, sizeof(http_cstream_t));
 		return (result);
 	}
 
 	isc__nmsocket_attach(sock, &stream->httpsock);
 	stream->authoritylen = stream->up.field_data[ISC_UF_HOST].len;
-	stream->authority = isc_mem_get(mctx, stream->authoritylen + AUTHEXTRA);
+	stream->authority = isc_mem_get(mctx,
+					stream->authoritylen + AUTHEXTRA,
+					sizeof(char));
 	memmove(stream->authority, &uri[stream->up.field_data[ISC_UF_HOST].off],
 		stream->up.field_data[ISC_UF_HOST].len);
 
@@ -419,7 +421,7 @@ new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
 			(size_t)(stream->up.field_data[ISC_UF_QUERY].len + 1);
 	}
 
-	stream->path = isc_mem_get(mctx, stream->pathlen);
+	stream->path = isc_mem_get(mctx, stream->pathlen, sizeof(char));
 	if (stream->up.field_set & (1 << ISC_UF_PATH)) {
 		memmove(stream->path,
 			&uri[stream->up.field_data[ISC_UF_PATH].off],
@@ -448,9 +450,10 @@ new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
 
 static void
 put_http_cstream(isc_mem_t *mctx, http_cstream_t *stream) {
-	isc_mem_put(mctx, stream->path, stream->pathlen);
+	isc_mem_put(mctx, stream->path, stream->pathlen, sizeof(char));
 	isc_mem_put(mctx, stream->authority,
-		    stream->up.field_data[ISC_UF_HOST].len + AUTHEXTRA);
+		    stream->up.field_data[ISC_UF_HOST].len + AUTHEXTRA,
+		    sizeof(char));
 	isc_mem_free(mctx, stream->uri);
 	if (stream->GET_path != NULL) {
 		isc_mem_free(mctx, stream->GET_path);
@@ -473,7 +476,7 @@ put_http_cstream(isc_mem_t *mctx, http_cstream_t *stream) {
 	isc__nmsocket_detach(&stream->httpsock);
 
 	isc_buffer_free(&stream->rbuf);
-	isc_mem_put(mctx, stream, sizeof(http_cstream_t));
+	isc_mem_put(mctx, stream, 1, sizeof(http_cstream_t));
 }
 
 static void
@@ -1041,7 +1044,7 @@ http_writecb(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 	}
 
 	isc_buffer_free(&req->pending_write_data);
-	isc_mem_put(session->mctx, req, sizeof(*req));
+	isc_mem_put(session->mctx, req, 1, sizeof(*req));
 
 	session->sending--;
 	http_do_bio(session, NULL, NULL, NULL);
@@ -1204,7 +1207,7 @@ http_send_outgoing(isc_nm_http_session_t *session, isc_nmhandle_t *httphandle,
 	 * If we have reached this point it means that we need to send some
 	 * data and flush the outgoing buffer. The code below does that.
 	 */
-	send = isc_mem_get(session->mctx, sizeof(*send));
+	send = isc_mem_get(session->mctx, 1, sizeof(*send));
 
 	*send = (isc_http_send_req_t){ .pending_write_data =
 					       session->pending_write_data,
@@ -1467,7 +1470,7 @@ isc_nm_httpconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		local = &local_interface;
 	}
 
-	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	sock = isc_mem_get(worker->mctx, 1, sizeof(*sock));
 	isc__nmsocket_init(sock, worker, isc_nm_httpsocket, local, NULL);
 
 	sock->connect_timeout = timeout;
@@ -1651,7 +1654,7 @@ server_on_begin_headers_callback(nghttp2_session *ngsession,
 	INSIST(session->handle->sock->tid == isc_tid());
 
 	worker = session->handle->sock->worker;
-	socket = isc_mem_get(worker->mctx, sizeof(isc_nmsocket_t));
+	socket = isc_mem_get(worker->mctx, 1, sizeof(isc_nmsocket_t));
 	isc__nmsocket_init(socket, worker, isc_nm_httpsocket,
 			   (isc_sockaddr_t *)&session->handle->sock->iface,
 			   NULL);
@@ -2468,7 +2471,7 @@ isc_nm_listenhttp(isc_nm_t *mgr, uint32_t workers, isc_sockaddr_t *iface,
 	REQUIRE(atomic_load(&eps->in_use) == false);
 	REQUIRE(isc_tid() == 0);
 
-	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	sock = isc_mem_get(worker->mctx, 1, sizeof(*sock));
 	isc__nmsocket_init(sock, worker, isc_nm_httplistener, iface, NULL);
 	atomic_init(&sock->h2.max_concurrent_streams,
 		    NGHTTP2_INITIAL_MAX_CONCURRENT_STREAMS);
@@ -2506,7 +2509,7 @@ isc_nm_http_endpoints_new(isc_mem_t *mctx) {
 	isc_nm_http_endpoints_t *restrict eps;
 	REQUIRE(mctx != NULL);
 
-	eps = isc_mem_get(mctx, sizeof(*eps));
+	eps = isc_mem_get(mctx, 1, sizeof(*eps));
 	*eps = (isc_nm_http_endpoints_t){ .mctx = NULL };
 
 	isc_mem_attach(mctx, &eps->mctx);
@@ -2545,7 +2548,7 @@ isc_nm_http_endpoints_detach(isc_nm_http_endpoints_t **restrict epsp) {
 		next = ISC_LIST_NEXT(handler, link);
 		ISC_LIST_DEQUEUE(eps->handlers, handler, link);
 		isc_mem_free(mctx, handler->path);
-		isc_mem_put(mctx, handler, sizeof(*handler));
+		isc_mem_put(mctx, handler, 1, sizeof(*handler));
 		handler = next;
 	}
 
@@ -2555,13 +2558,13 @@ isc_nm_http_endpoints_detach(isc_nm_http_endpoints_t **restrict epsp) {
 
 		next = ISC_LIST_NEXT(httpcbarg, link);
 		ISC_LIST_DEQUEUE(eps->handler_cbargs, httpcbarg, link);
-		isc_mem_put(mctx, httpcbarg, sizeof(isc_nm_httpcbarg_t));
+		isc_mem_put(mctx, httpcbarg, 1, sizeof(isc_nm_httpcbarg_t));
 		httpcbarg = next;
 	}
 
 	eps->magic = 0;
 
-	isc_mem_putanddetach(&mctx, eps, sizeof(*eps));
+	isc_mem_putanddetach(&mctx, eps, 1, sizeof(*eps));
 	*epsp = NULL;
 }
 
@@ -2634,12 +2637,12 @@ isc_nm_http_endpoints_add(isc_nm_http_endpoints_t *restrict eps,
 
 	mctx = eps->mctx;
 
-	httpcbarg = isc_mem_get(mctx, sizeof(isc_nm_httpcbarg_t));
+	httpcbarg = isc_mem_get(mctx, 1, sizeof(isc_nm_httpcbarg_t));
 	*httpcbarg = (isc_nm_httpcbarg_t){ .cb = cb, .cbarg = cbarg };
 	ISC_LINK_INIT(httpcbarg, link);
 
 	if (http_endpoints_find(uri, eps) == NULL) {
-		handler = isc_mem_get(mctx, sizeof(*handler));
+		handler = isc_mem_get(mctx, 1, sizeof(*handler));
 		*handler = (isc_nm_httphandler_t){ .cb = http_callback,
 						   .cbarg = httpcbarg,
 						   .path = isc_mem_strdup(
@@ -2930,7 +2933,7 @@ http_set_endpoints_cb(void *arg) {
 	isc_nm_http_endpoints_t *endpoints = data->endpoints;
 	isc__networker_t *worker = &listener->worker->netmgr->workers[tid];
 
-	isc_mem_put(worker->loop->mctx, data, sizeof(*data));
+	isc_mem_put(worker->loop->mctx, data, 1, sizeof(*data));
 
 	isc_nm_http_endpoints_detach(&listener->h2.listener_endpoints[tid]);
 	isc_nm_http_endpoints_attach(endpoints,
@@ -2956,8 +2959,9 @@ isc_nm_http_set_endpoints(isc_nmsocket_t *listener,
 	for (size_t i = 0; i < isc_loopmgr_nloops(loopmgr); i++) {
 		isc__networker_t *worker =
 			&listener->worker->netmgr->workers[i];
-		http_endpoints_data_t *data = isc_mem_getx(
-			worker->loop->mctx, sizeof(*data), ISC_MEM_ZERO);
+		http_endpoints_data_t *data = isc_mem_getx(worker->loop->mctx,
+							   1, sizeof(*data),
+							   ISC_MEM_ZERO);
 
 		isc__nmsocket_attach(listener, &data->listener);
 		isc_nm_http_endpoints_attach(eps, &data->endpoints);
@@ -2981,8 +2985,8 @@ http_init_listener_endpoints(isc_nmsocket_t *listener,
 	INSIST(nworkers > 0);
 
 	listener->h2.listener_endpoints =
-		isc_mem_get(listener->worker->mctx,
-			    sizeof(isc_nm_http_endpoints_t *) * nworkers);
+		isc_mem_get(listener->worker->mctx, nworkers,
+			    sizeof(isc_nm_http_endpoints_t *));
 	listener->h2.n_listener_endpoints = nworkers;
 	for (size_t i = 0; i < nworkers; i++) {
 		listener->h2.listener_endpoints[i] = NULL;
@@ -3004,8 +3008,8 @@ http_cleanup_listener_endpoints(isc_nmsocket_t *listener) {
 			&listener->h2.listener_endpoints[i]);
 	}
 	isc_mem_put(listener->worker->mctx, listener->h2.listener_endpoints,
-		    sizeof(isc_nm_http_endpoints_t *) *
-			    listener->h2.n_listener_endpoints);
+		    listener->h2.n_listener_endpoints,
+		    sizeof(isc_nm_http_endpoints_t *));
 	listener->h2.n_listener_endpoints = 0;
 }
 

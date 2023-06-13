@@ -187,7 +187,7 @@ hashmap_create_table(isc_hashmap_t *hashmap, const uint8_t idx,
 	       sizeof(hashmap->tables[idx].table[0]);
 
 	hashmap->tables[idx].table = isc_mem_getx(hashmap->mctx, size,
-						  ISC_MEM_ZERO);
+						  sizeof(char), ISC_MEM_ZERO);
 }
 
 static void
@@ -206,7 +206,8 @@ hashmap_free_table(isc_hashmap_t *hashmap, const uint8_t idx, bool cleanup) {
 
 	size = hashmap->tables[idx].size *
 	       sizeof(hashmap->tables[idx].table[0]);
-	isc_mem_put(hashmap->mctx, hashmap->tables[idx].table, size);
+	isc_mem_put(hashmap->mctx, hashmap->tables[idx].table, size,
+		    sizeof(char));
 
 	hashmap->tables[idx] = (hashmap_table_t){
 		.hashbits = HASHMAP_NO_BITS,
@@ -216,7 +217,7 @@ hashmap_free_table(isc_hashmap_t *hashmap, const uint8_t idx, bool cleanup) {
 void
 isc_hashmap_create(isc_mem_t *mctx, uint8_t bits, unsigned int options,
 		   isc_hashmap_t **hashmapp) {
-	isc_hashmap_t *hashmap = isc_mem_get(mctx, sizeof(*hashmap));
+	isc_hashmap_t *hashmap = isc_mem_get(mctx, 1, sizeof(*hashmap));
 	bool case_sensitive = ((options & ISC_HASHMAP_CASE_INSENSITIVE) == 0);
 
 	REQUIRE(hashmapp != NULL && *hashmapp == NULL);
@@ -260,7 +261,7 @@ isc_hashmap_destroy(isc_hashmap_t **hashmapp) {
 	}
 	INSIST(hashmap->count == 0);
 
-	isc_mem_putanddetach(&hashmap->mctx, hashmap, sizeof(*hashmap));
+	isc_mem_putanddetach(&hashmap->mctx, hashmap, 1, sizeof(*hashmap));
 }
 
 static bool
@@ -642,7 +643,7 @@ isc_hashmap_iter_create(isc_hashmap_t *hashmap, isc_hashmap_iter_t **iterp) {
 	REQUIRE(ISC_HASHMAP_VALID(hashmap));
 	REQUIRE(iterp != NULL && *iterp == NULL);
 
-	iter = isc_mem_get(hashmap->mctx, sizeof(*iter));
+	iter = isc_mem_get(hashmap->mctx, 1, sizeof(*iter));
 	*iter = (isc_hashmap_iter_t){
 		.hashmap = hashmap,
 		.hindex = hashmap->hindex,
@@ -661,7 +662,7 @@ isc_hashmap_iter_destroy(isc_hashmap_iter_t **iterp) {
 	iter = *iterp;
 	*iterp = NULL;
 	hashmap = iter->hashmap;
-	isc_mem_put(hashmap->mctx, iter, sizeof(*iter));
+	isc_mem_put(hashmap->mctx, iter, 1, sizeof(*iter));
 }
 
 static isc_result_t

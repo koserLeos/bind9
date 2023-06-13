@@ -125,7 +125,7 @@ load_library(isc_mem_t *mctx, const char *filename, const char *instname,
 		      ISC_LOG_INFO, "loading DynDB instance '%s' driver '%s'",
 		      instname, filename);
 
-	imp = isc_mem_get(mctx, sizeof(*imp));
+	imp = isc_mem_get(mctx, 1, sizeof(*imp));
 	*imp = (dyndb_implementation_t){
 		.name = isc_mem_strdup(mctx, instname),
 	};
@@ -198,7 +198,7 @@ unload_library(dyndb_implementation_t **impp) {
 	 */
 	/* uv_dlclose(&imp->handle); */
 	isc_mem_free(imp->mctx, imp->name);
-	isc_mem_putanddetach(&imp->mctx, imp, sizeof(*imp));
+	isc_mem_putanddetach(&imp->mctx, imp, 1, sizeof(*imp));
 }
 
 isc_result_t
@@ -273,7 +273,7 @@ dns_dyndb_createctx(isc_mem_t *mctx, const void *hashinit, isc_log_t *lctx,
 
 	REQUIRE(dctxp != NULL && *dctxp == NULL);
 
-	dctx = isc_mem_get(mctx, sizeof(*dctx));
+	dctx = isc_mem_get(mctx, 1, sizeof(*dctx));
 	*dctx = (dns_dyndbctx_t){
 		.loopmgr = loopmgr,
 		.hashinit = hashinit,
@@ -315,5 +315,5 @@ dns_dyndb_destroyctx(dns_dyndbctx_t **dctxp) {
 	dctx->loopmgr = NULL;
 	dctx->lctx = NULL;
 
-	isc_mem_putanddetach(&dctx->mctx, dctx, sizeof(*dctx));
+	isc_mem_putanddetach(&dctx->mctx, dctx, 1, sizeof(*dctx));
 }

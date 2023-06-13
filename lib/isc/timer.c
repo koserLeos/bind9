@@ -64,7 +64,7 @@ isc_timer_create(isc_loop_t *loop, isc_job_cb cb, void *cbarg,
 
 	REQUIRE(loop == isc_loop_current(loopmgr));
 
-	timer = isc_mem_get(loop->mctx, sizeof(*timer));
+	timer = isc_mem_get(loop->mctx, 1, sizeof(*timer));
 	*timer = (isc_timer_t){
 		.cb = cb,
 		.cbarg = cbarg,
@@ -157,7 +157,7 @@ timer_close(uv_handle_t *handle) {
 
 	loop = timer->loop;
 
-	isc_mem_put(loop->mctx, timer, sizeof(*timer));
+	isc_mem_put(loop->mctx, timer, 1, sizeof(*timer));
 
 	isc_loop_detach(&loop);
 }

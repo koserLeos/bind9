@@ -305,7 +305,7 @@ static void
 hmac_destroy(dst_key_t *key) {
 	dst_hmac_key_t *hkey = key->keydata.hmac_key;
 	isc_safe_memwipe(hkey, sizeof(*hkey));
-	isc_mem_put(key->mctx, hkey, sizeof(*hkey));
+	isc_mem_put(key->mctx, hkey, 1, sizeof(*hkey));
 	key->keydata.hmac_key = NULL;
 }
 
@@ -335,7 +335,7 @@ hmac_fromdns(const isc_md_type_t *type, dst_key_t *key, isc_buffer_t *data) {
 		return (ISC_R_SUCCESS);
 	}
 
-	hkey = isc_mem_get(key->mctx, sizeof(dst_hmac_key_t));
+	hkey = isc_mem_get(key->mctx, 1, sizeof(dst_hmac_key_t));
 
 	memset(hkey->key, 0, sizeof(hkey->key));
 
@@ -344,7 +344,8 @@ hmac_fromdns(const isc_md_type_t *type, dst_key_t *key, isc_buffer_t *data) {
 		if (isc_md(type, r.base, r.length, hkey->key, &keylen) !=
 		    ISC_R_SUCCESS)
 		{
-			isc_mem_put(key->mctx, hkey, sizeof(dst_hmac_key_t));
+			isc_mem_put(key->mctx, hkey, 1,
+				    sizeof(dst_hmac_key_t));
 			return (DST_R_OPENSSLFAILURE);
 		}
 	} else {

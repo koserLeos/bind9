@@ -54,7 +54,7 @@ ns_stats_detach(ns_stats_t **statsp) {
 	if (isc_refcount_decrement(&stats->references) == 1) {
 		isc_stats_detach(&stats->counters);
 		isc_refcount_destroy(&stats->references);
-		isc_mem_putanddetach(&stats->mctx, stats, sizeof(*stats));
+		isc_mem_putanddetach(&stats->mctx, stats, 1, sizeof(*stats));
 	}
 }
 
@@ -65,7 +65,7 @@ ns_stats_create(isc_mem_t *mctx, int ncounters, ns_stats_t **statsp) {
 
 	REQUIRE(statsp != NULL && *statsp == NULL);
 
-	stats = isc_mem_get(mctx, sizeof(*stats));
+	stats = isc_mem_get(mctx, 1, sizeof(*stats));
 	stats->counters = NULL;
 
 	isc_refcount_init(&stats->references, 1);
@@ -83,7 +83,7 @@ ns_stats_create(isc_mem_t *mctx, int ncounters, ns_stats_t **statsp) {
 	return (ISC_R_SUCCESS);
 
 clean_mem:
-	isc_mem_put(mctx, stats, sizeof(*stats));
+	isc_mem_put(mctx, stats, 1, sizeof(*stats));
 
 	return (result);
 }

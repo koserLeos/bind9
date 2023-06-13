@@ -78,7 +78,7 @@ dns_tkeyctx_create(isc_mem_t *mctx, dns_tkeyctx_t **tctxp) {
 	REQUIRE(mctx != NULL);
 	REQUIRE(tctxp != NULL && *tctxp == NULL);
 
-	dns_tkeyctx_t *tctx = isc_mem_get(mctx, sizeof(*tctx));
+	dns_tkeyctx_t *tctx = isc_mem_get(mctx, 1, sizeof(*tctx));
 	*tctx = (dns_tkeyctx_t){
 		.mctx = NULL,
 	};
@@ -103,7 +103,7 @@ dns_tkeyctx_destroy(dns_tkeyctx_t **tctxp) {
 		if (dns_name_dynamic(tctx->domain)) {
 			dns_name_free(tctx->domain, mctx);
 		}
-		isc_mem_put(mctx, tctx->domain, sizeof(dns_name_t));
+		isc_mem_put(mctx, tctx->domain, 1, sizeof(dns_name_t));
 	}
 	if (tctx->gssapi_keytab != NULL) {
 		isc_mem_free(mctx, tctx->gssapi_keytab);
@@ -111,7 +111,7 @@ dns_tkeyctx_destroy(dns_tkeyctx_t **tctxp) {
 	if (tctx->gsscred != NULL) {
 		dst_gssapi_releasecred(&tctx->gsscred);
 	}
-	isc_mem_putanddetach(&mctx, tctx, sizeof(dns_tkeyctx_t));
+	isc_mem_putanddetach(&mctx, tctx, 1, sizeof(dns_tkeyctx_t));
 }
 
 static void
@@ -276,13 +276,15 @@ process_gsstkey(dns_message_t *msg, dns_name_t *name, dns_rdata_tkey_t *tkeyin,
 
 	if (outtoken) {
 		tkeyout->key = isc_mem_get(tkeyout->mctx,
-					   isc_buffer_usedlength(outtoken));
+					   isc_buffer_usedlength(outtoken),
+					   sizeof(char));
 		tkeyout->keylen = isc_buffer_usedlength(outtoken);
 		memmove(tkeyout->key, isc_buffer_base(outtoken),
 			isc_buffer_usedlength(outtoken));
 		isc_buffer_free(&outtoken);
 	} else {
-		tkeyout->key = isc_mem_get(tkeyout->mctx, tkeyin->keylen);
+		tkeyout->key = isc_mem_get(tkeyout->mctx, tkeyin->keylen,
+					   sizeof(char));
 		tkeyout->keylen = tkeyin->keylen;
 		memmove(tkeyout->key, tkeyin->key, tkeyin->keylen);
 	}
@@ -566,10 +568,12 @@ failure_with_tkey:
 	}
 
 	if (tkeyout.key != NULL) {
-		isc_mem_put(tkeyout.mctx, tkeyout.key, tkeyout.keylen);
+		isc_mem_put(tkeyout.mctx, tkeyout.key, tkeyout.keylen,
+			    sizeof(char));
 	}
 	if (tkeyout.other != NULL) {
-		isc_mem_put(tkeyout.mctx, tkeyout.other, tkeyout.otherlen);
+		isc_mem_put(tkeyout.mctx, tkeyout.other, tkeyout.otherlen,
+			    sizeof(char));
 	}
 	if (result != ISC_R_SUCCESS) {
 		goto failure;

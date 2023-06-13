@@ -139,7 +139,7 @@ plugin_register(const char *parameters, const void *cfg, const char *cfg_file,
 		      "registering 'test-async' module from %s:%lu", cfg_file,
 		      cfg_line);
 
-	inst = isc_mem_get(mctx, sizeof(*inst));
+	inst = isc_mem_get(mctx, 1, sizeof(*inst));
 	*inst = (async_instance_t){ .mctx = NULL };
 	isc_mem_attach(mctx, &inst->mctx);
 
@@ -184,7 +184,7 @@ plugin_destroy(void **instp) {
 		isc_mutex_destroy(&inst->hlock);
 	}
 
-	isc_mem_putanddetach(&inst->mctx, inst, sizeof(*inst));
+	isc_mem_putanddetach(&inst->mctx, inst, 1, sizeof(*inst));
 	*instp = NULL;
 
 	return;
@@ -216,7 +216,7 @@ client_state_create(const query_ctx_t *qctx, async_instance_t *inst) {
 	state_t *state = NULL;
 	isc_result_t result;
 
-	state = isc_mem_get(inst->mctx, sizeof(*state));
+	state = isc_mem_get(inst->mctx, 1, sizeof(*state));
 	*state = (state_t){ .async = false };
 
 	LOCK(&inst->hlock);
@@ -241,7 +241,7 @@ client_state_destroy(const query_ctx_t *qctx, async_instance_t *inst) {
 	UNLOCK(&inst->hlock);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
-	isc_mem_put(inst->mctx, state, sizeof(*state));
+	isc_mem_put(inst->mctx, state, 1, sizeof(*state));
 }
 
 static ns_hookresult_t
@@ -273,14 +273,14 @@ destroyasync(ns_hookasync_t **ctxp) {
 
 	logmsg("destroyasync");
 	*ctxp = NULL;
-	isc_mem_putanddetach(&ctx->mctx, ctx, sizeof(*ctx));
+	isc_mem_putanddetach(&ctx->mctx, ctx, 1, sizeof(*ctx));
 }
 
 static isc_result_t
 doasync(query_ctx_t *qctx, isc_mem_t *mctx, void *arg, isc_loop_t *loop,
 	isc_job_cb cb, void *evarg, ns_hookasync_t **ctxp) {
-	ns_hook_resume_t *rev = isc_mem_get(mctx, sizeof(*rev));
-	ns_hookasync_t *ctx = isc_mem_get(mctx, sizeof(*ctx));
+	ns_hook_resume_t *rev = isc_mem_get(mctx, 1, sizeof(*rev));
+	ns_hookasync_t *ctx = isc_mem_get(mctx, 1, sizeof(*ctx));
 	state_t *state = (state_t *)arg;
 
 	logmsg("doasync");

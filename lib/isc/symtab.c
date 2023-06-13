@@ -58,11 +58,11 @@ isc_symtab_create(isc_mem_t *mctx, unsigned int size,
 	REQUIRE(symtabp != NULL && *symtabp == NULL);
 	REQUIRE(size > 0); /* Should be prime. */
 
-	symtab = isc_mem_get(mctx, sizeof(*symtab));
+	symtab = isc_mem_get(mctx, 1, sizeof(*symtab));
 
 	symtab->mctx = NULL;
 	isc_mem_attach(mctx, &symtab->mctx);
-	symtab->table = isc_mem_get(mctx, size * sizeof(eltlist_t));
+	symtab->table = isc_mem_get(mctx, size, sizeof(eltlist_t));
 	for (i = 0; i < size; i++) {
 		INIT_LIST(symtab->table[i]);
 	}
@@ -98,13 +98,13 @@ isc_symtab_destroy(isc_symtab_t **symtabp) {
 							  elt->value,
 							  symtab->undefine_arg);
 			}
-			isc_mem_put(symtab->mctx, elt, sizeof(*elt));
+			isc_mem_put(symtab->mctx, elt, 1, sizeof(*elt));
 		}
 	}
-	isc_mem_put(symtab->mctx, symtab->table,
-		    symtab->size * sizeof(eltlist_t));
+	isc_mem_put(symtab->mctx, symtab->table, symtab->size,
+		    sizeof(eltlist_t));
 	symtab->magic = 0;
-	isc_mem_putanddetach(&symtab->mctx, symtab, sizeof(*symtab));
+	isc_mem_putanddetach(&symtab->mctx, symtab, 1, sizeof(*symtab));
 }
 
 static unsigned int
@@ -179,7 +179,7 @@ grow_table(isc_symtab_t *symtab) {
 	newmax = newsize * 3 / 4;
 	INSIST(newsize > 0U && newmax > 0U);
 
-	newtable = isc_mem_get(symtab->mctx, newsize * sizeof(eltlist_t));
+	newtable = isc_mem_get(symtab->mctx, newsize, sizeof(eltlist_t));
 
 	for (i = 0; i < newsize; i++) {
 		INIT_LIST(newtable[i]);
@@ -199,8 +199,8 @@ grow_table(isc_symtab_t *symtab) {
 		}
 	}
 
-	isc_mem_put(symtab->mctx, symtab->table,
-		    symtab->size * sizeof(eltlist_t));
+	isc_mem_put(symtab->mctx, symtab->table, symtab->size,
+		    sizeof(eltlist_t));
 
 	symtab->table = newtable;
 	symtab->size = newsize;
@@ -231,7 +231,7 @@ isc_symtab_define(isc_symtab_t *symtab, const char *key, unsigned int type,
 						  symtab->undefine_arg);
 		}
 	} else {
-		elt = isc_mem_get(symtab->mctx, sizeof(*elt));
+		elt = isc_mem_get(symtab->mctx, 1, sizeof(*elt));
 		ISC_LINK_INIT(elt, link);
 		symtab->count++;
 	}
@@ -278,7 +278,7 @@ isc_symtab_undefine(isc_symtab_t *symtab, const char *key, unsigned int type) {
 					  symtab->undefine_arg);
 	}
 	UNLINK(symtab->table[bucket], elt, link);
-	isc_mem_put(symtab->mctx, elt, sizeof(*elt));
+	isc_mem_put(symtab->mctx, elt, 1, sizeof(*elt));
 	symtab->count--;
 
 	return (ISC_R_SUCCESS);

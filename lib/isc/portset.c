@@ -61,7 +61,7 @@ isc_portset_create(isc_mem_t *mctx, isc_portset_t **portsetp) {
 
 	REQUIRE(portsetp != NULL && *portsetp == NULL);
 
-	portset = isc_mem_get(mctx, sizeof(*portset));
+	portset = isc_mem_get(mctx, 1, sizeof(*portset));
 	*portset = (isc_portset_t){ 0 };
 	*portsetp = portset;
 
@@ -75,7 +75,7 @@ isc_portset_destroy(isc_mem_t *mctx, isc_portset_t **portsetp) {
 	REQUIRE(portsetp != NULL);
 	portset = *portsetp;
 
-	isc_mem_put(mctx, portset, sizeof(*portset));
+	isc_mem_put(mctx, portset, 1, sizeof(*portset));
 }
 
 bool

@@ -108,7 +108,7 @@ cleanup:
 	}
 	dns_zone_detach(&syncptr->zone);
 	dns_diff_clear(&syncptr->diff);
-	isc_mem_putanddetach(&syncptr->mctx, syncptr, sizeof(*syncptr));
+	isc_mem_putanddetach(&syncptr->mctx, syncptr, 1, sizeof(*syncptr));
 }
 
 /*
@@ -226,7 +226,7 @@ syncptr(sample_instance_t *inst, dns_name_t *name, dns_rdata_t *addr_rdata,
 	DNS_RDATACOMMON_INIT(&ptr_struct, dns_rdatatype_ptr, dns_rdataclass_in);
 	dns_name_init(&ptr_struct.ptr, NULL);
 
-	syncptr = isc_mem_getx(mctx, sizeof(*syncptr), ISC_MEM_ZERO);
+	syncptr = isc_mem_getx(mctx, 1, sizeof(*syncptr), ISC_MEM_ZERO);
 	isc_mem_attach(mctx, &syncptr->mctx);
 	isc_buffer_init(&syncptr->b, syncptr->buf, sizeof(syncptr->buf));
 	dns_fixedname_init(&syncptr->ptr_target_name);
@@ -283,7 +283,7 @@ cleanup:
 		dns_difftuple_free(&tp);
 	}
 	if (syncptr != NULL) {
-		isc_mem_put(mctx, syncptr, sizeof(*syncptr));
+		isc_mem_put(mctx, syncptr, 1, sizeof(*syncptr));
 	}
 
 	return (result);

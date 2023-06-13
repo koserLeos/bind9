@@ -341,7 +341,7 @@ plugin_register(const char *parameters, const void *cfg, const char *cfg_file,
 		      "module from %s:%lu, %s parameters",
 		      cfg_file, cfg_line, parameters != NULL ? "with" : "no");
 
-	inst = isc_mem_get(mctx, sizeof(*inst));
+	inst = isc_mem_get(mctx, 1, sizeof(*inst));
 	*inst = (filter_instance_t){ 0 };
 
 	isc_mem_attach(mctx, &inst->mctx);
@@ -413,7 +413,7 @@ plugin_destroy(void **instp) {
 		dns_acl_detach(&inst->aaaa_acl);
 	}
 
-	isc_mem_putanddetach(&inst->mctx, inst, sizeof(*inst));
+	isc_mem_putanddetach(&inst->mctx, inst, 1, sizeof(*inst));
 	*instp = NULL;
 
 	return;
@@ -490,7 +490,7 @@ client_state_create(const query_ctx_t *qctx, filter_instance_t *inst) {
 	filter_data_t *client_state;
 	isc_result_t result;
 
-	client_state = isc_mem_get(inst->mctx, sizeof(*client_state));
+	client_state = isc_mem_get(inst->mctx, 1, sizeof(*client_state));
 
 	client_state->mode = NONE;
 	client_state->flags = 0;
@@ -517,7 +517,7 @@ client_state_destroy(const query_ctx_t *qctx, filter_instance_t *inst) {
 	UNLOCK(&inst->hlock);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
-	isc_mem_put(inst->mctx, client_state, sizeof(*client_state));
+	isc_mem_put(inst->mctx, client_state, 1, sizeof(*client_state));
 }
 
 /*%

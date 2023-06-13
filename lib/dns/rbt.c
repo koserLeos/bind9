@@ -265,7 +265,7 @@ dns_rbt_create(isc_mem_t *mctx, dns_rbtdeleter_t deleter, void *deleter_arg,
 	REQUIRE(rbtp != NULL && *rbtp == NULL);
 	REQUIRE(deleter == NULL ? deleter_arg == NULL : 1);
 
-	rbt = isc_mem_get(mctx, sizeof(*rbt));
+	rbt = isc_mem_get(mctx, 1, sizeof(*rbt));
 	*rbt = (dns_rbt_t){
 		.data_deleter = deleter,
 		.deleter_arg = deleter_arg,
@@ -316,7 +316,7 @@ dns_rbt_destroy2(dns_rbt_t **rbtp, unsigned int quantum) {
 
 	rbt->magic = 0;
 
-	isc_mem_putanddetach(&rbt->mctx, rbt, sizeof(*rbt));
+	isc_mem_putanddetach(&rbt->mctx, rbt, 1, sizeof(*rbt));
 	return (ISC_R_SUCCESS);
 }
 
@@ -1508,7 +1508,7 @@ create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	 * Allocate space for the node structure, the name, and the offsets.
 	 */
 	nodelen = sizeof(dns_rbtnode_t) + region.length + labels + 1;
-	node = isc_mem_getx(mctx, nodelen, ISC_MEM_ZERO);
+	node = isc_mem_getx(mctx, nodelen, sizeof(char), ISC_MEM_ZERO);
 
 	node->is_root = 0;
 	node->parent = NULL;
@@ -1592,14 +1592,15 @@ hashtable_new(dns_rbt_t *rbt, uint8_t index, uint8_t bits) {
 	rbt->hashbits[index] = bits;
 
 	size = ISC_HASHSIZE(rbt->hashbits[index]) * sizeof(dns_rbtnode_t *);
-	rbt->hashtable[index] = isc_mem_getx(rbt->mctx, size, ISC_MEM_ZERO);
+	rbt->hashtable[index] = isc_mem_getx(rbt->mctx, size, sizeof(char),
+					     ISC_MEM_ZERO);
 }
 
 static void
 hashtable_free(dns_rbt_t *rbt, uint8_t index) {
 	size_t size = ISC_HASHSIZE(rbt->hashbits[index]) *
 		      sizeof(dns_rbtnode_t *);
-	isc_mem_put(rbt->mctx, rbt->hashtable[index], size);
+	isc_mem_put(rbt->mctx, rbt->hashtable[index], size, sizeof(char));
 
 	rbt->hashbits[index] = 0U;
 	rbt->hashtable[index] = NULL;
@@ -2182,7 +2183,7 @@ freenode(dns_rbt_t *rbt, dns_rbtnode_t **nodep) {
 	dns_rbtnode_t *node = *nodep;
 	*nodep = NULL;
 
-	isc_mem_put(rbt->mctx, node, NODE_SIZE(node));
+	isc_mem_put(rbt->mctx, node, NODE_SIZE(node), sizeof(char));
 
 	rbt->nodecount--;
 }

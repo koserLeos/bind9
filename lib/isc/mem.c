@@ -1057,7 +1057,7 @@ isc__mempool_create(isc_mem_t *restrict mctx, const size_t element_size,
 	 * Allocate space for this pool, initialize values, and if all
 	 * works well, attach to the memory context.
 	 */
-	mpctx = isc_mem_get(mctx, sizeof(isc_mempool_t));
+	mpctx = isc_mem_get(mctx, 1, sizeof(isc_mempool_t));
 
 	*mpctx = (isc_mempool_t){
 		.size = size,
@@ -1141,7 +1141,7 @@ isc__mempool_destroy(isc_mempool_t **restrict mpctxp FLARG) {
 
 	mpctx->magic = 0;
 
-	isc_mem_putanddetach(&mpctx->mctx, mpctx, sizeof(isc_mempool_t));
+	isc_mem_putanddetach(&mpctx->mctx, mpctx, 1, sizeof(isc_mempool_t));
 }
 
 void *

@@ -265,7 +265,7 @@ isc_dnsstream_assembler_new(isc_mem_t *memctx, isc_dnsstream_assembler_cb_t cb,
 	REQUIRE(memctx != NULL);
 	REQUIRE(cb != NULL);
 
-	newasm = isc_mem_get(memctx, sizeof(*newasm));
+	newasm = isc_mem_get(memctx, 1, sizeof(*newasm));
 	isc_dnsstream_assembler_init(newasm, memctx, cb, cbarg);
 
 	return (newasm);
@@ -281,7 +281,7 @@ isc_dnsstream_assembler_free(isc_dnsstream_assembler_t **restrict dnsasm) {
 
 	isc_mem_attach(oldasm->mctx, &memctx);
 	isc_dnsstream_assembler_uninit(oldasm);
-	isc_mem_putanddetach(&memctx, oldasm, sizeof(*oldasm));
+	isc_mem_putanddetach(&memctx, oldasm, 1, sizeof(*oldasm));
 
 	*dnsasm = NULL;
 }

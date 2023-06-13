@@ -124,7 +124,7 @@ load_plugin(isc_mem_t *mctx, const char *modpath, ns_plugin_t **pluginp) {
 
 	REQUIRE(pluginp != NULL && *pluginp == NULL);
 
-	plugin = isc_mem_get(mctx, sizeof(*plugin));
+	plugin = isc_mem_get(mctx, 1, sizeof(*plugin));
 	*plugin = (ns_plugin_t){
 		.modpath = isc_mem_strdup(mctx, modpath),
 	};
@@ -201,7 +201,7 @@ unload_plugin(ns_plugin_t **pluginp) {
 
 	uv_dlclose(&plugin->handle);
 	isc_mem_free(plugin->mctx, plugin->modpath);
-	isc_mem_putanddetach(&plugin->mctx, plugin, sizeof(*plugin));
+	isc_mem_putanddetach(&plugin->mctx, plugin, 1, sizeof(*plugin));
 }
 
 isc_result_t
@@ -273,7 +273,7 @@ ns_hooktable_create(isc_mem_t *mctx, ns_hooktable_t **tablep) {
 
 	REQUIRE(tablep != NULL && *tablep == NULL);
 
-	hooktable = isc_mem_get(mctx, sizeof(*hooktable));
+	hooktable = isc_mem_get(mctx, 1, sizeof(*hooktable));
 
 	ns_hooktable_init(hooktable);
 
@@ -300,13 +300,13 @@ ns_hooktable_free(isc_mem_t *mctx, void **tablep) {
 			next = ISC_LIST_NEXT(hook, link);
 			ISC_LIST_UNLINK((*table)[i], hook, link);
 			if (hook->mctx != NULL) {
-				isc_mem_putanddetach(&hook->mctx, hook,
+				isc_mem_putanddetach(&hook->mctx, hook, 1,
 						     sizeof(*hook));
 			}
 		}
 	}
 
-	isc_mem_put(mctx, table, sizeof(*table));
+	isc_mem_put(mctx, table, 1, sizeof(*table));
 }
 
 void
@@ -319,7 +319,7 @@ ns_hook_add(ns_hooktable_t *hooktable, isc_mem_t *mctx,
 	REQUIRE(hookpoint < NS_HOOKPOINTS_COUNT);
 	REQUIRE(hook != NULL);
 
-	copy = isc_mem_get(mctx, sizeof(*copy));
+	copy = isc_mem_get(mctx, 1, sizeof(*copy));
 	*copy = (ns_hook_t){
 		.action = hook->action,
 		.action_data = hook->action_data,
@@ -336,7 +336,7 @@ ns_plugins_create(isc_mem_t *mctx, ns_plugins_t **listp) {
 
 	REQUIRE(listp != NULL && *listp == NULL);
 
-	plugins = isc_mem_get(mctx, sizeof(*plugins));
+	plugins = isc_mem_get(mctx, 1, sizeof(*plugins));
 	*plugins = (ns_plugins_t){ 0 };
 	ISC_LIST_INIT(*plugins);
 
@@ -359,5 +359,5 @@ ns_plugins_free(isc_mem_t *mctx, void **listp) {
 		unload_plugin(&plugin);
 	}
 
-	isc_mem_put(mctx, list, sizeof(*list));
+	isc_mem_put(mctx, list, 1, sizeof(*list));
 }

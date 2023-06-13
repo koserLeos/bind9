@@ -796,7 +796,7 @@ clone_lookup(dig_lookup_t *lookold, bool servers) {
 	looknew->fuzztime = lookold->fuzztime;
 
 	if (lookold->ecs_addr != NULL) {
-		looknew->ecs_addr = isc_mem_get(mctx,
+		looknew->ecs_addr = isc_mem_get(mctx, 1,
 						sizeof(*looknew->ecs_addr));
 		memmove(looknew->ecs_addr, lookold->ecs_addr,
 			sizeof(*looknew->ecs_addr));
@@ -958,7 +958,7 @@ parse_netprefix(isc_sockaddr_t **sap, const char *value) {
 		fatal("invalid prefix '%s'\n", value);
 	}
 
-	sa = isc_mem_get(mctx, sizeof(*sa));
+	sa = isc_mem_get(mctx, 1, sizeof(*sa));
 	*sa = (isc_sockaddr_t){ .length = 0 };
 
 	if (strcmp(buf, "0") == 0) {
@@ -1592,7 +1592,7 @@ _destroy_lookup(dig_lookup_t *lookup) {
 		isc_buffer_free(&lookup->querysig);
 	}
 	if (lookup->sendspace != NULL) {
-		isc_mem_put(mctx, lookup->sendspace, COMMSIZE);
+		isc_mem_put(mctx, lookup->sendspace, COMMSIZE, sizeof(char));
 	}
 
 	if (lookup->tsigctx != NULL) {
@@ -1600,7 +1600,8 @@ _destroy_lookup(dig_lookup_t *lookup) {
 	}
 
 	if (lookup->ecs_addr != NULL) {
-		isc_mem_put(mctx, lookup->ecs_addr, sizeof(*lookup->ecs_addr));
+		isc_mem_put(mctx, lookup->ecs_addr, 1,
+			    sizeof(*lookup->ecs_addr));
 	}
 
 	if (lookup->ednsopts != NULL) {
@@ -1698,8 +1699,8 @@ destroy_query(dig_query_t *query, const char *file, unsigned int line) {
 
 	INSIST(query->recvspace != NULL);
 
-	isc_mem_put(mctx, query->recvspace, COMMSIZE);
-	isc_mem_put(mctx, query->tmpsendspace, COMMSIZE);
+	isc_mem_put(mctx, query->recvspace, COMMSIZE, sizeof(char));
+	isc_mem_put(mctx, query->tmpsendspace, COMMSIZE, sizeof(char));
 
 	query->magic = 0;
 	isc_mem_free(mctx, query);
@@ -2145,8 +2146,10 @@ _new_query(dig_lookup_t *lookup, char *servname, char *userarg,
 				.servname = servname,
 				.userarg = userarg,
 				.warn_id = true,
-				.recvspace = isc_mem_get(mctx, COMMSIZE),
-				.tmpsendspace = isc_mem_get(mctx, COMMSIZE) };
+				.recvspace = isc_mem_get(mctx, COMMSIZE,
+							 sizeof(char)),
+				.tmpsendspace = isc_mem_get(mctx, COMMSIZE,
+							    sizeof(char)) };
 
 	lookup_attach(lookup, &query->lookup);
 
@@ -2446,7 +2449,7 @@ setup_lookup(dig_lookup_t *lookup) {
 		lookup->sendmsg->fuzztime = lookup->fuzztime;
 	}
 
-	lookup->sendspace = isc_mem_get(mctx, COMMSIZE);
+	lookup->sendspace = isc_mem_get(mctx, COMMSIZE, sizeof(char));
 
 	dns_compress_init(&cctx, mctx, 0);
 

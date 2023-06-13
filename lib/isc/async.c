@@ -42,7 +42,7 @@ isc_async_run(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
 	REQUIRE(VALID_LOOP(loop));
 	REQUIRE(cb != NULL);
 
-	isc_job_t *job = isc_mem_get(loop->mctx, sizeof(*job));
+	isc_job_t *job = isc_mem_get(loop->mctx, 1, sizeof(*job));
 	*job = (isc_job_t){
 		.cb = cb,
 		.cbarg = cbarg,
@@ -111,7 +111,7 @@ isc__async_cb(uv_async_t *handle) {
 
 		job->cb(job->cbarg);
 
-		isc_mem_put(loop->mctx, job, sizeof(*job));
+		isc_mem_put(loop->mctx, job, 1, sizeof(*job));
 	}
 }
 

@@ -965,8 +965,8 @@ dump_rdataset(isc_mem_t *mctx, const dns_name_t *name, dns_rdataset_t *rdataset,
 		}
 
 		newlength = buffer->length * 2;
-		newmem = isc_mem_get(mctx, newlength);
-		isc_mem_put(mctx, buffer->base, buffer->length);
+		newmem = isc_mem_get(mctx, newlength, sizeof(char));
+		isc_mem_put(mctx, buffer->base, buffer->length, sizeof(char));
 		isc_buffer_init(buffer, newmem, newlength);
 	}
 	if (result != ISC_R_SUCCESS) {
@@ -1234,8 +1234,9 @@ restart:
 			void *newmem;
 
 			newlength = buffer->length * 2;
-			newmem = isc_mem_get(mctx, newlength);
-			isc_mem_put(mctx, buffer->base, buffer->length);
+			newmem = isc_mem_get(mctx, newlength, sizeof(char));
+			isc_mem_put(mctx, buffer->base, buffer->length,
+				    sizeof(char));
 			isc_buffer_init(buffer, newmem, newlength);
 			goto restart;
 		}
@@ -1345,7 +1346,7 @@ dumpctx_destroy(dns_dumpctx_t *dctx) {
 	if (dctx->tmpfile != NULL) {
 		isc_mem_free(dctx->mctx, dctx->tmpfile);
 	}
-	isc_mem_putanddetach(&dctx->mctx, dctx, sizeof(*dctx));
+	isc_mem_putanddetach(&dctx->mctx, dctx, 1, sizeof(*dctx));
 }
 
 void
@@ -1516,7 +1517,7 @@ dumpctx_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *version,
 	isc_result_t result;
 	unsigned int options;
 
-	dctx = isc_mem_get(mctx, sizeof(*dctx));
+	dctx = isc_mem_get(mctx, 1, sizeof(*dctx));
 	*dctx = (dns_dumpctx_t){
 		.f = f,
 		.format = format,
@@ -1587,7 +1588,7 @@ cleanup:
 	if (dctx->db != NULL) {
 		dns_db_detach(&dctx->db);
 	}
-	isc_mem_put(mctx, dctx, sizeof(*dctx));
+	isc_mem_put(mctx, dctx, 1, sizeof(*dctx));
 	return (result);
 }
 
@@ -1600,7 +1601,7 @@ writeheader(dns_dumpctx_t *dctx) {
 	dns_masterrawheader_t rawheader;
 	uint32_t rawversion, now32;
 
-	bufmem = isc_mem_get(dctx->mctx, initial_buffer_length);
+	bufmem = isc_mem_get(dctx->mctx, initial_buffer_length, sizeof(char));
 
 	isc_buffer_init(&buffer, bufmem, initial_buffer_length);
 
@@ -1658,7 +1659,7 @@ writeheader(dns_dumpctx_t *dctx) {
 		UNREACHABLE();
 	}
 
-	isc_mem_put(dctx->mctx, buffer.base, buffer.length);
+	isc_mem_put(dctx->mctx, buffer.base, buffer.length, sizeof(char));
 	return (result);
 }
 
@@ -1675,7 +1676,7 @@ dumptostream(dns_dumpctx_t *dctx) {
 		options |= DNS_DB_EXPIREDOK;
 	}
 
-	bufmem = isc_mem_get(dctx->mctx, initial_buffer_length);
+	bufmem = isc_mem_get(dctx->mctx, initial_buffer_length, sizeof(char));
 
 	isc_buffer_init(&buffer, bufmem, initial_buffer_length);
 
@@ -1734,7 +1735,7 @@ dumptostream(dns_dumpctx_t *dctx) {
 	}
 cleanup:
 	RUNTIME_CHECK(dns_dbiterator_pause(dctx->dbiter) == ISC_R_SUCCESS);
-	isc_mem_put(dctx->mctx, buffer.base, buffer.length);
+	isc_mem_put(dctx->mctx, buffer.base, buffer.length, sizeof(char));
 	return (result);
 }
 
@@ -1928,7 +1929,7 @@ dns_master_dumpnodetostream(isc_mem_t *mctx, dns_db_t *db,
 		return (ISC_R_UNEXPECTED);
 	}
 
-	bufmem = isc_mem_get(mctx, initial_buffer_length);
+	bufmem = isc_mem_get(mctx, initial_buffer_length, sizeof(char));
 
 	isc_buffer_init(&buffer, bufmem, initial_buffer_length);
 
@@ -1945,7 +1946,7 @@ dns_master_dumpnodetostream(isc_mem_t *mctx, dns_db_t *db,
 	result = ISC_R_SUCCESS;
 
 failure:
-	isc_mem_put(mctx, buffer.base, buffer.length);
+	isc_mem_put(mctx, buffer.base, buffer.length, sizeof(char));
 	return (result);
 }
 
@@ -2004,7 +2005,7 @@ dns_master_stylecreate(dns_master_style_t **stylep,
 	dns_master_style_t *style;
 
 	REQUIRE(stylep != NULL && *stylep == NULL);
-	style = isc_mem_get(mctx, sizeof(*style));
+	style = isc_mem_get(mctx, 1, sizeof(*style));
 
 	style->flags = flags;
 	style->ttl_column = ttl_column;
@@ -2025,5 +2026,5 @@ dns_master_styledestroy(dns_master_style_t **stylep, isc_mem_t *mctx) {
 	REQUIRE(stylep != NULL && *stylep != NULL);
 	style = *stylep;
 	*stylep = NULL;
-	isc_mem_put(mctx, style, sizeof(*style));
+	isc_mem_put(mctx, style, 1, sizeof(*style));
 }

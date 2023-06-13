@@ -413,7 +413,7 @@ again:
 	parent = ictx->parent;
 	ictx->parent = NULL;
 
-	isc_mem_put(mctx, ictx, sizeof(*ictx));
+	isc_mem_put(mctx, ictx, 1, sizeof(*ictx));
 
 	if (parent != NULL) {
 		ictx = parent;
@@ -445,7 +445,7 @@ loadctx_destroy(dns_loadctx_t *lctx) {
 		isc_lex_destroy(&lctx->lex);
 	}
 
-	isc_mem_putanddetach(&lctx->mctx, lctx, sizeof(*lctx));
+	isc_mem_putanddetach(&lctx->mctx, lctx, 1, sizeof(*lctx));
 }
 
 static void
@@ -454,7 +454,7 @@ incctx_create(isc_mem_t *mctx, dns_name_t *origin, dns_incctx_t **ictxp) {
 	isc_region_t r;
 	int i;
 
-	ictx = isc_mem_get(mctx, sizeof(*ictx));
+	ictx = isc_mem_get(mctx, 1, sizeof(*ictx));
 
 	for (i = 0; i < NBUFS; i++) {
 		dns_fixedname_init(&ictx->fixed[i]);
@@ -499,7 +499,7 @@ loadctx_create(dns_masterformat_t format, isc_mem_t *mctx, unsigned int options,
 	REQUIRE(dns_name_isabsolute(top));
 	REQUIRE(dns_name_isabsolute(origin));
 
-	lctx = isc_mem_get(mctx, sizeof(*lctx));
+	lctx = isc_mem_get(mctx, 1, sizeof(*lctx));
 	*lctx = (dns_loadctx_t){
 		.format = format,
 		.ttl_known = ((options & DNS_MASTER_NOTTL) != 0),
@@ -773,9 +773,9 @@ generate(dns_loadctx_t *lctx, char *range, char *lhs, char *gtype, char *rhs,
 	owner = dns_fixedname_initname(&ownerfixed);
 	ISC_LIST_INIT(head);
 
-	target_mem = isc_mem_get(lctx->mctx, target_size);
-	rhsbuf = isc_mem_get(lctx->mctx, DNS_MASTER_RHS);
-	lhsbuf = isc_mem_get(lctx->mctx, DNS_MASTER_LHS);
+	target_mem = isc_mem_get(lctx->mctx, target_size, sizeof(char));
+	rhsbuf = isc_mem_get(lctx->mctx, DNS_MASTER_RHS, sizeof(char));
+	lhsbuf = isc_mem_get(lctx->mctx, DNS_MASTER_LHS, sizeof(char));
 	if (target_mem == NULL || rhsbuf == NULL || lhsbuf == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto error_cleanup;
@@ -901,13 +901,13 @@ insist_cleanup:
 
 cleanup:
 	if (target_mem != NULL) {
-		isc_mem_put(lctx->mctx, target_mem, target_size);
+		isc_mem_put(lctx->mctx, target_mem, target_size, sizeof(char));
 	}
 	if (lhsbuf != NULL) {
-		isc_mem_put(lctx->mctx, lhsbuf, DNS_MASTER_LHS);
+		isc_mem_put(lctx->mctx, lhsbuf, DNS_MASTER_LHS, sizeof(char));
 	}
 	if (rhsbuf != NULL) {
-		isc_mem_put(lctx->mctx, rhsbuf, DNS_MASTER_RHS);
+		isc_mem_put(lctx->mctx, rhsbuf, DNS_MASTER_RHS, sizeof(char));
 	}
 	return (result);
 }
@@ -1062,7 +1062,7 @@ load_text(dns_loadctx_t *lctx) {
 	 * Allocate target_size of buffer space.  This is greater than twice
 	 * the maximum individual RR data size.
 	 */
-	target_mem = isc_mem_get(mctx, target_size);
+	target_mem = isc_mem_get(mctx, target_size, sizeof(char));
 	isc_buffer_init(&target, target_mem, target_size);
 	target_save = target;
 
@@ -2123,14 +2123,14 @@ cleanup:
 		ISC_LIST_UNLINK(glue_list, this, link);
 	}
 	if (rdatalist != NULL) {
-		isc_mem_put(mctx, rdatalist,
-			    rdatalist_size * sizeof(*rdatalist));
+		isc_mem_put(mctx, rdatalist, rdatalist_size,
+			    sizeof(*rdatalist));
 	}
 	if (rdata != NULL) {
-		isc_mem_put(mctx, rdata, rdata_size * sizeof(*rdata));
+		isc_mem_put(mctx, rdata, rdata_size, sizeof(*rdata));
 	}
 	if (target_mem != NULL) {
-		isc_mem_put(mctx, target_mem, target_size);
+		isc_mem_put(mctx, target_mem, target_size, sizeof(char));
 	}
 	if (include_file != NULL) {
 		isc_mem_free(mctx, include_file);
@@ -2352,7 +2352,7 @@ load_raw(dns_loadctx_t *lctx) {
 	 * Allocate target_size of buffer space.  This is greater than twice
 	 * the maximum individual RR data size.
 	 */
-	target_mem = isc_mem_get(mctx, target_size);
+	target_mem = isc_mem_get(mctx, target_size, sizeof(char));
 	isc_buffer_init(&target, target_mem, target_size);
 
 	name = dns_fixedname_initname(&fixed);
@@ -2599,10 +2599,10 @@ load_raw(dns_loadctx_t *lctx) {
 
 cleanup:
 	if (rdata != NULL) {
-		isc_mem_put(mctx, rdata, rdata_size * sizeof(*rdata));
+		isc_mem_put(mctx, rdata, rdata_size, sizeof(*rdata));
 	}
 	if (target_mem != NULL) {
-		isc_mem_put(mctx, target_mem, target_size);
+		isc_mem_put(mctx, target_mem, target_size, sizeof(char));
 	}
 	if (result != ISC_R_SUCCESS) {
 		(*callbacks->error)(callbacks, "dns_master_load: %s",
@@ -2753,7 +2753,7 @@ grow_rdatalist(int new_len, dns_rdatalist_t *oldlist, int old_len,
 	ISC_LIST(dns_rdatalist_t) save;
 	dns_rdatalist_t *this;
 
-	newlist = isc_mem_get(mctx, new_len * sizeof(*newlist));
+	newlist = isc_mem_get(mctx, new_len, sizeof(*newlist));
 	if (newlist == NULL) {
 		return (NULL);
 	}
@@ -2786,7 +2786,7 @@ grow_rdatalist(int new_len, dns_rdatalist_t *oldlist, int old_len,
 
 	INSIST(rdlcount == old_len);
 	if (oldlist != NULL) {
-		isc_mem_put(mctx, oldlist, old_len * sizeof(*oldlist));
+		isc_mem_put(mctx, oldlist, old_len, sizeof(*oldlist));
 	}
 	return (newlist);
 }
@@ -2804,7 +2804,7 @@ grow_rdata(int new_len, dns_rdata_t *oldlist, int old_len,
 	dns_rdatalist_t *this;
 	dns_rdata_t *rdata;
 
-	newlist = isc_mem_get(mctx, new_len * sizeof(*newlist));
+	newlist = isc_mem_get(mctx, new_len, sizeof(*newlist));
 	if (newlist == NULL) {
 		return (NULL);
 	}
@@ -2851,7 +2851,7 @@ grow_rdata(int new_len, dns_rdata_t *oldlist, int old_len,
 	}
 	INSIST(rdcount == old_len || rdcount == 0);
 	if (oldlist != NULL) {
-		isc_mem_put(mctx, oldlist, old_len * sizeof(*oldlist));
+		isc_mem_put(mctx, oldlist, old_len, sizeof(*oldlist));
 	}
 	return (newlist);
 }

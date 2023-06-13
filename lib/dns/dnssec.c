@@ -101,14 +101,14 @@ rdataset_to_sortedarray(dns_rdataset_t *set, isc_mem_t *mctx,
 
 	n = dns_rdataset_count(set);
 
-	data = isc_mem_get(mctx, n * sizeof(dns_rdata_t));
+	data = isc_mem_get(mctx, n, sizeof(dns_rdata_t));
 
 	dns_rdataset_init(&rdataset);
 	dns_rdataset_clone(set, &rdataset);
 	ret = dns_rdataset_first(&rdataset);
 	if (ret != ISC_R_SUCCESS) {
 		dns_rdataset_disassociate(&rdataset);
-		isc_mem_put(mctx, data, n * sizeof(dns_rdata_t));
+		isc_mem_put(mctx, data, n, sizeof(dns_rdata_t));
 		return (ret);
 	}
 
@@ -256,7 +256,7 @@ dns_dnssec_sign(const dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 	 * The actual contents of sig.signature are not important yet, since
 	 * they're not used in digest_sig().
 	 */
-	sig.signature = isc_mem_get(mctx, sig.siglen);
+	sig.signature = isc_mem_get(mctx, sig.siglen, sizeof(char));
 
 	isc_buffer_allocate(mctx, &databuf, sigsize + 256 + 18);
 
@@ -359,12 +359,12 @@ dns_dnssec_sign(const dns_name_t *name, dns_rdataset_t *set, dst_key_t *key,
 				   sig.common.rdtype, &sig, buffer);
 
 cleanup_array:
-	isc_mem_put(mctx, rdatas, nrdatas * sizeof(dns_rdata_t));
+	isc_mem_put(mctx, rdatas, nrdatas, sizeof(dns_rdata_t));
 cleanup_context:
 	dst_context_destroy(&ctx);
 cleanup_databuf:
 	isc_buffer_free(&databuf);
-	isc_mem_put(mctx, sig.signature, sig.siglen);
+	isc_mem_put(mctx, sig.signature, sig.siglen, sizeof(char));
 
 	return (ret);
 }
@@ -573,7 +573,7 @@ again:
 	}
 
 cleanup_array:
-	isc_mem_put(mctx, rdatas, nrdatas * sizeof(dns_rdata_t));
+	isc_mem_put(mctx, rdatas, nrdatas, sizeof(dns_rdata_t));
 cleanup_context:
 	dst_context_destroy(&ctx);
 	if (ret == DST_R_VERIFYFAILURE && !downcase) {
@@ -1024,7 +1024,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 
 	RETERR(dst_key_sigsize(key, &sigsize));
 	sig.siglen = sigsize;
-	sig.signature = isc_mem_get(mctx, sig.siglen);
+	sig.signature = isc_mem_get(mctx, sig.siglen, sizeof(char));
 
 	isc_buffer_init(&sigbuf, sig.signature, sig.siglen);
 	RETERR(dst_context_sign(ctx, &sigbuf));
@@ -1037,7 +1037,7 @@ dns_dnssec_signmessage(dns_message_t *msg, dst_key_t *key) {
 				    dns_rdatatype_sig /* SIG(0) */, &sig,
 				    dynbuf));
 
-	isc_mem_put(mctx, sig.signature, sig.siglen);
+	isc_mem_put(mctx, sig.signature, sig.siglen, sizeof(char));
 
 	dns_message_takebuffer(msg, &dynbuf);
 
@@ -1058,7 +1058,7 @@ failure:
 		isc_buffer_free(&dynbuf);
 	}
 	if (sig.signature != NULL) {
-		isc_mem_put(mctx, sig.signature, sig.siglen);
+		isc_mem_put(mctx, sig.signature, sig.siglen, sizeof(char));
 	}
 	if (ctx != NULL) {
 		dst_context_destroy(&ctx);
@@ -1284,7 +1284,7 @@ dns_dnsseckey_create(isc_mem_t *mctx, dst_key_t **dstkey,
 	int major, minor;
 
 	REQUIRE(dkp != NULL && *dkp == NULL);
-	dk = isc_mem_get(mctx, sizeof(dns_dnsseckey_t));
+	dk = isc_mem_get(mctx, 1, sizeof(dns_dnsseckey_t));
 
 	dk->key = *dstkey;
 	*dstkey = NULL;
@@ -1332,7 +1332,7 @@ dns_dnsseckey_destroy(isc_mem_t *mctx, dns_dnsseckey_t **dkp) {
 	if (dk->key != NULL) {
 		dst_key_free(&dk->key);
 	}
-	isc_mem_put(mctx, dk, sizeof(dns_dnsseckey_t));
+	isc_mem_put(mctx, dk, 1, sizeof(dns_dnsseckey_t));
 }
 
 void

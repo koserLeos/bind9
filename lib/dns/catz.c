@@ -250,7 +250,7 @@ catz_coo_new(isc_mem_t *mctx, const dns_name_t *domain,
 	REQUIRE(domain != NULL);
 	REQUIRE(ncoop != NULL && *ncoop == NULL);
 
-	ncoo = isc_mem_get(mctx, sizeof(*ncoo));
+	ncoo = isc_mem_get(mctx, 1, sizeof(*ncoo));
 	dns_name_init(&ncoo->name, NULL);
 	dns_name_dup(domain, mctx, &ncoo->name);
 	isc_refcount_init(&ncoo->references, 1);
@@ -274,7 +274,7 @@ catz_coo_detach(dns_catz_zone_t *catz, dns_catz_coo_t **coop) {
 		if (dns_name_dynamic(&coo->name)) {
 			dns_name_free(&coo->name, mctx);
 		}
-		isc_mem_put(mctx, coo, sizeof(*coo));
+		isc_mem_put(mctx, coo, 1, sizeof(*coo));
 	}
 }
 
@@ -286,7 +286,7 @@ dns_catz_entry_new(isc_mem_t *mctx, const dns_name_t *domain,
 	REQUIRE(mctx != NULL);
 	REQUIRE(nentryp != NULL && *nentryp == NULL);
 
-	nentry = isc_mem_get(mctx, sizeof(*nentry));
+	nentry = isc_mem_get(mctx, 1, sizeof(*nentry));
 
 	dns_name_init(&nentry->name, NULL);
 	if (domain != NULL) {
@@ -346,7 +346,7 @@ dns_catz_entry_detach(dns_catz_zone_t *catz, dns_catz_entry_t **entryp) {
 		if (dns_name_dynamic(&entry->name)) {
 			dns_name_free(&entry->name, mctx);
 		}
-		isc_mem_put(mctx, entry, sizeof(*entry));
+		isc_mem_put(mctx, entry, 1, sizeof(*entry));
 	}
 }
 
@@ -777,7 +777,7 @@ dns_catz_new_zones(isc_mem_t *mctx, isc_loopmgr_t *loopmgr,
 	REQUIRE(catzsp != NULL && *catzsp == NULL);
 	REQUIRE(zmm != NULL);
 
-	catzs = isc_mem_get(mctx, sizeof(*catzs));
+	catzs = isc_mem_get(mctx, 1, sizeof(*catzs));
 	*catzs = (dns_catz_zones_t){ .loopmgr = loopmgr,
 				     .zmm = zmm,
 				     .magic = DNS_CATZ_ZONES_MAGIC };
@@ -809,7 +809,7 @@ dns_catz_new_zone(dns_catz_zones_t *catzs, dns_catz_zone_t **catzp,
 	REQUIRE(catzp != NULL && *catzp == NULL);
 	REQUIRE(ISC_MAGIC_VALID(name, DNS_NAME_MAGIC));
 
-	catz = isc_mem_get(catzs->mctx, sizeof(*catz));
+	catz = isc_mem_get(catzs->mctx, 1, sizeof(*catz));
 	*catz = (dns_catz_zone_t){ .active = true,
 				   .version = DNS_CATZ_VERSION_UNDEFINED,
 				   .magic = DNS_CATZ_ZONE_MAGIC };
@@ -1022,7 +1022,7 @@ dns__catz_zone_destroy(dns_catz_zone_t *catz) {
 	dns_catz_zones_detach(&catz->catzs);
 	isc_refcount_destroy(&catz->references);
 
-	isc_mem_put(mctx, catz, sizeof(*catz));
+	isc_mem_put(mctx, catz, 1, sizeof(*catz));
 }
 
 static void
@@ -1034,7 +1034,7 @@ dns__catz_zones_destroy(dns_catz_zones_t *catzs) {
 	isc_mutex_destroy(&catzs->lock);
 	isc_refcount_destroy(&catzs->references);
 
-	isc_mem_putanddetach(&catzs->mctx, catzs, sizeof(*catzs));
+	isc_mem_putanddetach(&catzs->mctx, catzs, 1, sizeof(*catzs));
 }
 
 void
@@ -1452,7 +1452,7 @@ catz_process_primaries(dns_catz_zone_t *catz, dns_ipkeylist_t *ipkl,
 			}
 
 			/* rdatastr.length < DNS_NAME_MAXTEXT */
-			keyname = isc_mem_get(mctx, sizeof(*keyname));
+			keyname = isc_mem_get(mctx, 1, sizeof(*keyname));
 			dns_name_init(keyname, 0);
 			memmove(keycbuf, rdatastr.data, rdatastr.length);
 			keycbuf[rdatastr.length] = 0;
@@ -1460,7 +1460,8 @@ catz_process_primaries(dns_catz_zone_t *catz, dns_ipkeylist_t *ipkl,
 			result = dns_name_fromstring(keyname, keycbuf, 0, mctx);
 			if (result != ISC_R_SUCCESS) {
 				dns_name_free(keyname, mctx);
-				isc_mem_put(mctx, keyname, sizeof(*keyname));
+				isc_mem_put(mctx, keyname, 1,
+					    sizeof(*keyname));
 				return (result);
 			}
 			break;
@@ -1494,7 +1495,7 @@ catz_process_primaries(dns_catz_zone_t *catz, dns_ipkeylist_t *ipkl,
 				return (result);
 			}
 
-			ipkl->labels[i] = isc_mem_get(mctx,
+			ipkl->labels[i] = isc_mem_get(mctx, 1,
 						      sizeof(*ipkl->labels[0]));
 			dns_name_init(ipkl->labels[i], NULL);
 			dns_name_dup(name, mctx, ipkl->labels[i]);

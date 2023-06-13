@@ -288,7 +288,7 @@ dst_context_create(dst_key_t *key, isc_mem_t *mctx, isc_logcategory_t *category,
 		return (DST_R_NULLKEY);
 	}
 
-	dctx = isc_mem_get(mctx, sizeof(*dctx));
+	dctx = isc_mem_get(mctx, 1, sizeof(*dctx));
 	*dctx = (dst_context_t){
 		.category = category,
 		.use = (useforsigning) ? DO_SIGN : DO_VERIFY,
@@ -305,7 +305,8 @@ dst_context_create(dst_key_t *key, isc_mem_t *mctx, isc_logcategory_t *category,
 		if (dctx->key != NULL) {
 			dst_key_free(&dctx->key);
 		}
-		isc_mem_putanddetach(&dctx->mctx, dctx, sizeof(dst_context_t));
+		isc_mem_putanddetach(&dctx->mctx, dctx, 1,
+				     sizeof(dst_context_t));
 		return (result);
 	}
 	dctx->magic = CTX_MAGIC;
@@ -327,7 +328,7 @@ dst_context_destroy(dst_context_t **dctxp) {
 		dst_key_free(&dctx->key);
 	}
 	dctx->magic = 0;
-	isc_mem_putanddetach(&dctx->mctx, dctx, sizeof(dst_context_t));
+	isc_mem_putanddetach(&dctx->mctx, dctx, 1, sizeof(dst_context_t));
 }
 
 isc_result_t
@@ -601,13 +602,13 @@ dst_key_fromnamedfile(const char *filename, const char *dirname, int type,
 	if (dirname != NULL) {
 		newfilenamelen += strlen(dirname) + 1;
 	}
-	newfilename = isc_mem_get(mctx, newfilenamelen);
+	newfilename = isc_mem_get(mctx, newfilenamelen, sizeof(char));
 	result = addsuffix(newfilename, newfilenamelen, dirname, filename,
 			   ".key");
 	INSIST(result == ISC_R_SUCCESS);
 
 	RETERR(dst_key_read_public(newfilename, type, mctx, &pubkey));
-	isc_mem_put(mctx, newfilename, newfilenamelen);
+	isc_mem_put(mctx, newfilename, newfilenamelen, sizeof(char));
 
 	/*
 	 * Read the state file, if requested by type.
@@ -617,7 +618,8 @@ dst_key_fromnamedfile(const char *filename, const char *dirname, int type,
 		if (dirname != NULL) {
 			statefilenamelen += strlen(dirname) + 1;
 		}
-		statefilename = isc_mem_get(mctx, statefilenamelen);
+		statefilename = isc_mem_get(mctx, statefilenamelen,
+					    sizeof(char));
 		result = addsuffix(statefilename, statefilenamelen, dirname,
 				   filename, ".state");
 		INSIST(result == ISC_R_SUCCESS);
@@ -663,14 +665,14 @@ dst_key_fromnamedfile(const char *filename, const char *dirname, int type,
 	if (dirname != NULL) {
 		newfilenamelen += strlen(dirname) + 1;
 	}
-	newfilename = isc_mem_get(mctx, newfilenamelen);
+	newfilename = isc_mem_get(mctx, newfilenamelen, sizeof(char));
 	result = addsuffix(newfilename, newfilenamelen, dirname, filename,
 			   ".private");
 	INSIST(result == ISC_R_SUCCESS);
 
 	isc_lex_create(mctx, 1500, &lex);
 	RETERR(isc_lex_openfile(lex, newfilename));
-	isc_mem_put(mctx, newfilename, newfilenamelen);
+	isc_mem_put(mctx, newfilename, newfilenamelen, sizeof(char));
 
 	RETERR(key->func->parse(key, lex, pubkey));
 	isc_lex_destroy(&lex);
@@ -702,10 +704,11 @@ out:
 		dst_key_free(&pubkey);
 	}
 	if (newfilename != NULL) {
-		isc_mem_put(mctx, newfilename, newfilenamelen);
+		isc_mem_put(mctx, newfilename, newfilenamelen, sizeof(char));
 	}
 	if (statefilename != NULL) {
-		isc_mem_put(mctx, statefilename, statefilenamelen);
+		isc_mem_put(mctx, statefilename, statefilenamelen,
+			    sizeof(char));
 	}
 	if (lex != NULL) {
 		isc_lex_destroy(&lex);
@@ -1413,13 +1416,13 @@ dst_key_free(dst_key_t **keyp) {
 			isc_mem_free(mctx, key->label);
 		}
 		dns_name_free(key->key_name, mctx);
-		isc_mem_put(mctx, key->key_name, sizeof(dns_name_t));
+		isc_mem_put(mctx, key->key_name, 1, sizeof(dns_name_t));
 		if (key->key_tkeytoken) {
 			isc_buffer_free(&key->key_tkeytoken);
 		}
 		isc_mutex_destroy(&key->mdlock);
 		isc_safe_memwipe(key, sizeof(*key));
-		isc_mem_putanddetach(&mctx, key, sizeof(*key));
+		isc_mem_putanddetach(&mctx, key, 1, sizeof(*key));
 	}
 }
 
@@ -1573,9 +1576,9 @@ get_key_struct(const dns_name_t *name, unsigned int alg, unsigned int flags,
 	       dns_rdataclass_t rdclass, dns_ttl_t ttl, isc_mem_t *mctx) {
 	dst_key_t *key;
 
-	key = isc_mem_get(mctx, sizeof(dst_key_t));
+	key = isc_mem_get(mctx, 1, sizeof(dst_key_t));
 	*key = (dst_key_t){
-		.key_name = isc_mem_get(mctx, sizeof(dns_name_t)),
+		.key_name = isc_mem_get(mctx, 1, sizeof(dns_name_t)),
 		.key_alg = alg,
 		.key_flags = flags,
 		.key_proto = protocol,

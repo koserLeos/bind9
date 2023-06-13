@@ -384,7 +384,7 @@ openssleddsa_tofile(const dst_key_t *key, const char *directory) {
 
 	if (dst__openssl_keypair_isprivate(key)) {
 		len = alginfo->key_size;
-		buf = isc_mem_get(key->mctx, len);
+		buf = isc_mem_get(key->mctx, len, sizeof(char));
 		if (EVP_PKEY_get_raw_private_key(key->keydata.pkeypair.priv,
 						 buf, &len) != 1)
 		{
@@ -415,7 +415,7 @@ openssleddsa_tofile(const dst_key_t *key, const char *directory) {
 
 err:
 	if (buf != NULL) {
-		isc_mem_put(key->mctx, buf, len);
+		isc_mem_put(key->mctx, buf, len, sizeof(char));
 	}
 	return (ret);
 }

@@ -289,7 +289,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 		if (n == 0) {
 			types = NULL;
 		} else {
-			types = isc_mem_get(mctx, n * sizeof(*types));
+			types = isc_mem_get(mctx, n, sizeof(*types));
 		}
 
 		i = 0;
@@ -319,8 +319,8 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 						    ISC_LOG_ERROR,
 						    "'%s' is not a valid count",
 						    bracket);
-					isc_mem_put(mctx, types,
-						    n * sizeof(*types));
+					isc_mem_put(mctx, types, n,
+						    sizeof(*types));
 					goto cleanup;
 				}
 			} else {
@@ -334,7 +334,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 					    ISC_LOG_ERROR,
 					    "'%.*s' is not a valid type",
 					    (int)r.length, str);
-				isc_mem_put(mctx, types, n * sizeof(*types));
+				isc_mem_put(mctx, types, n, sizeof(*types));
 				goto cleanup;
 			}
 		}
@@ -344,7 +344,7 @@ configure_zone_ssutable(const cfg_obj_t *zconfig, dns_zone_t *zone,
 				     mtype, dns_fixedname_name(&fname), n,
 				     types);
 		if (types != NULL) {
-			isc_mem_put(mctx, types, n * sizeof(*types));
+			isc_mem_put(mctx, types, n, sizeof(*types));
 		}
 	}
 
@@ -441,7 +441,8 @@ configure_staticstub_serveraddrs(const cfg_obj_t *zconfig, dns_zone_t *zone,
 			break;
 		}
 
-		rdata = isc_mem_get(mctx, sizeof(*rdata) + region.length);
+		rdata = isc_mem_getfx(mctx, region.length, sizeof(char),
+				      sizeof(*rdata), 0);
 		region.base = (unsigned char *)(rdata + 1);
 		memmove(region.base, &na.type, region.length);
 		dns_rdata_init(rdata);
@@ -462,7 +463,8 @@ configure_staticstub_serveraddrs(const cfg_obj_t *zconfig, dns_zone_t *zone,
 
 	/* Add to the list an apex NS with the ns name being the origin name */
 	dns_name_toregion(dns_zone_getorigin(zone), &sregion);
-	rdata = isc_mem_get(mctx, sizeof(*rdata) + sregion.length);
+	rdata = isc_mem_getfx(mctx, sregion.length, sizeof(char),
+			      sizeof(*rdata), 0);
 	region.length = sregion.length;
 	region.base = (unsigned char *)(rdata + 1);
 	memmove(region.base, sregion.base, region.length);
@@ -523,7 +525,8 @@ configure_staticstub_servernames(const cfg_obj_t *zconfig, dns_zone_t *zone,
 		}
 
 		dns_name_toregion(nsname, &sregion);
-		rdata = isc_mem_get(mctx, sizeof(*rdata) + sregion.length);
+		rdata = isc_mem_getfx(mctx, sregion.length, sizeof(char),
+				      sizeof(*rdata), 0);
 		region.length = sregion.length;
 		region.base = (unsigned char *)(rdata + 1);
 		memmove(region.base, sregion.base, region.length);
@@ -666,8 +669,8 @@ cleanup:
 		while ((rdata = ISC_LIST_HEAD(rdatalists[i]->rdata)) != NULL) {
 			ISC_LIST_UNLINK(rdatalists[i]->rdata, rdata, link);
 			dns_rdata_toregion(rdata, &region);
-			isc_mem_put(mctx, rdata,
-				    sizeof(*rdata) + region.length);
+			isc_mem_putfx(mctx, rdata, region.length,
+				      sizeof(char), sizeof(*rdata), 0);
 		}
 	}
 
@@ -705,7 +708,7 @@ strtoargvsub(isc_mem_t *mctx, char *s, unsigned int *argcp, char ***argvp,
 	if (*s == '\0') {
 		/* We have reached the end of the string. */
 		*argcp = n;
-		*argvp = isc_mem_get(mctx, n * sizeof(char *));
+		*argvp = isc_mem_get(mctx, n, sizeof(char *));
 	} else {
 		char *p = s;
 		while (*p != ' ' && *p != '\t' && *p != '\0') {
@@ -1001,7 +1004,7 @@ named_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	 * compiler w/o generating a warning.
 	 */
 	dns_zone_setdbtype(zone, dbargc, (const char *const *)dbargv);
-	isc_mem_put(mctx, dbargv, dbargc * sizeof(*dbargv));
+	isc_mem_put(mctx, dbargv, dbargc, sizeof(*dbargv));
 	if (cpval != default_dbtype && cpval != dlz_dbtype) {
 		isc_mem_free(mctx, cpval);
 	}
@@ -1082,12 +1085,12 @@ named_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 
 		CHECK(dns_zone_setfile(raw, filename, masterformat,
 				       masterstyle));
-		signedname = isc_mem_get(mctx, signedlen);
+		signedname = isc_mem_get(mctx, signedlen, sizeof(char));
 
 		(void)snprintf(signedname, signedlen, "%s" SIGNED, filename);
 		result = dns_zone_setfile(zone, signedname,
 					  dns_masterformat_raw, NULL);
-		isc_mem_put(mctx, signedname, signedlen);
+		isc_mem_put(mctx, signedname, signedlen, sizeof(char));
 		CHECK(result);
 	} else {
 		CHECK(dns_zone_setfile(zone, filename, masterformat,

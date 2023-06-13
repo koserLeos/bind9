@@ -37,7 +37,7 @@ static uint8_t render_buf[64 * 1024 - 1];
 int
 LLVMFuzzerInitialize(int *argc ISC_ATTR_UNUSED, char ***argv ISC_ATTR_UNUSED) {
 	isc_mem_create(&mctx);
-	output = isc_mem_get(mctx, output_len);
+	output = isc_mem_get(mctx, output_len, sizeof(char));
 
 	return (0);
 }
@@ -73,9 +73,9 @@ print_message(dns_message_t *message) {
 		result = dns_message_totext(message, &dns_master_style_debug, 0,
 					    &buffer);
 		if (result == ISC_R_NOSPACE) {
-			isc_mem_put(mctx, output, output_len);
+			isc_mem_put(mctx, output, output_len, sizeof(char));
 			output_len *= 2;
-			output = isc_mem_get(mctx, output_len);
+			output = isc_mem_get(mctx, output_len, sizeof(char));
 			continue;
 		}
 	} while (result == ISC_R_NOSPACE);

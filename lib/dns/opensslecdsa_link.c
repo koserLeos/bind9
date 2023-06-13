@@ -637,7 +637,7 @@ opensslecdsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 	if (sigder_len == 0) {
 		DST_RET(ISC_R_FAILURE);
 	}
-	sigder = isc_mem_get(dctx->mctx, sigder_len);
+	sigder = isc_mem_get(dctx->mctx, sigder_len, sizeof(char));
 	sigder_alloced = sigder_len;
 	if (EVP_DigestSignFinal(evp_md_ctx, sigder, &sigder_len) != 1) {
 		DST_RET(dst__openssl_toresult3(
@@ -660,7 +660,7 @@ opensslecdsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 
 err:
 	if (sigder != NULL && sigder_alloced != 0) {
-		isc_mem_put(dctx->mctx, sigder, sigder_alloced);
+		isc_mem_put(dctx->mctx, sigder, sigder_alloced, sizeof(char));
 	}
 
 	return (ret);
@@ -709,7 +709,7 @@ opensslecdsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 	}
 
 	sigder_len = (size_t)status;
-	sigder = isc_mem_get(dctx->mctx, sigder_len);
+	sigder = isc_mem_get(dctx->mctx, sigder_len, sizeof(char));
 	sigder_alloced = sigder_len;
 
 	sigder_copy = sigder;
@@ -740,7 +740,7 @@ err:
 		ECDSA_SIG_free(ecdsasig);
 	}
 	if (sigder != NULL && sigder_alloced != 0) {
-		isc_mem_put(dctx->mctx, sigder, sigder_alloced);
+		isc_mem_put(dctx->mctx, sigder, sigder_alloced, sizeof(char));
 	}
 
 	return (ret);

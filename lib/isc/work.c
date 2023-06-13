@@ -41,7 +41,7 @@ isc__after_work_cb(uv_work_t *req, int status) {
 
 	work->after_work_cb(work->cbarg);
 
-	isc_mem_put(loop->mctx, work, sizeof(*work));
+	isc_mem_put(loop->mctx, work, 1, sizeof(*work));
 
 	isc_loop_detach(&loop);
 }
@@ -56,7 +56,7 @@ isc_work_enqueue(isc_loop_t *loop, isc_work_cb work_cb,
 	REQUIRE(work_cb != NULL);
 	REQUIRE(after_work_cb != NULL);
 
-	work = isc_mem_get(loop->mctx, sizeof(*work));
+	work = isc_mem_get(loop->mctx, 1, sizeof(*work));
 	*work = (isc_work_t){
 		.work_cb = work_cb,
 		.after_work_cb = after_work_cb,

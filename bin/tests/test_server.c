@@ -209,7 +209,8 @@ read_cb(isc_nmhandle_t *handle, isc_result_t eresult, isc_region_t *region,
 		((uint8_t *)region->base)[2] ^= 0x80;
 	}
 
-	reply = isc_mem_get(mctx, sizeof(isc_region_t) + region->length);
+	reply = isc_mem_getfx(mctx, region->length, sizeof(char),
+			      sizeof(isc_region_t), 0);
 	reply->length = region->length;
 	reply->base = (uint8_t *)reply + sizeof(isc_region_t);
 	memmove(reply->base, region->base, region->length);
@@ -225,7 +226,8 @@ send_cb(isc_nmhandle_t *handle, isc_result_t eresult, void *cbarg) {
 	REQUIRE(handle != NULL);
 	REQUIRE(eresult == ISC_R_SUCCESS);
 
-	isc_mem_put(mctx, cbarg, sizeof(isc_region_t) + reply->length);
+	isc_mem_putfx(mctx, cbarg, reply->length, sizeof(char),
+		      sizeof(isc_region_t), 0);
 }
 
 static isc_result_t

@@ -103,7 +103,7 @@ dns_zt_create(isc_mem_t *mctx, dns_view_t *view, dns_zt_t **ztp) {
 
 	dns_qpmulti_create(mctx, &ztqpmethods, view, &multi);
 
-	zt = isc_mem_get(mctx, sizeof(*zt));
+	zt = isc_mem_get(mctx, 1, sizeof(*zt));
 	*zt = (dns_zt_t){
 		.magic = ZTMAGIC,
 		.multi = multi,
@@ -247,7 +247,7 @@ zt_destroy(dns_zt_t *zt) {
 
 	dns_qpmulti_destroy(&zt->multi);
 	zt->magic = 0;
-	isc_mem_putanddetach(&zt->mctx, zt, sizeof(*zt));
+	isc_mem_putanddetach(&zt->mctx, zt, 1, sizeof(*zt));
 }
 
 void
@@ -293,7 +293,7 @@ loaded_all(struct zt_load_params *params) {
 	if (params->loaddone != NULL) {
 		params->loaddone(params->loaddone_arg);
 	}
-	isc_mem_put(params->zt->mctx, params, sizeof(*params));
+	isc_mem_put(params->zt->mctx, params, 1, sizeof(*params));
 }
 
 /*
@@ -365,7 +365,7 @@ dns_zt_asyncload(dns_zt_t *zt, bool newonly, dns_zt_callback_t *loaddone,
 	loads_pending = isc_refcount_increment0(&zt->loads_pending);
 	INSIST(loads_pending == 0);
 
-	params = isc_mem_get(zt->mctx, sizeof(*params));
+	params = isc_mem_get(zt->mctx, 1, sizeof(*params));
 	*params = (struct zt_load_params){
 		.zt = zt,
 		.newonly = newonly,

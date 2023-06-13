@@ -253,7 +253,7 @@ dns_dnsrps_rewrite_init(librpz_emsg_t *emsg, dns_rpz_st_t *st,
 			isc_mem_t *mctx, bool have_rd) {
 	rpsdb_t *rpsdb = NULL;
 
-	rpsdb = isc_mem_get(mctx, sizeof(*rpsdb));
+	rpsdb = isc_mem_get(mctx, 1, sizeof(*rpsdb));
 	*rpsdb = (rpsdb_t){
 		.common = {
 			.methods = &rpsdb_db_methods,
@@ -266,11 +266,11 @@ dns_dnsrps_rewrite_init(librpz_emsg_t *emsg, dns_rpz_st_t *st,
 	if (!librpz->rsp_create(emsg, &rpsdb->rsp, NULL, rpzs->rps_client,
 				have_rd, false))
 	{
-		isc_mem_put(mctx, rpsdb, sizeof(*rpsdb));
+		isc_mem_put(mctx, rpsdb, 1, sizeof(*rpsdb));
 		return (DNS_R_SERVFAIL);
 	}
 	if (rpsdb->rsp == NULL) {
-		isc_mem_put(mctx, rpsdb, sizeof(*rpsdb));
+		isc_mem_put(mctx, rpsdb, 1, sizeof(*rpsdb));
 		return (DNS_R_DISALLOWED);
 	}
 
@@ -366,7 +366,7 @@ rpsdb_destroy(dns_db_t *db) {
 	librpz->rsp_detach(&rpsdb->rsp);
 	isc_refcount_destroy(&rpsdb->common.references);
 	rpsdb->common.impmagic = 0;
-	isc_mem_putanddetach(&rpsdb->common.mctx, rpsdb, sizeof(*rpsdb));
+	isc_mem_putanddetach(&rpsdb->common.mctx, rpsdb, 1, sizeof(*rpsdb));
 }
 
 static void
@@ -606,7 +606,7 @@ rpsdb_allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	REQUIRE(VALID_RPSDB(rpsdb));
 	REQUIRE(node == &rpsdb->origin_node || node == &rpsdb->data_node);
 
-	rpsdb_iter = isc_mem_get(rpsdb->common.mctx, sizeof(*rpsdb_iter));
+	rpsdb_iter = isc_mem_get(rpsdb->common.mctx, 1, sizeof(*rpsdb_iter));
 	*rpsdb_iter = ( rpsdb_rdatasetiter_t){
 
 		.common= {.magic = DNS_RDATASETITER_MAGIC,
@@ -798,7 +798,7 @@ rpsdb_rdatasetiter_destroy(dns_rdatasetiter_t **iteratorp) {
 
 	mctx = iterator->db->mctx;
 	dns_db_detachnode(iterator->db, &iterator->node);
-	isc_mem_put(mctx, iterator, sizeof(rpsdb_rdatasetiter_t));
+	isc_mem_put(mctx, iterator, 1, sizeof(rpsdb_rdatasetiter_t));
 }
 
 static isc_result_t

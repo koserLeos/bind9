@@ -52,7 +52,7 @@ dns_order_create(isc_mem_t *mctx, dns_order_t **orderp) {
 
 	REQUIRE(orderp != NULL && *orderp == NULL);
 
-	order = isc_mem_get(mctx, sizeof(*order));
+	order = isc_mem_get(mctx, 1, sizeof(*order));
 
 	ISC_LIST_INIT(order->ents);
 
@@ -78,7 +78,7 @@ dns_order_add(dns_order_t *order, const dns_name_t *name,
 		mode == DNS_RDATASETATTR_CYCLIC ||
 		mode == DNS_RDATASETATTR_NONE);
 
-	ent = isc_mem_get(order->mctx, sizeof(*ent));
+	ent = isc_mem_get(order->mctx, 1, sizeof(*ent));
 
 	dns_fixedname_init(&ent->name);
 	dns_name_copy(name, dns_fixedname_name(&ent->name));
@@ -143,8 +143,8 @@ dns_order_detach(dns_order_t **orderp) {
 		dns_order_ent_t *ent;
 		while ((ent = ISC_LIST_HEAD(order->ents)) != NULL) {
 			ISC_LIST_UNLINK(order->ents, ent, link);
-			isc_mem_put(order->mctx, ent, sizeof(*ent));
+			isc_mem_put(order->mctx, ent, 1, sizeof(*ent));
 		}
-		isc_mem_putanddetach(&order->mctx, order, sizeof(*order));
+		isc_mem_putanddetach(&order->mctx, order, 1, sizeof(*order));
 	}
 }

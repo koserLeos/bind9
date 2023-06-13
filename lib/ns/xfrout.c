@@ -235,7 +235,7 @@ ixfr_rrstream_create(isc_mem_t *mctx, const char *journal_filename,
 
 	INSIST(sp != NULL && *sp == NULL);
 
-	s = isc_mem_get(mctx, sizeof(*s));
+	s = isc_mem_get(mctx, 1, sizeof(*s));
 	s->common.mctx = NULL;
 	isc_mem_attach(mctx, &s->common.mctx);
 	s->common.methods = &ixfr_rrstream_methods;
@@ -279,7 +279,7 @@ ixfr_rrstream_destroy(rrstream_t **rsp) {
 	if (s->journal != NULL) {
 		dns_journal_destroy(&s->journal);
 	}
-	isc_mem_putanddetach(&s->common.mctx, s, sizeof(*s));
+	isc_mem_putanddetach(&s->common.mctx, s, 1, sizeof(*s));
 }
 
 static rrstream_methods_t ixfr_rrstream_methods = {
@@ -318,7 +318,7 @@ axfr_rrstream_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *ver,
 
 	INSIST(sp != NULL && *sp == NULL);
 
-	s = isc_mem_get(mctx, sizeof(*s));
+	s = isc_mem_get(mctx, 1, sizeof(*s));
 	s->common.mctx = NULL;
 	isc_mem_attach(mctx, &s->common.mctx);
 	s->common.methods = &axfr_rrstream_methods;
@@ -403,7 +403,7 @@ axfr_rrstream_destroy(rrstream_t **rsp) {
 	if (s->it_valid) {
 		dns_rriterator_destroy(&s->it);
 	}
-	isc_mem_putanddetach(&s->common.mctx, s, sizeof(*s));
+	isc_mem_putanddetach(&s->common.mctx, s, 1, sizeof(*s));
 }
 
 static rrstream_methods_t axfr_rrstream_methods = {
@@ -438,7 +438,7 @@ soa_rrstream_create(isc_mem_t *mctx, dns_db_t *db, dns_dbversion_t *ver,
 
 	INSIST(sp != NULL && *sp == NULL);
 
-	s = isc_mem_get(mctx, sizeof(*s));
+	s = isc_mem_get(mctx, 1, sizeof(*s));
 	s->common.mctx = NULL;
 	isc_mem_attach(mctx, &s->common.mctx);
 	s->common.methods = &soa_rrstream_methods;
@@ -482,7 +482,7 @@ soa_rrstream_destroy(rrstream_t **rsp) {
 	if (s->soa_tuple != NULL) {
 		dns_difftuple_free(&s->soa_tuple);
 	}
-	isc_mem_putanddetach(&s->common.mctx, s, sizeof(*s));
+	isc_mem_putanddetach(&s->common.mctx, s, 1, sizeof(*s));
 }
 
 static rrstream_methods_t soa_rrstream_methods = {
@@ -539,7 +539,7 @@ compound_rrstream_create(isc_mem_t *mctx, rrstream_t **soa_stream,
 
 	INSIST(sp != NULL && *sp == NULL);
 
-	s = isc_mem_get(mctx, sizeof(*s));
+	s = isc_mem_get(mctx, 1, sizeof(*s));
 	s->common.mctx = NULL;
 	isc_mem_attach(mctx, &s->common.mctx);
 	s->common.methods = &compound_rrstream_methods;
@@ -613,7 +613,7 @@ compound_rrstream_destroy(rrstream_t **rsp) {
 	s->components[0]->methods->destroy(&s->components[0]);
 	s->components[1]->methods->destroy(&s->components[1]);
 	s->components[2] = NULL; /* Copy of components[0]. */
-	isc_mem_putanddetach(&s->common.mctx, s, sizeof(*s));
+	isc_mem_putanddetach(&s->common.mctx, s, 1, sizeof(*s));
 }
 
 static rrstream_methods_t compound_rrstream_methods = {
@@ -1220,7 +1220,7 @@ xfrout_ctx_create(isc_mem_t *mctx, ns_client_t *client, unsigned int id,
 
 	REQUIRE(xfrp != NULL && *xfrp == NULL);
 
-	xfr = isc_mem_get(mctx, sizeof(*xfr));
+	xfr = isc_mem_get(mctx, 1, sizeof(*xfr));
 	*xfr = (xfrout_ctx_t){
 		.client = client,
 		.id = id,
@@ -1260,14 +1260,14 @@ xfrout_ctx_create(isc_mem_t *mctx, ns_client_t *client, unsigned int id,
 	 * because the message and RR headers would push the size of the
 	 * TCP message over the 65536 byte limit.
 	 */
-	mem = isc_mem_get(mctx, len);
+	mem = isc_mem_get(mctx, len, sizeof(char));
 	isc_buffer_init(&xfr->buf, mem, len);
 
 	/*
 	 * Allocate another temporary buffer for the compressed
 	 * response message.
 	 */
-	mem = isc_mem_get(mctx, len);
+	mem = isc_mem_get(mctx, len, sizeof(char));
 	isc_buffer_init(&xfr->txbuf, (char *)mem, len);
 	xfr->txmem = mem;
 	xfr->txmemlen = len;
@@ -1629,10 +1629,12 @@ xfrout_ctx_destroy(xfrout_ctx_t **xfrp) {
 		xfr->stream->methods->destroy(&xfr->stream);
 	}
 	if (xfr->buf.base != NULL) {
-		isc_mem_put(xfr->mctx, xfr->buf.base, xfr->buf.length);
+		isc_mem_put(xfr->mctx, xfr->buf.base, xfr->buf.length,
+			    sizeof(char));
 	}
 	if (xfr->txmem != NULL) {
-		isc_mem_put(xfr->mctx, xfr->txmem, xfr->txmemlen);
+		isc_mem_put(xfr->mctx, xfr->txmem, xfr->txmemlen,
+			    sizeof(char));
 	}
 	if (xfr->lasttsig != NULL) {
 		isc_buffer_free(&xfr->lasttsig);
@@ -1650,7 +1652,7 @@ xfrout_ctx_destroy(xfrout_ctx_t **xfrp) {
 		dns_db_detach(&xfr->db);
 	}
 
-	isc_mem_putanddetach(&xfr->mctx, xfr, sizeof(*xfr));
+	isc_mem_putanddetach(&xfr->mctx, xfr, 1, sizeof(*xfr));
 }
 
 static void

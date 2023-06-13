@@ -528,8 +528,8 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 	if (!nosigs) {
 		arraysize += dns_rdataset_count(&sigset);
 	}
-	wassignedby = isc_mem_get(mctx, arraysize * sizeof(bool));
-	nowsignedby = isc_mem_get(mctx, arraysize * sizeof(bool));
+	wassignedby = isc_mem_get(mctx, arraysize, sizeof(bool));
+	nowsignedby = isc_mem_get(mctx, arraysize, sizeof(bool));
 
 	for (i = 0; i < arraysize; i++) {
 		wassignedby[i] = nowsignedby[i] = false;
@@ -781,8 +781,8 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 		}
 	}
 
-	isc_mem_put(mctx, wassignedby, arraysize * sizeof(bool));
-	isc_mem_put(mctx, nowsignedby, arraysize * sizeof(bool));
+	isc_mem_put(mctx, wassignedby, arraysize, sizeof(bool));
+	isc_mem_put(mctx, nowsignedby, arraysize, sizeof(bool));
 }
 
 struct hashlist {
@@ -2778,7 +2778,7 @@ add_digest(char *str, size_t dlen, dns_kasp_digestlist_t *digests,
 		}
 	}
 
-	digest = isc_mem_get(mctx, sizeof(*digest));
+	digest = isc_mem_get(mctx, 1, sizeof(*digest));
 	digest->digest = alg;
 	ISC_LINK_INIT(digest, link);
 	ISC_LIST_APPEND(*digests, digest, link);
@@ -2897,7 +2897,7 @@ findkeys:
 	for (d = ISC_LIST_HEAD(digests); d != NULL; d = d_next) {
 		d_next = ISC_LIST_NEXT(d, link);
 		ISC_LIST_UNLINK(digests, d, link);
-		isc_mem_put(mctx, d, sizeof(*d));
+		isc_mem_put(mctx, d, 1, sizeof(*d));
 	}
 	INSIST(ISC_LIST_EMPTY(digests));
 }
@@ -3093,7 +3093,7 @@ writeset(const char *prefix, dns_rdatatype_t type) {
 	if (dsdir != NULL) {
 		filenamelen += strlen(dsdir) + 1;
 	}
-	filename = isc_mem_get(mctx, filenamelen);
+	filename = isc_mem_get(mctx, filenamelen, sizeof(char));
 	if (dsdir != NULL) {
 		snprintf(filename, filenamelen, "%s/", dsdir);
 	} else {
@@ -3176,7 +3176,7 @@ writeset(const char *prefix, dns_rdatatype_t type) {
 				 dns_masterformat_text, NULL);
 	check_result(result, "dns_master_dump");
 
-	isc_mem_put(mctx, filename, filenamelen);
+	isc_mem_put(mctx, filename, filenamelen, sizeof(char));
 
 	dns_db_closeversion(db, &dbversion, false);
 	dns_db_detach(&db);
@@ -4021,7 +4021,7 @@ main(int argc, char *argv[]) {
 		}
 	} else {
 		tempfilelen = strlen(output) + 20;
-		tempfile = isc_mem_get(mctx, tempfilelen);
+		tempfile = isc_mem_get(mctx, tempfilelen, sizeof(char));
 
 		result = isc_file_mktemplate(output, tempfile, tempfilelen);
 		check_result(result, "isc_file_mktemplate");
@@ -4120,7 +4120,7 @@ main(int argc, char *argv[]) {
 	}
 
 	if (tempfilelen != 0) {
-		isc_mem_put(mctx, tempfile, tempfilelen);
+		isc_mem_put(mctx, tempfile, tempfilelen, sizeof(char));
 	}
 
 	if (free_output) {

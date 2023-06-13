@@ -375,7 +375,8 @@ dst__privstruct_free(dst_private_t *priv, isc_mem_t *mctx) {
 			continue;
 		}
 		memset(priv->elements[i].data, 0, MAXFIELDSIZE);
-		isc_mem_put(mctx, priv->elements[i].data, MAXFIELDSIZE);
+		isc_mem_put(mctx, priv->elements[i].data, MAXFIELDSIZE,
+			    sizeof(char));
 	}
 	priv->nelements = 0;
 }
@@ -541,7 +542,7 @@ dst__privstruct_parse(dst_key_t *key, unsigned int alg, isc_lex_t *lex,
 
 		priv->elements[n].tag = tag;
 
-		data = isc_mem_get(mctx, MAXFIELDSIZE);
+		data = isc_mem_get(mctx, MAXFIELDSIZE, sizeof(char));
 
 		isc_buffer_init(&b, data, MAXFIELDSIZE);
 		ret = isc_base64_tobuffer(lex, &b, -1);
@@ -581,7 +582,7 @@ done:
 fail:
 	dst__privstruct_free(priv, mctx);
 	if (data != NULL) {
-		isc_mem_put(mctx, data, MAXFIELDSIZE);
+		isc_mem_put(mctx, data, MAXFIELDSIZE, sizeof(char));
 	}
 
 	return (ret);

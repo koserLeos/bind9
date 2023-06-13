@@ -495,7 +495,7 @@ printdata(dns_rdataset_t *rdataset, dns_name_t *owner) {
 	}
 
 	do {
-		t = isc_mem_get(mctx, len);
+		t = isc_mem_get(mctx, len, sizeof(char));
 
 		isc_buffer_init(&target, t, len);
 		if (short_form) {
@@ -540,7 +540,7 @@ printdata(dns_rdataset_t *rdataset, dns_name_t *owner) {
 		}
 
 		if (result == ISC_R_NOSPACE) {
-			isc_mem_put(mctx, t, len);
+			isc_mem_put(mctx, t, len, sizeof(char));
 			len += 1024;
 		} else if (result == ISC_R_NOMORE) {
 			result = ISC_R_SUCCESS;
@@ -554,7 +554,7 @@ printdata(dns_rdataset_t *rdataset, dns_name_t *owner) {
 
 cleanup:
 	if (t != NULL) {
-		isc_mem_put(mctx, t, len);
+		isc_mem_put(mctx, t, len, sizeof(char));
 	}
 }
 
@@ -949,7 +949,7 @@ addserver(dns_client_t *client) {
 		if (!use_ipv4) {
 			fatal("Use of IPv4 disabled by -6");
 		}
-		sa = isc_mem_get(mctx, sizeof(*sa));
+		sa = isc_mem_get(mctx, 1, sizeof(*sa));
 		ISC_LINK_INIT(sa, link);
 		isc_sockaddr_fromin(sa, &in4, destport);
 		ISC_LIST_APPEND(servers, sa, link);
@@ -957,7 +957,7 @@ addserver(dns_client_t *client) {
 		if (!use_ipv6) {
 			fatal("Use of IPv6 disabled by -4");
 		}
-		sa = isc_mem_get(mctx, sizeof(*sa));
+		sa = isc_mem_get(mctx, 1, sizeof(*sa));
 		ISC_LINK_INIT(sa, link);
 		isc_sockaddr_fromin6(sa, &in6, destport);
 		ISC_LIST_APPEND(servers, sa, link);
@@ -986,7 +986,7 @@ addserver(dns_client_t *client) {
 			{
 				continue;
 			}
-			sa = isc_mem_get(mctx, sizeof(*sa));
+			sa = isc_mem_get(mctx, 1, sizeof(*sa));
 			*sa = (isc_sockaddr_t){
 				.length = (unsigned int)cur->ai_addrlen,
 			};
@@ -1004,7 +1004,7 @@ cleanup:
 	while (!ISC_LIST_EMPTY(servers)) {
 		sa = ISC_LIST_HEAD(servers);
 		ISC_LIST_UNLINK(servers, sa, link);
-		isc_mem_put(mctx, sa, sizeof(*sa));
+		isc_mem_put(mctx, sa, 1, sizeof(*sa));
 	}
 
 	if (result != ISC_R_SUCCESS) {
@@ -1046,7 +1046,7 @@ findserver(dns_client_t *client) {
 
 		/* Incompatible protocol family */
 		ISC_LIST_UNLINK(*nameservers, sa, link);
-		isc_mem_put(mctx, sa, sizeof(*sa));
+		isc_mem_put(mctx, sa, 1, sizeof(*sa));
 	}
 
 	/* None found, use localhost */
@@ -1054,7 +1054,7 @@ findserver(dns_client_t *client) {
 		if (use_ipv4) {
 			struct in_addr localhost;
 			localhost.s_addr = htonl(INADDR_LOOPBACK);
-			sa = isc_mem_get(mctx, sizeof(*sa));
+			sa = isc_mem_get(mctx, 1, sizeof(*sa));
 			isc_sockaddr_fromin(sa, &localhost, destport);
 
 			ISC_LINK_INIT(sa, link);
@@ -1062,7 +1062,7 @@ findserver(dns_client_t *client) {
 		}
 
 		if (use_ipv6) {
-			sa = isc_mem_get(mctx, sizeof(*sa));
+			sa = isc_mem_get(mctx, 1, sizeof(*sa));
 			isc_sockaddr_fromin6(sa, &in6addr_loopback, destport);
 
 			ISC_LINK_INIT(sa, link);
@@ -1857,7 +1857,7 @@ resolve_cb(dns_client_t *client, const dns_name_t *query_name,
 	}
 
 	dns_client_freeresanswer(client, namelist);
-	isc_mem_put(mctx, namelist, sizeof(*namelist));
+	isc_mem_put(mctx, namelist, 1, sizeof(*namelist));
 
 	dns_client_detach(&client);
 
@@ -1874,7 +1874,7 @@ run_resolve(void *arg) {
 
 	UNUSED(arg);
 
-	namelist = isc_mem_get(mctx, sizeof(*namelist));
+	namelist = isc_mem_get(mctx, 1, sizeof(*namelist));
 	ISC_LIST_INIT(*namelist);
 
 	/* Construct QNAME */
@@ -1918,7 +1918,7 @@ cleanup:
 			 isc_result_totext(result));
 	}
 
-	isc_mem_put(mctx, namelist, sizeof(*namelist));
+	isc_mem_put(mctx, namelist, 1, sizeof(*namelist));
 	isc_loopmgr_shutdown(loopmgr);
 
 	dns_client_detach(&client);

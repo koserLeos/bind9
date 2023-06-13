@@ -224,7 +224,7 @@ main(int argc, char **argv) {
 		}
 		if (suffix != NULL) {
 			len = strlen(keyname) + strlen(suffix) + 2;
-			keybuf = isc_mem_get(mctx, len);
+			keybuf = isc_mem_get(mctx, len, sizeof(char));
 			snprintf(keybuf, len, "%s.%s", keyname, suffix);
 			keyname = (const char *)keybuf;
 		}
@@ -287,7 +287,7 @@ nsupdate -k <keyfile>\n");
 	}
 
 	if (keybuf != NULL) {
-		isc_mem_put(mctx, keybuf, len);
+		isc_mem_put(mctx, keybuf, len, sizeof(char));
 	}
 
 	if (show_final_mem) {

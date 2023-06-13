@@ -119,7 +119,7 @@ isc_mutex_thread(void *arg) {
 // ISC_RUN_TEST_IMPL(isc_mutex_benchmark)
 void run_test_isc_mutex_benchmark(void **state __attribute__((unused)));
 void run_test_isc_mutex_benchmark(void **state __attribute__((unused))) {
-	isc_thread_t *threads = isc_mem_get(mctx, sizeof(*threads) * workers);
+	isc_thread_t *threads = isc_mem_get(mctx, workers, sizeof(*threads));
 	isc_time_t ts1, ts2;
 	double t;
 	int dc;
@@ -205,7 +205,7 @@ void run_test_isc_mutex_benchmark(void **state __attribute__((unused))) {
 
 	isc_mutex_destroy(&lock);
 
-	isc_mem_put(mctx, threads, sizeof(*threads) * workers);
+	isc_mem_put(mctx, threads, workers, sizeof(*threads));
 }
 
 ISC_TEST_LIST_START

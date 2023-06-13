@@ -180,7 +180,7 @@ isc_interfaceiter_create(isc_mem_t *mctx, isc_interfaceiter_t **iterp) {
 	REQUIRE(iterp != NULL);
 	REQUIRE(*iterp == NULL);
 
-	iter = isc_mem_get(mctx, sizeof(*iter));
+	iter = isc_mem_get(mctx, 1, sizeof(*iter));
 
 	iter->mctx = mctx;
 	iter->buf = NULL;
@@ -227,7 +227,7 @@ failure:
 	if (iter->ifaddrs != NULL) { /* just in case */
 		freeifaddrs(iter->ifaddrs);
 	}
-	isc_mem_put(mctx, iter, sizeof(*iter));
+	isc_mem_put(mctx, iter, 1, sizeof(*iter));
 	return (result);
 }
 
@@ -509,9 +509,10 @@ isc_interfaceiter_destroy(isc_interfaceiter_t **iterp) {
 
 	internal_destroy(iter);
 	if (iter->buf != NULL) {
-		isc_mem_put(iter->mctx, iter->buf, iter->bufsize);
+		isc_mem_put(iter->mctx, iter->buf, iter->bufsize,
+			    sizeof(char));
 	}
 
 	iter->magic = 0;
-	isc_mem_put(iter->mctx, iter, sizeof(*iter));
+	isc_mem_put(iter->mctx, iter, 1, sizeof(*iter));
 }

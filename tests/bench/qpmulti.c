@@ -456,7 +456,8 @@ dispatch(struct bench_state *bctx) {
 	fini:;
 		isc_loopmgr_t *loopmgr = bctx->loopmgr;
 		dns_qpmulti_destroy(&bctx->multi);
-		isc_mem_putanddetach(&bctx->mctx, bctx, bctx->bytes);
+		isc_mem_putanddetach(&bctx->mctx, bctx, bctx->bytes,
+				     sizeof(char));
 		isc_loopmgr_shutdown(loopmgr);
 		return;
 
@@ -820,7 +821,8 @@ startup(void *arg) {
 	uint32_t nloops = isc_loopmgr_nloops(loopmgr);
 	size_t bytes = sizeof(struct bench_state) +
 		       sizeof(struct thread_args) * nloops;
-	struct bench_state *bctx = isc_mem_getx(mctx, bytes, ISC_MEM_ZERO);
+	struct bench_state *bctx = isc_mem_getx(mctx, bytes, sizeof(char),
+						ISC_MEM_ZERO);
 
 	*bctx = (struct bench_state){
 		.loopmgr = loopmgr,
@@ -863,7 +865,7 @@ stop_ticker(void *varg) {
 
 	isc_timer_stop(ticker->timer);
 	isc_timer_destroy(&ticker->timer);
-	isc_mem_putanddetach(&ticker->mctx, ticker, sizeof(*ticker));
+	isc_mem_putanddetach(&ticker->mctx, ticker, 1, sizeof(*ticker));
 }
 
 static void
@@ -871,7 +873,7 @@ setup_tickers(isc_mem_t *mctx, isc_loopmgr_t *loopmgr) {
 	uint32_t nloops = isc_loopmgr_nloops(loopmgr);
 	for (uint32_t i = 0; i < nloops; i++) {
 		isc_loop_t *loop = isc_loop_get(loopmgr, i);
-		struct ticker *ticker = isc_mem_getx(mctx, sizeof(*ticker),
+		struct ticker *ticker = isc_mem_getx(mctx, 1, sizeof(*ticker),
 						     ISC_MEM_ZERO);
 		isc_mem_attach(mctx, &ticker->mctx);
 		ticker->loopmgr = loopmgr;

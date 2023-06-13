@@ -3027,7 +3027,7 @@ destroy_listener(void *arg) {
 	dns_acl_detach(&listener->acl);
 
 	isc_mutex_destroy(&listener->lock);
-	isc_mem_putanddetach(&listener->mctx, listener, sizeof(*listener));
+	isc_mem_putanddetach(&listener->mctx, listener, 1, sizeof(*listener));
 }
 
 static isc_result_t
@@ -3041,7 +3041,7 @@ add_listener(named_server_t *server, named_statschannel_t **listenerp,
 	dns_acl_t *new_acl = NULL;
 	int pf;
 
-	listener = isc_mem_get(server->mctx, sizeof(*listener));
+	listener = isc_mem_get(server->mctx, 1, sizeof(*listener));
 	*listener = (named_statschannel_t){ .address = *addr };
 	ISC_LINK_INIT(listener, link);
 	isc_mutex_init(&listener->lock);
@@ -3138,7 +3138,7 @@ cleanup:
 		dns_acl_detach(&listener->acl);
 	}
 	isc_mutex_destroy(&listener->lock);
-	isc_mem_putanddetach(&listener->mctx, listener, sizeof(*listener));
+	isc_mem_putanddetach(&listener->mctx, listener, 1, sizeof(*listener));
 
 	return (result);
 }

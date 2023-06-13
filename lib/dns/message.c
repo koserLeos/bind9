@@ -205,7 +205,7 @@ msgblock_allocate(isc_mem_t *mctx, unsigned int sizeof_type,
 
 	length = sizeof(dns_msgblock_t) + (sizeof_type * count);
 
-	block = isc_mem_get(mctx, length);
+	block = isc_mem_get(mctx, length, sizeof(char));
 
 	block->count = count;
 	block->remaining = count;
@@ -250,7 +250,7 @@ msgblock_free(isc_mem_t *mctx, dns_msgblock_t *block,
 
 	length = sizeof(dns_msgblock_t) + (sizeof_type * block->count);
 
-	isc_mem_put(mctx, block, length);
+	isc_mem_put(mctx, block, length, sizeof(char));
 }
 
 /*
@@ -618,7 +618,7 @@ msgreset(dns_message_t *msg, bool everything) {
 	if (msg->query.base != NULL) {
 		if (msg->free_query != 0) {
 			isc_mem_put(msg->mctx, msg->query.base,
-				    msg->query.length);
+				    msg->query.length, sizeof(char));
 		}
 		msg->query.base = NULL;
 		msg->query.length = 0;
@@ -627,7 +627,7 @@ msgreset(dns_message_t *msg, bool everything) {
 	if (msg->saved.base != NULL) {
 		if (msg->free_saved != 0) {
 			isc_mem_put(msg->mctx, msg->saved.base,
-				    msg->saved.length);
+				    msg->saved.length, sizeof(char));
 		}
 		msg->saved.base = NULL;
 		msg->saved.length = 0;
@@ -714,7 +714,7 @@ dns_message_create(isc_mem_t *mctx, unsigned int intent, dns_message_t **msgp) {
 	REQUIRE(intent == DNS_MESSAGE_INTENTPARSE ||
 		intent == DNS_MESSAGE_INTENTRENDER);
 
-	m = isc_mem_get(mctx, sizeof(dns_message_t));
+	m = isc_mem_get(mctx, 1, sizeof(dns_message_t));
 	*m = (dns_message_t){ .from_to_wire = intent };
 	isc_mem_attach(mctx, &m->mctx);
 	msginit(m);
@@ -770,7 +770,7 @@ dns__message_destroy(dns_message_t *msg) {
 	isc_mempool_destroy(&msg->rdspool);
 	isc_refcount_destroy(&msg->refcount);
 	msg->magic = 0;
-	isc_mem_putanddetach(&msg->mctx, msg, sizeof(dns_message_t));
+	isc_mem_putanddetach(&msg->mctx, msg, 1, sizeof(dns_message_t));
 }
 
 void
@@ -1658,7 +1658,8 @@ dns_message_parse(dns_message_t *msg, isc_buffer_t *source,
 		isc_buffer_usedregion(&origsource, &msg->saved);
 	} else {
 		msg->saved.length = isc_buffer_usedlength(&origsource);
-		msg->saved.base = isc_mem_get(msg->mctx, msg->saved.length);
+		msg->saved.base = isc_mem_get(msg->mctx, msg->saved.length,
+					      sizeof(char));
 		memmove(msg->saved.base, isc_buffer_base(&origsource),
 			msg->saved.length);
 		msg->free_saved = 1;
@@ -4524,11 +4525,11 @@ logfmtpacket(dns_message_t *message, const char *description,
 	}
 
 	do {
-		buf = isc_mem_get(mctx, len);
+		buf = isc_mem_get(mctx, len, sizeof(char));
 		isc_buffer_init(&buffer, buf, len);
 		result = dns_message_totext(message, style, 0, &buffer);
 		if (result == ISC_R_NOSPACE) {
-			isc_mem_put(mctx, buf, len);
+			isc_mem_put(mctx, buf, len, sizeof(char));
 			len += 1024;
 		} else if (result == ISC_R_SUCCESS) {
 			isc_log_write(dns_lctx, category, module, level,
@@ -4539,7 +4540,7 @@ logfmtpacket(dns_message_t *message, const char *description,
 	} while (result == ISC_R_NOSPACE);
 
 	if (buf != NULL) {
-		isc_mem_put(mctx, buf, len);
+		isc_mem_put(mctx, buf, len, sizeof(char));
 	}
 }
 
@@ -4666,13 +4667,13 @@ dns_message_clonebuffer(dns_message_t *msg) {
 
 	if (msg->free_saved == 0 && msg->saved.base != NULL) {
 		msg->saved.base =
-			memmove(isc_mem_get(msg->mctx, msg->saved.length),
+			memmove(isc_mem_get(msg->mctx, msg->saved.length, sizeof(char)),
 				msg->saved.base, msg->saved.length);
 		msg->free_saved = 1;
 	}
 	if (msg->free_query == 0 && msg->query.base != NULL) {
 		msg->query.base =
-			memmove(isc_mem_get(msg->mctx, msg->query.length),
+			memmove(isc_mem_get(msg->mctx, msg->query.length, sizeof(char)),
 				msg->query.base, msg->query.length);
 		msg->free_query = 1;
 	}

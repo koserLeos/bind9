@@ -87,7 +87,7 @@ isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare, isc_heapindex_t idx,
 	REQUIRE(heapp != NULL && *heapp == NULL);
 	REQUIRE(compare != NULL);
 
-	heap = isc_mem_get(mctx, sizeof(*heap));
+	heap = isc_mem_get(mctx, 1, sizeof(*heap));
 	heap->magic = HEAP_MAGIC;
 	heap->size = 0;
 	heap->mctx = NULL;
@@ -115,11 +115,11 @@ isc_heap_destroy(isc_heap_t **heapp) {
 	REQUIRE(VALID_HEAP(heap));
 
 	if (heap->array != NULL) {
-		isc_mem_put(heap->mctx, heap->array,
-			    heap->size * sizeof(void *));
+		isc_mem_put(heap->mctx, heap->array, heap->size,
+			    sizeof(void *));
 	}
 	heap->magic = 0;
-	isc_mem_putanddetach(&heap->mctx, heap, sizeof(*heap));
+	isc_mem_putanddetach(&heap->mctx, heap, 1, sizeof(*heap));
 }
 
 static void
@@ -134,7 +134,7 @@ resize(isc_heap_t *heap) {
 
 	heap->size = new_size;
 	heap->array = isc_mem_reget(heap->mctx, heap->array, old_bytes,
-				    new_bytes);
+				    new_bytes, sizeof(char));
 }
 
 static void

@@ -90,7 +90,7 @@ dns__nta_destroy(dns__nta_t *nta) {
 		dns_resolver_destroyfetch(&nta->fetch);
 	}
 	isc_loop_detach(&nta->loop);
-	isc_mem_putanddetach(&nta->mctx, nta, sizeof(*nta));
+	isc_mem_putanddetach(&nta->mctx, nta, 1, sizeof(*nta));
 }
 
 ISC_REFCOUNT_IMPL(dns__nta, dns__nta_destroy);
@@ -113,7 +113,7 @@ dns_ntatable_create(dns_view_t *view, isc_loopmgr_t *loopmgr,
 
 	REQUIRE(ntatablep != NULL && *ntatablep == NULL);
 
-	ntatable = isc_mem_get(view->mctx, sizeof(*ntatable));
+	ntatable = isc_mem_get(view->mctx, 1, sizeof(*ntatable));
 	*ntatable = (dns_ntatable_t){
 		.loopmgr = loopmgr,
 	};
@@ -137,7 +137,7 @@ dns_ntatable_create(dns_view_t *view, isc_loopmgr_t *loopmgr,
 	return (ISC_R_SUCCESS);
 
 cleanup:
-	isc_mem_putanddetach(&ntatable->mctx, ntatable, sizeof(*ntatable));
+	isc_mem_putanddetach(&ntatable->mctx, ntatable, 1, sizeof(*ntatable));
 
 	return (result);
 }
@@ -149,7 +149,7 @@ dns__ntatable_destroy(dns_ntatable_t *ntatable) {
 	dns_rbt_destroy(&ntatable->table);
 	isc_rwlock_destroy(&ntatable->rwlock);
 	INSIST(ntatable->view == NULL);
-	isc_mem_putanddetach(&ntatable->mctx, ntatable, sizeof(*ntatable));
+	isc_mem_putanddetach(&ntatable->mctx, ntatable, 1, sizeof(*ntatable));
 }
 
 ISC_REFCOUNT_IMPL(dns_ntatable, dns__ntatable_destroy);
@@ -181,7 +181,7 @@ fetch_done(void *arg) {
 		dns_db_detach(&resp->db);
 	}
 
-	isc_mem_putanddetach(&resp->mctx, resp, sizeof(*resp));
+	isc_mem_putanddetach(&resp->mctx, resp, 1, sizeof(*resp));
 
 	switch (eresult) {
 	case ISC_R_SUCCESS:
@@ -277,7 +277,7 @@ nta_create(dns_ntatable_t *ntatable, const dns_name_t *name,
 	REQUIRE(VALID_NTATABLE(ntatable));
 	REQUIRE(target != NULL && *target == NULL);
 
-	nta = isc_mem_get(ntatable->mctx, sizeof(dns__nta_t));
+	nta = isc_mem_get(ntatable->mctx, 1, sizeof(dns__nta_t));
 	*nta = (dns__nta_t){
 		.ntatable = ntatable,
 		.magic = NTA_MAGIC,

@@ -141,7 +141,8 @@ void run_test_isc_mem_get_align(void **state __attribute__((unused))) {
 	/* Check different alignment sizes up to the page size */
 	for (alignment = sizeof(void *); alignment <= 4096; alignment *= 2) {
 		size_t size = alignment / 2 - 1;
-		ptr = isc_mem_getx(mctx, size, ISC_MEM_ALIGN(alignment));
+		ptr = isc_mem_getx(mctx, size, sizeof(char),
+				   ISC_MEM_ALIGN(alignment));
 
 		/* Check if the pointer is properly aligned */
 		aligned = (((uintptr_t)ptr / alignment) * alignment);
@@ -149,19 +150,20 @@ void run_test_isc_mem_get_align(void **state __attribute__((unused))) {
 
 		/* Check if we can resize to <alignment, 2*alignment> range */
 		ptr = isc_mem_regetx(mctx, ptr, size, size * 2 + alignment,
-				     ISC_MEM_ALIGN(alignment));
+				     sizeof(char), ISC_MEM_ALIGN(alignment));
 
 		/* Check if the pointer is still properly aligned */
 		aligned = (((uintptr_t)ptr / alignment) * alignment);
 		assert_ptr_equal(aligned, (uintptr_t)ptr);
 
-		isc_mem_putx(mctx, ptr, size * 2 + alignment,
+		isc_mem_putx(mctx, ptr, size * 2 + alignment, sizeof(char),
 			     ISC_MEM_ALIGN(alignment));
 
 		/* Check whether isc_mem_putanddetach_detach() also works */
 		isc_mem_create(&mctx2);
-		ptr = isc_mem_getx(mctx2, size, ISC_MEM_ALIGN(alignment));
-		isc_mem_putanddetachx(&mctx2, ptr, size,
+		ptr = isc_mem_getx(mctx2, size, sizeof(char),
+				   ISC_MEM_ALIGN(alignment));
+		isc_mem_putanddetachx(&mctx2, ptr, size, sizeof(char),
 				      ISC_MEM_ALIGN(alignment));
 	}
 }
@@ -206,22 +208,22 @@ void run_test_isc_mem_get_zero(void **state __attribute__((unused))) {
 
 	/* Skip the test if the memory is zeroed even in normal case */
 	zeroed = true;
-	ptr = isc_mem_get(mctx, sizeof(expected));
+	ptr = isc_mem_get(mctx, 1, sizeof(expected));
 	for (size_t i = 0; i < sizeof(expected); i++) {
 		if (ptr[i] != expected[i]) {
 			zeroed = false;
 			break;
 		}
 	}
-	isc_mem_put(mctx, ptr, sizeof(expected));
+	isc_mem_put(mctx, ptr, 1, sizeof(expected));
 	if (zeroed) {
 		skip();
 		return;
 	}
 
-	ptr = isc_mem_getx(mctx, sizeof(expected), ISC_MEM_ZERO);
+	ptr = isc_mem_getx(mctx, 1, sizeof(expected), ISC_MEM_ZERO);
 	assert_memory_equal(ptr, expected, sizeof(expected));
-	isc_mem_put(mctx, ptr, sizeof(expected));
+	isc_mem_put(mctx, ptr, 1, sizeof(expected));
 }
 
 // ISC_RUN_TEST_IMPL(isc_mem_allocate_zero)
@@ -233,14 +235,14 @@ void run_test_isc_mem_allocate_zero(void **state __attribute__((unused))) {
 
 	/* Skip the test if the memory is zeroed even in normal case */
 	zeroed = true;
-	ptr = isc_mem_get(mctx, sizeof(expected));
+	ptr = isc_mem_get(mctx, 1, sizeof(expected));
 	for (size_t i = 0; i < sizeof(expected); i++) {
 		if (ptr[i] != expected[i]) {
 			zeroed = false;
 			break;
 		}
 	}
-	isc_mem_put(mctx, ptr, sizeof(expected));
+	isc_mem_put(mctx, ptr, 1, sizeof(expected));
 	if (zeroed) {
 		skip();
 		return;
@@ -280,9 +282,9 @@ void run_test_isc_mem_zeroget(void **state __attribute__((unused)));
 void run_test_isc_mem_zeroget(void **state __attribute__((unused))) {
 	uint8_t *data = NULL;
 
-	data = isc_mem_get(mctx, 0);
+	data = isc_mem_get(mctx, 0, sizeof(char));
 	assert_non_null(data);
-	isc_mem_put(mctx, data, 0);
+	isc_mem_put(mctx, data, 0, sizeof(char));
 }
 
 #define REGET_INIT_SIZE	  1024
@@ -295,22 +297,23 @@ void run_test_isc_mem_reget(void **state __attribute__((unused))) {
 	uint8_t *data = NULL;
 
 	/* test that we can reget NULL */
-	data = isc_mem_reget(mctx, NULL, 0, REGET_INIT_SIZE);
+	data = isc_mem_reget(mctx, NULL, 0, REGET_INIT_SIZE, sizeof(char));
 	assert_non_null(data);
-	isc_mem_put(mctx, data, REGET_INIT_SIZE);
+	isc_mem_put(mctx, data, REGET_INIT_SIZE, sizeof(char));
 
 	/* test that we can re-get a zero-length allocation */
-	data = isc_mem_get(mctx, 0);
+	data = isc_mem_get(mctx, 0, sizeof(char));
 	assert_non_null(data);
 
-	data = isc_mem_reget(mctx, data, 0, REGET_INIT_SIZE);
+	data = isc_mem_reget(mctx, data, 0, REGET_INIT_SIZE, sizeof(char));
 	assert_non_null(data);
 
 	for (size_t i = 0; i < REGET_INIT_SIZE; i++) {
 		data[i] = i % UINT8_MAX;
 	}
 
-	data = isc_mem_reget(mctx, data, REGET_INIT_SIZE, REGET_GROW_SIZE);
+	data = isc_mem_reget(mctx, data, REGET_INIT_SIZE, REGET_GROW_SIZE,
+			     sizeof(char));
 	assert_non_null(data);
 
 	for (size_t i = 0; i < REGET_INIT_SIZE; i++) {
@@ -321,14 +324,15 @@ void run_test_isc_mem_reget(void **state __attribute__((unused))) {
 		data[i - 1] = i % UINT8_MAX;
 	}
 
-	data = isc_mem_reget(mctx, data, REGET_GROW_SIZE, REGET_SHRINK_SIZE);
+	data = isc_mem_reget(mctx, data, REGET_GROW_SIZE, REGET_SHRINK_SIZE,
+			     sizeof(char));
 	assert_non_null(data);
 
 	for (size_t i = REGET_SHRINK_SIZE; i > 0; i--) {
 		assert_int_equal(data[i - 1], i % UINT8_MAX);
 	}
 
-	isc_mem_put(mctx, data, REGET_SHRINK_SIZE);
+	isc_mem_put(mctx, data, REGET_SHRINK_SIZE, sizeof(char));
 }
 
 // ISC_RUN_TEST_IMPL(isc_mem_reallocatex)
@@ -390,10 +394,10 @@ void run_test_isc_mem_noflags(void **state __attribute__((unused))) {
 
 	isc_mem_debugging = 0;
 	isc_mem_create(&mctx2);
-	ptr = isc_mem_get(mctx2, 2048);
+	ptr = isc_mem_get(mctx2, 2048, sizeof(char));
 	assert_non_null(ptr);
 	isc__mem_printactive(mctx2, f);
-	isc_mem_put(mctx2, ptr, 2048);
+	isc_mem_put(mctx2, ptr, 2048, sizeof(char));
 	isc_mem_destroy(&mctx2);
 	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
 	isc_stdio_close(f);
@@ -426,10 +430,10 @@ void run_test_isc_mem_recordflag(void **state __attribute__((unused))) {
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	isc_mem_create(&mctx2);
-	ptr = isc_mem_get(mctx2, 2048);
+	ptr = isc_mem_get(mctx2, 2048, sizeof(char));
 	assert_non_null(ptr);
 	isc__mem_printactive(mctx2, f);
-	isc_mem_put(mctx2, ptr, 2048);
+	isc_mem_put(mctx2, ptr, 2048, sizeof(char));
 	isc_mem_destroy(&mctx2);
 	isc_stdio_close(f);
 
@@ -468,10 +472,10 @@ void run_test_isc_mem_traceflag(void **state __attribute__((unused))) {
 
 	isc_mem_debugging = ISC_MEM_DEBUGRECORD | ISC_MEM_DEBUGTRACE;
 	isc_mem_create(&mctx2);
-	ptr = isc_mem_get(mctx2, 2048);
+	ptr = isc_mem_get(mctx2, 2048, sizeof(char));
 	assert_non_null(ptr);
 	isc__mem_printactive(mctx2, f);
-	isc_mem_put(mctx2, ptr, 2048);
+	isc_mem_put(mctx2, ptr, 2048, sizeof(char));
 	isc_mem_destroy(&mctx2);
 	isc_mem_debugging = ISC_MEM_DEBUGRECORD;
 	isc_stdio_close(f);
@@ -525,10 +529,10 @@ mem_thread(void *arg) {
 
 	for (int i = 0; i < ITERS; i++) {
 		for (int j = 0; j < NUM_ITEMS; j++) {
-			items[j] = isc_mem_get(mctx2, size);
+			items[j] = isc_mem_get(mctx2, size, sizeof(char));
 		}
 		for (int j = 0; j < NUM_ITEMS; j++) {
-			isc_mem_put(mctx2, items[j], size);
+			isc_mem_put(mctx2, items[j], size, sizeof(char));
 		}
 	}
 

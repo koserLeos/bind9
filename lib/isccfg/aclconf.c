@@ -42,7 +42,7 @@ cfg_aclconfctx_create(isc_mem_t *mctx, cfg_aclconfctx_t **ret) {
 	REQUIRE(mctx != NULL);
 	REQUIRE(ret != NULL && *ret == NULL);
 
-	actx = isc_mem_get(mctx, sizeof(*actx));
+	actx = isc_mem_get(mctx, 1, sizeof(*actx));
 
 	isc_refcount_init(&actx->references, 1);
 
@@ -84,7 +84,7 @@ cfg_aclconfctx_detach(cfg_aclconfctx_t **actxp) {
 					nextincache);
 			dns_acl_detach(&dacl);
 		}
-		isc_mem_putanddetach(&actx->mctx, actx, sizeof(*actx));
+		isc_mem_putanddetach(&actx->mctx, actx, 1, sizeof(*actx));
 	}
 }
 

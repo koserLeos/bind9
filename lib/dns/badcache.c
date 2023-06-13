@@ -74,7 +74,7 @@ dns_badcache_init(isc_mem_t *mctx, unsigned int size, dns_badcache_t **bcp) {
 	REQUIRE(bcp != NULL && *bcp == NULL);
 	REQUIRE(mctx != NULL);
 
-	bc = isc_mem_get(mctx, sizeof(*bc));
+	bc = isc_mem_get(mctx, 1, sizeof(*bc));
 
 	*bc = (dns_badcache_t){
 		.size = size,
@@ -84,9 +84,9 @@ dns_badcache_init(isc_mem_t *mctx, unsigned int size, dns_badcache_t **bcp) {
 	isc_mem_attach(mctx, &bc->mctx);
 	isc_rwlock_init(&bc->lock);
 
-	bc->table = isc_mem_getx(bc->mctx, sizeof(bc->table[0]) * size,
+	bc->table = isc_mem_getx(bc->mctx, size, sizeof(bc->table[0]),
 				 ISC_MEM_ZERO);
-	bc->tlocks = isc_mem_getx(bc->mctx, sizeof(bc->tlocks[0]) * size,
+	bc->tlocks = isc_mem_getx(bc->mctx, size, sizeof(bc->tlocks[0]),
 				  ISC_MEM_ZERO);
 	for (i = 0; i < size; i++) {
 		isc_mutex_init(&bc->tlocks[i]);
@@ -114,9 +114,9 @@ dns_badcache_destroy(dns_badcache_t **bcp) {
 	for (i = 0; i < bc->size; i++) {
 		isc_mutex_destroy(&bc->tlocks[i]);
 	}
-	isc_mem_put(bc->mctx, bc->table, sizeof(bc->table[0]) * bc->size);
-	isc_mem_put(bc->mctx, bc->tlocks, sizeof(bc->tlocks[0]) * bc->size);
-	isc_mem_putanddetach(&bc->mctx, bc, sizeof(dns_badcache_t));
+	isc_mem_put(bc->mctx, bc->table, bc->size, sizeof(bc->table[0]));
+	isc_mem_put(bc->mctx, bc->tlocks, bc->size, sizeof(bc->tlocks[0]));
+	isc_mem_putanddetach(&bc->mctx, bc, 1, sizeof(dns_badcache_t));
 }
 
 static void
@@ -166,10 +166,10 @@ badcache_resize(dns_badcache_t *bc, isc_time_t *now) {
 	}
 	RUNTIME_CHECK(newsize > 0);
 
-	newtable = isc_mem_getx(bc->mctx, sizeof(dns_bcentry_t *) * newsize,
+	newtable = isc_mem_getx(bc->mctx, newsize, sizeof(dns_bcentry_t *),
 				ISC_MEM_ZERO);
 
-	newlocks = isc_mem_get(bc->mctx, sizeof(isc_mutex_t) * newsize);
+	newlocks = isc_mem_get(bc->mctx, newsize, sizeof(isc_mutex_t));
 
 	/* Copy existing mutexes */
 	for (i = 0; i < newsize && i < bc->size; i++) {
@@ -188,7 +188,7 @@ badcache_resize(dns_badcache_t *bc, isc_time_t *now) {
 		for (bad = bc->table[i]; bad != NULL; bad = next) {
 			next = bad->next;
 			if (isc_time_compare(&bad->expire, now) < 0) {
-				isc_mem_put(bc->mctx, bad, sizeof(*bad));
+				isc_mem_put(bc->mctx, bad, 1, sizeof(*bad));
 				atomic_fetch_sub_relaxed(&bc->count, 1);
 			} else {
 				bad->next = newtable[bad->hashval % newsize];
@@ -198,10 +198,10 @@ badcache_resize(dns_badcache_t *bc, isc_time_t *now) {
 		bc->table[i] = NULL;
 	}
 
-	isc_mem_put(bc->mctx, bc->tlocks, sizeof(isc_mutex_t) * bc->size);
+	isc_mem_put(bc->mctx, bc->tlocks, bc->size, sizeof(isc_mutex_t));
 	bc->tlocks = newlocks;
 
-	isc_mem_put(bc->mctx, bc->table, sizeof(*bc->table) * bc->size);
+	isc_mem_put(bc->mctx, bc->table, bc->size, sizeof(*bc->table));
 	bc->size = newsize;
 	bc->table = newtable;
 
@@ -244,7 +244,7 @@ dns_badcache_add(dns_badcache_t *bc, const dns_name_t *name,
 			} else {
 				prev->next = bad->next;
 			}
-			isc_mem_put(bc->mctx, bad, sizeof(*bad));
+			isc_mem_put(bc->mctx, bad, 1, sizeof(*bad));
 			atomic_fetch_sub_relaxed(&bc->count, 1);
 		} else {
 			prev = bad;
@@ -255,7 +255,7 @@ dns_badcache_add(dns_badcache_t *bc, const dns_name_t *name,
 		unsigned int count;
 		isc_buffer_t buffer;
 
-		bad = isc_mem_get(bc->mctx, sizeof(*bad));
+		bad = isc_mem_get(bc->mctx, 1, sizeof(*bad));
 		*bad = (dns_bcentry_t){ .type = type,
 					.hashval = hashval,
 					.expire = *expire,
@@ -329,7 +329,7 @@ dns_badcache_find(dns_badcache_t *bc, const dns_name_t *name,
 				bc->table[hash] = bad->next;
 			}
 
-			isc_mem_put(bc->mctx, bad, sizeof(*bad));
+			isc_mem_put(bc->mctx, bad, 1, sizeof(*bad));
 			atomic_fetch_sub(&bc->count, 1);
 			continue;
 		}
@@ -353,7 +353,7 @@ skip:
 		bad = bc->table[i];
 		if (bad != NULL && isc_time_compare(&bad->expire, now) < 0) {
 			bc->table[i] = bad->next;
-			isc_mem_put(bc->mctx, bad, sizeof(*bad));
+			isc_mem_put(bc->mctx, bad, 1, sizeof(*bad));
 			atomic_fetch_sub_relaxed(&bc->count, 1);
 		}
 		UNLOCK(&bc->tlocks[i]);
@@ -374,7 +374,7 @@ dns_badcache_flush(dns_badcache_t *bc) {
 	for (i = 0; atomic_load_relaxed(&bc->count) > 0 && i < bc->size; i++) {
 		for (entry = bc->table[i]; entry != NULL; entry = next) {
 			next = entry->next;
-			isc_mem_put(bc->mctx, entry, sizeof(*entry));
+			isc_mem_put(bc->mctx, entry, 1, sizeof(*entry));
 			atomic_fetch_sub_relaxed(&bc->count, 1);
 		}
 		bc->table[i] = NULL;
@@ -408,7 +408,7 @@ dns_badcache_flushname(dns_badcache_t *bc, const dns_name_t *name) {
 				prev->next = bad->next;
 			}
 
-			isc_mem_put(bc->mctx, bad, sizeof(*bad));
+			isc_mem_put(bc->mctx, bad, 1, sizeof(*bad));
 			atomic_fetch_sub_relaxed(&bc->count, 1);
 		} else {
 			prev = bad;
@@ -449,7 +449,7 @@ dns_badcache_flushtree(dns_badcache_t *bc, const dns_name_t *name) {
 					prev->next = bad->next;
 				}
 
-				isc_mem_put(bc->mctx, bad, sizeof(*bad));
+				isc_mem_put(bc->mctx, bad, 1, sizeof(*bad));
 				atomic_fetch_sub_relaxed(&bc->count, 1);
 			} else {
 				prev = bad;
@@ -492,7 +492,7 @@ dns_badcache_print(dns_badcache_t *bc, const char *cachename, FILE *fp) {
 					bc->table[i] = bad->next;
 				}
 
-				isc_mem_put(bc->mctx, bad, sizeof(*bad));
+				isc_mem_put(bc->mctx, bad, 1, sizeof(*bad));
 				atomic_fetch_sub_relaxed(&bc->count, 1);
 				continue;
 			}

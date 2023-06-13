@@ -165,8 +165,9 @@ client_extendederror_reset(ns_client_t *client) {
 		return;
 	}
 	isc_mem_put(client->manager->mctx, client->ede->value,
-		    client->ede->length);
-	isc_mem_put(client->manager->mctx, client->ede, sizeof(dns_ednsopt_t));
+		    client->ede->length, sizeof(char));
+	isc_mem_put(client->manager->mctx, client->ede, 1,
+		    sizeof(dns_ednsopt_t));
 	client->ede = NULL;
 }
 
@@ -203,10 +204,12 @@ ns_client_extendederror(ns_client_t *client, uint16_t code, const char *text) {
 		}
 	}
 
-	client->ede = isc_mem_get(client->manager->mctx, sizeof(dns_ednsopt_t));
+	client->ede = isc_mem_get(client->manager->mctx, 1,
+				  sizeof(dns_ednsopt_t));
 	client->ede->code = DNS_OPT_EDE;
 	client->ede->length = len;
-	client->ede->value = isc_mem_get(client->manager->mctx, len);
+	client->ede->value = isc_mem_get(client->manager->mctx, len,
+					 sizeof(char));
 	memmove(client->ede->value, ede, len);
 };
 
@@ -330,7 +333,8 @@ client_allocsendbuf(ns_client_t *client, isc_buffer_t *buffer,
 	if (TCP_CLIENT(client)) {
 		INSIST(client->tcpbuf == NULL);
 		client->tcpbuf = isc_mem_get(client->manager->mctx,
-					     NS_CLIENT_TCP_BUFFER_SIZE);
+					     NS_CLIENT_TCP_BUFFER_SIZE,
+					     sizeof(char));
 		data = client->tcpbuf;
 		isc_buffer_init(buffer, data, NS_CLIENT_TCP_BUFFER_SIZE);
 	} else {
@@ -434,7 +438,7 @@ ns_client_sendraw(ns_client_t *client, dns_message_t *message) {
 done:
 	if (client->tcpbuf != NULL) {
 		isc_mem_put(client->manager->mctx, client->tcpbuf,
-			    NS_CLIENT_TCP_BUFFER_SIZE);
+			    NS_CLIENT_TCP_BUFFER_SIZE, sizeof(char));
 		client->tcpbuf = NULL;
 	}
 
@@ -719,7 +723,7 @@ renderend:
 cleanup:
 	if (client->tcpbuf != NULL) {
 		isc_mem_put(client->manager->mctx, client->tcpbuf,
-			    NS_CLIENT_TCP_BUFFER_SIZE);
+			    NS_CLIENT_TCP_BUFFER_SIZE, sizeof(char));
 		client->tcpbuf = NULL;
 	}
 
@@ -1450,7 +1454,8 @@ process_keytag(ns_client_t *client, isc_buffer_t *buf, size_t optlen) {
 		return (ISC_R_SUCCESS);
 	}
 
-	client->keytag = isc_mem_get(client->manager->mctx, optlen);
+	client->keytag = isc_mem_get(client->manager->mctx, optlen,
+				     sizeof(char));
 	{
 		client->keytag_len = (uint16_t)optlen;
 		memmove(client->keytag, isc_buffer_current(buf), optlen);
@@ -1609,12 +1614,12 @@ ns__client_reset_cb(void *client0) {
 	ns_client_endrequest(client);
 	if (client->tcpbuf != NULL) {
 		isc_mem_put(client->manager->mctx, client->tcpbuf,
-			    NS_CLIENT_TCP_BUFFER_SIZE);
+			    NS_CLIENT_TCP_BUFFER_SIZE, sizeof(char));
 	}
 
 	if (client->keytag != NULL) {
 		isc_mem_put(client->manager->mctx, client->keytag,
-			    client->keytag_len);
+			    client->keytag_len, sizeof(char));
 		client->keytag_len = 0;
 	}
 
@@ -1645,7 +1650,8 @@ ns__client_put_cb(void *client0) {
 
 	client->magic = 0;
 
-	isc_mem_put(manager->mctx, client->sendbuf, NS_CLIENT_SEND_BUFFER_SIZE);
+	isc_mem_put(manager->mctx, client->sendbuf,
+		    NS_CLIENT_SEND_BUFFER_SIZE, sizeof(char));
 	if (client->opt != NULL) {
 		INSIST(dns_rdataset_isassociated(client->opt));
 		dns_rdataset_disassociate(client->opt);
@@ -1660,7 +1666,7 @@ ns__client_put_cb(void *client0) {
 	 */
 	isc_mutex_destroy(&client->query.fetchlock);
 
-	isc_mem_put(manager->mctx, client, sizeof(*client));
+	isc_mem_put(manager->mctx, client, 1, sizeof(*client));
 
 	ns_clientmgr_detach(&manager);
 }
@@ -1722,7 +1728,7 @@ ns_client_request(isc_nmhandle_t *handle, isc_result_t eresult,
 		INSIST(VALID_MANAGER(clientmgr));
 		INSIST(clientmgr->tid == isc_tid());
 
-		client = isc_mem_get(clientmgr->mctx, sizeof(*client));
+		client = isc_mem_get(clientmgr->mctx, 1, sizeof(*client));
 
 		result = ns__client_setup(client, clientmgr, true);
 		if (result != ISC_R_SUCCESS) {
@@ -2303,7 +2309,8 @@ ns__client_setup(ns_client_t *client, ns_clientmgr_t *mgr, bool new) {
 				   DNS_MESSAGE_INTENTPARSE, &client->message);
 
 		client->sendbuf = isc_mem_get(client->manager->mctx,
-					      NS_CLIENT_SEND_BUFFER_SIZE);
+					      NS_CLIENT_SEND_BUFFER_SIZE,
+					      sizeof(char));
 		/*
 		 * Set magic earlier than usual because ns_query_init()
 		 * and the functions it calls will require it.
@@ -2351,7 +2358,7 @@ ns__client_setup(ns_client_t *client, ns_clientmgr_t *mgr, bool new) {
 cleanup:
 	if (client->sendbuf != NULL) {
 		isc_mem_put(client->manager->mctx, client->sendbuf,
-			    NS_CLIENT_SEND_BUFFER_SIZE);
+			    NS_CLIENT_SEND_BUFFER_SIZE, sizeof(char));
 	}
 
 	if (client->message != NULL) {
@@ -2386,7 +2393,7 @@ clientmgr_destroy_cb(void *arg) {
 
 	ns_server_detach(&manager->sctx);
 
-	isc_mem_putanddetach(&manager->mctx, manager, sizeof(*manager));
+	isc_mem_putanddetach(&manager->mctx, manager, 1, sizeof(*manager));
 }
 
 static void
@@ -2405,7 +2412,7 @@ ns_clientmgr_create(ns_server_t *sctx, isc_loopmgr_t *loopmgr,
 	isc_mem_create(&mctx);
 	isc_mem_setname(mctx, "clientmgr");
 
-	manager = isc_mem_get(mctx, sizeof(*manager));
+	manager = isc_mem_get(mctx, 1, sizeof(*manager));
 	*manager = (ns_clientmgr_t){
 		.magic = 0,
 		.mctx = mctx,
@@ -2631,12 +2638,13 @@ ns_client_dumpmessage(ns_client_t *client, const char *reason) {
 	 */
 
 	do {
-		buf = isc_mem_get(client->manager->mctx, len);
+		buf = isc_mem_get(client->manager->mctx, len, sizeof(char));
 		isc_buffer_init(&buffer, buf, len);
 		result = dns_message_totext(
 			client->message, &dns_master_style_debug, 0, &buffer);
 		if (result == ISC_R_NOSPACE) {
-			isc_mem_put(client->manager->mctx, buf, len);
+			isc_mem_put(client->manager->mctx, buf, len,
+				    sizeof(char));
 			len += 1024;
 		} else if (result == ISC_R_SUCCESS) {
 			ns_client_log(client, NS_LOGCATEGORY_CLIENT,
@@ -2647,7 +2655,7 @@ ns_client_dumpmessage(ns_client_t *client, const char *reason) {
 	} while (result == ISC_R_NOSPACE);
 
 	if (buf != NULL) {
-		isc_mem_put(client->manager->mctx, buf, len);
+		isc_mem_put(client->manager->mctx, buf, len, sizeof(char));
 	}
 }
 
@@ -2874,7 +2882,7 @@ ns_client_newdbversion(ns_client_t *client, unsigned int n) {
 	ns_dbversion_t *dbversion = NULL;
 
 	for (i = 0; i < n; i++) {
-		dbversion = isc_mem_get(client->manager->mctx,
+		dbversion = isc_mem_get(client->manager->mctx, 1,
 					sizeof(*dbversion));
 		*dbversion = (ns_dbversion_t){ 0 };
 		ISC_LIST_INITANDAPPEND(client->query.freeversions, dbversion,

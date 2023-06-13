@@ -238,7 +238,7 @@ main(int argc, char **argv) {
 		if (chrootdir != NULL) {
 			char *buf;
 			len = strlen(chrootdir) + strlen(keyfile) + 2;
-			buf = isc_mem_get(mctx, len);
+			buf = isc_mem_get(mctx, len, sizeof(char));
 			snprintf(buf, len, "%s%s%s", chrootdir,
 				 (*keyfile != '/') ? "/" : "", keyfile);
 
@@ -246,7 +246,7 @@ main(int argc, char **argv) {
 			if (!quiet) {
 				printf("wrote key file \"%s\"\n", buf);
 			}
-			isc_mem_put(mctx, buf, len);
+			isc_mem_put(mctx, buf, len, sizeof(char));
 		}
 	} else {
 		printf("\

@@ -186,7 +186,7 @@ isc_netmgr_create(isc_mem_t *mctx, isc_loopmgr_t *loopmgr, isc_nm_t **netmgrp) {
 			    uv_version_string(), UV_VERSION_STRING);
 	}
 
-	netmgr = isc_mem_get(mctx, sizeof(*netmgr));
+	netmgr = isc_mem_get(mctx, 1, sizeof(*netmgr));
 	*netmgr = (isc_nm_t){
 		.loopmgr = loopmgr,
 		.nloops = isc_loopmgr_nloops(loopmgr),
@@ -217,7 +217,7 @@ isc_netmgr_create(isc_mem_t *mctx, isc_loopmgr_t *loopmgr, isc_nm_t **netmgrp) {
 	atomic_init(&netmgr->advertised, 30000);
 
 	netmgr->workers =
-		isc_mem_get(mctx, netmgr->nloops * sizeof(netmgr->workers[0]));
+		isc_mem_get(mctx, netmgr->nloops, sizeof(netmgr->workers[0]));
 
 	isc_loopmgr_teardown(loopmgr, netmgr_teardown, netmgr);
 
@@ -229,7 +229,8 @@ isc_netmgr_create(isc_mem_t *mctx, isc_loopmgr_t *loopmgr, isc_nm_t **netmgrp) {
 
 		*worker = (isc__networker_t){
 			.recvbuf = isc_mem_get(loop->mctx,
-					       ISC_NETMGR_RECVBUF_SIZE),
+					       ISC_NETMGR_RECVBUF_SIZE,
+					       sizeof(char)),
 			.active_sockets = ISC_LIST_INITIALIZER,
 		};
 
@@ -268,9 +269,9 @@ nm_destroy(isc_nm_t **mgr0) {
 
 	isc_mutex_destroy(&mgr->lock);
 
-	isc_mem_put(mgr->mctx, mgr->workers,
-		    mgr->nloops * sizeof(mgr->workers[0]));
-	isc_mem_putanddetach(&mgr->mctx, mgr, sizeof(*mgr));
+	isc_mem_put(mgr->mctx, mgr->workers, mgr->nloops,
+		    sizeof(mgr->workers[0]));
+	isc_mem_putanddetach(&mgr->mctx, mgr, 1, sizeof(*mgr));
 }
 
 void
@@ -465,7 +466,7 @@ nmsocket_cleanup(void *arg) {
 		 * Now free them.
 		 */
 		isc_mem_put(sock->worker->mctx, sock->children,
-			    sock->nchildren * sizeof(*sock));
+			    sock->nchildren, sizeof(*sock));
 		sock->children = NULL;
 		sock->nchildren = 0;
 	}
@@ -507,7 +508,7 @@ nmsocket_cleanup(void *arg) {
 
 		ISC_LIST_UNLINK(worker->active_sockets, sock, active_link);
 
-		isc_mem_put(worker->mctx, sock, sizeof(*sock));
+		isc_mem_put(worker->mctx, sock, 1, sizeof(*sock));
 	}
 
 	isc__networker_detach(&worker);
@@ -794,7 +795,7 @@ isc__nm_free_uvbuf(isc_nmsocket_t *sock, const uv_buf_t *buf) {
 
 static isc_nmhandle_t *
 alloc_handle(isc_nmsocket_t *sock) {
-	isc_nmhandle_t *handle = isc_mem_get(sock->worker->mctx,
+	isc_nmhandle_t *handle = isc_mem_get(sock->worker->mctx, 1,
 					     sizeof(isc_nmhandle_t));
 
 	*handle = (isc_nmhandle_t){
@@ -910,7 +911,7 @@ nmhandle_free(isc_nmsocket_t *sock, isc_nmhandle_t *handle) {
 		handle->dofree(handle->opaque);
 	}
 
-	isc_mem_put(sock->worker->mctx, handle, sizeof(*handle));
+	isc_mem_put(sock->worker->mctx, handle, 1, sizeof(*handle));
 }
 
 static void
@@ -2207,7 +2208,7 @@ settlsctx_cb(void *arg) {
 	isc_tlsctx_t *tlsctx = data->tlsctx;
 	isc__networker_t *worker = &listener->worker->netmgr->workers[tid];
 
-	isc_mem_put(worker->loop->mctx, data, sizeof(*data));
+	isc_mem_put(worker->loop->mctx, data, 1, sizeof(*data));
 
 	REQUIRE(listener->type == isc_nm_tlslistener);
 
@@ -2225,8 +2226,9 @@ set_tlsctx_workers(isc_nmsocket_t *listener, isc_tlsctx_t *tlsctx) {
 	for (size_t i = 0; i < nworkers; i++) {
 		isc__networker_t *worker =
 			&listener->worker->netmgr->workers[i];
-		settlsctx_data_t *data = isc_mem_getx(
-			worker->loop->mctx, sizeof(*data), ISC_MEM_ZERO);
+		settlsctx_data_t *data = isc_mem_getx(worker->loop->mctx, 1,
+						      sizeof(*data),
+						      ISC_MEM_ZERO);
 
 		isc__nmsocket_attach(listener, &data->listener);
 		isc_tlsctx_attach(tlsctx, &data->tlsctx);
@@ -2315,7 +2317,7 @@ isc__networker_destroy(isc__networker_t *worker) {
 	isc_mempool_destroy(&worker->uvreq_pool);
 
 	isc_mem_putanddetach(&worker->mctx, worker->recvbuf,
-			     ISC_NETMGR_RECVBUF_SIZE);
+			     ISC_NETMGR_RECVBUF_SIZE, sizeof(char));
 	isc_nm_detach(&netmgr);
 }
 
