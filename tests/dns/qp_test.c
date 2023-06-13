@@ -38,9 +38,7 @@
 #include <tests/dns.h>
 #include <tests/qp.h>
 
-// ISC_RUN_TEST_IMPL(qpkey_name)
-void run_test_qpkey_name(void **state __attribute__((unused)));
-void run_test_qpkey_name(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(qpkey_name) {
 	struct {
 		const char *namestr;
 		uint8_t key[512];
@@ -95,9 +93,7 @@ void run_test_qpkey_name(void **state __attribute__((unused))) {
 	}
 }
 
-// ISC_RUN_TEST_IMPL(qpkey_sort)
-void run_test_qpkey_sort(void **state __attribute__((unused)));
-void run_test_qpkey_sort(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(qpkey_sort) {
 	struct {
 		const char *namestr;
 		dns_name_t *name;
@@ -179,9 +175,7 @@ const dns_qpmethods_t qpiter_methods = {
 	getname,
 };
 
-// ISC_RUN_TEST_IMPL(qpiter)
-void run_test_qpiter(void **state __attribute__((unused)));
-void run_test_qpiter(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(qpiter) {
 	dns_qp_t *qp = NULL;
 	uint32_t item[ITER_ITEMS] = { 0 };
 
@@ -291,9 +285,7 @@ insert_str(dns_qp_t *qp, const char *str) {
 	assert_int_equal(result, ISC_R_SUCCESS);
 }
 
-// ISC_RUN_TEST_IMPL(partialmatch)
-void run_test_partialmatch(void **state __attribute__((unused)));
-void run_test_partialmatch(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(partialmatch) {
 	isc_result_t result;
 	dns_qp_t *qp = NULL;
 

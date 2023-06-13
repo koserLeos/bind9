@@ -35,9 +35,7 @@
 #include <tests/ns.h>
 
 /* test that ns_listenlist_default() works */
-// ISC_RUN_TEST_IMPL(ns_listenlist_default)
-void run_test_ns_listenlist_default(void **state __attribute__((unused)));
-void run_test_ns_listenlist_default(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(ns_listenlist_default) {
 	isc_result_t result;
 	in_port_t port = 5300 + isc_random8();
 	ns_listenlist_t *list = NULL;

@@ -31,9 +31,7 @@
 #include <tests/isc.h>
 
 /* test sockaddr hash */
-// ISC_RUN_TEST_IMPL(sockaddr_hash)
-void run_test_sockaddr_hash(void **state __attribute__((unused)));
-void run_test_sockaddr_hash(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(sockaddr_hash) {
 	isc_sockaddr_t addr;
 	struct in_addr in;
 	struct in6_addr in6;
@@ -58,9 +56,7 @@ void run_test_sockaddr_hash(void **state __attribute__((unused))) {
 }
 
 /* test isc_sockaddr_isnetzero() */
-// ISC_RUN_TEST_IMPL(sockaddr_isnetzero)
-void run_test_sockaddr_isnetzero(void **state __attribute__((unused)));
-void run_test_sockaddr_isnetzero(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(sockaddr_isnetzero) {
 	isc_sockaddr_t addr;
 	struct in_addr in;
 	struct in6_addr in6;
@@ -114,9 +110,7 @@ void run_test_sockaddr_isnetzero(void **state __attribute__((unused))) {
  * test that isc_sockaddr_eqaddrprefix() returns true when prefixes of a
  * and b are equal, and false when they are not equal
  */
-// ISC_RUN_TEST_IMPL(sockaddr_eqaddrprefix)
-void run_test_sockaddr_eqaddrprefix(void **state __attribute__((unused)));
-void run_test_sockaddr_eqaddrprefix(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(sockaddr_eqaddrprefix) {
 	struct in_addr ina_a;
 	struct in_addr ina_b;
 	struct in_addr ina_c;

@@ -47,9 +47,7 @@
 #define MP2_FILLCNT 25
 
 /* general memory system tests */
-// ISC_RUN_TEST_IMPL(isc_mem_get)
-void run_test_isc_mem_get(void **state __attribute__((unused)));
-void run_test_isc_mem_get(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_get) {
 	void *items1[50];
 	void *items2[50];
 	void *tmp;
@@ -130,9 +128,7 @@ void run_test_isc_mem_get(void **state __attribute__((unused))) {
 
 #if defined(HAVE_MALLOC_NP_H) || defined(HAVE_JEMALLOC)
 /* aligned memory system tests */
-// ISC_RUN_TEST_IMPL(isc_mem_get_align)
-void run_test_isc_mem_get_align(void **state __attribute__((unused)));
-void run_test_isc_mem_get_align(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_get_align) {
 	isc_mem_t *mctx2 = NULL;
 	void *ptr;
 	size_t alignment;
@@ -169,9 +165,7 @@ void run_test_isc_mem_get_align(void **state __attribute__((unused))) {
 }
 
 /* aligned memory system tests */
-// ISC_RUN_TEST_IMPL(isc_mem_allocate_align)
-void run_test_isc_mem_allocate_align(void **state __attribute__((unused)));
-void run_test_isc_mem_allocate_align(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_allocate_align) {
 	void *ptr;
 	size_t alignment;
 	uintptr_t aligned;
@@ -199,9 +193,7 @@ void run_test_isc_mem_allocate_align(void **state __attribute__((unused))) {
 #endif /* defined(HAVE_MALLOC_NP_H) || defined(HAVE_JEMALLOC) */
 
 /* zeroed memory system tests */
-// ISC_RUN_TEST_IMPL(isc_mem_get_zero)
-void run_test_isc_mem_get_zero(void **state __attribute__((unused)));
-void run_test_isc_mem_get_zero(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_get_zero) {
 	uint8_t *ptr;
 	bool zeroed;
 	uint8_t expected[4096] = { 0 };
@@ -226,9 +218,7 @@ void run_test_isc_mem_get_zero(void **state __attribute__((unused))) {
 	isc_mem_put(mctx, ptr, 1, sizeof(expected));
 }
 
-// ISC_RUN_TEST_IMPL(isc_mem_allocate_zero)
-void run_test_isc_mem_allocate_zero(void **state __attribute__((unused)));
-void run_test_isc_mem_allocate_zero(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_allocate_zero) {
 	uint8_t *ptr;
 	bool zeroed;
 	uint8_t expected[4096] = { 0 };
@@ -254,9 +244,7 @@ void run_test_isc_mem_allocate_zero(void **state __attribute__((unused))) {
 }
 
 /* test InUse calculation */
-// ISC_RUN_TEST_IMPL(isc_mem_inuse)
-void run_test_isc_mem_inuse(void **state __attribute__((unused)));
-void run_test_isc_mem_inuse(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_inuse) {
 	isc_mem_t *mctx2 = NULL;
 	size_t before, after;
 	ssize_t diff;
@@ -277,9 +265,7 @@ void run_test_isc_mem_inuse(void **state __attribute__((unused))) {
 	isc_mem_destroy(&mctx2);
 }
 
-// ISC_RUN_TEST_IMPL(isc_mem_zeroget)
-void run_test_isc_mem_zeroget(void **state __attribute__((unused)));
-void run_test_isc_mem_zeroget(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_zeroget) {
 	uint8_t *data = NULL;
 
 	data = isc_mem_get(mctx, 0, sizeof(char));
@@ -291,9 +277,7 @@ void run_test_isc_mem_zeroget(void **state __attribute__((unused))) {
 #define REGET_GROW_SIZE	  2048
 #define REGET_SHRINK_SIZE 512
 
-// ISC_RUN_TEST_IMPL(isc_mem_reget)
-void run_test_isc_mem_reget(void **state __attribute__((unused)));
-void run_test_isc_mem_reget(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_reget) {
 	uint8_t *data = NULL;
 
 	/* test that we can reget NULL */
@@ -335,9 +319,7 @@ void run_test_isc_mem_reget(void **state __attribute__((unused))) {
 	isc_mem_put(mctx, data, REGET_SHRINK_SIZE, sizeof(char));
 }
 
-// ISC_RUN_TEST_IMPL(isc_mem_reallocatex)
-void run_test_isc_mem_reallocatex(void **state __attribute__((unused)));
-void run_test_isc_mem_reallocatex(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_reallocatex) {
 	uint8_t *data = NULL;
 
 	/* test that we can reallocate NULL */
@@ -380,9 +362,7 @@ void run_test_isc_mem_reallocatex(void **state __attribute__((unused))) {
 #if ISC_MEM_TRACKLINES
 
 /* test mem with no flags */
-// ISC_RUN_TEST_IMPL(isc_mem_noflags)
-void run_test_isc_mem_noflags(void **state __attribute__((unused)));
-void run_test_isc_mem_noflags(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_noflags) {
 	isc_result_t result;
 	isc_mem_t *mctx2 = NULL;
 	char buf[4096], *p;
@@ -417,9 +397,7 @@ void run_test_isc_mem_noflags(void **state __attribute__((unused))) {
 }
 
 /* test mem with record flag */
-// ISC_RUN_TEST_IMPL(isc_mem_recordflag)
-void run_test_isc_mem_recordflag(void **state __attribute__((unused)));
-void run_test_isc_mem_recordflag(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_recordflag) {
 	isc_result_t result;
 	isc_mem_t *mctx2 = NULL;
 	char buf[4096], *p;
@@ -457,9 +435,7 @@ void run_test_isc_mem_recordflag(void **state __attribute__((unused))) {
 }
 
 /* test mem with trace flag */
-// ISC_RUN_TEST_IMPL(isc_mem_traceflag)
-void run_test_isc_mem_traceflag(void **state __attribute__((unused)));
-void run_test_isc_mem_traceflag(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_traceflag) {
 	isc_result_t result;
 	isc_mem_t *mctx2 = NULL;
 	char buf[4096], *p;
@@ -539,9 +515,7 @@ mem_thread(void *arg) {
 	return (NULL);
 }
 
-// ISC_RUN_TEST_IMPL(isc_mem_benchmark)
-void run_test_isc_mem_benchmark(void **state __attribute__((unused)));
-void run_test_isc_mem_benchmark(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mem_benchmark) {
 	int nthreads = ISC_MAX(ISC_MIN(isc_os_ncpus(), 32), 1);
 	isc_thread_t threads[32];
 	isc_time_t ts1, ts2;

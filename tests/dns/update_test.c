@@ -73,9 +73,7 @@ isc_stdtime_now(void) {
 }
 
 /* simple increment by 1 */
-// ISC_RUN_TEST_IMPL(increment)
-void run_test_increment(void **state __attribute__((unused)));
-void run_test_increment(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(increment) {
 	uint32_t old = 50;
 	uint32_t serial;
 
@@ -88,9 +86,7 @@ void run_test_increment(void **state __attribute__((unused))) {
 }
 
 /* increment past zero, 0xfffffffff -> 1 */
-// ISC_RUN_TEST_IMPL(increment_past_zero)
-void run_test_increment_past_zero(void **state __attribute__((unused)));
-void run_test_increment_past_zero(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(increment_past_zero) {
 	uint32_t old = 0xffffffffu;
 	uint32_t serial;
 
@@ -103,9 +99,7 @@ void run_test_increment_past_zero(void **state __attribute__((unused))) {
 }
 
 /* past to unixtime */
-// ISC_RUN_TEST_IMPL(past_to_unix)
-void run_test_past_to_unix(void **state __attribute__((unused)));
-void run_test_past_to_unix(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(past_to_unix) {
 	uint32_t old;
 	uint32_t serial;
 
@@ -121,9 +115,7 @@ void run_test_past_to_unix(void **state __attribute__((unused))) {
 }
 
 /* now to unixtime */
-// ISC_RUN_TEST_IMPL(now_to_unix)
-void run_test_now_to_unix(void **state __attribute__((unused)));
-void run_test_now_to_unix(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(now_to_unix) {
 	uint32_t old;
 	uint32_t serial;
 
@@ -139,9 +131,7 @@ void run_test_now_to_unix(void **state __attribute__((unused))) {
 }
 
 /* future to unixtime */
-// ISC_RUN_TEST_IMPL(future_to_unix)
-void run_test_future_to_unix(void **state __attribute__((unused)));
-void run_test_future_to_unix(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(future_to_unix) {
 	uint32_t old;
 	uint32_t serial;
 
@@ -157,9 +147,7 @@ void run_test_future_to_unix(void **state __attribute__((unused))) {
 }
 
 /* undefined plus 1 to unixtime */
-// ISC_RUN_TEST_IMPL(undefined_plus1_to_unix)
-void run_test_undefined_plus1_to_unix(void **state __attribute__((unused)));
-void run_test_undefined_plus1_to_unix(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(undefined_plus1_to_unix) {
 	uint32_t old;
 	uint32_t serial;
 
@@ -176,9 +164,7 @@ void run_test_undefined_plus1_to_unix(void **state __attribute__((unused))) {
 }
 
 /* undefined minus 1 to unixtime */
-// ISC_RUN_TEST_IMPL(undefined_minus1_to_unix)
-void run_test_undefined_minus1_to_unix(void **state __attribute__((unused)));
-void run_test_undefined_minus1_to_unix(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(undefined_minus1_to_unix) {
 	uint32_t old;
 	uint32_t serial;
 
@@ -195,9 +181,7 @@ void run_test_undefined_minus1_to_unix(void **state __attribute__((unused))) {
 }
 
 /* undefined to unixtime */
-// ISC_RUN_TEST_IMPL(undefined_to_unix)
-void run_test_undefined_to_unix(void **state __attribute__((unused)));
-void run_test_undefined_to_unix(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(undefined_to_unix) {
 	uint32_t old;
 	uint32_t serial;
 
@@ -213,9 +197,7 @@ void run_test_undefined_to_unix(void **state __attribute__((unused))) {
 }
 
 /* handle unixtime being zero */
-// ISC_RUN_TEST_IMPL(unixtime_zero)
-void run_test_unixtime_zero(void **state __attribute__((unused)));
-void run_test_unixtime_zero(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(unixtime_zero) {
 	uint32_t old;
 	uint32_t serial;
 
@@ -231,9 +213,7 @@ void run_test_unixtime_zero(void **state __attribute__((unused))) {
 }
 
 /* past to date */
-// ISC_RUN_TEST_IMPL(past_to_date)
-void run_test_past_to_date(void **state __attribute__((unused)));
-void run_test_past_to_date(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(past_to_date) {
 	uint32_t old, serial;
 	dns_updatemethod_t used = dns_updatemethod_none;
 
@@ -251,9 +231,7 @@ void run_test_past_to_date(void **state __attribute__((unused))) {
 }
 
 /* now to date */
-// ISC_RUN_TEST_IMPL(now_to_date)
-void run_test_now_to_date(void **state __attribute__((unused)));
-void run_test_now_to_date(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(now_to_date) {
 	uint32_t old;
 	uint32_t serial;
 	dns_updatemethod_t used = dns_updatemethod_none;
@@ -288,9 +266,7 @@ void run_test_now_to_date(void **state __attribute__((unused))) {
 }
 
 /* future to date */
-// ISC_RUN_TEST_IMPL(future_to_date)
-void run_test_future_to_date(void **state __attribute__((unused)));
-void run_test_future_to_date(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(future_to_date) {
 	uint32_t old;
 	uint32_t serial;
 	dns_updatemethod_t used = dns_updatemethod_none;

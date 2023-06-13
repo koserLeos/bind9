@@ -266,9 +266,7 @@ render(isc_buffer_t *buf, unsigned int flags, dns_tsigkey_t *key,
  * and last messages contain TSIGs but the intermediate message doesn't
  * correctly verifies.
  */
-// ISC_RUN_TEST_IMPL(tsig_tcp)
-void run_test_tsig_tcp(void **state __attribute__((unused)));
-void run_test_tsig_tcp(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(tsig_tcp) {
 	const dns_name_t *tsigowner = NULL;
 	dns_fixedname_t fkeyname;
 	dns_message_t *msg = NULL;
@@ -472,9 +470,7 @@ void run_test_tsig_tcp(void **state __attribute__((unused))) {
 }
 
 /* Tests the dns__tsig_algvalid function */
-// ISC_RUN_TEST_IMPL(algvalid)
-void run_test_algvalid(void **state __attribute__((unused)));
-void run_test_algvalid(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(algvalid) {
 	UNUSED(state);
 
 	assert_true(dns__tsig_algvalid(DST_ALG_HMACMD5));
@@ -489,9 +485,7 @@ void run_test_algvalid(void **state __attribute__((unused))) {
 }
 
 /* Tests the dns__tsig_algfromname function */
-// ISC_RUN_TEST_IMPL(algfromname)
-void run_test_algfromname(void **state __attribute__((unused)));
-void run_test_algfromname(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(algfromname) {
 	UNUSED(state);
 
 	assert_int_equal(dns__tsig_algfromname(DNS_TSIG_HMACMD5_NAME),
@@ -530,9 +524,7 @@ test_name(const char *name_string, const dns_name_t *expected) {
 	dns_name_free(&name, mctx);
 }
 
-// ISC_RUN_TEST_IMPL(algnamefromname)
-void run_test_algnamefromname(void **state __attribute__((unused)));
-void run_test_algnamefromname(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(algnamefromname) {
 	UNUSED(state);
 
 	/* test the standard algorithms */
@@ -550,9 +542,7 @@ void run_test_algnamefromname(void **state __attribute__((unused))) {
 }
 
 /* Tests the dns__tsig_algallocated function */
-// ISC_RUN_TEST_IMPL(algallocated)
-void run_test_algallocated(void **state __attribute__((unused)));
-void run_test_algallocated(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(algallocated) {
 	UNUSED(state);
 
 	/* test the standard algorithms */

@@ -51,9 +51,7 @@ idx(void *p, unsigned int i) {
 }
 
 /* test isc_heap_delete() */
-// ISC_RUN_TEST_IMPL(isc_heap_delete)
-void run_test_isc_heap_delete(void **state __attribute__((unused)));
-void run_test_isc_heap_delete(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_heap_delete) {
 	isc_heap_t *heap = NULL;
 	struct e e1 = { 100, 0 };
 

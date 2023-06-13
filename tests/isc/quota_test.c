@@ -35,9 +35,7 @@
 
 isc_quota_t quota;
 
-// ISC_RUN_TEST_IMPL(isc_quota_get_set)
-void run_test_isc_quota_get_set(void **state __attribute__((unused)));
-void run_test_isc_quota_get_set(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_quota_get_set) {
 	UNUSED(state);
 	isc_quota_init(&quota, 100);
 
@@ -77,9 +75,7 @@ add_quota(isc_quota_t *source, isc_result_t expected_result,
 	assert_int_equal(isc_quota_getused(source), expected_used);
 }
 
-// ISC_RUN_TEST_IMPL(isc_quota_hard)
-void run_test_isc_quota_hard(void **state __attribute__((unused)));
-void run_test_isc_quota_hard(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_quota_hard) {
 	int i;
 	UNUSED(state);
 
@@ -106,9 +102,7 @@ void run_test_isc_quota_hard(void **state __attribute__((unused))) {
 	isc_quota_destroy(&quota);
 }
 
-// ISC_RUN_TEST_IMPL(isc_quota_soft)
-void run_test_isc_quota_soft(void **state __attribute__((unused)));
-void run_test_isc_quota_soft(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_quota_soft) {
 	int i;
 	UNUSED(state);
 
@@ -154,9 +148,7 @@ callback(void *data) {
 	}
 }
 
-// ISC_RUN_TEST_IMPL(isc_quota_callback)
-void run_test_isc_quota_callback(void **state __attribute__((unused)));
-void run_test_isc_quota_callback(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_quota_callback) {
 	isc_result_t result;
 	/*
 	 * - 10 calls that end with SUCCESS
@@ -269,9 +261,7 @@ quota_thread(void *qtip) {
 	return (NULL);
 }
 
-// ISC_RUN_TEST_IMPL(isc_quota_callback_mt)
-void run_test_isc_quota_callback_mt(void **state __attribute__((unused)));
-void run_test_isc_quota_callback_mt(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_quota_callback_mt) {
 	UNUSED(state);
 	int i;
 

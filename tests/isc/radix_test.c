@@ -31,9 +31,7 @@
 #include <tests/isc.h>
 
 /* test radix node removal */
-// ISC_RUN_TEST_IMPL(isc_radix_remove)
-void run_test_isc_radix_remove(void **state __attribute__((unused)));
-void run_test_isc_radix_remove(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_radix_remove) {
 	isc_radix_tree_t *radix = NULL;
 	isc_radix_node_t *node;
 	isc_prefix_t prefix;
@@ -82,9 +80,7 @@ void run_test_isc_radix_remove(void **state __attribute__((unused))) {
 }
 
 /* test radix searching */
-// ISC_RUN_TEST_IMPL(isc_radix_search)
-void run_test_isc_radix_search(void **state __attribute__((unused)));
-void run_test_isc_radix_search(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_radix_search) {
 	isc_radix_tree_t *radix = NULL;
 	isc_radix_node_t *node;
 	isc_prefix_t prefix;

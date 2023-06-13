@@ -32,9 +32,7 @@
 
 #define TEST_INPUT(x) (x), sizeof(x) - 1
 
-// ISC_RUN_TEST_IMPL(isc_crc64_init)
-void run_test_isc_crc64_init(void **state __attribute__((unused)));
-void run_test_isc_crc64_init(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_crc64_init) {
 	uint64_t crc;
 
 	isc_crc64_init(&crc);
@@ -61,9 +59,7 @@ _crc64(const char *buf, size_t buflen, const char *result, const int repeats) {
 }
 
 /* 64-bit cyclic redundancy check */
-// ISC_RUN_TEST_IMPL(isc_crc64)
-void run_test_isc_crc64(void **state __attribute__((unused)));
-void run_test_isc_crc64(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_crc64) {
 	_crc64(TEST_INPUT(""), "0000000000000000", 1);
 	_crc64(TEST_INPUT("a"), "CE73F427ACC0A99A", 1);
 	_crc64(TEST_INPUT("abc"), "048B813AF9F49702", 1);

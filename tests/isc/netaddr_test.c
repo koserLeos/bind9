@@ -31,9 +31,7 @@
 #include <tests/isc.h>
 
 /* test isc_netaddr_isnetzero() */
-// ISC_RUN_TEST_IMPL(netaddr_isnetzero)
-void run_test_netaddr_isnetzero(void **state __attribute__((unused)));
-void run_test_netaddr_isnetzero(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(netaddr_isnetzero) {
 	unsigned int i;
 	struct in_addr ina;
 	struct {
@@ -58,9 +56,7 @@ void run_test_netaddr_isnetzero(void **state __attribute__((unused))) {
 }
 
 /* test isc_netaddr_masktoprefixlen() calculates correct prefix lengths */
-// ISC_RUN_TEST_IMPL(netaddr_masktoprefixlen)
-void run_test_netaddr_masktoprefixlen(void **state __attribute__((unused)));
-void run_test_netaddr_masktoprefixlen(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(netaddr_masktoprefixlen) {
 	struct in_addr na_a;
 	struct in_addr na_b;
 	struct in_addr na_c;
@@ -101,9 +97,7 @@ void run_test_netaddr_masktoprefixlen(void **state __attribute__((unused))) {
 }
 
 /* check multicast addresses are detected properly */
-// ISC_RUN_TEST_IMPL(netaddr_multicast)
-void run_test_netaddr_multicast(void **state __attribute__((unused)));
-void run_test_netaddr_multicast(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(netaddr_multicast) {
 	unsigned int i;
 	struct {
 		int family;

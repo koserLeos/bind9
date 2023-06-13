@@ -69,9 +69,7 @@ const struct time_vectors vectors_sub[7] = {
 	{ { 0, 0 }, { 0, MAX_NS }, { 0, 0 }, ISC_R_RANGE },
 };
 
-// ISC_RUN_TEST_IMPL(isc_time_add_test)
-void run_test_isc_time_add_test(void **state __attribute__((unused)));
-void run_test_isc_time_add_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_add_test) {
 	UNUSED(state);
 
 	for (size_t i = 0; i < ARRAY_SIZE(vectors_add); i++) {
@@ -104,9 +102,7 @@ void run_test_isc_time_add_test(void **state __attribute__((unused))) {
 		&(isc_time_t){ 0, 0 }, &(isc_interval_t){ 0, 0 }, NULL));
 }
 
-// ISC_RUN_TEST_IMPL(isc_time_sub_test)
-void run_test_isc_time_sub_test(void **state __attribute__((unused)));
-void run_test_isc_time_sub_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_sub_test) {
 	UNUSED(state);
 
 	for (size_t i = 0; i < ARRAY_SIZE(vectors_sub); i++) {
@@ -140,9 +136,7 @@ void run_test_isc_time_sub_test(void **state __attribute__((unused))) {
 
 /* parse http time stamp */
 
-// ISC_RUN_TEST_IMPL(isc_time_parsehttptimestamp_test)
-void run_test_isc_time_parsehttptimestamp_test(void **state __attribute__((unused)));
-void run_test_isc_time_parsehttptimestamp_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_parsehttptimestamp_test) {
 	isc_result_t result;
 	isc_time_t t, x;
 	char buf[ISC_FORMATHTTPTIMESTAMP_SIZE];
@@ -160,9 +154,7 @@ void run_test_isc_time_parsehttptimestamp_test(void **state __attribute__((unuse
 
 /* print UTC in ISO8601 */
 
-// ISC_RUN_TEST_IMPL(isc_time_formatISO8601_test)
-void run_test_isc_time_formatISO8601_test(void **state __attribute__((unused)));
-void run_test_isc_time_formatISO8601_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_formatISO8601_test) {
 	isc_time_t t;
 	char buf[64];
 
@@ -196,9 +188,7 @@ void run_test_isc_time_formatISO8601_test(void **state __attribute__((unused))) 
 
 /* print UTC in ISO8601 with milliseconds */
 
-// ISC_RUN_TEST_IMPL(isc_time_formatISO8601ms_test)
-void run_test_isc_time_formatISO8601ms_test(void **state __attribute__((unused)));
-void run_test_isc_time_formatISO8601ms_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_formatISO8601ms_test) {
 	isc_time_t t;
 	char buf[64];
 
@@ -233,9 +223,7 @@ void run_test_isc_time_formatISO8601ms_test(void **state __attribute__((unused))
 
 /* print UTC in ISO8601 with microseconds */
 
-// ISC_RUN_TEST_IMPL(isc_time_formatISO8601us_test)
-void run_test_isc_time_formatISO8601us_test(void **state __attribute__((unused)));
-void run_test_isc_time_formatISO8601us_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_formatISO8601us_test) {
 	isc_time_t t;
 	char buf[64];
 
@@ -270,9 +258,7 @@ void run_test_isc_time_formatISO8601us_test(void **state __attribute__((unused))
 
 /* print local time in ISO8601 */
 
-// ISC_RUN_TEST_IMPL(isc_time_formatISO8601L_test)
-void run_test_isc_time_formatISO8601L_test(void **state __attribute__((unused)));
-void run_test_isc_time_formatISO8601L_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_formatISO8601L_test) {
 	isc_time_t t;
 	char buf[64];
 
@@ -305,9 +291,7 @@ void run_test_isc_time_formatISO8601L_test(void **state __attribute__((unused)))
 
 /* print local time in ISO8601 with milliseconds */
 
-// ISC_RUN_TEST_IMPL(isc_time_formatISO8601Lms_test)
-void run_test_isc_time_formatISO8601Lms_test(void **state __attribute__((unused)));
-void run_test_isc_time_formatISO8601Lms_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_formatISO8601Lms_test) {
 	isc_time_t t;
 	char buf[64];
 
@@ -341,9 +325,7 @@ void run_test_isc_time_formatISO8601Lms_test(void **state __attribute__((unused)
 
 /* print local time in ISO8601 with microseconds */
 
-// ISC_RUN_TEST_IMPL(isc_time_formatISO8601Lus_test)
-void run_test_isc_time_formatISO8601Lus_test(void **state __attribute__((unused)));
-void run_test_isc_time_formatISO8601Lus_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_formatISO8601Lus_test) {
 	isc_time_t t;
 	char buf[64];
 
@@ -377,9 +359,7 @@ void run_test_isc_time_formatISO8601Lus_test(void **state __attribute__((unused)
 
 /* print UTC time as yyyymmddhhmmsssss */
 
-// ISC_RUN_TEST_IMPL(isc_time_formatshorttimestamp_test)
-void run_test_isc_time_formatshorttimestamp_test(void **state __attribute__((unused)));
-void run_test_isc_time_formatshorttimestamp_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_time_formatshorttimestamp_test) {
 	isc_time_t t;
 	char buf[64];
 

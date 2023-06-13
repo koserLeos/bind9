@@ -65,9 +65,7 @@ work_enqueue_cb(void *arg) {
 	isc_work_enqueue(loop, work_cb, after_work_cb, loopmgr);
 }
 
-// ISC_RUN_TEST_IMPL(isc_work_enqueue)
-void run_test_isc_work_enqueue(void **state __attribute__((unused)));
-void run_test_isc_work_enqueue(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_work_enqueue) {
 	atomic_init(&scheduled, 0);
 
 	isc_loop_setup(isc_loop_main(loopmgr), work_enqueue_cb, loopmgr);

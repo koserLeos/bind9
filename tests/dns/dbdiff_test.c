@@ -49,9 +49,7 @@ test_create(const char *oldfile, dns_db_t **old, const char *newfile,
 }
 
 /* dns_db_diffx of identical content */
-// ISC_RUN_TEST_IMPL(diffx_same)
-void run_test_diffx_same(void **state __attribute__((unused)));
-void run_test_diffx_same(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(diffx_same) {
 	dns_db_t *newdb = NULL, *olddb = NULL;
 	isc_result_t result;
 	dns_diff_t diff;
@@ -74,9 +72,7 @@ void run_test_diffx_same(void **state __attribute__((unused))) {
 }
 
 /* dns_db_diffx of zone with record added */
-// ISC_RUN_TEST_IMPL(diffx_add)
-void run_test_diffx_add(void **state __attribute__((unused)));
-void run_test_diffx_add(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(diffx_add) {
 	dns_db_t *newdb = NULL, *olddb = NULL;
 	dns_difftuple_t *tuple;
 	isc_result_t result;
@@ -108,9 +104,7 @@ void run_test_diffx_add(void **state __attribute__((unused))) {
 }
 
 /* dns_db_diffx of zone with record removed */
-// ISC_RUN_TEST_IMPL(diffx_remove)
-void run_test_diffx_remove(void **state __attribute__((unused)));
-void run_test_diffx_remove(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(diffx_remove) {
 	dns_db_t *newdb = NULL, *olddb = NULL;
 	dns_difftuple_t *tuple;
 	isc_result_t result;

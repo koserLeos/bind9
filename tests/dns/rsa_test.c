@@ -140,9 +140,7 @@ static unsigned char sigsha512[512] = {
 };
 
 /* RSA verify */
-// ISC_RUN_TEST_IMPL(isc_rsa_verify)
-void run_test_isc_rsa_verify(void **state __attribute__((unused)));
-void run_test_isc_rsa_verify(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_rsa_verify) {
 	isc_result_t ret;
 	dns_fixedname_t fname;
 	isc_buffer_t buf;

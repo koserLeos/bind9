@@ -255,9 +255,7 @@ check_sig(const char *datapath, const char *sigpath, const char *keyname,
 	return;
 }
 
-// ISC_RUN_TEST_IMPL(sig_test)
-void run_test_sig_test(void **state __attribute__((unused)));
-void run_test_sig_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(sig_test) {
 	struct {
 		const char *datapath;
 		const char *sigpath;
@@ -353,9 +351,7 @@ check_cmp(const char *key1_name, dns_keytag_t key1_id, const char *key2_name,
 	return;
 }
 
-// ISC_RUN_TEST_IMPL(cmp_test)
-void run_test_cmp_test(void **state __attribute__((unused)));
-void run_test_cmp_test(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(cmp_test) {
 	struct {
 		const char *key1_name;
 		dns_keytag_t key1_id;

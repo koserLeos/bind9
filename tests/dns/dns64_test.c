@@ -121,9 +121,7 @@ multiple_prefixes(void) {
 	assert_true(have_p1 != have_p2);
 }
 
-// ISC_RUN_TEST_IMPL(dns64_findprefix)
-void run_test_dns64_findprefix(void **state __attribute__((unused)));
-void run_test_dns64_findprefix(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(dns64_findprefix) {
 	unsigned int i, j, o;
 	isc_result_t result;
 	struct {

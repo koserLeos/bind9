@@ -64,9 +64,7 @@ async_setup_cb(void *arg) {
 	isc_async_run(loop, async_cb, loopmgr);
 }
 
-// ISC_RUN_TEST_IMPL(isc_async_run)
-void run_test_isc_async_run(void **state __attribute__((unused)));
-void run_test_isc_async_run(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_async_run) {
 	isc_loop_setup(isc_loop_main(loopmgr), async_setup_cb, loopmgr);
 	isc_loopmgr_run(loopmgr);
 	assert_int_equal(atomic_load(&scheduled), loopmgr->nloops);
@@ -96,9 +94,7 @@ async_multiple(void *arg) {
 	isc_loopmgr_shutdown(loopmgr);
 }
 
-// ISC_RUN_TEST_IMPL(isc_async_multiple)
-void run_test_isc_async_multiple(void **state __attribute__((unused)));
-void run_test_isc_async_multiple(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_async_multiple) {
 	string[0] = '\0';
 	isc_loop_setup(isc_loop_main(loopmgr), async_multiple, loopmgr);
 	isc_loopmgr_run(loopmgr);

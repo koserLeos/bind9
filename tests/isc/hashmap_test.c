@@ -314,57 +314,43 @@ test_hashmap_iterator(void) {
 }
 
 /* 1 bit, 120 elements test, full rehashing */
-// ISC_RUN_TEST_IMPL(isc_hashmap_1_120)
-void run_test_isc_hashmap_1_120(void **state __attribute__((unused)));
-void run_test_isc_hashmap_1_120(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_hashmap_1_120) {
 	test_hashmap_full(1, 120);
 	return;
 }
 
 /* 6 bit, 1000 elements test, full rehashing */
-// ISC_RUN_TEST_IMPL(isc_hashmap_6_1000)
-void run_test_isc_hashmap_6_1000(void **state __attribute__((unused)));
-void run_test_isc_hashmap_6_1000(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_hashmap_6_1000) {
 	test_hashmap_full(6, 1000);
 	return;
 }
 
 /* 24 bit, 200K elements test, no rehashing */
-// ISC_RUN_TEST_IMPL(isc_hashmap_24_200000)
-void run_test_isc_hashmap_24_200000(void **state __attribute__((unused)));
-void run_test_isc_hashmap_24_200000(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_hashmap_24_200000) {
 	test_hashmap_full(24, 200000);
 	return;
 }
 
 /* 15 bit, 45K elements test, full rehashing */
-// ISC_RUN_TEST_IMPL(isc_hashmap_1_48000)
-void run_test_isc_hashmap_1_48000(void **state __attribute__((unused)));
-void run_test_isc_hashmap_1_48000(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_hashmap_1_48000) {
 	test_hashmap_full(1, 48000);
 	return;
 }
 
 /* 8 bit, 20k elements test, partial rehashing */
-// ISC_RUN_TEST_IMPL(isc_hashmap_8_20000)
-void run_test_isc_hashmap_8_20000(void **state __attribute__((unused)));
-void run_test_isc_hashmap_8_20000(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_hashmap_8_20000) {
 	test_hashmap_full(8, 20000);
 	return;
 }
 
 /* test hashmap iterator */
 
-// ISC_RUN_TEST_IMPL(isc_hashmap_iterator)
-void run_test_isc_hashmap_iterator(void **state __attribute__((unused)));
-void run_test_isc_hashmap_iterator(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_hashmap_iterator) {
 	test_hashmap_iterator();
 	return;
 }
 
-// ISC_RUN_TEST_IMPL(isc_hashmap_hash_zero_length)
-void run_test_isc_hashmap_hash_zero_length(void **state __attribute__((unused)));
-void run_test_isc_hashmap_hash_zero_length(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_hashmap_hash_zero_length) {
 	isc_hashmap_t *hashmap = NULL;
 	uint32_t hashval;
 	bool again = false;
@@ -388,9 +374,7 @@ again:
 	assert_int_not_equal(hashval, 0);
 }
 
-// ISC_RUN_TEST_IMPL(isc_hashmap_case)
-void run_test_isc_hashmap_case(void **state __attribute__((unused)));
-void run_test_isc_hashmap_case(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_hashmap_case) {
 	isc_result_t result;
 	isc_hashmap_t *hashmap = NULL;
 	test_node_t lower = { .key = "isc_hashmap_case" };

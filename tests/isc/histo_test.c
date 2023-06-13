@@ -62,9 +62,7 @@ millis_since(isc_nanosecs_t start) {
  * not yet done so.
  */
 
-// ISC_RUN_TEST_IMPL(basics)
-void run_test_basics(void **state __attribute__((unused)));
-void run_test_basics(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(basics) {
 	isc_result_t result;
 	for (uint bits = ISC_HISTO_MINBITS; bits <= ISC_HISTO_MAXBITS; bits++) {
 		isc_nanosecs_t start = isc_time_monotonic();
@@ -145,9 +143,7 @@ void run_test_basics(void **state __attribute__((unused))) {
 	}
 }
 
-// ISC_RUN_TEST_IMPL(quantiles)
-void run_test_quantiles(void **state __attribute__((unused)));
-void run_test_quantiles(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(quantiles) {
 	for (uint bits = ISC_HISTO_MINBITS; bits <= ISC_HISTO_MAXBITS; bits++) {
 		isc_result_t result;
 		uint64_t min, max, count;
@@ -236,9 +232,7 @@ void run_test_quantiles(void **state __attribute__((unused))) {
 /*
  * ensure relative error is as expected
  */
-// ISC_RUN_TEST_IMPL(sigfigs)
-void run_test_sigfigs(void **state __attribute__((unused)));
-void run_test_sigfigs(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(sigfigs) {
 	assert_int_equal(ISC_HISTO_MINBITS,
 			 isc_histo_digits_to_bits(ISC_HISTO_MINDIGITS));
 	assert_int_equal(ISC_HISTO_MINDIGITS,
@@ -286,9 +280,7 @@ void run_test_sigfigs(void **state __attribute__((unused))) {
 	}
 }
 
-// ISC_RUN_TEST_IMPL(subrange)
-void run_test_subrange(void **state __attribute__((unused)));
-void run_test_subrange(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(subrange) {
 	for (uint bits = ISC_HISTO_MINBITS; bits <= ISC_HISTO_MAXBITS; bits++) {
 		isc_result_t result;
 		uint64_t min, max, count;

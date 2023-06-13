@@ -57,9 +57,7 @@ setup_env(void **unused __attribute__((__unused__))) {
 	return (0);
 }
 
-// ISC_RUN_TEST_IMPL(isc_mutex)
-void run_test_isc_mutex(void **state __attribute__((unused)));
-void run_test_isc_mutex(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mutex) {
 	isc_mutex_t lock;
 
 	isc_mutex_init(&lock);
@@ -116,9 +114,7 @@ isc_mutex_thread(void *arg) {
 	return (NULL);
 }
 
-// ISC_RUN_TEST_IMPL(isc_mutex_benchmark)
-void run_test_isc_mutex_benchmark(void **state __attribute__((unused)));
-void run_test_isc_mutex_benchmark(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_mutex_benchmark) {
 	isc_thread_t *threads = isc_mem_get(mctx, workers, sizeof(*threads));
 	isc_time_t ts1, ts2;
 	double t;

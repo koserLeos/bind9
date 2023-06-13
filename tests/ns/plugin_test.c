@@ -98,9 +98,7 @@ run_full_path_test(const ns_plugin_expandpath_test_params_t *test,
 }
 
 /* test ns_plugin_expandpath() */
-// ISC_RUN_TEST_IMPL(ns_plugin_expandpath)
-void run_test_ns_plugin_expandpath(void **state __attribute__((unused)));
-void run_test_ns_plugin_expandpath(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(ns_plugin_expandpath) {
 	size_t i;
 
 	const ns_plugin_expandpath_test_params_t tests[] = {

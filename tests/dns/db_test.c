@@ -39,9 +39,7 @@
  */
 
 /* test multiple calls to dns_db_getoriginnode */
-// ISC_RUN_TEST_IMPL(getoriginnode)
-void run_test_getoriginnode(void **state __attribute__((unused)));
-void run_test_getoriginnode(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(getoriginnode) {
 	dns_db_t *db = NULL;
 	dns_dbnode_t *node = NULL;
 	isc_result_t result;
@@ -64,9 +62,7 @@ void run_test_getoriginnode(void **state __attribute__((unused))) {
 }
 
 /* test getservestalettl and setservestalettl */
-// ISC_RUN_TEST_IMPL(getsetservestalettl)
-void run_test_getsetservestalettl(void **state __attribute__((unused)));
-void run_test_getsetservestalettl(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(getsetservestalettl) {
 	dns_db_t *db = NULL;
 	isc_result_t result;
 	dns_ttl_t ttl;
@@ -95,9 +91,7 @@ void run_test_getsetservestalettl(void **state __attribute__((unused))) {
 }
 
 /* check DNS_DBFIND_STALEOK works */
-// ISC_RUN_TEST_IMPL(dns_dbfind_staleok)
-void run_test_dns_dbfind_staleok(void **state __attribute__((unused)));
-void run_test_dns_dbfind_staleok(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(dns_dbfind_staleok) {
 	dns_db_t *db = NULL;
 	dns_dbnode_t *node = NULL;
 	dns_fixedname_t example_fixed;
@@ -249,9 +243,7 @@ void run_test_dns_dbfind_staleok(void **state __attribute__((unused))) {
 }
 
 /* database class */
-// ISC_RUN_TEST_IMPL(class)
-void run_test_class(void **state __attribute__((unused)));
-void run_test_class(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(class) {
 	isc_result_t result;
 	dns_db_t *db = NULL;
 
@@ -271,9 +263,7 @@ void run_test_class(void **state __attribute__((unused))) {
 }
 
 /* database type */
-// ISC_RUN_TEST_IMPL(dbtype)
-void run_test_dbtype(void **state __attribute__((unused)));
-void run_test_dbtype(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(dbtype) {
 	isc_result_t result;
 	dns_db_t *db = NULL;
 
@@ -303,9 +293,7 @@ void run_test_dbtype(void **state __attribute__((unused))) {
 }
 
 /* database versions */
-// ISC_RUN_TEST_IMPL(version)
-void run_test_version(void **state __attribute__((unused)));
-void run_test_version(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(version) {
 	isc_result_t result;
 	dns_fixedname_t fname, ffound;
 	dns_name_t *name, *foundname;

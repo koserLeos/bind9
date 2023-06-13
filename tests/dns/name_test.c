@@ -41,9 +41,7 @@
 static bool verbose = false;
 
 /* dns_name_fullcompare test */
-// ISC_RUN_TEST_IMPL(fullcompare)
-void run_test_fullcompare(void **state __attribute__((unused)));
-void run_test_fullcompare(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(fullcompare) {
 	dns_fixedname_t fixed1;
 	dns_fixedname_t fixed2;
 	dns_name_t *name1;
@@ -195,9 +193,7 @@ compress_test(const dns_name_t *name1, const dns_name_t *name2,
 }
 
 /* name compression test */
-// ISC_RUN_TEST_IMPL(compression)
-void run_test_compression(void **state __attribute__((unused)));
-void run_test_compression(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(compression) {
 	bool permitted;
 	dns_compress_t cctx;
 	dns_decompress_t dctx;
@@ -388,9 +384,7 @@ void run_test_compression(void **state __attribute__((unused))) {
 /*
  * test compression context hash set collisions and rollbacks
  */
-// ISC_RUN_TEST_IMPL(collision)
-void run_test_collision(void **state __attribute__((unused)));
-void run_test_collision(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(collision) {
 	isc_result_t result;
 	isc_region_t r;
 	dns_compress_t cctx;
@@ -463,9 +457,7 @@ void run_test_collision(void **state __attribute__((unused))) {
 }
 
 /* is trust-anchor-telemetry test */
-// ISC_RUN_TEST_IMPL(istat)
-void run_test_istat(void **state __attribute__((unused)));
-void run_test_istat(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(istat) {
 	dns_fixedname_t fixed;
 	dns_name_t *name;
 	isc_result_t result;
@@ -518,9 +510,7 @@ name_attr_zero(struct dns_name_attrs attributes) {
 }
 
 /* dns_name_init */
-// ISC_RUN_TEST_IMPL(init)
-void run_test_init(void **state __attribute__((unused)));
-void run_test_init(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(init) {
 	dns_name_t name;
 	unsigned char offsets[1];
 
@@ -537,9 +527,7 @@ void run_test_init(void **state __attribute__((unused))) {
 }
 
 /* dns_name_invalidate */
-// ISC_RUN_TEST_IMPL(invalidate)
-void run_test_invalidate(void **state __attribute__((unused)));
-void run_test_invalidate(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(invalidate) {
 	dns_name_t name;
 	unsigned char offsets[1];
 
@@ -557,9 +545,7 @@ void run_test_invalidate(void **state __attribute__((unused))) {
 }
 
 /* dns_name_setbuffer/hasbuffer */
-// ISC_RUN_TEST_IMPL(buffer)
-void run_test_buffer(void **state __attribute__((unused)));
-void run_test_buffer(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(buffer) {
 	dns_name_t name;
 	unsigned char buf[BUFSIZ];
 	isc_buffer_t b;
@@ -574,9 +560,7 @@ void run_test_buffer(void **state __attribute__((unused))) {
 }
 
 /* dns_name_isabsolute */
-// ISC_RUN_TEST_IMPL(isabsolute)
-void run_test_isabsolute(void **state __attribute__((unused)));
-void run_test_isabsolute(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isabsolute) {
 	struct {
 		const char *namestr;
 		bool expect;
@@ -610,9 +594,7 @@ void run_test_isabsolute(void **state __attribute__((unused))) {
 }
 
 /* dns_name_hash */
-// ISC_RUN_TEST_IMPL(hash)
-void run_test_hash(void **state __attribute__((unused)));
-void run_test_hash(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(hash) {
 	struct {
 		const char *name1;
 		const char *name2;
@@ -675,9 +657,7 @@ void run_test_hash(void **state __attribute__((unused))) {
 }
 
 /* dns_name_issubdomain */
-// ISC_RUN_TEST_IMPL(issubdomain)
-void run_test_issubdomain(void **state __attribute__((unused)));
-void run_test_issubdomain(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(issubdomain) {
 	struct {
 		const char *name1;
 		const char *name2;
@@ -720,9 +700,7 @@ void run_test_issubdomain(void **state __attribute__((unused))) {
 }
 
 /* dns_name_countlabels */
-// ISC_RUN_TEST_IMPL(countlabels)
-void run_test_countlabels(void **state __attribute__((unused)));
-void run_test_countlabels(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(countlabels) {
 	struct {
 		const char *namestr;
 		unsigned int expect;
@@ -768,9 +746,7 @@ void run_test_countlabels(void **state __attribute__((unused))) {
 }
 
 /* dns_name_getlabel */
-// ISC_RUN_TEST_IMPL(getlabel)
-void run_test_getlabel(void **state __attribute__((unused)));
-void run_test_getlabel(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(getlabel) {
 	struct {
 		const char *name1;
 		unsigned int pos1;
@@ -813,9 +789,7 @@ void run_test_getlabel(void **state __attribute__((unused))) {
 }
 
 /* dns_name_getlabelsequence */
-// ISC_RUN_TEST_IMPL(getlabelsequence)
-void run_test_getlabelsequence(void **state __attribute__((unused)));
-void run_test_getlabelsequence(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(getlabelsequence) {
 	struct {
 		const char *name1;
 		unsigned int pos1;
@@ -861,9 +835,7 @@ void run_test_getlabelsequence(void **state __attribute__((unused))) {
 	}
 }
 
-// ISC_RUN_TEST_IMPL(maxlabels)
-void run_test_maxlabels(void **state __attribute__((unused)));
-void run_test_maxlabels(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(maxlabels) {
 	isc_result_t result;
 	dns_fixedname_t fixed;
 	dns_name_t *name = NULL;
@@ -931,9 +903,7 @@ ISC_RUN_TEST_IMPL(fromwire_thread(void *arg) {
 	return (NULL);
 }
 
-// ISC_RUN_TEST_IMPL(benchmark)
-void run_test_benchmark(void **state __attribute__((unused)));
-void run_test_benchmark(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(benchmark) {
 	isc_result_t result;
 	unsigned int i;
 	isc_time_t ts1, ts2;

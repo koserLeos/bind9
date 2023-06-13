@@ -167,9 +167,7 @@ include_callback(const char *filename, void *arg) {
  * Successful load test:
  * dns_master_loadfile() loads a valid master file and returns success
  */
-// ISC_RUN_TEST_IMPL(load)
-void run_test_load(void **state __attribute__((unused)));
-void run_test_load(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(load) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -183,9 +181,7 @@ void run_test_load(void **state __attribute__((unused))) {
  * Unexpected end of file test:
  * dns_master_loadfile() returns DNS_R_UNEXPECTED when file ends too soon
  */
-// ISC_RUN_TEST_IMPL(unexpected)
-void run_test_unexpected(void **state __attribute__((unused)));
-void run_test_unexpected(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(unexpected) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -200,9 +196,7 @@ void run_test_unexpected(void **state __attribute__((unused))) {
  * dns_master_loadfile() accepts broken zones with no TTL for first record
  * if it is an SOA
  */
-// ISC_RUN_TEST_IMPL(noowner)
-void run_test_noowner(void **state __attribute__((unused)));
-void run_test_noowner(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(noowner) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -217,9 +211,7 @@ void run_test_noowner(void **state __attribute__((unused))) {
  * dns_master_loadfile() returns DNS_R_NOOWNER when no owner name is
  * specified
  */
-// ISC_RUN_TEST_IMPL(nottl)
-void run_test_nottl(void **state __attribute__((unused)));
-void run_test_nottl(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(nottl) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -234,9 +226,7 @@ void run_test_nottl(void **state __attribute__((unused))) {
  * dns_master_loadfile() returns DNS_R_BADCLASS when record class doesn't
  * match zone class
  */
-// ISC_RUN_TEST_IMPL(badclass)
-void run_test_badclass(void **state __attribute__((unused)));
-void run_test_badclass(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(badclass) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -250,9 +240,7 @@ void run_test_badclass(void **state __attribute__((unused))) {
  * Too big rdata test:
  * dns_master_loadfile() returns ISC_R_NOSPACE when record is too big
  */
-// ISC_RUN_TEST_IMPL(toobig)
-void run_test_toobig(void **state __attribute__((unused)));
-void run_test_toobig(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(toobig) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -266,9 +254,7 @@ void run_test_toobig(void **state __attribute__((unused))) {
  * Maximum rdata test:
  * dns_master_loadfile() returns ISC_R_SUCCESS when record is maximum size
  */
-// ISC_RUN_TEST_IMPL(maxrdata)
-void run_test_maxrdata(void **state __attribute__((unused)));
-void run_test_maxrdata(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(maxrdata) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -282,9 +268,7 @@ void run_test_maxrdata(void **state __attribute__((unused))) {
  * DNSKEY test:
  * dns_master_loadfile() understands DNSKEY with key material
  */
-// ISC_RUN_TEST_IMPL(dnskey)
-void run_test_dnskey(void **state __attribute__((unused)));
-void run_test_dnskey(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(dnskey) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -301,9 +285,7 @@ void run_test_dnskey(void **state __attribute__((unused))) {
  * RFC 4034 removed the ability to signal NOKEY, so empty key material should
  * be rejected.
  */
-// ISC_RUN_TEST_IMPL(dnsnokey)
-void run_test_dnsnokey(void **state __attribute__((unused)));
-void run_test_dnsnokey(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(dnsnokey) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -317,9 +299,7 @@ void run_test_dnsnokey(void **state __attribute__((unused))) {
  * Include test:
  * dns_master_loadfile() understands $INCLUDE
  */
-// ISC_RUN_TEST_IMPL(include)
-void run_test_include(void **state __attribute__((unused)));
-void run_test_include(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(include) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -333,9 +313,7 @@ void run_test_include(void **state __attribute__((unused))) {
  * Include file list test:
  * dns_master_loadfile4() returns names of included file
  */
-// ISC_RUN_TEST_IMPL(master_includelist)
-void run_test_master_includelist(void **state __attribute__((unused)));
-void run_test_master_includelist(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(master_includelist) {
 	isc_result_t result;
 	char *filename = NULL;
 
@@ -363,9 +341,7 @@ void run_test_master_includelist(void **state __attribute__((unused))) {
  * Include failure test:
  * dns_master_loadfile() understands $INCLUDE failures
  */
-// ISC_RUN_TEST_IMPL(includefail)
-void run_test_includefail(void **state __attribute__((unused)));
-void run_test_includefail(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(includefail) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -379,9 +355,7 @@ void run_test_includefail(void **state __attribute__((unused))) {
  * Non-empty blank lines test:
  * dns_master_loadfile() handles non-empty blank lines
  */
-// ISC_RUN_TEST_IMPL(blanklines)
-void run_test_blanklines(void **state __attribute__((unused)));
-void run_test_blanklines(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(blanklines) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -396,9 +370,7 @@ void run_test_blanklines(void **state __attribute__((unused))) {
  * dns_master_loadfile() allows leading zeroes in SOA
  */
 
-// ISC_RUN_TEST_IMPL(leadingzero)
-void run_test_leadingzero(void **state __attribute__((unused)));
-void run_test_leadingzero(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(leadingzero) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -409,9 +381,7 @@ void run_test_leadingzero(void **state __attribute__((unused))) {
 }
 
 /* masterfile totext tests */
-// ISC_RUN_TEST_IMPL(totext)
-void run_test_totext(void **state __attribute__((unused)));
-void run_test_totext(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(totext) {
 	isc_result_t result;
 	dns_rdataset_t rdataset;
 	dns_rdatalist_t rdatalist;
@@ -447,9 +417,7 @@ void run_test_totext(void **state __attribute__((unused))) {
  * Raw load test:
  * dns_master_loadfile() loads a valid raw file and returns success
  */
-// ISC_RUN_TEST_IMPL(loadraw)
-void run_test_loadraw(void **state __attribute__((unused)));
-void run_test_loadraw(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(loadraw) {
 	isc_result_t result;
 
 	UNUSED(state);
@@ -481,9 +449,7 @@ void run_test_loadraw(void **state __attribute__((unused))) {
  * Raw dump test:
  * dns_master_dump*() functions dump valid raw files
  */
-// ISC_RUN_TEST_IMPL(dumpraw)
-void run_test_dumpraw(void **state __attribute__((unused)));
-void run_test_dumpraw(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(dumpraw) {
 	isc_result_t result;
 	dns_db_t *db = NULL;
 	dns_dbversion_t *version = NULL;
@@ -579,9 +545,7 @@ warn_expect(struct dns_rdatacallbacks *mycallbacks, const char *fmt, ...) {
  * Origin change test:
  * dns_master_loadfile() rejects zones with inherited name following $ORIGIN
  */
-// ISC_RUN_TEST_IMPL(neworigin)
-void run_test_neworigin(void **state __attribute__((unused)));
-void run_test_neworigin(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(neworigin) {
 	isc_result_t result;
 
 	UNUSED(state);

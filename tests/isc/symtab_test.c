@@ -38,9 +38,7 @@ undefine(char *key, unsigned int type, isc_symvalue_t value, void *arg) {
 }
 
 /* test symbol table growth */
-// ISC_RUN_TEST_IMPL(symtab_grow)
-void run_test_symtab_grow(void **state __attribute__((unused)));
-void run_test_symtab_grow(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(symtab_grow) {
 	isc_result_t result;
 	isc_symtab_t *st = NULL;
 	isc_symvalue_t value;

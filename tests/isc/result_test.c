@@ -29,9 +29,7 @@
 #include <tests/isc.h>
 
 /* convert result to identifier string */
-// ISC_RUN_TEST_IMPL(isc_result_toid)
-void run_test_isc_result_toid(void **state __attribute__((unused)));
-void run_test_isc_result_toid(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_result_toid) {
 	const char *id;
 
 	UNUSED(state);
@@ -44,9 +42,7 @@ void run_test_isc_result_toid(void **state __attribute__((unused))) {
 }
 
 /* convert result to description string */
-// ISC_RUN_TEST_IMPL(isc_result_totext)
-void run_test_isc_result_totext(void **state __attribute__((unused)));
-void run_test_isc_result_totext(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_result_totext) {
 	const char *str;
 
 	UNUSED(state);

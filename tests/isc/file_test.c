@@ -54,9 +54,7 @@ touch(const char *filename) {
 }
 
 /* test sanitized filenames */
-// ISC_RUN_TEST_IMPL(isc_file_sanitize)
-void run_test_isc_file_sanitize(void **state __attribute__((unused)));
-void run_test_isc_file_sanitize(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_file_sanitize) {
 	isc_result_t result;
 	char buf[1024];
 
@@ -91,9 +89,7 @@ void run_test_isc_file_sanitize(void **state __attribute__((unused))) {
 }
 
 /* test filename templates */
-// ISC_RUN_TEST_IMPL(isc_file_template)
-void run_test_isc_file_template(void **state __attribute__((unused)));
-void run_test_isc_file_template(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_file_template) {
 	isc_result_t result;
 	char buf[1024];
 

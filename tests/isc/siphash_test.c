@@ -130,9 +130,7 @@ const uint8_t vectors_hsip32[64][4] = {
 	{ 0xbd, 0x83, 0x99, 0x7a }, { 0x59, 0xea, 0x4a, 0x74 }
 };
 
-// ISC_RUN_TEST_IMPL(isc_siphash24)
-void run_test_isc_siphash24(void **state __attribute__((unused)));
-void run_test_isc_siphash24(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_siphash24) {
 	UNUSED(state);
 
 	uint8_t in[64], out[8], key[16];
@@ -147,9 +145,7 @@ void run_test_isc_siphash24(void **state __attribute__((unused))) {
 	}
 }
 
-// ISC_RUN_TEST_IMPL(isc_halfsiphash24)
-void run_test_isc_halfsiphash24(void **state __attribute__((unused)));
-void run_test_isc_halfsiphash24(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_halfsiphash24) {
 	UNUSED(state);
 
 	uint8_t in[64], out[4], key[16];

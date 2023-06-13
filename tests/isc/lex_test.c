@@ -33,9 +33,7 @@
 #define AS_STR(x) (x).value.as_textregion.base
 
 /* check handling of 0xff */
-// ISC_RUN_TEST_IMPL(lex_0xff)
-void run_test_lex_0xff(void **state __attribute__((unused)));
-void run_test_lex_0xff(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(lex_0xff) {
 	isc_result_t result;
 	isc_lex_t *lex = NULL;
 	isc_buffer_t death_buf;
@@ -60,9 +58,7 @@ void run_test_lex_0xff(void **state __attribute__((unused))) {
 }
 
 /* check setting of source line */
-// ISC_RUN_TEST_IMPL(lex_setline)
-void run_test_lex_setline(void **state __attribute__((unused)));
-void run_test_lex_setline(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(lex_setline) {
 	isc_result_t result;
 	isc_lex_t *lex = NULL;
 	unsigned char text[] = "text\nto\nbe\nprocessed\nby\nlexer";
@@ -185,9 +181,7 @@ static struct {
 /*%
  * string
  */
-// ISC_RUN_TEST_IMPL(lex_string)
-void run_test_lex_string(void **state __attribute__((unused)));
-void run_test_lex_string(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(lex_string) {
 	isc_buffer_t buf;
 	isc_lex_t *lex = NULL;
 	isc_result_t result;
@@ -240,9 +234,7 @@ void run_test_lex_string(void **state __attribute__((unused))) {
 /*%
  * qstring
  */
-// ISC_RUN_TEST_IMPL(lex_qstring)
-void run_test_lex_qstring(void **state __attribute__((unused)));
-void run_test_lex_qstring(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(lex_qstring) {
 	isc_buffer_t buf;
 	isc_lex_t *lex = NULL;
 	isc_result_t result;
@@ -296,9 +288,7 @@ void run_test_lex_qstring(void **state __attribute__((unused))) {
  * keypair is <string>=<qstring>.  This has implications double quotes
  * in key names.
  */
-// ISC_RUN_TEST_IMPL(lex_keypair)
-void run_test_lex_keypair(void **state __attribute__((unused)));
-void run_test_lex_keypair(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(lex_keypair) {
 	isc_buffer_t buf;
 	isc_lex_t *lex = NULL;
 	isc_result_t result;

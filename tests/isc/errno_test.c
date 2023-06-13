@@ -89,9 +89,7 @@ testpair_t testpair[] = { { EPERM, ISC_R_NOPERM },
 			  { 0, ISC_R_UNEXPECTED } };
 
 /* convert errno to ISC result */
-// ISC_RUN_TEST_IMPL(isc_errno_toresult)
-void run_test_isc_errno_toresult(void **state __attribute__((unused)));
-void run_test_isc_errno_toresult(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(isc_errno_toresult) {
 	isc_result_t result, expect;
 	size_t i;
 

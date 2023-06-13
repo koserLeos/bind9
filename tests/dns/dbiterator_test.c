@@ -60,17 +60,13 @@ test_create(const char *filename) {
 	dns_db_detach(&db);
 }
 
-// ISC_RUN_TEST_IMPL(create)
-void run_test_create(void **state __attribute__((unused)));
-void run_test_create(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(create) {
 	UNUSED(state);
 
 	test_create(TESTS_DIR "/testdata/dbiterator/zone1.data");
 }
 
-// ISC_RUN_TEST_IMPL(create_nsec3)
-void run_test_create_nsec3(void **state __attribute__((unused)));
-void run_test_create_nsec3(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(create_nsec3) {
 	UNUSED(state);
 
 	test_create(TESTS_DIR "/testdata/dbiterator/zone2.data");
@@ -113,17 +109,13 @@ test_walk(const char *filename, int nodes) {
 	dns_db_detach(&db);
 }
 
-// ISC_RUN_TEST_IMPL(walk)
-void run_test_walk(void **state __attribute__((unused)));
-void run_test_walk(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(walk) {
 	UNUSED(state);
 
 	test_walk(TESTS_DIR "/testdata/dbiterator/zone1.data", 12);
 }
 
-// ISC_RUN_TEST_IMPL(walk_nsec3)
-void run_test_walk_nsec3(void **state __attribute__((unused)));
-void run_test_walk_nsec3(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(walk_nsec3) {
 	UNUSED(state);
 
 	test_walk(TESTS_DIR "/testdata/dbiterator/zone2.data", 33);
@@ -166,17 +158,13 @@ test_reverse(const char *filename) {
 	dns_db_detach(&db);
 }
 
-// ISC_RUN_TEST_IMPL(reverse)
-void run_test_reverse(void **state __attribute__((unused)));
-void run_test_reverse(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(reverse) {
 	UNUSED(state);
 
 	test_reverse(TESTS_DIR "/testdata/dbiterator/zone1.data");
 }
 
-// ISC_RUN_TEST_IMPL(reverse_nsec3)
-void run_test_reverse_nsec3(void **state __attribute__((unused)));
-void run_test_reverse_nsec3(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(reverse_nsec3) {
 	UNUSED(state);
 
 	test_reverse(TESTS_DIR "/testdata/dbiterator/zone2.data");
@@ -225,17 +213,13 @@ test_seek_node(const char *filename, int nodes) {
 	dns_db_detach(&db);
 }
 
-// ISC_RUN_TEST_IMPL(seek_node)
-void run_test_seek_node(void **state __attribute__((unused)));
-void run_test_seek_node(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(seek_node) {
 	UNUSED(state);
 
 	test_seek_node(TESTS_DIR "/testdata/dbiterator/zone1.data", 9);
 }
 
-// ISC_RUN_TEST_IMPL(seek_node_nsec3)
-void run_test_seek_node_nsec3(void **state __attribute__((unused)));
-void run_test_seek_node_nsec3(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(seek_node_nsec3) {
 	UNUSED(state);
 
 	test_seek_node(TESTS_DIR "/testdata/dbiterator/zone2.data", 30);
@@ -271,17 +255,13 @@ test_seek_empty(const char *filename) {
 	dns_db_detach(&db);
 }
 
-// ISC_RUN_TEST_IMPL(seek_empty)
-void run_test_seek_empty(void **state __attribute__((unused)));
-void run_test_seek_empty(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(seek_empty) {
 	UNUSED(state);
 
 	test_seek_empty(TESTS_DIR "/testdata/dbiterator/zone1.data");
 }
 
-// ISC_RUN_TEST_IMPL(seek_empty_nsec3)
-void run_test_seek_empty_nsec3(void **state __attribute__((unused)));
-void run_test_seek_empty_nsec3(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(seek_empty_nsec3) {
 	UNUSED(state);
 
 	test_seek_empty(TESTS_DIR "/testdata/dbiterator/zone2.data");
@@ -322,17 +302,13 @@ test_seek_nx(const char *filename) {
 	dns_db_detach(&db);
 }
 
-// ISC_RUN_TEST_IMPL(seek_nx)
-void run_test_seek_nx(void **state __attribute__((unused)));
-void run_test_seek_nx(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(seek_nx) {
 	UNUSED(state);
 
 	test_seek_nx(TESTS_DIR "/testdata/dbiterator/zone1.data");
 }
 
-// ISC_RUN_TEST_IMPL(seek_nx_nsec3)
-void run_test_seek_nx_nsec3(void **state __attribute__((unused)));
-void run_test_seek_nx_nsec3(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(seek_nx_nsec3) {
 	UNUSED(state);
 
 	test_seek_nx(TESTS_DIR "/testdata/dbiterator/zone2.data");

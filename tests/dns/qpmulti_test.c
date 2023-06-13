@@ -380,9 +380,7 @@ many_transactions(void *arg) {
 	isc_loopmgr_shutdown(loopmgr);
 }
 
-// ISC_RUN_TEST_IMPL(qpmulti)
-void run_test_qpmulti(void **state __attribute__((unused)));
-void run_test_qpmulti(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(qpmulti) {
 	setup_loopmgr(NULL);
 	setup_logging();
 	setup_items();

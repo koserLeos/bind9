@@ -141,9 +141,7 @@ ownercase_test_one(const char *str1, const char *str2) {
 	return (dns_name_caseequal(name1, name2));
 }
 
-// ISC_RUN_TEST_IMPL(ownercase)
-void run_test_ownercase(void **state __attribute__((unused)));
-void run_test_ownercase(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(ownercase) {
 	UNUSED(state);
 
 	for (size_t n = 0; n < ARRAY_SIZE(ownercase_vectors); n++) {
@@ -157,9 +155,7 @@ void run_test_ownercase(void **state __attribute__((unused))) {
 	assert_false(ownercase_test_one("\\216", "\\246"));
 }
 
-// ISC_RUN_TEST_IMPL(setownercase)
-void run_test_setownercase(void **state __attribute__((unused)));
-void run_test_setownercase(void **state __attribute__((unused))) {
+ISC_RUN_TEST_IMPL(setownercase) {
 	isc_result_t result;
 	rbtdb_nodelock_t node_locks[1];
 	dns_rbtdb_t rbtdb = { .node_locks = node_locks };
