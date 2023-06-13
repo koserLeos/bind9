@@ -744,7 +744,7 @@ isc_result_t
 dns__rbt_findnode(dns_rbt_t *rbt, const dns_name_t *name, dns_name_t *foundname,
 		  dns_rbtnode_t **node, dns_rbtnodechain_t *chain,
 		  unsigned int options, dns_rbtfindcallback_t callback,
-		  void *callback_arg ) {
+		  void *callback_arg DNS__DB_FLARG) {
 	dns_rbtnode_t *current, *last_compared;
 	dns_rbtnodechain_t localchain;
 	dns_name_t *search_name, current_name, *callback_name;
@@ -1008,7 +1008,7 @@ dns__rbt_findnode(dns_rbt_t *rbt, const dns_name_t *name, dns_name_t *foundname,
 						(callback)(current,
 							   callback_name,
 							   callback_arg
-								   );
+								   DNS__DB_FLARG_PASS);
 					if (result != DNS_R_CONTINUE) {
 						saved_result = result;
 						/*
@@ -1273,14 +1273,14 @@ dns__rbt_findnode(dns_rbt_t *rbt, const dns_name_t *name, dns_name_t *foundname,
  */
 isc_result_t
 dns__rbt_findname(dns_rbt_t *rbt, const dns_name_t *name, unsigned int options,
-		  dns_name_t *foundname, void **data ) {
+		  dns_name_t *foundname, void **data DNS__DB_FLARG) {
 	dns_rbtnode_t *node = NULL;
 	isc_result_t result;
 
 	REQUIRE(data != NULL && *data == NULL);
 
 	result = dns__rbt_findnode(rbt, name, foundname, &node, NULL, options,
-				   NULL, NULL );
+				   NULL, NULL DNS__DB_FLARG_PASS);
 
 	if (node != NULL && WANTEMPTYDATA_OR_DATA(options, node)) {
 		*data = node->data;
@@ -1296,7 +1296,7 @@ dns__rbt_findname(dns_rbt_t *rbt, const dns_name_t *name, unsigned int options,
  */
 isc_result_t
 dns__rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name,
-		    bool recurse ) {
+		    bool recurse DNS__DB_FLARG) {
 	dns_rbtnode_t *node = NULL;
 	isc_result_t result;
 
@@ -1319,7 +1319,7 @@ dns__rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name,
 	 */
 	result = dns__rbt_findnode(rbt, name, NULL, &node, NULL,
 				   DNS_RBTFIND_NOOPTIONS, NULL,
-				   NULL );
+				   NULL DNS__DB_FLARG_PASS);
 
 	if (result == ISC_R_SUCCESS) {
 		if (node->data != NULL) {
