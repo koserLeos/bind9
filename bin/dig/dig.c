@@ -2185,7 +2185,7 @@ plus_option(char *option, bool is_batchfile, bool *need_clone,
 	invalid_option:
 	need_value:
 #if TARGET_OS_IPHONE
-//	exit_or_usage:
+	exit_or_usage:
 #endif /* if TARGET_OS_IPHONE */
 		fprintf(stderr, "Invalid option: +%s\n", option);
 		usage();
