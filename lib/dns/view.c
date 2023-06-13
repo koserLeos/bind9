@@ -94,7 +94,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass, const char *name,
 		return (result);
 	}
 
-	view = isc_mem_get(mctx, sizeof(*view));
+	view = isc_mem_get(mctx, 1, sizeof(*view));
 	*view = (dns_view_t){
 		.rdclass = rdclass,
 		.name = isc_mem_strdup(mctx, name),
@@ -218,7 +218,7 @@ cleanup_zt:
 	}
 
 	isc_mem_free(mctx, view->name);
-	isc_mem_putanddetach(&view->mctx, view, sizeof(*view));
+	isc_mem_putanddetach(&view->mctx, view, 1, sizeof(*view));
 
 	return (result);
 }
@@ -436,7 +436,7 @@ destroy(dns_view_t *view) {
 	if (view->plugins != NULL && view->plugins_free != NULL) {
 		view->plugins_free(view->mctx, &view->plugins);
 	}
-	isc_mem_putanddetach(&view->mctx, view, sizeof(*view));
+	isc_mem_putanddetach(&view->mctx, view, 1, sizeof(*view));
 }
 
 void
@@ -2324,7 +2324,7 @@ dns_view_flushonshutdown(dns_view_t *view, bool flush) {
 
 static void
 free_sfd(void *data, void *arg) {
-	isc_mem_put(arg, data, sizeof(unsigned int));
+	isc_mem_put(arg, data, 1, sizeof(unsigned int));
 }
 
 void
@@ -2347,7 +2347,7 @@ dns_view_sfd_add(dns_view_t *view, const dns_name_t *name) {
 		unsigned int *count = node->data;
 		(*count)++;
 	} else {
-		unsigned int *count = isc_mem_get(view->mctx,
+		unsigned int *count = isc_mem_get(view->mctx, 1,
 						  sizeof(unsigned int));
 		*count = 1;
 		node->data = count;

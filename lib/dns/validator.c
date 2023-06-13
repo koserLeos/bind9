@@ -376,7 +376,7 @@ fetch_callback_dnskey(void *arg) {
 	if (dns_rdataset_isassociated(&val->fsigrdataset)) {
 		dns_rdataset_disassociate(&val->fsigrdataset);
 	}
-	isc_mem_putanddetach(&resp->mctx, resp, sizeof(*resp));
+	isc_mem_putanddetach(&resp->mctx, resp, 1, sizeof(*resp));
 
 	validator_log(val, ISC_LOG_DEBUG(3), "in fetch_callback_dnskey");
 	fetch = val->fetch;
@@ -574,7 +574,7 @@ fetch_callback_ds(void *arg) {
 	}
 done:
 
-	isc_mem_putanddetach(&resp->mctx, resp, sizeof(*resp));
+	isc_mem_putanddetach(&resp->mctx, resp, 1, sizeof(*resp));
 
 	if (fetch != NULL) {
 		dns_resolver_destroyfetch(&fetch);
@@ -1437,7 +1437,7 @@ validate_answer(dns_validator_t *val, bool resume) {
 		dns_rdata_reset(&rdata);
 		dns_rdataset_current(val->sigrdataset, &rdata);
 		if (val->siginfo == NULL) {
-			val->siginfo = isc_mem_get(val->view->mctx,
+			val->siginfo = isc_mem_get(val->view->mctx, 1,
 						   sizeof(*val->siginfo));
 		}
 		result = dns_rdata_tostruct(&rdata, val->siginfo, NULL);
@@ -3010,7 +3010,7 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 		(rdataset == NULL && sigrdataset == NULL && message != NULL));
 	REQUIRE(validatorp != NULL && *validatorp == NULL);
 
-	val = isc_mem_get(view->mctx, sizeof(*val));
+	val = isc_mem_get(view->mctx, 1, sizeof(*val));
 	*val = (dns_validator_t){ .tid = isc_tid(),
 				  .result = ISC_R_FAILURE,
 				  .rdataset = rdataset,
@@ -3057,7 +3057,7 @@ cleanup:
 	if (val->message != NULL) {
 		dns_message_detach(&val->message);
 	}
-	isc_mem_put(view->mctx, val, sizeof(*val));
+	isc_mem_put(view->mctx, val, 1, sizeof(*val));
 	dns_view_detach(&view);
 
 	return (result);
@@ -3118,13 +3118,13 @@ destroy_validator(dns_validator_t *val) {
 	disassociate_rdatasets(val);
 	mctx = val->view->mctx;
 	if (val->siginfo != NULL) {
-		isc_mem_put(mctx, val->siginfo, sizeof(*val->siginfo));
+		isc_mem_put(mctx, val->siginfo, 1, sizeof(*val->siginfo));
 	}
 	dns_view_detach(&val->view);
 	if (val->message != NULL) {
 		dns_message_detach(&val->message);
 	}
-	isc_mem_put(mctx, val, sizeof(*val));
+	isc_mem_put(mctx, val, 1, sizeof(*val));
 }
 
 void

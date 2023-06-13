@@ -221,7 +221,7 @@ ns_test_getclient(ns_interface_t *ifp0, bool tcp, ns_client_t **clientp) {
 
 	clientmgr = ns_interfacemgr_getclientmgr(interfacemgr);
 
-	client = isc_mem_get(clientmgr->mctx, sizeof(*client));
+	client = isc_mem_get(clientmgr->mctx, 1, sizeof(*client));
 	result = ns__client_setup(client, clientmgr, true);
 
 	for (i = 0; i < 32; i++) {
@@ -352,7 +352,7 @@ extract_qctx(void *arg, void *data, isc_result_t *resultp) {
 	 * duplicated or otherwise they will become invalidated once the stack
 	 * gets unwound.
 	 */
-	qctx = isc_mem_get(mctx, sizeof(*qctx));
+	qctx = isc_mem_get(mctx, 1, sizeof(*qctx));
 	if (qctx != NULL) {
 		memmove(qctx, (query_ctx_t *)arg, sizeof(*qctx));
 	}
@@ -510,7 +510,7 @@ ns_test_qctx_destroy(query_ctx_t **qctxp) {
 		isc_nmhandle_detach(&qctx->client->handle);
 	}
 
-	isc_mem_put(mctx, qctx, sizeof(*qctx));
+	isc_mem_put(mctx, qctx, 1, sizeof(*qctx));
 }
 
 ns_hookresult_t

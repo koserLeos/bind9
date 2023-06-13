@@ -590,7 +590,7 @@ journal_file_create(isc_mem_t *mctx, bool downgrade, const char *filename) {
 	size = sizeof(journal_rawheader_t) +
 	       index_size * sizeof(journal_rawpos_t);
 
-	mem = isc_mem_getx(mctx, size, ISC_MEM_ZERO);
+	mem = isc_mem_getx(mctx, size, sizeof(char), ISC_MEM_ZERO);
 	memmove(mem, &rawheader, sizeof(rawheader));
 
 	result = isc_stdio_write(mem, 1, (size_t)size, fp, NULL);
@@ -600,10 +600,10 @@ journal_file_create(isc_mem_t *mctx, bool downgrade, const char *filename) {
 			      isc_result_totext(result));
 		(void)isc_stdio_close(fp);
 		(void)isc_file_remove(filename);
-		isc_mem_put(mctx, mem, size);
+		isc_mem_put(mctx, mem, size, sizeof(char));
 		return (ISC_R_UNEXPECTED);
 	}
-	isc_mem_put(mctx, mem, size);
+	isc_mem_put(mctx, mem, size, sizeof(char));
 
 	result = isc_stdio_close(fp);
 	if (result != ISC_R_SUCCESS) {
@@ -627,7 +627,7 @@ journal_open(isc_mem_t *mctx, const char *filename, bool writable, bool create,
 
 	REQUIRE(journalp != NULL && *journalp == NULL);
 
-	j = isc_mem_get(mctx, sizeof(*j));
+	j = isc_mem_get(mctx, 1, sizeof(*j));
 	*j = (dns_journal_t){ .state = JOURNAL_STATE_INVALID,
 			      .filename = isc_mem_strdup(mctx, filename),
 			      .xhdr_version = XHDR_VERSION2 };
@@ -705,12 +705,12 @@ journal_open(isc_mem_t *mctx, const char *filename, bool writable, bool create,
 		unsigned char *p;
 
 		rawbytes = j->header.index_size * sizeof(journal_rawpos_t);
-		j->rawindex = isc_mem_get(mctx, rawbytes);
+		j->rawindex = isc_mem_get(mctx, rawbytes, sizeof(char));
 
 		CHECK(journal_read(j, j->rawindex, rawbytes));
 
-		j->index = isc_mem_get(mctx, j->header.index_size *
-						     sizeof(journal_pos_t));
+		j->index = isc_mem_get(mctx, j->header.index_size,
+				       sizeof(journal_pos_t));
 
 		p = j->rawindex;
 		for (i = 0; i < j->header.index_size; i++) {
@@ -746,18 +746,18 @@ journal_open(isc_mem_t *mctx, const char *filename, bool writable, bool create,
 failure:
 	j->magic = 0;
 	if (j->rawindex != NULL) {
-		isc_mem_put(j->mctx, j->rawindex,
-			    j->header.index_size * sizeof(journal_rawpos_t));
+		isc_mem_put(j->mctx, j->rawindex, j->header.index_size,
+			    sizeof(journal_rawpos_t));
 	}
 	if (j->index != NULL) {
-		isc_mem_put(j->mctx, j->index,
-			    j->header.index_size * sizeof(journal_pos_t));
+		isc_mem_put(j->mctx, j->index, j->header.index_size,
+			    sizeof(journal_pos_t));
 	}
 	isc_mem_free(j->mctx, j->filename);
 	if (j->fp != NULL) {
 		(void)isc_stdio_close(j->fp);
 	}
-	isc_mem_putanddetach(&j->mctx, j, sizeof(*j));
+	isc_mem_putanddetach(&j->mctx, j, 1, sizeof(*j));
 	return (result);
 }
 
@@ -1227,7 +1227,7 @@ dns_journal_writediff(dns_journal_t *j, dns_diff_t *diff) {
 		return (ISC_R_NOSPACE);
 	}
 
-	mem = isc_mem_get(j->mctx, size);
+	mem = isc_mem_get(j->mctx, size, sizeof(char));
 
 	isc_buffer_init(&buffer, mem, size);
 
@@ -1272,7 +1272,7 @@ dns_journal_writediff(dns_journal_t *j, dns_diff_t *diff) {
 
 failure:
 	if (mem != NULL) {
-		isc_mem_put(j->mctx, mem, size);
+		isc_mem_put(j->mctx, mem, size, sizeof(char));
 	}
 	return (result);
 }
@@ -1443,18 +1443,20 @@ dns_journal_destroy(dns_journal_t **journalp) {
 	j->it.result = ISC_R_FAILURE;
 	dns_name_invalidate(&j->it.name);
 	if (j->rawindex != NULL) {
-		isc_mem_put(j->mctx, j->rawindex,
-			    j->header.index_size * sizeof(journal_rawpos_t));
+		isc_mem_put(j->mctx, j->rawindex, j->header.index_size,
+			    sizeof(journal_rawpos_t));
 	}
 	if (j->index != NULL) {
-		isc_mem_put(j->mctx, j->index,
-			    j->header.index_size * sizeof(journal_pos_t));
+		isc_mem_put(j->mctx, j->index, j->header.index_size,
+			    sizeof(journal_pos_t));
 	}
 	if (j->it.target.base != NULL) {
-		isc_mem_put(j->mctx, j->it.target.base, j->it.target.length);
+		isc_mem_put(j->mctx, j->it.target.base, j->it.target.length,
+			    sizeof(char));
 	}
 	if (j->it.source.base != NULL) {
-		isc_mem_put(j->mctx, j->it.source.base, j->it.source.length);
+		isc_mem_put(j->mctx, j->it.source.base, j->it.source.length,
+			    sizeof(char));
 	}
 	if (j->filename != NULL) {
 		isc_mem_free(j->mctx, j->filename);
@@ -1463,7 +1465,7 @@ dns_journal_destroy(dns_journal_t **journalp) {
 		(void)isc_stdio_close(j->fp);
 	}
 	j->magic = 0;
-	isc_mem_putanddetach(&j->mctx, j, sizeof(*j));
+	isc_mem_putanddetach(&j->mctx, j, 1, sizeof(*j));
 }
 
 /*
@@ -1607,10 +1609,10 @@ failure:
 	}
 
 	if (source.base != NULL) {
-		isc_mem_put(j->mctx, source.base, source.length);
+		isc_mem_put(j->mctx, source.base, source.length, sizeof(char));
 	}
 	if (target.base != NULL) {
-		isc_mem_put(j->mctx, target.base, target.length);
+		isc_mem_put(j->mctx, target.base, target.length, sizeof(char));
 	}
 
 	dns_diff_clear(&diff);
@@ -1756,10 +1758,10 @@ failure:
 
 cleanup:
 	if (source.base != NULL) {
-		isc_mem_put(j->mctx, source.base, source.length);
+		isc_mem_put(j->mctx, source.base, source.length, sizeof(char));
 	}
 	if (target.base != NULL) {
-		isc_mem_put(j->mctx, target.base, target.length);
+		isc_mem_put(j->mctx, target.base, target.length, sizeof(char));
 	}
 
 	dns_diff_clear(&diff);
@@ -1843,12 +1845,12 @@ read_one_rr(dns_journal_t *j);
 static isc_result_t
 size_buffer(isc_mem_t *mctx, isc_buffer_t *b, unsigned int size) {
 	if (b->length < size) {
-		void *mem = isc_mem_get(mctx, size);
+		void *mem = isc_mem_get(mctx, size, sizeof(char));
 		if (mem == NULL) {
 			return (ISC_R_NOMEMORY);
 		}
 		if (b->base != NULL) {
-			isc_mem_put(mctx, b->base, b->length);
+			isc_mem_put(mctx, b->base, b->length, sizeof(char));
 		}
 		b->base = mem;
 		b->length = size;
@@ -2638,7 +2640,7 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, uint32_t serial,
 					      j1->filename);
 				CHECK(ISC_R_FAILURE);
 			}
-			buf = isc_mem_get(mctx, size);
+			buf = isc_mem_get(mctx, size, sizeof(char));
 			result = journal_read(j1, buf, size);
 
 			/*
@@ -2661,7 +2663,7 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, uint32_t serial,
 				}
 
 				/* Check again */
-				isc_mem_put(mctx, buf, size);
+				isc_mem_put(mctx, buf, size, sizeof(char));
 				size = xhdr.size;
 				if (size > len) {
 					isc_log_write(
@@ -2672,7 +2674,7 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, uint32_t serial,
 						j1->filename);
 					CHECK(ISC_R_FAILURE);
 				}
-				buf = isc_mem_get(mctx, size);
+				buf = isc_mem_get(mctx, size, sizeof(char));
 				CHECK(journal_read(j1, buf, size));
 
 				if (!check_delta(buf, size)) {
@@ -2722,7 +2724,7 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, uint32_t serial,
 			serial = xhdr.serial1;
 
 			len = j1->header.end.offset - j1->offset;
-			isc_mem_put(mctx, buf, size);
+			isc_mem_put(mctx, buf, size, sizeof(char));
 		}
 
 		/*
@@ -2731,7 +2733,7 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, uint32_t serial,
 		 */
 		if (!rewrite) {
 			size = ISC_MIN(64 * 1024, len);
-			buf = isc_mem_get(mctx, size);
+			buf = isc_mem_get(mctx, size, sizeof(char));
 			for (i = 0; i < len; i += size) {
 				unsigned int blob = ISC_MIN(size, len - i);
 				CHECK(journal_read(j1, buf, blob));
@@ -2814,7 +2816,7 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, uint32_t serial,
 failure:
 	(void)isc_file_remove(newname);
 	if (buf != NULL) {
-		isc_mem_put(mctx, buf, size);
+		isc_mem_put(mctx, buf, size, sizeof(char));
 	}
 	if (j1 != NULL) {
 		dns_journal_destroy(&j1);

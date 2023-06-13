@@ -995,7 +995,7 @@ main(int argc, char **argv) {
 		argslen += strlen(argv[i]) + 1;
 	}
 
-	args = isc_mem_get(rndc_mctx, argslen);
+	args = isc_mem_get(rndc_mctx, argslen, sizeof(char));
 
 	p = args;
 	for (i = 0; i < argc; i++) {
@@ -1021,7 +1021,7 @@ main(int argc, char **argv) {
 	cfg_obj_destroy(pctx, &config);
 	cfg_parser_destroy(&pctx);
 
-	isc_mem_put(rndc_mctx, args, argslen);
+	isc_mem_put(rndc_mctx, args, argslen, sizeof(char));
 
 	isc_buffer_free(&databuf);
 

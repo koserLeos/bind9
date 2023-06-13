@@ -651,7 +651,7 @@ new_node(dns_rpz_zones_t *rpzs, const dns_rpz_cidr_key_t *ip,
 	dns_rpz_cidr_node_t *node = NULL;
 	int i, words, wlen;
 
-	node = isc_mem_get(rpzs->mctx, sizeof(*node));
+	node = isc_mem_get(rpzs->mctx, 1, sizeof(*node));
 	*node = (dns_rpz_cidr_node_t){
 		.prefix = prefix,
 	};
@@ -1309,7 +1309,7 @@ search(dns_rpz_zones_t *rpzs, const dns_rpz_cidr_key_t *tgt_ip,
 		}
 		new_parent = new_node(rpzs, tgt_ip, dbit, cur);
 		if (new_parent == NULL) {
-			isc_mem_put(rpzs->mctx, sibling, sizeof(*sibling));
+			isc_mem_put(rpzs->mctx, sibling, 1, sizeof(*sibling));
 			return (ISC_R_NOMEMORY);
 		}
 		new_parent->parent = parent;
@@ -1392,7 +1392,7 @@ add_nm(dns_rpz_zones_t *rpzs, dns_name_t *trig_name,
 	case ISC_R_EXISTS:
 		nm_data = nmnode->data;
 		if (nm_data == NULL) {
-			nm_data = isc_mem_get(rpzs->mctx, sizeof(*nm_data));
+			nm_data = isc_mem_get(rpzs->mctx, 1, sizeof(*nm_data));
 			*nm_data = *new_data;
 			nmnode->data = nm_data;
 			return (ISC_R_SUCCESS);
@@ -1456,7 +1456,7 @@ add_name(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
  */
 static void
 rpz_node_deleter(void *nm_data, void *mctx) {
-	isc_mem_put(mctx, nm_data, sizeof(dns_rpz_nm_data_t));
+	isc_mem_put(mctx, nm_data, 1, sizeof(dns_rpz_nm_data_t));
 }
 
 /*
@@ -1470,7 +1470,7 @@ dns_rpz_new_zones(isc_mem_t *mctx, isc_loopmgr_t *loopmgr, char *rps_cstr,
 
 	REQUIRE(rpzsp != NULL && *rpzsp == NULL);
 
-	rpzs = isc_mem_get(mctx, sizeof(*rpzs));
+	rpzs = isc_mem_get(mctx, 1, sizeof(*rpzs));
 	*rpzs = (dns_rpz_zones_t){
 		.rps_cstr = rps_cstr,
 		.rps_cstr_size = rps_cstr_size,
@@ -1511,7 +1511,7 @@ cleanup_rbt:
 	isc_refcount_destroy(&rpzs->references);
 	isc_mutex_destroy(&rpzs->maint_lock);
 	isc_rwlock_destroy(&rpzs->search_lock);
-	isc_mem_put(mctx, rpzs, sizeof(*rpzs));
+	isc_mem_put(mctx, rpzs, 1, sizeof(*rpzs));
 
 	return (result);
 }
@@ -1533,7 +1533,7 @@ dns_rpz_new_zone(dns_rpz_zones_t *rpzs, dns_rpz_zone_t **rpzp) {
 		return (result);
 	}
 
-	rpz = isc_mem_get(rpzs->mctx, sizeof(*rpz));
+	rpz = isc_mem_get(rpzs->mctx, 1, sizeof(*rpz));
 	*rpz = (dns_rpz_zone_t){
 		.addsoa = true,
 		.magic = DNS_RPZ_ZONE_MAGIC,
@@ -1999,7 +1999,7 @@ cidr_free(dns_rpz_zones_t *rpzs) {
 		} else {
 			parent->child[parent->child[1] == cur] = NULL;
 		}
-		isc_mem_put(rpzs->mctx, cur, sizeof(*cur));
+		isc_mem_put(rpzs->mctx, cur, 1, sizeof(*cur));
 		cur = parent;
 	}
 }
@@ -2066,7 +2066,7 @@ dns_rpz_zone_destroy(dns_rpz_zone_t **rpzp) {
 
 	isc_ht_destroy(&rpz->nodes);
 
-	isc_mem_put(rpzs->mctx, rpz, sizeof(*rpz));
+	isc_mem_put(rpzs->mctx, rpz, 1, sizeof(*rpz));
 }
 
 static void
@@ -2088,7 +2088,8 @@ dns__rpz_zones_destroy(dns_rpz_zones_t *rpzs) {
 #ifdef USE_DNSRPS
 		librpz->client_detach(&rpzs->rps_client);
 #endif /* ifdef USE_DNSRPS */
-		isc_mem_put(rpzs->mctx, rpzs->rps_cstr, rpzs->rps_cstr_size);
+		isc_mem_put(rpzs->mctx, rpzs->rps_cstr, rpzs->rps_cstr_size,
+			    sizeof(char));
 	}
 
 	cidr_free(rpzs);
@@ -2097,7 +2098,7 @@ dns__rpz_zones_destroy(dns_rpz_zones_t *rpzs) {
 	}
 	isc_mutex_destroy(&rpzs->maint_lock);
 	isc_rwlock_destroy(&rpzs->search_lock);
-	isc_mem_putanddetach(&rpzs->mctx, rpzs, sizeof(*rpzs));
+	isc_mem_putanddetach(&rpzs->mctx, rpzs, 1, sizeof(*rpzs));
 }
 
 void
@@ -2260,7 +2261,7 @@ del_cidr(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 		if (child != NULL) {
 			child->parent = parent;
 		}
-		isc_mem_put(rpz->rpzs->mctx, tgt, sizeof(*tgt));
+		isc_mem_put(rpz->rpzs->mctx, tgt, 1, sizeof(*tgt));
 
 		tgt = parent;
 	} while (tgt != NULL);

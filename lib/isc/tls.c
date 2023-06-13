@@ -195,7 +195,7 @@ isc__tls_initialize(void) {
 	RUNTIME_CHECK(OPENSSL_init_ssl(opts, NULL) == 1);
 #else
 	nlocks = CRYPTO_num_locks();
-	locks = isc_mem_getx(isc__tls_mctx, nlocks * sizeof(locks[0]),
+	locks = isc_mem_getx(isc__tls_mctx, nlocks, sizeof(locks[0]),
 			     ISC_MEM_ZERO);
 	isc_mutexblock_init(locks, nlocks);
 	CRYPTO_set_locking_callback(isc__tls_lock_callback);
@@ -245,7 +245,7 @@ isc__tls_shutdown(void) {
 
 	if (locks != NULL) {
 		isc_mutexblock_destroy(locks, nlocks);
-		isc_mem_put(isc__tls_mctx, locks, nlocks * sizeof(locks[0]));
+		isc_mem_put(isc__tls_mctx, locks, nlocks, sizeof(locks[0]));
 		locks = NULL;
 	}
 #endif
@@ -1189,7 +1189,7 @@ isc_tlsctx_cache_create(isc_mem_t *mctx, isc_tlsctx_cache_t **cachep) {
 	isc_tlsctx_cache_t *nc;
 
 	REQUIRE(cachep != NULL && *cachep == NULL);
-	nc = isc_mem_get(mctx, sizeof(*nc));
+	nc = isc_mem_get(mctx, 1, sizeof(*nc));
 
 	*nc = (isc_tlsctx_cache_t){ .magic = TLSCTX_CACHE_MAGIC };
 	isc_refcount_init(&nc->references, 1);
@@ -1231,7 +1231,7 @@ tlsctx_cache_entry_destroy(isc_mem_t *mctx, isc_tlsctx_cache_entry_t *entry) {
 	if (entry->ca_store != NULL) {
 		isc_tls_cert_store_free(&entry->ca_store);
 	}
-	isc_mem_put(mctx, entry, sizeof(*entry));
+	isc_mem_put(mctx, entry, 1, sizeof(*entry));
 }
 
 static void
@@ -1255,7 +1255,7 @@ tlsctx_cache_destroy(isc_tlsctx_cache_t *cache) {
 	isc_ht_iter_destroy(&it);
 	isc_ht_destroy(&cache->data);
 	isc_rwlock_destroy(&cache->rwlock);
-	isc_mem_putanddetach(&cache->mctx, cache, sizeof(*cache));
+	isc_mem_putanddetach(&cache->mctx, cache, 1, sizeof(*cache));
 }
 
 void
@@ -1349,7 +1349,7 @@ isc_tlsctx_cache_add(
 		 * The hash table entry does not exist, let's create one.
 		 */
 		INSIST(result != ISC_R_SUCCESS);
-		entry = isc_mem_get(cache->mctx, sizeof(*entry));
+		entry = isc_mem_get(cache->mctx, 1, sizeof(*entry));
 		*entry = (isc_tlsctx_cache_entry_t){
 			.ca_store = store,
 		};
@@ -1485,7 +1485,7 @@ isc_tlsctx_client_session_cache_create(
 	REQUIRE(max_entries > 0);
 	REQUIRE(cachep != NULL && *cachep == NULL);
 
-	nc = isc_mem_get(mctx, sizeof(*nc));
+	nc = isc_mem_get(mctx, 1, sizeof(*nc));
 
 	*nc = (isc_tlsctx_client_session_cache_t){ .max_entries = max_entries };
 	isc_refcount_init(&nc->references, 1);
@@ -1523,7 +1523,7 @@ client_cache_entry_delete(isc_tlsctx_client_session_cache_t *restrict cache,
 	ISC_LIST_UNLINK(cache->lru_entries, entry, cache_link);
 	cache->nentries--;
 	(void)SSL_SESSION_free(entry->session);
-	isc_mem_put(cache->mctx, entry, sizeof(*entry));
+	isc_mem_put(cache->mctx, entry, 1, sizeof(*entry));
 
 	/* The bucket is empty - let's remove it */
 	if (ISC_LIST_EMPTY(bucket->entries)) {
@@ -1533,7 +1533,7 @@ client_cache_entry_delete(isc_tlsctx_client_session_cache_t *restrict cache,
 			      ISC_R_SUCCESS);
 
 		isc_mem_free(cache->mctx, bucket->bucket_key);
-		isc_mem_put(cache->mctx, bucket, sizeof(*bucket));
+		isc_mem_put(cache->mctx, bucket, 1, sizeof(*bucket));
 	}
 }
 
@@ -1570,7 +1570,7 @@ isc_tlsctx_client_session_cache_detach(
 
 	isc_mutex_destroy(&cache->lock);
 	isc_tlsctx_free(&cache->ctx);
-	isc_mem_putanddetach(&cache->mctx, cache, sizeof(*cache));
+	isc_mem_putanddetach(&cache->mctx, cache, 1, sizeof(*cache));
 }
 
 static bool
@@ -1630,7 +1630,7 @@ isc_tlsctx_client_session_cache_keep(isc_tlsctx_client_session_cache_t *cache,
 	if (result != ISC_R_SUCCESS) {
 		/* Let's create a new bucket */
 		INSIST(bucket == NULL);
-		bucket = isc_mem_get(cache->mctx, sizeof(*bucket));
+		bucket = isc_mem_get(cache->mctx, 1, sizeof(*bucket));
 		*bucket = (client_session_cache_bucket_t){
 			.bucket_key = isc_mem_strdup(cache->mctx,
 						     remote_peer_name),
@@ -1644,7 +1644,7 @@ isc_tlsctx_client_session_cache_keep(isc_tlsctx_client_session_cache_t *cache,
 	}
 
 	/* Let's add a new cache entry to the new/found bucket */
-	entry = isc_mem_get(cache->mctx, sizeof(*entry));
+	entry = isc_mem_get(cache->mctx, 1, sizeof(*entry));
 	*entry = (client_session_cache_entry_t){ .session = sess,
 						 .bucket = bucket };
 	ISC_LINK_INIT(entry, bucket_link);

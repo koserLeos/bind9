@@ -65,7 +65,7 @@ dns_ssutable_create(isc_mem_t *mctx, dns_ssutable_t **tablep) {
 	REQUIRE(tablep != NULL && *tablep == NULL);
 	REQUIRE(mctx != NULL);
 
-	table = isc_mem_get(mctx, sizeof(dns_ssutable_t));
+	table = isc_mem_get(mctx, 1, sizeof(dns_ssutable_t));
 	isc_refcount_init(&table->references, 1);
 	table->mctx = NULL;
 	isc_mem_attach(mctx, &table->mctx);
@@ -85,24 +85,24 @@ destroy(dns_ssutable_t *table) {
 		dns_ssurule_t *rule = ISC_LIST_HEAD(table->rules);
 		if (rule->identity != NULL) {
 			dns_name_free(rule->identity, mctx);
-			isc_mem_put(mctx, rule->identity,
+			isc_mem_put(mctx, rule->identity, 1,
 				    sizeof(*rule->identity));
 		}
 		if (rule->name != NULL) {
 			dns_name_free(rule->name, mctx);
-			isc_mem_put(mctx, rule->name, sizeof(*rule->name));
+			isc_mem_put(mctx, rule->name, 1, sizeof(*rule->name));
 		}
 		if (rule->types != NULL) {
-			isc_mem_put(mctx, rule->types,
-				    rule->ntypes * sizeof(*rule->types));
+			isc_mem_put(mctx, rule->types, rule->ntypes,
+				    sizeof(*rule->types));
 		}
 		ISC_LIST_UNLINK(table->rules, rule, link);
 		rule->magic = 0;
-		isc_mem_put(mctx, rule, sizeof(dns_ssurule_t));
+		isc_mem_put(mctx, rule, 1, sizeof(dns_ssurule_t));
 	}
 	isc_refcount_destroy(&table->references);
 	table->magic = 0;
-	isc_mem_putanddetach(&table->mctx, table, sizeof(dns_ssutable_t));
+	isc_mem_putanddetach(&table->mctx, table, 1, sizeof(dns_ssutable_t));
 }
 
 void
@@ -149,7 +149,7 @@ dns_ssutable_addrule(dns_ssutable_t *table, bool grant,
 	}
 
 	mctx = table->mctx;
-	rule = isc_mem_get(mctx, sizeof(*rule));
+	rule = isc_mem_get(mctx, 1, sizeof(*rule));
 
 	rule->identity = NULL;
 	rule->name = NULL;
@@ -157,11 +157,11 @@ dns_ssutable_addrule(dns_ssutable_t *table, bool grant,
 
 	rule->grant = grant;
 
-	rule->identity = isc_mem_get(mctx, sizeof(*rule->identity));
+	rule->identity = isc_mem_get(mctx, 1, sizeof(*rule->identity));
 	dns_name_init(rule->identity, NULL);
 	dns_name_dup(identity, mctx, rule->identity);
 
-	rule->name = isc_mem_get(mctx, sizeof(*rule->name));
+	rule->name = isc_mem_get(mctx, 1, sizeof(*rule->name));
 	dns_name_init(rule->name, NULL);
 	dns_name_dup(name, mctx, rule->name);
 
@@ -169,7 +169,7 @@ dns_ssutable_addrule(dns_ssutable_t *table, bool grant,
 
 	rule->ntypes = ntypes;
 	if (ntypes > 0) {
-		rule->types = isc_mem_get(mctx, ntypes * sizeof(*rule->types));
+		rule->types = isc_mem_get(mctx, ntypes, sizeof(*rule->types));
 		memmove(rule->types, types, ntypes * sizeof(*rule->types));
 	} else {
 		rule->types = NULL;
@@ -652,7 +652,7 @@ dns_ssutable_createdlz(isc_mem_t *mctx, dns_ssutable_t **tablep,
 
 	table->dlzdatabase = dlzdatabase;
 
-	rule = isc_mem_get(table->mctx, sizeof(dns_ssurule_t));
+	rule = isc_mem_get(table->mctx, 1, sizeof(dns_ssurule_t));
 
 	rule->identity = NULL;
 	rule->name = NULL;

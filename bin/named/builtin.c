@@ -113,7 +113,7 @@ putrdata(bdbnode_t *node, dns_rdatatype_t typeval, dns_ttl_t ttl,
 	}
 
 	if (rdatalist == NULL) {
-		rdatalist = isc_mem_get(mctx, sizeof(dns_rdatalist_t));
+		rdatalist = isc_mem_get(mctx, 1, sizeof(dns_rdatalist_t));
 		dns_rdatalist_init(rdatalist);
 		rdatalist->rdclass = node->bdb->common.rdclass;
 		rdatalist->type = typeval;
@@ -123,7 +123,7 @@ putrdata(bdbnode_t *node, dns_rdatatype_t typeval, dns_ttl_t ttl,
 		return (DNS_R_BADTTL);
 	}
 
-	rdata = isc_mem_get(mctx, sizeof(dns_rdata_t));
+	rdata = isc_mem_get(mctx, 1, sizeof(dns_rdata_t));
 
 	isc_buffer_allocate(mctx, &rdatabuf, rdlen);
 	region.base = UNCONST(rdatap);
@@ -656,7 +656,7 @@ rdatasetiter_destroy(dns_rdatasetiter_t **iteratorp DNS__DB_FLARG) {
 	bdb_rdatasetiter_t *bdbiterator = (bdb_rdatasetiter_t *)(*iteratorp);
 	detachnode(bdbiterator->common.db,
 		   &bdbiterator->common.node DNS__DB_FLARG_PASS);
-	isc_mem_put(bdbiterator->common.db->mctx, bdbiterator,
+	isc_mem_put(bdbiterator->common.db->mctx, bdbiterator, 1,
 		    sizeof(bdb_rdatasetiter_t));
 	*iteratorp = NULL;
 }
@@ -719,7 +719,7 @@ destroy(dns_db_t *db) {
 
 	dns_name_free(&bdb->common.origin, bdb->common.mctx);
 
-	isc_mem_putanddetach(&bdb->common.mctx, bdb, sizeof(bdb_t));
+	isc_mem_putanddetach(&bdb->common.mctx, bdb, 1, sizeof(bdb_t));
 }
 
 /*
@@ -770,7 +770,7 @@ createnode(bdb_t *bdb, bdbnode_t **nodep) {
 
 	REQUIRE(VALID_BDB(bdb));
 
-	node = isc_mem_get(bdb->common.mctx, sizeof(bdbnode_t));
+	node = isc_mem_get(bdb->common.mctx, 1, sizeof(bdbnode_t));
 	*node = (bdbnode_t){
 		.lists = ISC_LIST_INITIALIZER,
 		.buffers = ISC_LIST_INITIALIZER,
@@ -803,10 +803,10 @@ destroynode(bdbnode_t *node) {
 		while (!ISC_LIST_EMPTY(list->rdata)) {
 			rdata = ISC_LIST_HEAD(list->rdata);
 			ISC_LIST_UNLINK(list->rdata, rdata, link);
-			isc_mem_put(mctx, rdata, sizeof(dns_rdata_t));
+			isc_mem_put(mctx, rdata, 1, sizeof(dns_rdata_t));
 		}
 		ISC_LIST_UNLINK(node->lists, list, link);
-		isc_mem_put(mctx, list, sizeof(dns_rdatalist_t));
+		isc_mem_put(mctx, list, 1, sizeof(dns_rdatalist_t));
 	}
 
 	while (!ISC_LIST_EMPTY(node->buffers)) {
@@ -817,11 +817,11 @@ destroynode(bdbnode_t *node) {
 
 	if (node->name != NULL) {
 		dns_name_free(node->name, mctx);
-		isc_mem_put(mctx, node->name, sizeof(dns_name_t));
+		isc_mem_put(mctx, node->name, 1, sizeof(dns_name_t));
 	}
 
 	node->magic = 0;
-	isc_mem_put(mctx, node, sizeof(bdbnode_t));
+	isc_mem_put(mctx, node, 1, sizeof(bdbnode_t));
 	dns_db_detach((dns_db_t **)(void *)&bdb);
 }
 
@@ -1141,7 +1141,7 @@ allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	REQUIRE(version == NULL || version == &dummy);
 
-	iterator = isc_mem_get(db->mctx, sizeof(bdb_rdatasetiter_t));
+	iterator = isc_mem_get(db->mctx, 1, sizeof(bdb_rdatasetiter_t));
 	*iterator = (bdb_rdatasetiter_t){
 		.common.methods = &rdatasetiter_methods,
 		.common.db = db,
@@ -1186,7 +1186,7 @@ create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 		return (ISC_R_NOTIMPLEMENTED);
 	}
 
-	bdb = isc_mem_get(mctx, sizeof(*bdb));
+	bdb = isc_mem_get(mctx, 1, sizeof(*bdb));
 	*bdb = (bdb_t){
 		.common = { .methods = &bdb_methods, .rdclass = rdclass },
 		.implementation = implementation,
@@ -1249,7 +1249,7 @@ cleanup:
 		isc_mem_free(named_g_mctx, bdb->contact);
 	}
 
-	isc_mem_putanddetach(&bdb->common.mctx, bdb, sizeof(bdb_t));
+	isc_mem_putanddetach(&bdb->common.mctx, bdb, 1, sizeof(bdb_t));
 	return (result);
 }
 

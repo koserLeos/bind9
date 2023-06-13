@@ -250,7 +250,7 @@ streamdns_sock_new(isc__networker_t *worker, const isc_nmsocket_type_t type,
 	INSIST(type == isc_nm_streamdnssocket ||
 	       type == isc_nm_streamdnslistener);
 
-	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	sock = isc_mem_get(worker->mctx, 1, sizeof(*sock));
 	isc__nmsocket_init(sock, worker, type, addr, NULL);
 	sock->result = ISC_R_UNSET;
 	if (type == isc_nm_streamdnssocket) {
@@ -556,7 +556,7 @@ streamdns_get_send_req(isc_nmsocket_t *sock, isc_mem_t *mctx,
 		sock->streamdns.send_req = NULL;
 	} else {
 		/* Allocate a new object. */
-		send_req = isc_mem_get(mctx, sizeof(*send_req));
+		send_req = isc_mem_get(mctx, 1, sizeof(*send_req));
 		*send_req = (streamdns_send_req_t){ 0 };
 	}
 
@@ -591,7 +591,7 @@ streamdns_put_send_req(isc_mem_t *mctx, streamdns_send_req_t *send_req,
 		}
 	}
 
-	isc_mem_put(mctx, send_req, sizeof(*send_req));
+	isc_mem_put(mctx, send_req, 1, sizeof(*send_req));
 }
 
 static void

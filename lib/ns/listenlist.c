@@ -177,7 +177,7 @@ listenelt_create(isc_mem_t *mctx, in_port_t port, dns_acl_t *acl,
 		}
 	}
 
-	elt = isc_mem_get(mctx, sizeof(*elt));
+	elt = isc_mem_get(mctx, 1, sizeof(*elt));
 	elt->mctx = mctx;
 	ISC_LINK_INIT(elt, link);
 	elt->port = port;
@@ -272,14 +272,14 @@ ns_listenelt_destroy(ns_listenelt_t *elt) {
 		}
 		isc_mem_free(elt->mctx, elt->http_endpoints);
 	}
-	isc_mem_put(elt->mctx, elt, sizeof(*elt));
+	isc_mem_put(elt->mctx, elt, 1, sizeof(*elt));
 }
 
 isc_result_t
 ns_listenlist_create(isc_mem_t *mctx, ns_listenlist_t **target) {
 	ns_listenlist_t *list = NULL;
 	REQUIRE(target != NULL && *target == NULL);
-	list = isc_mem_get(mctx, sizeof(*list));
+	list = isc_mem_get(mctx, 1, sizeof(*list));
 	list->mctx = mctx;
 	list->refcount = 1;
 	ISC_LIST_INIT(list->elts);
@@ -294,7 +294,7 @@ destroy(ns_listenlist_t *list) {
 		next = ISC_LIST_NEXT(elt, link);
 		ns_listenelt_destroy(elt);
 	}
-	isc_mem_put(list->mctx, list, sizeof(*list));
+	isc_mem_put(list->mctx, list, 1, sizeof(*list));
 }
 
 void

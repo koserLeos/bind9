@@ -43,7 +43,7 @@ ns_server_create(isc_mem_t *mctx, ns_matchview_t matchingview,
 
 	REQUIRE(sctxp != NULL && *sctxp == NULL);
 
-	sctx = isc_mem_get(mctx, sizeof(*sctx));
+	sctx = isc_mem_get(mctx, 1, sizeof(*sctx));
 	*sctx = (ns_server_t){
 		.udpsize = 1232,
 		.transfer_tcp_message_size = 20480,
@@ -131,7 +131,8 @@ ns_server_detach(ns_server_t **sctxp) {
 
 		while ((altsecret = ISC_LIST_HEAD(sctx->altsecrets)) != NULL) {
 			ISC_LIST_UNLINK(sctx->altsecrets, altsecret, link);
-			isc_mem_put(sctx->mctx, altsecret, sizeof(*altsecret));
+			isc_mem_put(sctx->mctx, altsecret, 1,
+				    sizeof(*altsecret));
 		}
 
 		isc_quota_destroy(&sctx->updquota);
@@ -146,7 +147,7 @@ ns_server_detach(ns_server_t **sctxp) {
 			next = ISC_LIST_NEXT(http_quota, link);
 			ISC_LIST_DEQUEUE(sctx->http_quotas, http_quota, link);
 			isc_quota_destroy(http_quota);
-			isc_mem_put(sctx->mctx, http_quota,
+			isc_mem_put(sctx->mctx, http_quota, 1,
 				    sizeof(*http_quota));
 			http_quota = next;
 		}
@@ -205,7 +206,7 @@ ns_server_detach(ns_server_t **sctxp) {
 
 		sctx->magic = 0;
 
-		isc_mem_putanddetach(&sctx->mctx, sctx, sizeof(*sctx));
+		isc_mem_putanddetach(&sctx->mctx, sctx, 1, sizeof(*sctx));
 	}
 }
 

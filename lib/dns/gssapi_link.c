@@ -68,7 +68,7 @@ gssapi_create_signverify_ctx(dst_key_t *key, dst_context_t *dctx) {
 
 	UNUSED(key);
 
-	ctx = isc_mem_get(dctx->mctx, sizeof(dst_gssapi_signverifyctx_t));
+	ctx = isc_mem_get(dctx->mctx, 1, sizeof(dst_gssapi_signverifyctx_t));
 	ctx->buffer = NULL;
 	isc_buffer_allocate(dctx->mctx, &ctx->buffer, INITIAL_BUFFER_SIZE);
 
@@ -88,7 +88,7 @@ gssapi_destroy_signverify_ctx(dst_context_t *dctx) {
 		if (ctx->buffer != NULL) {
 			isc_buffer_free(&ctx->buffer);
 		}
-		isc_mem_put(dctx->mctx, ctx,
+		isc_mem_put(dctx->mctx, ctx, 1,
 			    sizeof(dst_gssapi_signverifyctx_t));
 		dctx->ctxdata.gssctx = NULL;
 	}
@@ -318,7 +318,7 @@ gssapi_dump(dst_key_t *key, isc_mem_t *mctx, char **buffer, int *length) {
 		return (ISC_R_FAILURE);
 	}
 	len = ((gssbuffer.length + 2) / 3) * 4;
-	buf = isc_mem_get(mctx, len);
+	buf = isc_mem_get(mctx, len, sizeof(char));
 	isc_buffer_init(&b, buf, (unsigned int)len);
 	GBUFFER_TO_REGION(gssbuffer, r);
 	result = isc_base64_totext(&r, 0, "", &b);

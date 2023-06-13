@@ -238,9 +238,9 @@ add_server(isc_mem_t *mctx, const char *address_str,
 		}
 	}
 
-	address = isc_mem_get(mctx, sizeof(*address));
+	address = isc_mem_get(mctx, 1, sizeof(*address));
 	if (res->ai_addrlen > sizeof(address->type)) {
-		isc_mem_put(mctx, address, sizeof(*address));
+		isc_mem_put(mctx, address, 1, sizeof(*address));
 		result = ISC_R_RANGE;
 		goto cleanup;
 	}
@@ -510,7 +510,7 @@ static isc_result_t
 add_search(irs_resconf_t *conf, char *domain) {
 	irs_resconf_search_t *entry;
 
-	entry = isc_mem_get(conf->mctx, sizeof(*entry));
+	entry = isc_mem_get(conf->mctx, 1, sizeof(*entry));
 
 	entry->domain = domain;
 	ISC_LINK_INIT(entry, link);
@@ -534,7 +534,7 @@ irs_resconf_load(isc_mem_t *mctx, const char *filename, irs_resconf_t **confp) {
 	REQUIRE(strlen(filename) > 0U);
 	REQUIRE(confp != NULL && *confp == NULL);
 
-	conf = isc_mem_get(mctx, sizeof(*conf));
+	conf = isc_mem_get(mctx, 1, sizeof(*conf));
 
 	conf->mctx = mctx;
 	ISC_LIST_INIT(conf->nameservers);
@@ -592,7 +592,7 @@ irs_resconf_load(isc_mem_t *mctx, const char *filename, irs_resconf_t **confp) {
 		case ENOENT:
 			break;
 		default:
-			isc_mem_put(mctx, conf, sizeof(*conf));
+			isc_mem_put(mctx, conf, 1, sizeof(*conf));
 			return (ISC_R_INVALIDFILE);
 		}
 	}
@@ -654,12 +654,12 @@ irs_resconf_destroy(irs_resconf_t **confp) {
 
 	while ((searchentry = ISC_LIST_HEAD(conf->searchlist)) != NULL) {
 		ISC_LIST_UNLINK(conf->searchlist, searchentry, link);
-		isc_mem_put(conf->mctx, searchentry, sizeof(*searchentry));
+		isc_mem_put(conf->mctx, searchentry, 1, sizeof(*searchentry));
 	}
 
 	while ((address = ISC_LIST_HEAD(conf->nameservers)) != NULL) {
 		ISC_LIST_UNLINK(conf->nameservers, address, link);
-		isc_mem_put(conf->mctx, address, sizeof(*address));
+		isc_mem_put(conf->mctx, address, 1, sizeof(*address));
 	}
 
 	if (conf->domainname != NULL) {
@@ -672,7 +672,7 @@ irs_resconf_destroy(irs_resconf_t **confp) {
 		}
 	}
 
-	isc_mem_put(conf->mctx, conf, sizeof(*conf));
+	isc_mem_put(conf->mctx, conf, 1, sizeof(*conf));
 }
 
 isc_sockaddrlist_t *

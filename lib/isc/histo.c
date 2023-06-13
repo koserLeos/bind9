@@ -97,7 +97,7 @@ isc_histo_create(isc_mem_t *mctx, uint sigbits, isc_histo_t **hgp) {
 	REQUIRE(hgp != NULL);
 	REQUIRE(*hgp == NULL);
 
-	isc_histo_t *hg = isc_mem_get(mctx, sizeof(*hg));
+	isc_histo_t *hg = isc_mem_get(mctx, 1, sizeof(*hg));
 	*hg = (isc_histo_t){
 		.magic = HISTO_MAGIC,
 		.sigbits = sigbits,
@@ -117,10 +117,11 @@ isc_histo_destroy(isc_histo_t **hgp) {
 
 	for (uint c = 0; c < CHUNKS; c++) {
 		if (hg->chunk[c] != NULL) {
-			isc_mem_put(hg->mctx, hg->chunk[c], CHUNKBYTES(hg));
+			isc_mem_put(hg->mctx, hg->chunk[c], CHUNKBYTES(hg),
+				    sizeof(char));
 		}
 	}
-	isc_mem_putanddetach(&hg->mctx, hg, sizeof(*hg));
+	isc_mem_putanddetach(&hg->mctx, hg, 1, sizeof(*hg));
 }
 
 /**********************************************************************/
@@ -244,13 +245,14 @@ key_to_new_bucket(isc_histo_t *hg, uint key) {
 	uint bucket = key % chunksize;
 	size_t bytes = CHUNKBYTES(hg);
 	hg_bucket_t *old_cp = NULL;
-	hg_bucket_t *new_cp = isc_mem_getx(hg->mctx, bytes, ISC_MEM_ZERO);
+	hg_bucket_t *new_cp = isc_mem_getx(hg->mctx, bytes, sizeof(char),
+					   ISC_MEM_ZERO);
 	hg_chunk_t *cpp = &hg->chunk[chunk];
 	if (atomic_compare_exchange_strong_acq_rel(cpp, &old_cp, new_cp)) {
 		return (&new_cp[bucket]);
 	} else {
 		/* lost the race, so use the winner's chunk */
-		isc_mem_put(hg->mctx, new_cp, bytes);
+		isc_mem_put(hg->mctx, new_cp, bytes, sizeof(char));
 		return (&old_cp[bucket]);
 	}
 }
@@ -384,8 +386,9 @@ isc_histomulti_create(isc_mem_t *mctx, uint sigbits, isc_histomulti_t **hmp) {
 	uint size = isc_tid_count();
 	INSIST(size > 0);
 
-	isc_histomulti_t *hm = isc_mem_getx(
-		mctx, STRUCT_FLEX_SIZE(hm, hg, size), ISC_MEM_ZERO);
+	isc_histomulti_t *hm = isc_mem_getx(mctx,
+					    STRUCT_FLEX_SIZE(hm, hg, size),
+					    sizeof(char), ISC_MEM_ZERO);
 	*hm = (isc_histomulti_t){
 		.magic = HISTOMULTI_MAGIC,
 		.size = size,
@@ -411,7 +414,7 @@ isc_histomulti_destroy(isc_histomulti_t **hmp) {
 		isc_histo_destroy(&hm->hg[i]);
 	}
 
-	isc_mem_put(mctx, hm, STRUCT_FLEX_SIZE(hm, hg, hm->size));
+	isc_mem_put(mctx, hm, STRUCT_FLEX_SIZE(hm, hg, hm->size), sizeof(char));
 }
 
 void

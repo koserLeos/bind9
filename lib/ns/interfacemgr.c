@@ -280,7 +280,7 @@ ns_interfacemgr_create(isc_mem_t *mctx, ns_server_t *sctx,
 	REQUIRE(mgrp != NULL);
 	REQUIRE(*mgrp == NULL);
 
-	mgr = isc_mem_get(mctx, sizeof(*mgr));
+	mgr = isc_mem_get(mctx, 1, sizeof(*mgr));
 	*mgr = (ns_interfacemgr_t){
 		.loopmgr = loopmgr,
 		.nm = nm,
@@ -322,8 +322,8 @@ ns_interfacemgr_create(isc_mem_t *mctx, ns_server_t *sctx,
 	mgr->magic = IFMGR_MAGIC;
 	*mgrp = mgr;
 
-	mgr->clientmgrs = isc_mem_get(mgr->mctx,
-				      mgr->ncpus * sizeof(mgr->clientmgrs[0]));
+	mgr->clientmgrs = isc_mem_get(mgr->mctx, mgr->ncpus,
+				      sizeof(mgr->clientmgrs[0]));
 	for (size_t i = 0; i < mgr->ncpus; i++) {
 		result = ns_clientmgr_create(mgr->sctx, mgr->loopmgr,
 					     mgr->aclenv, (int)i,
@@ -353,7 +353,7 @@ cleanup_listenon:
 cleanup_lock:
 	isc_mutex_destroy(&mgr->lock);
 	ns_server_detach(&mgr->sctx);
-	isc_mem_putanddetach(&mgr->mctx, mgr, sizeof(*mgr));
+	isc_mem_putanddetach(&mgr->mctx, mgr, 1, sizeof(*mgr));
 	return (result);
 }
 
@@ -371,14 +371,14 @@ ns_interfacemgr_destroy(ns_interfacemgr_t *mgr) {
 	for (size_t i = 0; i < mgr->ncpus; i++) {
 		ns_clientmgr_detach(&mgr->clientmgrs[i]);
 	}
-	isc_mem_put(mgr->mctx, mgr->clientmgrs,
-		    mgr->ncpus * sizeof(mgr->clientmgrs[0]));
+	isc_mem_put(mgr->mctx, mgr->clientmgrs, mgr->ncpus,
+		    sizeof(mgr->clientmgrs[0]));
 
 	if (mgr->sctx != NULL) {
 		ns_server_detach(&mgr->sctx);
 	}
 	mgr->magic = 0;
-	isc_mem_putanddetach(&mgr->mctx, mgr, sizeof(*mgr));
+	isc_mem_putanddetach(&mgr->mctx, mgr, 1, sizeof(*mgr));
 }
 
 void
@@ -451,7 +451,7 @@ ns_interface_create(ns_interfacemgr_t *mgr, isc_sockaddr_t *addr,
 
 	REQUIRE(NS_INTERFACEMGR_VALID(mgr));
 
-	ifp = isc_mem_get(mgr->mctx, sizeof(*ifp));
+	ifp = isc_mem_get(mgr->mctx, 1, sizeof(*ifp));
 	*ifp = (ns_interface_t){ .generation = mgr->generation, .addr = *addr };
 
 	if (name == NULL) {
@@ -584,7 +584,7 @@ ns_interface_listenhttp(ns_interface_t *ifp, isc_tlsctx_t *sslctx, char **eps,
 	result = load_http_endpoints(epset, ifp, eps, neps);
 
 	if (result == ISC_R_SUCCESS) {
-		quota = isc_mem_get(ifp->mgr->mctx, sizeof(*quota));
+		quota = isc_mem_get(ifp->mgr->mctx, 1, sizeof(*quota));
 		isc_quota_init(quota, max_clients);
 		result = isc_nm_listenhttp(ifp->mgr->nm, ISC_NM_LISTEN_ALL,
 					   &ifp->addr, ifp->mgr->backlog, quota,
@@ -597,7 +597,7 @@ ns_interface_listenhttp(ns_interface_t *ifp, isc_tlsctx_t *sslctx, char **eps,
 	if (quota != NULL) {
 		if (result != ISC_R_SUCCESS) {
 			isc_quota_destroy(quota);
-			isc_mem_put(ifp->mgr->mctx, quota, sizeof(*quota));
+			isc_mem_put(ifp->mgr->mctx, quota, 1, sizeof(*quota));
 		} else {
 			ifp->http_quota = quota;
 			ns_server_append_http_quota(ifp->mgr->sctx, quota);
@@ -762,7 +762,7 @@ interface_destroy(ns_interface_t **interfacep) {
 	isc_refcount_destroy(&ifp->ntcpactive);
 	isc_refcount_destroy(&ifp->ntcpaccepting);
 
-	isc_mem_put(mgr->mctx, ifp, sizeof(*ifp));
+	isc_mem_put(mgr->mctx, ifp, 1, sizeof(*ifp));
 }
 
 /*%
@@ -882,7 +882,7 @@ setup_listenon(ns_interfacemgr_t *mgr, isc_interface_t *interface,
 	isc_sockaddr_t *addr;
 	isc_sockaddr_t *old;
 
-	addr = isc_mem_get(mgr->mctx, sizeof(*addr));
+	addr = isc_mem_get(mgr->mctx, 1, sizeof(*addr));
 
 	isc_sockaddr_fromnetaddr(addr, &interface->address, port);
 
@@ -892,7 +892,7 @@ setup_listenon(ns_interfacemgr_t *mgr, isc_interface_t *interface,
 	{
 		if (isc_sockaddr_equal(addr, old)) {
 			/* We found an existing address */
-			isc_mem_put(mgr->mctx, addr, sizeof(*addr));
+			isc_mem_put(mgr->mctx, addr, 1, sizeof(*addr));
 			goto unlock;
 		}
 	}
@@ -916,7 +916,7 @@ clearlistenon(ns_interfacemgr_t *mgr) {
 	old = ISC_LIST_HEAD(listenon);
 	while (old != NULL) {
 		ISC_LIST_UNLINK(listenon, old, link);
-		isc_mem_put(mgr->mctx, old, sizeof(*old));
+		isc_mem_put(mgr->mctx, old, 1, sizeof(*old));
 		old = ISC_LIST_HEAD(listenon);
 	}
 }

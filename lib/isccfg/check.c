@@ -2517,10 +2517,10 @@ resume:
 
 			newsize = newlen * sizeof(*stack);
 			oldsize = stackcount * sizeof(*stack);
-			newstack = isc_mem_get(mctx, newsize);
+			newstack = isc_mem_get(mctx, newsize, sizeof(char));
 			if (stackcount != 0) {
 				memmove(newstack, stack, oldsize);
-				isc_mem_put(mctx, stack, oldsize);
+				isc_mem_put(mctx, stack, oldsize, sizeof(char));
 			}
 			stack = newstack;
 			stackcount = newlen;
@@ -2533,7 +2533,7 @@ resume:
 		goto resume;
 	}
 	if (stack != NULL) {
-		isc_mem_put(mctx, stack, stackcount * sizeof(*stack));
+		isc_mem_put(mctx, stack, stackcount, sizeof(*stack));
 	}
 	isc_symtab_destroy(&symtab);
 	*countp = count;

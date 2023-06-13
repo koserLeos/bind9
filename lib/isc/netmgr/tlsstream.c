@@ -212,7 +212,7 @@ tls_senddone(isc_nmhandle_t *handle, isc_result_t eresult, void *cbarg) {
 	} else {
 		isc_buffer_clearmctx(&send_req->data);
 		isc_buffer_invalidate(&send_req->data);
-		isc_mem_put(handle->sock->worker->mctx, send_req,
+		isc_mem_put(handle->sock->worker->mctx, send_req, 1,
 			    sizeof(*send_req));
 	}
 	tlssock->tlsstream.nsending--;
@@ -380,7 +380,8 @@ tls_send_outgoing(isc_nmsocket_t *sock, bool finish, isc_nmhandle_t *tlshandle,
 		send_req->finish = finish;
 		sock->tlsstream.send_req = NULL;
 	} else {
-		send_req = isc_mem_get(sock->worker->mctx, sizeof(*send_req));
+		send_req = isc_mem_get(sock->worker->mctx, 1,
+				       sizeof(*send_req));
 		*send_req = (isc_nmsocket_tls_send_req_t){ .finish = finish };
 		new_send_req = true;
 	}
@@ -899,7 +900,7 @@ tlslisten_acceptcb(isc_nmhandle_t *handle, isc_result_t result, void *cbarg) {
 	/*
 	 * We need to create a 'wrapper' tlssocket for this connection.
 	 */
-	tlssock = isc_mem_get(handle->sock->worker->mctx, sizeof(*tlssock));
+	tlssock = isc_mem_get(handle->sock->worker->mctx, 1, sizeof(*tlssock));
 	isc__nmsocket_init(tlssock, handle->sock->worker, isc_nm_tlssocket,
 			   &handle->sock->iface, NULL);
 
@@ -961,7 +962,7 @@ isc_nm_listentls(isc_nm_t *mgr, uint32_t workers, isc_sockaddr_t *iface,
 	}
 	REQUIRE(workers <= mgr->nloops);
 
-	tlssock = isc_mem_get(worker->mctx, sizeof(*tlssock));
+	tlssock = isc_mem_get(worker->mctx, 1, sizeof(*tlssock));
 
 	isc__nmsocket_init(tlssock, worker, isc_nm_tlslistener, iface, NULL);
 	tlssock->accept_cb = accept_cb;
@@ -1180,7 +1181,7 @@ isc_nm_tlsconnect(isc_nm_t *mgr, isc_sockaddr_t *local, isc_sockaddr_t *peer,
 		return;
 	}
 
-	sock = isc_mem_get(worker->mctx, sizeof(*sock));
+	sock = isc_mem_get(worker->mctx, 1, sizeof(*sock));
 	isc__nmsocket_init(sock, worker, isc_nm_tlssocket, local, NULL);
 	sock->connect_cb = connect_cb;
 	sock->connect_cbarg = connect_cbarg;
@@ -1297,7 +1298,7 @@ isc__nm_tls_cleanup_data(isc_nmsocket_t *sock) {
 			isc_buffer_clearmctx(&sock->tlsstream.send_req->data);
 			isc_buffer_invalidate(&sock->tlsstream.send_req->data);
 			isc_mem_put(sock->worker->mctx,
-				    sock->tlsstream.send_req,
+				    sock->tlsstream.send_req, 1,
 				    sizeof(*sock->tlsstream.send_req));
 		}
 	} else if (sock->type == isc_nm_tcpsocket &&
@@ -1452,7 +1453,7 @@ tls_init_listener_tlsctx(isc_nmsocket_t *listener, isc_tlsctx_t *ctx) {
 	INSIST(nworkers > 0);
 
 	listener->tlsstream.listener_tls_ctx = isc_mem_get(
-		listener->worker->mctx, sizeof(isc_tlsctx_t *) * nworkers);
+		listener->worker->mctx, nworkers, sizeof(isc_tlsctx_t *));
 	listener->tlsstream.n_listener_tls_ctx = nworkers;
 	for (size_t i = 0; i < nworkers; i++) {
 		listener->tlsstream.listener_tls_ctx[i] = NULL;
@@ -1472,10 +1473,9 @@ tls_cleanup_listener_tlsctx(isc_nmsocket_t *listener) {
 	for (size_t i = 0; i < listener->tlsstream.n_listener_tls_ctx; i++) {
 		isc_tlsctx_free(&listener->tlsstream.listener_tls_ctx[i]);
 	}
-	isc_mem_put(listener->worker->mctx,
-		    listener->tlsstream.listener_tls_ctx,
-		    sizeof(isc_tlsctx_t *) *
-			    listener->tlsstream.n_listener_tls_ctx);
+	isc_mem_put(
+		listener->worker->mctx, listener->tlsstream.listener_tls_ctx,
+		listener->tlsstream.n_listener_tls_ctx, sizeof(isc_tlsctx_t *));
 	listener->tlsstream.n_listener_tls_ctx = 0;
 }
 

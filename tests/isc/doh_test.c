@@ -144,7 +144,7 @@ connect_send_cb(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 
 	(void)atomic_fetch_sub(&active_cconnects, 1);
 	memmove(&data, arg, sizeof(data));
-	isc_mem_put(data.mctx, arg, sizeof(data));
+	isc_mem_put(data.mctx, arg, 1, sizeof(data));
 	if (result != ISC_R_SUCCESS) {
 		goto error;
 	}
@@ -157,11 +157,13 @@ connect_send_cb(isc_nmhandle_t *handle, isc_result_t result, void *arg) {
 		goto error;
 	}
 
-	isc_mem_putanddetach(&data.mctx, data.region.base, data.region.length);
+	isc_mem_putanddetach(&data.mctx, data.region.base, data.region.length,
+			     sizeof(char));
 	return;
 error:
 	data.reply_cb(handle, result, NULL, data.cb_arg);
-	isc_mem_putanddetach(&data.mctx, data.region.base, data.region.length);
+	isc_mem_putanddetach(&data.mctx, data.region.base, data.region.length,
+			     sizeof(char));
 }
 
 static void
@@ -172,10 +174,11 @@ connect_send_request(isc_nm_t *mgr, const char *uri, bool post,
 	csdata_t *data = NULL;
 	isc_tlsctx_t *ctx = NULL;
 
-	copy = (isc_region_t){ .base = isc_mem_get(mgr->mctx, region->length),
+	copy = (isc_region_t){ .base = isc_mem_get(mgr->mctx, region->length,
+						   sizeof(char)),
 			       .length = region->length };
 	memmove(copy.base, region->base, region->length);
-	data = isc_mem_get(mgr->mctx, sizeof(*data));
+	data = isc_mem_get(mgr->mctx, 1, sizeof(*data));
 	*data = (csdata_t){ .reply_cb = cb, .cb_arg = cbarg, .region = copy };
 	isc_mem_attach(mgr->mctx, &data->mctx);
 	if (tls) {
@@ -314,7 +317,7 @@ setup_test(void **state) {
 
 	setup_loopmgr(state);
 
-	nm = isc_mem_get(mctx, MAX_NM * sizeof(nm[0]));
+	nm = isc_mem_get(mctx, MAX_NM, sizeof(nm[0]));
 	for (size_t i = 0; i < MAX_NM; i++) {
 		isc_netmgr_create(mctx, loopmgr, &nm[i]);
 		assert_non_null(nm[i]);
@@ -348,7 +351,7 @@ teardown_test(void **state ISC_ATTR_UNUSED) {
 		isc_netmgr_destroy(&nm[i]);
 		assert_null(nm[i]);
 	}
-	isc_mem_put(mctx, nm, MAX_NM * sizeof(nm[0]));
+	isc_mem_put(mctx, nm, MAX_NM, sizeof(nm[0]));
 
 	teardown_loopmgr(state);
 

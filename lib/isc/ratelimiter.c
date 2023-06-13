@@ -68,7 +68,7 @@ isc_ratelimiter_create(isc_loop_t *loop, isc_ratelimiter_t **rlp) {
 
 	mctx = isc_loop_getmctx(loop);
 
-	rl = isc_mem_get(mctx, sizeof(*rl));
+	rl = isc_mem_get(mctx, 1, sizeof(*rl));
 	*rl = (isc_ratelimiter_t){
 		.pertic = 1,
 		.state = isc_ratelimiter_idle,
@@ -174,7 +174,7 @@ isc_ratelimiter_enqueue(isc_ratelimiter_t *restrict rl,
 		rl->state = isc_ratelimiter_ratelimited;
 		FALLTHROUGH;
 	case isc_ratelimiter_ratelimited:
-		rle = isc_mem_get(isc_loop_getmctx(loop), sizeof(*rle));
+		rle = isc_mem_get(isc_loop_getmctx(loop), 1, sizeof(*rle));
 		*rle = (isc_rlevent_t){
 			.cb = cb,
 			.arg = arg,
@@ -320,7 +320,7 @@ ratelimiter_destroy(isc_ratelimiter_t *restrict rl) {
 	UNLOCK(&rl->lock);
 
 	isc_mutex_destroy(&rl->lock);
-	isc_mem_putanddetach(&rl->mctx, rl, sizeof(*rl));
+	isc_mem_putanddetach(&rl->mctx, rl, 1, sizeof(*rl));
 }
 
 void
@@ -334,7 +334,7 @@ isc_rlevent_free(isc_rlevent_t **rlep) {
 
 	isc_loop_detach(&rle->loop);
 	isc_ratelimiter_detach(&rle->rl);
-	isc_mem_put(mctx, rle, sizeof(*rle));
+	isc_mem_put(mctx, rle, 1, sizeof(*rle));
 }
 
 ISC_REFCOUNT_IMPL(isc_ratelimiter, ratelimiter_destroy);

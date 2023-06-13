@@ -210,7 +210,8 @@ hashtable_new(isc_ht_t *ht, const uint8_t idx, const uint8_t bits) {
 
 	size = ht->size[idx] * sizeof(isc_ht_node_t *);
 
-	ht->table[idx] = isc_mem_getx(ht->mctx, size, ISC_MEM_ZERO);
+	ht->table[idx] = isc_mem_getx(ht->mctx, size, sizeof(char),
+				      ISC_MEM_ZERO);
 }
 
 static void
@@ -222,13 +223,13 @@ hashtable_free(isc_ht_t *ht, const uint8_t idx) {
 		while (node != NULL) {
 			isc_ht_node_t *next = node->next;
 			ht->count--;
-			isc_mem_put(ht->mctx, node,
-				    sizeof(*node) + node->keysize);
+			isc_mem_putfx(ht->mctx, node, node->keysize,
+				      sizeof(char), sizeof(*node), 0);
 			node = next;
 		}
 	}
 
-	isc_mem_put(ht->mctx, ht->table[idx], size);
+	isc_mem_put(ht->mctx, ht->table[idx], size, sizeof(char));
 	ht->hashbits[idx] = HT_NO_BITS;
 	ht->table[idx] = NULL;
 }
@@ -243,7 +244,7 @@ isc_ht_init(isc_ht_t **htp, isc_mem_t *mctx, uint8_t bits,
 	REQUIRE(mctx != NULL);
 	REQUIRE(bits >= 1 && bits <= HT_MAX_BITS);
 
-	ht = isc_mem_get(mctx, sizeof(*ht));
+	ht = isc_mem_get(mctx, 1, sizeof(*ht));
 	*ht = (isc_ht_t){
 		.case_sensitive = case_sensitive,
 	};
@@ -276,7 +277,7 @@ isc_ht_destroy(isc_ht_t **htp) {
 
 	INSIST(ht->count == 0);
 
-	isc_mem_putanddetach(&ht->mctx, ht, sizeof(*ht));
+	isc_mem_putanddetach(&ht->mctx, ht, 1, sizeof(*ht));
 }
 
 static void
@@ -287,7 +288,8 @@ isc__ht_add(isc_ht_t *ht, const unsigned char *key, const uint32_t keysize,
 
 	hash = hash_32(hashval, ht->hashbits[idx]);
 
-	node = isc_mem_get(ht->mctx, STRUCT_FLEX_SIZE(node, key, keysize));
+	node = isc_mem_get(ht->mctx, STRUCT_FLEX_SIZE(node, key, keysize),
+			   sizeof(char));
 	*node = (isc_ht_node_t){
 		.keysize = keysize,
 		.hashval = hashval,
@@ -396,7 +398,8 @@ isc__ht_delete(isc_ht_t *ht, const unsigned char *key, const uint32_t keysize,
 				prev->next = node->next;
 			}
 			isc_mem_put(ht->mctx, node,
-				    STRUCT_FLEX_SIZE(node, key, node->keysize));
+				    STRUCT_FLEX_SIZE(node, key, node->keysize),
+				    sizeof(char));
 			ht->count--;
 
 			return (ISC_R_SUCCESS);
@@ -443,7 +446,7 @@ isc_ht_iter_create(isc_ht_t *ht, isc_ht_iter_t **itp) {
 	REQUIRE(ISC_HT_VALID(ht));
 	REQUIRE(itp != NULL && *itp == NULL);
 
-	it = isc_mem_get(ht->mctx, sizeof(isc_ht_iter_t));
+	it = isc_mem_get(ht->mctx, 1, sizeof(isc_ht_iter_t));
 	*it = (isc_ht_iter_t){
 		.ht = ht,
 		.hindex = ht->hindex,
@@ -462,7 +465,7 @@ isc_ht_iter_destroy(isc_ht_iter_t **itp) {
 	it = *itp;
 	*itp = NULL;
 	ht = it->ht;
-	isc_mem_put(ht->mctx, it, sizeof(*it));
+	isc_mem_put(ht->mctx, it, 1, sizeof(*it));
 }
 
 isc_result_t

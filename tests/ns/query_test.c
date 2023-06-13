@@ -621,7 +621,7 @@ destroy_hookactx(ns_hookasync_t **ctxp) {
 	ns_hookasync_t *ctx = *ctxp;
 
 	*ctxp = NULL;
-	isc_mem_putanddetach(&ctx->mctx, ctx, sizeof(*ctx));
+	isc_mem_putanddetach(&ctx->mctx, ctx, 1, sizeof(*ctx));
 }
 
 /* 'cancel' callback of hook recursion ctx. */
@@ -644,8 +644,8 @@ test_hookasync(query_ctx_t *qctx, isc_mem_t *memctx, void *arg,
 		return (asdata->start_result);
 	}
 
-	ctx = isc_mem_get(memctx, sizeof(*ctx));
-	rev = isc_mem_get(memctx, sizeof(*rev));
+	ctx = isc_mem_get(memctx, 1, sizeof(*ctx));
+	rev = isc_mem_get(memctx, 1, sizeof(*rev));
 	*rev = (ns_hook_resume_t){
 		.hookpoint = asdata->hookpoint,
 		.origresult = DNS_R_NXDOMAIN,
@@ -1288,8 +1288,8 @@ test_hookasync_e2e(query_ctx_t *qctx, isc_mem_t *memctx, void *arg,
 		return (asdata->start_result);
 	}
 
-	ctx = isc_mem_get(memctx, sizeof(*ctx));
-	rev = isc_mem_get(memctx, sizeof(*rev));
+	ctx = isc_mem_get(memctx, 1, sizeof(*ctx));
+	rev = isc_mem_get(memctx, 1, sizeof(*rev));
 	*rev = (ns_hook_resume_t){
 		.hookpoint = asdata->hookpoint,
 		.saved_qctx = qctx,

@@ -80,13 +80,13 @@ printmessage(dns_message_t *msg) {
 	isc_result_t result = ISC_R_SUCCESS;
 
 	do {
-		buf = isc_mem_get(mctx, len);
+		buf = isc_mem_get(mctx, len, sizeof(char));
 
 		isc_buffer_init(&b, buf, len);
 		result = dns_message_totext(msg, &dns_master_style_debug, 0,
 					    &b);
 		if (result == ISC_R_NOSPACE) {
-			isc_mem_put(mctx, buf, len);
+			isc_mem_put(mctx, buf, len, sizeof(char));
 			len *= 2;
 		} else if (result == ISC_R_SUCCESS) {
 			printf("%.*s\n", (int)isc_buffer_usedlength(&b), buf);
@@ -94,7 +94,7 @@ printmessage(dns_message_t *msg) {
 	} while (result == ISC_R_NOSPACE);
 
 	if (buf != NULL) {
-		isc_mem_put(mctx, buf, len);
+		isc_mem_put(mctx, buf, len, sizeof(char));
 	}
 
 	return (result);

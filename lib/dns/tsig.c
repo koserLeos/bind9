@@ -249,7 +249,7 @@ dns_tsigkey_createfromkey(const dns_name_t *name, const dns_name_t *algorithm,
 	REQUIRE(mctx != NULL);
 	REQUIRE(key != NULL || ring != NULL);
 
-	tkey = isc_mem_get(mctx, sizeof(dns_tsigkey_t));
+	tkey = isc_mem_get(mctx, 1, sizeof(dns_tsigkey_t));
 	*tkey = (dns_tsigkey_t){
 		.generated = generated,
 		.restored = restored,
@@ -281,7 +281,7 @@ dns_tsigkey_createfromkey(const dns_name_t *name, const dns_name_t *algorithm,
 			ret = DNS_R_BADALG;
 			goto cleanup_name;
 		}
-		tmpname = isc_mem_get(mctx, sizeof(dns_name_t));
+		tmpname = isc_mem_get(mctx, 1, sizeof(dns_name_t));
 		dns_name_init(tmpname, NULL);
 		dns_name_dup(algorithm, mctx, tmpname);
 		(void)dns_name_downcase(tmpname, tmpname, NULL);
@@ -289,7 +289,7 @@ dns_tsigkey_createfromkey(const dns_name_t *name, const dns_name_t *algorithm,
 	}
 
 	if (creator != NULL) {
-		tkey->creator = isc_mem_get(mctx, sizeof(dns_name_t));
+		tkey->creator = isc_mem_get(mctx, 1, sizeof(dns_name_t));
 		dns_name_init(tkey->creator, NULL);
 		dns_name_dup(creator, mctx, tkey->creator);
 	}
@@ -357,18 +357,18 @@ cleanup_refs:
 	}
 	if (tkey->creator != NULL) {
 		dns_name_free(tkey->creator, mctx);
-		isc_mem_put(mctx, tkey->creator, sizeof(dns_name_t));
+		isc_mem_put(mctx, tkey->creator, 1, sizeof(dns_name_t));
 	}
 	if (dns__tsig_algallocated(tkey->algorithm)) {
 		dns_name_t *tmpname = UNCONST(tkey->algorithm);
 		if (dns_name_dynamic(tmpname)) {
 			dns_name_free(tmpname, mctx);
 		}
-		isc_mem_put(mctx, tmpname, sizeof(dns_name_t));
+		isc_mem_put(mctx, tmpname, 1, sizeof(dns_name_t));
 	}
 cleanup_name:
 	dns_name_free(&tkey->name, mctx);
-	isc_mem_put(mctx, tkey, sizeof(dns_tsigkey_t));
+	isc_mem_put(mctx, tkey, 1, sizeof(dns_tsigkey_t));
 
 	return (ret);
 }
@@ -431,7 +431,7 @@ destroyring(dns_tsig_keyring_t *ring) {
 	isc_refcount_destroy(&ring->references);
 	dns_rbt_destroy(&ring->keys);
 	isc_rwlock_destroy(&ring->lock);
-	isc_mem_putanddetach(&ring->mctx, ring, sizeof(dns_tsig_keyring_t));
+	isc_mem_putanddetach(&ring->mctx, ring, 1, sizeof(dns_tsig_keyring_t));
 }
 
 /*
@@ -583,7 +583,7 @@ dump_key(dns_tsigkey_t *tkey, FILE *fp) {
 			buffer);
 	}
 	if (buffer != NULL) {
-		isc_mem_put(tkey->mctx, buffer, length);
+		isc_mem_put(tkey->mctx, buffer, length, sizeof(char));
 	}
 }
 
@@ -715,16 +715,16 @@ tsigkey_free(dns_tsigkey_t *key) {
 	if (dns__tsig_algallocated(key->algorithm)) {
 		dns_name_t *name = UNCONST(key->algorithm);
 		dns_name_free(name, key->mctx);
-		isc_mem_put(key->mctx, name, sizeof(dns_name_t));
+		isc_mem_put(key->mctx, name, 1, sizeof(dns_name_t));
 	}
 	if (key->key != NULL) {
 		dst_key_free(&key->key);
 	}
 	if (key->creator != NULL) {
 		dns_name_free(key->creator, key->mctx);
-		isc_mem_put(key->mctx, key->creator, sizeof(dns_name_t));
+		isc_mem_put(key->mctx, key->creator, 1, sizeof(dns_name_t));
 	}
-	isc_mem_putanddetach(&key->mctx, key, sizeof(dns_tsigkey_t));
+	isc_mem_putanddetach(&key->mctx, key, 1, sizeof(dns_tsigkey_t));
 }
 
 void
@@ -974,7 +974,7 @@ dns_tsig_sign(dns_message_t *msg) {
 		if (ret != ISC_R_SUCCESS) {
 			goto cleanup_context;
 		}
-		tsig.signature = isc_mem_get(mctx, sigsize);
+		tsig.signature = isc_mem_get(mctx, sigsize, sizeof(char));
 
 		isc_buffer_init(&sigbuf, tsig.signature, sigsize);
 		ret = dst_context_sign(ctx, &sigbuf);
@@ -1011,7 +1011,7 @@ dns_tsig_sign(dns_message_t *msg) {
 	dns_message_takebuffer(msg, &dynbuf);
 
 	if (tsig.signature != NULL) {
-		isc_mem_put(mctx, tsig.signature, sigsize);
+		isc_mem_put(mctx, tsig.signature, sigsize, sizeof(char));
 		tsig.signature = NULL;
 	}
 
@@ -1038,7 +1038,7 @@ cleanup_dynbuf:
 	dns_message_puttemprdata(msg, &rdata);
 cleanup_signature:
 	if (tsig.signature != NULL) {
-		isc_mem_put(mctx, tsig.signature, sigsize);
+		isc_mem_put(mctx, tsig.signature, sigsize, sizeof(char));
 	}
 cleanup_context:
 	if (ctx != NULL) {
@@ -1806,14 +1806,14 @@ dns_tsigkeyring_create(isc_mem_t *mctx, dns_tsig_keyring_t **ringp) {
 	REQUIRE(ringp != NULL);
 	REQUIRE(*ringp == NULL);
 
-	ring = isc_mem_get(mctx, sizeof(dns_tsig_keyring_t));
+	ring = isc_mem_get(mctx, 1, sizeof(dns_tsig_keyring_t));
 
 	isc_rwlock_init(&ring->lock);
 	ring->keys = NULL;
 	result = dns_rbt_create(mctx, free_tsignode, NULL, &ring->keys);
 	if (result != ISC_R_SUCCESS) {
 		isc_rwlock_destroy(&ring->lock);
-		isc_mem_put(mctx, ring, sizeof(dns_tsig_keyring_t));
+		isc_mem_put(mctx, ring, 1, sizeof(dns_tsig_keyring_t));
 		return (result);
 	}
 

@@ -107,7 +107,7 @@ dns_peerlist_new(isc_mem_t *mem, dns_peerlist_t **list) {
 
 	REQUIRE(list != NULL);
 
-	l = isc_mem_get(mem, sizeof(*l));
+	l = isc_mem_get(mem, 1, sizeof(*l));
 
 	ISC_LIST_INIT(l->elements);
 	l->mem = mem;
@@ -168,7 +168,7 @@ peerlist_delete(dns_peerlist_t **list) {
 	}
 
 	l->magic = 0;
-	isc_mem_put(l->mem, l, sizeof(*l));
+	isc_mem_put(l->mem, l, 1, sizeof(*l));
 }
 
 void
@@ -262,7 +262,7 @@ dns_peer_newprefix(isc_mem_t *mem, const isc_netaddr_t *addr,
 
 	REQUIRE(peerptr != NULL && *peerptr == NULL);
 
-	peer = isc_mem_get(mem, sizeof(*peer));
+	peer = isc_mem_get(mem, 1, sizeof(*peer));
 
 	*peer = (dns_peer_t){
 		.magic = DNS_PEER_MAGIC,
@@ -327,23 +327,24 @@ peer_delete(dns_peer_t **peer) {
 
 	if (p->key != NULL) {
 		dns_name_free(p->key, mem);
-		isc_mem_put(mem, p->key, sizeof(dns_name_t));
+		isc_mem_put(mem, p->key, 1, sizeof(dns_name_t));
 	}
 
 	if (p->query_source != NULL) {
-		isc_mem_put(mem, p->query_source, sizeof(*p->query_source));
+		isc_mem_put(mem, p->query_source, 1, sizeof(*p->query_source));
 	}
 
 	if (p->notify_source != NULL) {
-		isc_mem_put(mem, p->notify_source, sizeof(*p->notify_source));
+		isc_mem_put(mem, p->notify_source, 1,
+			    sizeof(*p->notify_source));
 	}
 
 	if (p->transfer_source != NULL) {
-		isc_mem_put(mem, p->transfer_source,
+		isc_mem_put(mem, p->transfer_source, 1,
 			    sizeof(*p->transfer_source));
 	}
 
-	isc_mem_put(mem, p, sizeof(*p));
+	isc_mem_put(mem, p, 1, sizeof(*p));
 }
 
 #define ACCESS_OPTION(name, macro, type, element)                        \
@@ -422,12 +423,11 @@ ACCESS_OPTIONMAX(padding, SERVER_PADDING_BIT, uint16_t, padding, 512)
 					const isc_sockaddr_t *value) {       \
 		REQUIRE(DNS_PEER_VALID(peer));                               \
 		if (peer->element != NULL) {                                 \
-			isc_mem_put(peer->mem, peer->element,                \
+			isc_mem_put(peer->mem, peer->element, 1,             \
 				    sizeof(*peer->element));                 \
-			peer->element = NULL;                                \
 		}                                                            \
 		if (value != NULL) {                                         \
-			peer->element = isc_mem_get(peer->mem,               \
+			peer->element = isc_mem_get(peer->mem, 1,            \
 						    sizeof(*peer->element)); \
 			*peer->element = *value;                             \
 		}                                                            \
@@ -476,7 +476,7 @@ dns_peer_setkey(dns_peer_t *peer, dns_name_t **keyval) {
 
 	if (peer->key != NULL) {
 		dns_name_free(peer->key, peer->mem);
-		isc_mem_put(peer->mem, peer->key, sizeof(dns_name_t));
+		isc_mem_put(peer->mem, peer->key, 1, sizeof(dns_name_t));
 		exists = true;
 	}
 
@@ -502,14 +502,14 @@ dns_peer_setkeybycharp(dns_peer_t *peer, const char *keyval) {
 		return (result);
 	}
 
-	name = isc_mem_get(peer->mem, sizeof(dns_name_t));
+	name = isc_mem_get(peer->mem, 1, sizeof(dns_name_t));
 
 	dns_name_init(name, NULL);
 	dns_name_dup(dns_fixedname_name(&fname), peer->mem, name);
 
 	result = dns_peer_setkey(peer, &name);
 	if (result != ISC_R_SUCCESS) {
-		isc_mem_put(peer->mem, name, sizeof(dns_name_t));
+		isc_mem_put(peer->mem, name, 1, sizeof(dns_name_t));
 	}
 
 	return (result);

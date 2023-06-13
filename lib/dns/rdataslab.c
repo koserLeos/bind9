@@ -147,7 +147,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		if (rdataset->type != 0) {
 			return (ISC_R_FAILURE);
 		}
-		rawbuf = isc_mem_get(mctx, buflen);
+		rawbuf = isc_mem_get(mctx, buflen, sizeof(char));
 		region->base = rawbuf;
 		region->length = buflen;
 		rawbuf += reservelen;
@@ -164,7 +164,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	 * Remember the original number of items.
 	 */
 	nalloc = nitems;
-	x = isc_mem_get(mctx, nalloc * sizeof(struct xrdata));
+	x = isc_mem_get(mctx, nalloc, sizeof(struct xrdata));
 
 	/*
 	 * Save all of the rdata members into an array.
@@ -269,11 +269,11 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	 * Allocate the memory, set up a buffer, start copying in
 	 * data.
 	 */
-	rawbuf = isc_mem_getx(mctx, buflen, ISC_MEM_ZERO);
+	rawbuf = isc_mem_getx(mctx, buflen, sizeof(char), ISC_MEM_ZERO);
 
 #if DNS_RDATASET_FIXED
 	/* Allocate temporary offset table. */
-	offsettable = isc_mem_getx(mctx, nalloc * sizeof(unsigned int),
+	offsettable = isc_mem_getx(mctx, nalloc, sizeof(unsigned int),
 				   ISC_MEM_ZERO);
 #endif /* if DNS_RDATASET_FIXED */
 
@@ -325,13 +325,13 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 
 #if DNS_RDATASET_FIXED
 	fillin_offsets(offsetbase, offsettable, nalloc);
-	isc_mem_put(mctx, offsettable, nalloc * sizeof(unsigned int));
+	isc_mem_put(mctx, offsettable, nalloc, sizeof(unsigned int));
 #endif /* if DNS_RDATASET_FIXED */
 
 	result = ISC_R_SUCCESS;
 
 free_rdatas:
-	isc_mem_put(mctx, x, nalloc * sizeof(struct xrdata));
+	isc_mem_put(mctx, x, nalloc, sizeof(struct xrdata));
 	return (result);
 }
 
@@ -605,7 +605,7 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 	/*
 	 * Copy the reserved area from the new slab.
 	 */
-	tstart = isc_mem_get(mctx, tlength);
+	tstart = isc_mem_get(mctx, tlength, sizeof(char));
 	memmove(tstart, nslab, reservelen);
 	tcurrent = tstart + reservelen;
 #if DNS_RDATASET_FIXED
@@ -624,8 +624,8 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 	 */
 	tcurrent += (tcount * 4);
 
-	offsettable = isc_mem_getx(
-		mctx, (ocount + oncount) * sizeof(unsigned int), ISC_MEM_ZERO);
+	offsettable = isc_mem_getx(mctx, (ocount + oncount),
+				   sizeof(unsigned int), ISC_MEM_ZERO);
 #endif /* if DNS_RDATASET_FIXED */
 
 	/*
@@ -730,8 +730,8 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 #if DNS_RDATASET_FIXED
 	fillin_offsets(offsetbase, offsettable, ocount + oncount);
 
-	isc_mem_put(mctx, offsettable,
-		    (ocount + oncount) * sizeof(unsigned int));
+	isc_mem_put(mctx, offsettable, (ocount + oncount),
+		    sizeof(unsigned int));
 #endif /* if DNS_RDATASET_FIXED */
 
 	INSIST(tcurrent == tstart + tlength);
@@ -841,13 +841,13 @@ dns_rdataslab_subtract(unsigned char *mslab, unsigned char *sslab,
 	/*
 	 * Copy the reserved area from the mslab.
 	 */
-	tstart = isc_mem_get(mctx, tlength);
+	tstart = isc_mem_get(mctx, tlength, sizeof(char));
 	memmove(tstart, mslab, reservelen);
 	tcurrent = tstart + reservelen;
 #if DNS_RDATASET_FIXED
 	offsetbase = tcurrent;
 
-	offsettable = isc_mem_getx(mctx, mcount * sizeof(unsigned int),
+	offsettable = isc_mem_getx(mctx, mcount, sizeof(unsigned int),
 				   ISC_MEM_ZERO);
 #endif /* if DNS_RDATASET_FIXED */
 
@@ -904,7 +904,7 @@ dns_rdataslab_subtract(unsigned char *mslab, unsigned char *sslab,
 #if DNS_RDATASET_FIXED
 	fillin_offsets(offsetbase, offsettable, mcount);
 
-	isc_mem_put(mctx, offsettable, mcount * sizeof(unsigned int));
+	isc_mem_put(mctx, offsettable, mcount, sizeof(unsigned int));
 #endif /* if DNS_RDATASET_FIXED */
 
 	INSIST(tcurrent == tstart + tlength);

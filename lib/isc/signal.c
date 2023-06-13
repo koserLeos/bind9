@@ -28,7 +28,7 @@ isc_signal_new(isc_loopmgr_t *loopmgr, isc_signal_cb cb, void *cbarg,
 
 	loop = DEFAULT_LOOP(loopmgr);
 
-	signal = isc_mem_get(isc_loop_getmctx(loop), sizeof(*signal));
+	signal = isc_mem_get(isc_loop_getmctx(loop), 1, sizeof(*signal));
 	*signal = (isc_signal_t){
 		.magic = SIGNAL_MAGIC,
 		.cb = cb,
@@ -54,7 +54,7 @@ isc__signal_destroy_cb(uv_handle_t *handle) {
 	REQUIRE(VALID_SIGNAL(signal));
 
 	loop = signal->loop;
-	isc_mem_put(loop->mctx, signal, sizeof(*signal));
+	isc_mem_put(loop->mctx, signal, 1, sizeof(*signal));
 	isc_loop_detach(&loop);
 }
 

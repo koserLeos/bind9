@@ -68,13 +68,13 @@ static isc_result_t
 grow_data(isc_lex_t *lex, size_t *remainingp, char **currp, char **prevp) {
 	char *tmp;
 
-	tmp = isc_mem_get(lex->mctx, lex->max_token * 2 + 1);
+	tmp = isc_mem_get(lex->mctx, lex->max_token * 2 + 1, sizeof(char));
 	memmove(tmp, lex->data, lex->max_token + 1);
 	*currp = tmp + (*currp - lex->data);
 	if (*prevp != NULL) {
 		*prevp = tmp + (*prevp - lex->data);
 	}
-	isc_mem_put(lex->mctx, lex->data, lex->max_token + 1);
+	isc_mem_put(lex->mctx, lex->data, lex->max_token + 1, sizeof(char));
 	lex->data = tmp;
 	*remainingp += lex->max_token;
 	lex->max_token *= 2;
@@ -94,8 +94,8 @@ isc_lex_create(isc_mem_t *mctx, size_t max_token, isc_lex_t **lexp) {
 		max_token = 1;
 	}
 
-	lex = isc_mem_get(mctx, sizeof(*lex));
-	lex->data = isc_mem_get(mctx, max_token + 1);
+	lex = isc_mem_get(mctx, 1, sizeof(*lex));
+	lex->data = isc_mem_get(mctx, max_token + 1, sizeof(char));
 	lex->mctx = mctx;
 	lex->max_token = max_token;
 	lex->comments = 0;
@@ -128,10 +128,11 @@ isc_lex_destroy(isc_lex_t **lexp) {
 		RUNTIME_CHECK(isc_lex_close(lex) == ISC_R_SUCCESS);
 	}
 	if (lex->data != NULL) {
-		isc_mem_put(lex->mctx, lex->data, lex->max_token + 1);
+		isc_mem_put(lex->mctx, lex->data, lex->max_token + 1,
+			    sizeof(char));
 	}
 	lex->magic = 0;
-	isc_mem_put(lex->mctx, lex, sizeof(*lex));
+	isc_mem_put(lex->mctx, lex, 1, sizeof(*lex));
 }
 
 unsigned int
@@ -184,7 +185,7 @@ new_source(isc_lex_t *lex, bool is_file, bool need_close, void *input,
 	   const char *name) {
 	inputsource *source;
 
-	source = isc_mem_get(lex->mctx, sizeof(*source));
+	source = isc_mem_get(lex->mctx, 1, sizeof(*source));
 	source->result = ISC_R_SUCCESS;
 	source->is_file = is_file;
 	source->need_close = need_close;
@@ -279,7 +280,7 @@ isc_lex_close(isc_lex_t *lex) {
 	}
 	isc_mem_free(lex->mctx, source->name);
 	isc_buffer_free(&source->pushback);
-	isc_mem_put(lex->mctx, source, sizeof(*source));
+	isc_mem_put(lex->mctx, source, 1, sizeof(*source));
 
 	return (ISC_R_SUCCESS);
 }

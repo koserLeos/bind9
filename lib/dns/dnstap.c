@@ -158,7 +158,7 @@ dns_dt_create(isc_mem_t *mctx, dns_dtmode_t mode, const char *path,
 
 	atomic_fetch_add_release(&global_generation, 1);
 
-	env = isc_mem_get(mctx, sizeof(*env));
+	env = isc_mem_get(mctx, 1, sizeof(*env));
 	*env = (dns_dtenv_t){
 		.loop = loop,
 		.reopen_queued = false,
@@ -238,7 +238,7 @@ cleanup:
 		if (env->stats != NULL) {
 			isc_stats_detach(&env->stats);
 		}
-		isc_mem_putanddetach(&env->mctx, env, sizeof(dns_dtenv_t));
+		isc_mem_putanddetach(&env->mctx, env, 1, sizeof(dns_dtenv_t));
 	}
 
 	return (result);
@@ -502,7 +502,7 @@ destroy(dns_dtenv_t *env) {
 		isc_stats_detach(&env->stats);
 	}
 
-	isc_mem_putanddetach(&env->mctx, env, sizeof(*env));
+	isc_mem_putanddetach(&env->mctx, env, 1, sizeof(*env));
 }
 
 void
@@ -926,7 +926,7 @@ dns_dt_open(const char *filename, dns_dtmode_t mode, isc_mem_t *mctx,
 
 	REQUIRE(handlep != NULL && *handlep == NULL);
 
-	handle = isc_mem_get(mctx, sizeof(*handle));
+	handle = isc_mem_get(mctx, 1, sizeof(*handle));
 
 	handle->mode = mode;
 	handle->mctx = NULL;
@@ -975,7 +975,7 @@ cleanup:
 		fstrm_file_options_destroy(&fopt);
 	}
 	if (handle != NULL) {
-		isc_mem_put(mctx, handle, sizeof(*handle));
+		isc_mem_put(mctx, handle, 1, sizeof(*handle));
 	}
 	return (result);
 }
@@ -1019,7 +1019,7 @@ dns_dt_close(dns_dthandle_t **handlep) {
 		fstrm_reader_destroy(&handle->reader);
 		handle->reader = NULL;
 	}
-	isc_mem_putanddetach(&handle->mctx, handle, sizeof(*handle));
+	isc_mem_putanddetach(&handle->mctx, handle, 1, sizeof(*handle));
 }
 
 isc_result_t
@@ -1033,7 +1033,7 @@ dns_dt_parse(isc_mem_t *mctx, isc_region_t *src, dns_dtdata_t **destp) {
 	REQUIRE(src != NULL);
 	REQUIRE(destp != NULL && *destp == NULL);
 
-	d = isc_mem_getx(mctx, sizeof(*d), ISC_MEM_ZERO);
+	d = isc_mem_getx(mctx, 1, sizeof(*d), ISC_MEM_ZERO);
 	isc_mem_attach(mctx, &d->mctx);
 
 	d->frame = dnstap__dnstap__unpack(NULL, src->length, src->base);
@@ -1348,5 +1348,5 @@ dns_dtdata_free(dns_dtdata_t **dp) {
 		dnstap__dnstap__free_unpacked(d->frame, NULL);
 	}
 
-	isc_mem_putanddetach(&d->mctx, d, sizeof(*d));
+	isc_mem_putanddetach(&d->mctx, d, 1, sizeof(*d));
 }

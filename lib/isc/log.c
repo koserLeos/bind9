@@ -253,7 +253,7 @@ isc_log_create(isc_mem_t *mctx, isc_log_t **lctxp, isc_logconfig_t **lcfgp) {
 	REQUIRE(lctxp != NULL && *lctxp == NULL);
 	REQUIRE(lcfgp == NULL || *lcfgp == NULL);
 
-	lctx = isc_mem_get(mctx, sizeof(*lctx));
+	lctx = isc_mem_get(mctx, 1, sizeof(*lctx));
 	lctx->mctx = NULL;
 	isc_mem_attach(mctx, &lctx->mctx);
 	lctx->categories = NULL;
@@ -302,7 +302,7 @@ isc_logconfig_create(isc_log_t *lctx, isc_logconfig_t **lcfgp) {
 	REQUIRE(lcfgp != NULL && *lcfgp == NULL);
 	REQUIRE(VALID_CONTEXT(lctx));
 
-	lcfg = isc_mem_get(lctx->mctx, sizeof(*lcfg));
+	lcfg = isc_mem_get(lctx->mctx, 1, sizeof(*lcfg));
 
 	lcfg->lctx = lctx;
 	lcfg->channellists = NULL;
@@ -409,7 +409,8 @@ isc_log_destroy(isc_log_t **lctxp) {
 		ISC_LIST_UNLINK(lctx->messages, message, link);
 
 		isc_mem_put(mctx, message,
-			    sizeof(*message) + strlen(message->text) + 1);
+			    sizeof(*message) + strlen(message->text) + 1,
+			    sizeof(char));
 	}
 
 	lctx->buffer[0] = '\0';
@@ -420,7 +421,7 @@ isc_log_destroy(isc_log_t **lctxp) {
 	lctx->mctx = NULL;
 	lctx->magic = 0;
 
-	isc_mem_putanddetach(&mctx, lctx, sizeof(*lctx));
+	isc_mem_putanddetach(&mctx, lctx, 1, sizeof(*lctx));
 }
 
 void
@@ -467,21 +468,22 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 		}
 
 		isc_mem_free(mctx, channel->name);
-		isc_mem_put(mctx, channel, sizeof(*channel));
+		isc_mem_put(mctx, channel, 1, sizeof(*channel));
 	}
 
 	for (i = 0; i < lcfg->channellist_count; i++) {
 		isc_logchannellist_t *item;
 		while ((item = ISC_LIST_HEAD(lcfg->channellists[i])) != NULL) {
 			ISC_LIST_UNLINK(lcfg->channellists[i], item, link);
-			isc_mem_put(mctx, item, sizeof(*item));
+			isc_mem_put(mctx, item, 1, sizeof(*item));
 		}
 	}
 
 	if (lcfg->channellist_count > 0) {
 		isc_mem_put(mctx, lcfg->channellists,
 			    lcfg->channellist_count *
-				    sizeof(ISC_LIST(isc_logchannellist_t)));
+				    sizeof(ISC_LIST(isc_logchannellist_t)),
+			    sizeof(char));
 	}
 
 	lcfg->dynamic = false;
@@ -493,7 +495,7 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 	lcfg->duplicate_interval = 0;
 	lcfg->magic = 0;
 
-	isc_mem_put(mctx, lcfg, sizeof(*lcfg));
+	isc_mem_put(mctx, lcfg, 1, sizeof(*lcfg));
 }
 
 void
@@ -661,7 +663,7 @@ isc_log_createchannel(isc_logconfig_t *lcfg, const char *name,
 
 	mctx = lcfg->lctx->mctx;
 
-	channel = isc_mem_get(mctx, sizeof(*channel));
+	channel = isc_mem_get(mctx, 1, sizeof(*channel));
 
 	channel->name = isc_mem_strdup(mctx, name);
 
@@ -948,7 +950,7 @@ assignchannel(isc_logconfig_t *lcfg, unsigned int category_id,
 	 */
 	sync_channellist(lcfg);
 
-	new_item = isc_mem_get(lctx->mctx, sizeof(*new_item));
+	new_item = isc_mem_get(lctx->mctx, 1, sizeof(*new_item));
 
 	new_item->channel = channel;
 	new_item->module = module;
@@ -992,13 +994,14 @@ sync_channellist(isc_logconfig_t *lcfg) {
 
 	bytes = lctx->category_count * sizeof(ISC_LIST(isc_logchannellist_t));
 
-	lists = isc_mem_getx(lctx->mctx, bytes, ISC_MEM_ZERO);
+	lists = isc_mem_getx(lctx->mctx, bytes, sizeof(char), ISC_MEM_ZERO);
 
 	if (lcfg->channellist_count != 0) {
 		bytes = lcfg->channellist_count *
 			sizeof(ISC_LIST(isc_logchannellist_t));
 		memmove(lists, lcfg->channellists, bytes);
-		isc_mem_put(lctx->mctx, lcfg->channellists, bytes);
+		isc_mem_put(lctx->mctx, lcfg->channellists, bytes,
+			    sizeof(char));
 	}
 
 	lcfg->channellists = lists;
@@ -1705,7 +1708,8 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 						isc_mem_put(
 							lctx->mctx, message,
 							sizeof(*message) + 1 +
-								strlen(message->text));
+								strlen(message->text),
+							sizeof(char));
 
 						message = next;
 						continue;
@@ -1737,7 +1741,8 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 				 */
 				size = sizeof(isc_logmessage_t) +
 				       strlen(lctx->buffer) + 1;
-				message = isc_mem_get(lctx->mctx, size);
+				message = isc_mem_get(lctx->mctx, size,
+						      sizeof(char));
 				message->text = (char *)(message + 1);
 				size -= sizeof(isc_logmessage_t);
 				strlcpy(message->text, lctx->buffer, size);

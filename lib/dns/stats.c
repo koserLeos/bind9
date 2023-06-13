@@ -157,7 +157,7 @@ dns_stats_detach(dns_stats_t **statsp) {
 	if (isc_refcount_decrement(&stats->references) == 1) {
 		isc_refcount_destroy(&stats->references);
 		isc_stats_detach(&stats->counters);
-		isc_mem_putanddetach(&stats->mctx, stats, sizeof(*stats));
+		isc_mem_putanddetach(&stats->mctx, stats, 1, sizeof(*stats));
 	}
 }
 
@@ -170,7 +170,7 @@ create_stats(isc_mem_t *mctx, dns_statstype_t type, int ncounters,
 	dns_stats_t *stats;
 	isc_result_t result;
 
-	stats = isc_mem_get(mctx, sizeof(*stats));
+	stats = isc_mem_get(mctx, 1, sizeof(*stats));
 
 	stats->counters = NULL;
 	isc_refcount_init(&stats->references, 1);
@@ -189,7 +189,7 @@ create_stats(isc_mem_t *mctx, dns_statstype_t type, int ncounters,
 	return (ISC_R_SUCCESS);
 
 clean_mutex:
-	isc_mem_put(mctx, stats, sizeof(*stats));
+	isc_mem_put(mctx, stats, 1, sizeof(*stats));
 
 	return (result);
 }

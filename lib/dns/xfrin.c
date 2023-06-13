@@ -851,7 +851,7 @@ xfrin_create(isc_mem_t *mctx, dns_zone_t *zone, dns_db_t *db,
 	     dns_xfrin_t **xfrp) {
 	dns_xfrin_t *xfr = NULL;
 
-	xfr = isc_mem_get(mctx, sizeof(*xfr));
+	xfr = isc_mem_get(mctx, 1, sizeof(*xfr));
 	*xfr = (dns_xfrin_t){
 		.shutdown_result = ISC_R_UNSET,
 		.rdclass = rdclass,
@@ -1651,7 +1651,7 @@ xfrin_destroy(dns_xfrin_t *xfr) {
 	isc_timer_destroy(&xfr->max_idle_timer);
 	isc_timer_destroy(&xfr->max_time_timer);
 
-	isc_mem_putanddetach(&xfr->mctx, xfr, sizeof(*xfr));
+	isc_mem_putanddetach(&xfr->mctx, xfr, 1, sizeof(*xfr));
 }
 
 /*

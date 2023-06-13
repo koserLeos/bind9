@@ -40,7 +40,7 @@ isc_counter_create(isc_mem_t *mctx, int limit, isc_counter_t **counterp) {
 
 	REQUIRE(counterp != NULL && *counterp == NULL);
 
-	counter = isc_mem_get(mctx, sizeof(*counter));
+	counter = isc_mem_get(mctx, 1, sizeof(*counter));
 
 	counter->mctx = NULL;
 	isc_mem_attach(mctx, &counter->mctx);
@@ -94,7 +94,7 @@ static void
 destroy(isc_counter_t *counter) {
 	isc_refcount_destroy(&counter->references);
 	counter->magic = 0;
-	isc_mem_putanddetach(&counter->mctx, counter, sizeof(*counter));
+	isc_mem_putanddetach(&counter->mctx, counter, 1, sizeof(*counter));
 }
 
 void

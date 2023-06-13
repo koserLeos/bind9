@@ -52,7 +52,7 @@ static void
 shutdown_cb(void *arg) {
 	struct test_arg *ta = arg;
 
-	isc_mem_put(mctx, ta, sizeof(*ta));
+	isc_mem_put(mctx, ta, 1, sizeof(*ta));
 
 	isc_loopmgr_shutdown(loopmgr);
 }
@@ -77,7 +77,7 @@ job_run_cb(void *arg) {
 	atomic_fetch_add(&scheduled, 1);
 
 	if (arg == NULL) {
-		ta = isc_mem_get(mctx, sizeof(*ta));
+		ta = isc_mem_get(mctx, 1, sizeof(*ta));
 		*ta = (struct test_arg){ .job = ISC_JOB_INITIALIZER };
 	}
 

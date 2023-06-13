@@ -140,7 +140,7 @@ dns_requestmgr_create(isc_mem_t *mctx, dns_dispatchmgr_t *dispatchmgr,
 	REQUIRE(requestmgrp != NULL && *requestmgrp == NULL);
 	REQUIRE(dispatchmgr != NULL);
 
-	requestmgr = isc_mem_get(mctx, sizeof(*requestmgr));
+	requestmgr = isc_mem_get(mctx, 1, sizeof(*requestmgr));
 	*requestmgr = (dns_requestmgr_t){ 0 };
 
 	dns_dispatchmgr_attach(dispatchmgr, &requestmgr->dispatchmgr);
@@ -256,7 +256,7 @@ mgr_destroy(dns_requestmgr_t *requestmgr) {
 		dns_dispatchmgr_detach(&requestmgr->dispatchmgr);
 	}
 	requestmgr->magic = 0;
-	isc_mem_putanddetach(&requestmgr->mctx, requestmgr,
+	isc_mem_putanddetach(&requestmgr->mctx, requestmgr, 1,
 			     sizeof(*requestmgr));
 }
 
@@ -291,7 +291,7 @@ static isc_result_t
 new_request(isc_mem_t *mctx, dns_request_t **requestp) {
 	dns_request_t *request = NULL;
 
-	request = isc_mem_get(mctx, sizeof(*request));
+	request = isc_mem_get(mctx, 1, sizeof(*request));
 	*request = (dns_request_t){ 0 };
 	ISC_LINK_INIT(request, link);
 
@@ -1073,7 +1073,7 @@ req_destroy(dns_request_t *request) {
 	if (request->requestmgr != NULL) {
 		dns_requestmgr_detach(&request->requestmgr);
 	}
-	isc_mem_putanddetach(&request->mctx, request, sizeof(*request));
+	isc_mem_putanddetach(&request->mctx, request, 1, sizeof(*request));
 }
 
 void *

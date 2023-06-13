@@ -66,7 +66,7 @@ named_tkeyctx_fromconfig(const cfg_obj_t *options, isc_mem_t *mctx,
 		isc_buffer_add(&b, strlen(s));
 		name = dns_fixedname_initname(&fname);
 		RETERR(dns_name_fromtext(name, &b, dns_rootname, 0, NULL));
-		tctx->domain = isc_mem_get(mctx, sizeof(dns_name_t));
+		tctx->domain = isc_mem_get(mctx, 1, sizeof(dns_name_t));
 		dns_name_init(tctx->domain, NULL);
 		dns_name_dup(name, mctx, tctx->domain);
 	}

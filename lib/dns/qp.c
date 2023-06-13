@@ -653,7 +653,8 @@ reclaim_chunks_cb(struct rcu_head *arg) {
 	}
 
 	isc_mem_putanddetach(&rcuctx->mctx, rcuctx,
-			     STRUCT_FLEX_SIZE(rcuctx, chunk, rcuctx->count));
+			     STRUCT_FLEX_SIZE(rcuctx, chunk, rcuctx->count),
+			     sizeof(char));
 
 	isc_nanosecs_t time = isc_time_monotonic() - start;
 	recycle_time += time;
@@ -690,8 +691,8 @@ reclaim_chunks(dns_qpmulti_t *multi) {
 		return;
 	}
 
-	qp_rcuctx_t *rcuctx =
-		isc_mem_get(qp->mctx, STRUCT_FLEX_SIZE(rcuctx, chunk, count));
+	qp_rcuctx_t *rcuctx = isc_mem_get(
+		qp->mctx, STRUCT_FLEX_SIZE(rcuctx, chunk, count), sizeof(char));
 	*rcuctx = (qp_rcuctx_t){
 		.magic = QPRCU_MAGIC,
 		.multi = multi,
@@ -1359,7 +1360,7 @@ dns_qp_create(isc_mem_t *mctx, const dns_qpmethods_t *methods, void *uctx,
 	      dns_qp_t **qptp) {
 	REQUIRE(qptp != NULL && *qptp == NULL);
 
-	dns_qp_t *qp = isc_mem_get(mctx, sizeof(*qp));
+	dns_qp_t *qp = isc_mem_get(mctx, 1, sizeof(*qp));
 	QP_INIT(qp, methods, uctx);
 	isc_mem_attach(mctx, &qp->mctx);
 	alloc_reset(qp);
@@ -1372,7 +1373,7 @@ dns_qpmulti_create(isc_mem_t *mctx, const dns_qpmethods_t *methods, void *uctx,
 		   dns_qpmulti_t **qpmp) {
 	REQUIRE(qpmp != NULL && *qpmp == NULL);
 
-	dns_qpmulti_t *multi = isc_mem_get(mctx, sizeof(*multi));
+	dns_qpmulti_t *multi = isc_mem_get(mctx, 1, sizeof(*multi));
 	*multi = (dns_qpmulti_t){
 		.magic = QPMULTI_MAGIC,
 		.reader_ref = INVALID_REF,
@@ -1424,7 +1425,7 @@ dns_qp_destroy(dns_qp_t **qptp) {
 
 	TRACE("");
 	destroy_guts(qp);
-	isc_mem_putanddetach(&qp->mctx, qp, sizeof(*qp));
+	isc_mem_putanddetach(&qp->mctx, qp, 1, sizeof(*qp));
 }
 
 static void
@@ -1449,8 +1450,9 @@ qpmulti_destroy_cb(struct rcu_head *arg) {
 
 	isc_mutex_destroy(&multi->mutex);
 	isc_mem_putanddetach(&rcuctx->mctx, rcuctx,
-			     STRUCT_FLEX_SIZE(rcuctx, chunk, rcuctx->count));
-	isc_mem_putanddetach(&qp->mctx, multi, sizeof(*multi));
+			     STRUCT_FLEX_SIZE(rcuctx, chunk, rcuctx->count),
+			     sizeof(char));
+	isc_mem_putanddetach(&qp->mctx, multi, 1, sizeof(*multi));
 }
 
 void
@@ -1470,7 +1472,8 @@ dns_qpmulti_destroy(dns_qpmulti_t **qpmp) {
 	REQUIRE(multi->rollback == NULL);
 	REQUIRE(ISC_LIST_EMPTY(multi->snapshots));
 
-	rcuctx = isc_mem_get(qp->mctx, STRUCT_FLEX_SIZE(rcuctx, chunk, 0));
+	rcuctx = isc_mem_get(qp->mctx, STRUCT_FLEX_SIZE(rcuctx, chunk, 0),
+			     sizeof(char));
 	*rcuctx = (qp_rcuctx_t){
 		.magic = QPRCU_MAGIC,
 		.multi = multi,

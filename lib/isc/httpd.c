@@ -218,7 +218,7 @@ isc_httpdmgr_create(isc_nm_t *nm, isc_mem_t *mctx, isc_sockaddr_t *addr,
 	REQUIRE(mctx != NULL);
 	REQUIRE(httpdmgrp != NULL && *httpdmgrp == NULL);
 
-	httpdmgr = isc_mem_get(mctx, sizeof(isc_httpdmgr_t));
+	httpdmgr = isc_mem_get(mctx, 1, sizeof(isc_httpdmgr_t));
 	*httpdmgr = (isc_httpdmgr_t){ .client_ok = client_ok,
 				      .ondestroy = ondestroy,
 				      .cb_arg = cb_arg,
@@ -247,7 +247,7 @@ cleanup:
 	isc_refcount_destroy(&httpdmgr->references);
 	isc_mem_detach(&httpdmgr->mctx);
 	isc_mutex_destroy(&httpdmgr->lock);
-	isc_mem_put(mctx, httpdmgr, sizeof(isc_httpdmgr_t));
+	isc_mem_put(mctx, httpdmgr, 1, sizeof(isc_httpdmgr_t));
 
 	return (result);
 }
@@ -300,7 +300,7 @@ destroy_httpdmgr(isc_httpdmgr_t *httpdmgr) {
 	ISC_LIST_FOREACH_SAFE (httpdmgr->urls, url, link, next) {
 		isc_mem_free(httpdmgr->mctx, url->url);
 		ISC_LIST_UNLINK(httpdmgr->urls, url, link);
-		isc_mem_put(httpdmgr->mctx, url, sizeof(isc_httpdurl_t));
+		isc_mem_put(httpdmgr->mctx, url, 1, sizeof(isc_httpdurl_t));
 	}
 
 	UNLOCK(&httpdmgr->lock);
@@ -309,7 +309,8 @@ destroy_httpdmgr(isc_httpdmgr_t *httpdmgr) {
 	if (httpdmgr->ondestroy != NULL) {
 		(httpdmgr->ondestroy)(httpdmgr->cb_arg);
 	}
-	isc_mem_putanddetach(&httpdmgr->mctx, httpdmgr, sizeof(isc_httpdmgr_t));
+	isc_mem_putanddetach(&httpdmgr->mctx, httpdmgr, 1,
+			     sizeof(isc_httpdmgr_t));
 }
 
 static bool
@@ -530,7 +531,7 @@ httpd_free(isc_httpd_t *httpd) {
 	httpd->magic = 0;
 	httpd->mgr = NULL;
 
-	isc_mem_put(httpdmgr->mctx, httpd, sizeof(*httpd));
+	isc_mem_put(httpdmgr->mctx, httpd, 1, sizeof(*httpd));
 
 	httpdmgr_detach(&httpdmgr);
 
@@ -547,7 +548,7 @@ isc__httpd_sendreq_free(isc_httpd_sendreq_t *req) {
 
 	isc_buffer_free(&req->sendbuffer);
 
-	isc_mem_putanddetach(&req->mctx, req, sizeof(*req));
+	isc_mem_putanddetach(&req->mctx, req, 1, sizeof(*req));
 }
 
 static isc_httpd_sendreq_t *
@@ -557,7 +558,7 @@ isc__httpd_sendreq_new(isc_httpd_t *httpd) {
 
 	REQUIRE(VALID_HTTPDMGR(httpdmgr));
 
-	req = isc_mem_get(httpdmgr->mctx, sizeof(*req));
+	req = isc_mem_get(httpdmgr->mctx, 1, sizeof(*req));
 	*req = (isc_httpd_sendreq_t){ 0 };
 
 	isc_mem_attach(httpdmgr->mctx, &req->mctx);
@@ -579,7 +580,7 @@ new_httpd(isc_httpdmgr_t *httpdmgr, isc_nmhandle_t *handle) {
 
 	REQUIRE(VALID_HTTPDMGR(httpdmgr));
 
-	httpd = isc_mem_get(httpdmgr->mctx, sizeof(*httpd));
+	httpd = isc_mem_get(httpdmgr->mctx, 1, sizeof(*httpd));
 	*httpd = (isc_httpd_t){
 		.magic = HTTPD_MAGIC,
 		.link = ISC_LINK_INITIALIZER,
@@ -1039,7 +1040,7 @@ isc_httpdmgr_addurl(isc_httpdmgr_t *httpdmgr, const char *url, bool isstatic,
 		return (ISC_R_SUCCESS);
 	}
 
-	item = isc_mem_get(httpdmgr->mctx, sizeof(isc_httpdurl_t));
+	item = isc_mem_get(httpdmgr->mctx, 1, sizeof(isc_httpdurl_t));
 
 	item->url = isc_mem_strdup(httpdmgr->mctx, url);
 

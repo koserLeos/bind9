@@ -238,8 +238,8 @@ error(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
 static void
 primary_from_servers(void) {
 	if (primary_servers != NULL && primary_servers != servers) {
-		isc_mem_put(gmctx, primary_servers,
-			    primary_alloc * sizeof(isc_sockaddr_t));
+		isc_mem_put(gmctx, primary_servers, primary_alloc,
+			    sizeof(isc_sockaddr_t));
 	}
 	primary_servers = servers;
 	primary_total = ns_total;
@@ -696,20 +696,20 @@ doshutdown(void) {
 	 * to NULL.
 	 */
 	if (primary_servers != NULL && primary_servers != servers) {
-		isc_mem_put(gmctx, primary_servers,
-			    primary_alloc * sizeof(isc_sockaddr_t));
+		isc_mem_put(gmctx, primary_servers, primary_alloc,
+			    sizeof(isc_sockaddr_t));
 	}
 
 	if (servers != NULL) {
-		isc_mem_put(gmctx, servers, ns_alloc * sizeof(isc_sockaddr_t));
+		isc_mem_put(gmctx, servers, ns_alloc, sizeof(isc_sockaddr_t));
 	}
 
 	if (localaddr4 != NULL) {
-		isc_mem_put(gmctx, localaddr4, sizeof(isc_sockaddr_t));
+		isc_mem_put(gmctx, localaddr4, 1, sizeof(isc_sockaddr_t));
 	}
 
 	if (localaddr6 != NULL) {
-		isc_mem_put(gmctx, localaddr6, sizeof(isc_sockaddr_t));
+		isc_mem_put(gmctx, localaddr6, 1, sizeof(isc_sockaddr_t));
 	}
 
 	if (tsigkey != NULL) {
@@ -842,7 +842,7 @@ setup_system(void) {
 		if (primary_servers == servers) {
 			primary_servers = NULL;
 		}
-		isc_mem_put(gmctx, servers, ns_alloc * sizeof(isc_sockaddr_t));
+		isc_mem_put(gmctx, servers, ns_alloc, sizeof(isc_sockaddr_t));
 	}
 
 	ns_inuse = 0;
@@ -857,7 +857,7 @@ setup_system(void) {
 		default_servers = !local_only;
 
 		ns_total = ns_alloc = (have_ipv4 ? 1 : 0) + (have_ipv6 ? 1 : 0);
-		servers = isc_mem_get(gmctx, ns_alloc * sizeof(isc_sockaddr_t));
+		servers = isc_mem_get(gmctx, ns_alloc, sizeof(isc_sockaddr_t));
 
 		if (have_ipv6) {
 			memset(&in6, 0, sizeof(in6));
@@ -899,7 +899,7 @@ setup_system(void) {
 		}
 
 		ns_alloc = ns_total;
-		servers = isc_mem_get(gmctx, ns_alloc * sizeof(isc_sockaddr_t));
+		servers = isc_mem_get(gmctx, ns_alloc, sizeof(isc_sockaddr_t));
 
 		i = 0;
 		for (sa = ISC_LIST_HEAD(*nslist); sa != NULL;
@@ -1573,14 +1573,14 @@ evaluate_server(char *cmdline) {
 		if (primary_servers == servers) {
 			primary_servers = NULL;
 		}
-		isc_mem_put(gmctx, servers, ns_alloc * sizeof(isc_sockaddr_t));
+		isc_mem_put(gmctx, servers, ns_alloc, sizeof(isc_sockaddr_t));
 	}
 
 	default_servers = false;
 
 	ns_alloc = MAX_SERVERADDRS;
 	ns_inuse = 0;
-	servers = isc_mem_getx(gmctx, ns_alloc * sizeof(isc_sockaddr_t),
+	servers = isc_mem_getx(gmctx, ns_alloc, sizeof(isc_sockaddr_t),
 			       ISC_MEM_ZERO);
 	ns_total = get_addresses(server, (in_port_t)port, servers, ns_alloc);
 	if (ns_total == 0) {
@@ -1624,12 +1624,14 @@ evaluate_local(char *cmdline) {
 
 	if (have_ipv6 && inet_pton(AF_INET6, local, &in6) == 1) {
 		if (localaddr6 == NULL) {
-			localaddr6 = isc_mem_get(gmctx, sizeof(isc_sockaddr_t));
+			localaddr6 = isc_mem_get(gmctx, 1,
+						 sizeof(isc_sockaddr_t));
 		}
 		isc_sockaddr_fromin6(localaddr6, &in6, (in_port_t)port);
 	} else if (have_ipv4 && inet_pton(AF_INET, local, &in4) == 1) {
 		if (localaddr4 == NULL) {
-			localaddr4 = isc_mem_get(gmctx, sizeof(isc_sockaddr_t));
+			localaddr4 = isc_mem_get(gmctx, 1,
+						 sizeof(isc_sockaddr_t));
 		}
 		isc_sockaddr_fromin(localaddr4, &in4, (in_port_t)port);
 	} else {
@@ -2656,7 +2658,7 @@ recvsoa(void *arg) {
 	if (shuttingdown) {
 		dns_request_destroy(&request);
 		dns_message_detach(&soaquery);
-		isc_mem_put(gmctx, reqinfo, sizeof(nsu_requestinfo_t));
+		isc_mem_put(gmctx, reqinfo, 1, sizeof(nsu_requestinfo_t));
 		maybeshutdown();
 		return;
 	}
@@ -2668,12 +2670,12 @@ recvsoa(void *arg) {
 		dns_message_renderreset(soaquery);
 		dns_message_settsigkey(soaquery, NULL);
 		sendrequest(&servers[ns_inuse], soaquery, &request);
-		isc_mem_put(gmctx, reqinfo, sizeof(nsu_requestinfo_t));
+		isc_mem_put(gmctx, reqinfo, 1, sizeof(nsu_requestinfo_t));
 		setzoneclass(dns_rdataclass_none);
 		return;
 	}
 
-	isc_mem_put(gmctx, reqinfo, sizeof(nsu_requestinfo_t));
+	isc_mem_put(gmctx, reqinfo, 1, sizeof(nsu_requestinfo_t));
 	reqinfo = NULL;
 
 	ddebug("About to create rcvmsg");
@@ -2688,7 +2690,7 @@ recvsoa(void *arg) {
 		dns_message_detach(&rcvmsg);
 		ddebug("Destroying request [%p]", request);
 		dns_request_destroy(&request);
-		reqinfo = isc_mem_get(gmctx, sizeof(nsu_requestinfo_t));
+		reqinfo = isc_mem_get(gmctx, 1, sizeof(nsu_requestinfo_t));
 		reqinfo->msg = soaquery;
 		reqinfo->addr = addr;
 		dns_message_renderreset(soaquery);
@@ -2850,12 +2852,13 @@ lookforsoa:
 		serverstr[isc_buffer_usedlength(&buf)] = 0;
 
 		if (primary_servers != NULL && primary_servers != servers) {
-			isc_mem_put(gmctx, primary_servers,
-				    primary_alloc * sizeof(isc_sockaddr_t));
+			isc_mem_put(gmctx, primary_servers, primary_alloc,
+				    sizeof(isc_sockaddr_t));
 		}
 		primary_alloc = MAX_SERVERADDRS;
 		size = primary_alloc * sizeof(isc_sockaddr_t);
-		primary_servers = isc_mem_getx(gmctx, size, ISC_MEM_ZERO);
+		primary_servers = isc_mem_getx(gmctx, size, sizeof(char),
+					       ISC_MEM_ZERO);
 		primary_total = get_addresses(serverstr, dnsport,
 					      primary_servers, primary_alloc);
 		if (primary_total == 0) {
@@ -2935,7 +2938,7 @@ sendrequest(isc_sockaddr_t *destaddr, dns_message_t *msg,
 		}
 	}
 
-	reqinfo = isc_mem_get(gmctx, sizeof(nsu_requestinfo_t));
+	reqinfo = isc_mem_get(gmctx, 1, sizeof(nsu_requestinfo_t));
 	reqinfo->msg = msg;
 	reqinfo->addr = destaddr;
 
@@ -3050,7 +3053,7 @@ start_gssrequest(dns_name_t *primary) {
 
 	dns_name_format(primary, namestr, sizeof(namestr));
 	if (kserver == NULL) {
-		kserver = isc_mem_get(gmctx, sizeof(isc_sockaddr_t));
+		kserver = isc_mem_get(gmctx, 1, sizeof(isc_sockaddr_t));
 	}
 
 	memmove(kserver, &primary_servers[primary_inuse],
@@ -3141,7 +3144,7 @@ send_gssrequest(isc_sockaddr_t *destaddr, dns_message_t *msg,
 	debug("send_gssrequest");
 	REQUIRE(destaddr != NULL);
 
-	reqinfo = isc_mem_get(gmctx, sizeof(nsu_gssinfo_t));
+	reqinfo = isc_mem_get(gmctx, 1, sizeof(nsu_gssinfo_t));
 	*reqinfo = (nsu_gssinfo_t){
 		.msg = msg,
 		.addr = destaddr,
@@ -3186,7 +3189,7 @@ recvgss(void *arg) {
 	if (shuttingdown) {
 		dns_request_destroy(&request);
 		dns_message_detach(&tsigquery);
-		isc_mem_put(gmctx, reqinfo, sizeof(nsu_gssinfo_t));
+		isc_mem_put(gmctx, reqinfo, 1, sizeof(nsu_gssinfo_t));
 		maybeshutdown();
 		return;
 	}
@@ -3203,10 +3206,10 @@ recvgss(void *arg) {
 				sizeof(isc_sockaddr_t));
 			send_gssrequest(kserver, tsigquery, &request, context);
 		}
-		isc_mem_put(gmctx, reqinfo, sizeof(nsu_gssinfo_t));
+		isc_mem_put(gmctx, reqinfo, 1, sizeof(nsu_gssinfo_t));
 		return;
 	}
-	isc_mem_put(gmctx, reqinfo, sizeof(nsu_gssinfo_t));
+	isc_mem_put(gmctx, reqinfo, 1, sizeof(nsu_gssinfo_t));
 
 	ddebug("recvgss creating rcvmsg");
 	dns_message_create(gmctx, DNS_MESSAGE_INTENTPARSE, &rcvmsg);
@@ -3415,7 +3418,7 @@ cleanup(void) {
 
 #ifdef HAVE_GSSAPI
 	if (kserver != NULL) {
-		isc_mem_put(gmctx, kserver, sizeof(isc_sockaddr_t));
+		isc_mem_put(gmctx, kserver, 1, sizeof(isc_sockaddr_t));
 		kserver = NULL;
 	}
 	if (realm != NULL) {

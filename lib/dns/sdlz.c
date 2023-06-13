@@ -251,7 +251,7 @@ rdatasetiter_destroy(dns_rdatasetiter_t **iteratorp DNS__DB_FLARG) {
 
 	detachnode(sdlziterator->common.db,
 		   &sdlziterator->common.node DNS__DB_FLARG_PASS);
-	isc_mem_put(sdlziterator->common.db->mctx, sdlziterator,
+	isc_mem_put(sdlziterator->common.db->mctx, sdlziterator, 1,
 		    sizeof(sdlz_rdatasetiter_t));
 	*iteratorp = NULL;
 }
@@ -309,7 +309,8 @@ destroy(dns_db_t *db) {
 	dns_name_free(&sdlz->common.origin, sdlz->common.mctx);
 
 	isc_refcount_destroy(&sdlz->common.references);
-	isc_mem_putanddetach(&sdlz->common.mctx, sdlz, sizeof(dns_sdlz_db_t));
+	isc_mem_putanddetach(&sdlz->common.mctx, sdlz, 1,
+			     sizeof(dns_sdlz_db_t));
 }
 
 static void
@@ -394,7 +395,7 @@ static isc_result_t
 createnode(dns_sdlz_db_t *sdlz, dns_sdlznode_t **nodep) {
 	dns_sdlznode_t *node;
 
-	node = isc_mem_get(sdlz->common.mctx, sizeof(dns_sdlznode_t));
+	node = isc_mem_get(sdlz->common.mctx, 1, sizeof(dns_sdlznode_t));
 
 	node->sdlz = NULL;
 	dns_db_attach((dns_db_t *)sdlz, (dns_db_t **)&node->sdlz);
@@ -430,10 +431,10 @@ destroynode(dns_sdlznode_t *node) {
 		while (!ISC_LIST_EMPTY(list->rdata)) {
 			rdata = ISC_LIST_HEAD(list->rdata);
 			ISC_LIST_UNLINK(list->rdata, rdata, link);
-			isc_mem_put(mctx, rdata, sizeof(dns_rdata_t));
+			isc_mem_put(mctx, rdata, 1, sizeof(dns_rdata_t));
 		}
 		ISC_LIST_UNLINK(node->lists, list, link);
-		isc_mem_put(mctx, list, sizeof(dns_rdatalist_t));
+		isc_mem_put(mctx, list, 1, sizeof(dns_rdatalist_t));
 	}
 
 	while (!ISC_LIST_EMPTY(node->buffers)) {
@@ -444,11 +445,11 @@ destroynode(dns_sdlznode_t *node) {
 
 	if (node->name != NULL) {
 		dns_name_free(node->name, mctx);
-		isc_mem_put(mctx, node->name, sizeof(dns_name_t));
+		isc_mem_put(mctx, node->name, 1, sizeof(dns_name_t));
 	}
 
 	node->magic = 0;
-	isc_mem_put(mctx, node, sizeof(dns_sdlznode_t));
+	isc_mem_put(mctx, node, 1, sizeof(dns_sdlznode_t));
 	db = &sdlz->common;
 	dns_db_detach(&db);
 }
@@ -600,7 +601,8 @@ getnodedata(dns_db_t *db, const dns_name_t *name, bool create,
 	}
 
 	if (node->name == NULL) {
-		node->name = isc_mem_get(sdlz->common.mctx, sizeof(dns_name_t));
+		node->name = isc_mem_get(sdlz->common.mctx, 1,
+					 sizeof(dns_name_t));
 		dns_name_init(node->name, NULL);
 		dns_name_dup(name, sdlz->common.mctx, node->name);
 	}
@@ -715,7 +717,7 @@ createiterator(dns_db_t *db, unsigned int options,
 	}
 	isc_buffer_putuint8(&b, 0);
 
-	sdlziter = isc_mem_get(sdlz->common.mctx, sizeof(sdlz_dbiterator_t));
+	sdlziter = isc_mem_get(sdlz->common.mctx, 1, sizeof(sdlz_dbiterator_t));
 
 	sdlziter->common.methods = &dbiterator_methods;
 	sdlziter->common.db = NULL;
@@ -974,7 +976,7 @@ allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	UNUSED(version);
 	UNUSED(now);
 
-	iterator = isc_mem_get(db->mctx, sizeof(sdlz_rdatasetiter_t));
+	iterator = isc_mem_get(db->mctx, 1, sizeof(sdlz_rdatasetiter_t));
 
 	iterator->common.magic = DNS_RDATASETITER_MAGIC;
 	iterator->common.methods = &rdatasetiter_methods;
@@ -1221,7 +1223,7 @@ dbiterator_destroy(dns_dbiterator_t **iteratorp DNS__DB_FLARG) {
 	}
 
 	dns_db_detach(&sdlziter->common.db);
-	isc_mem_put(sdlz->common.mctx, sdlziter, sizeof(sdlz_dbiterator_t));
+	isc_mem_put(sdlz->common.mctx, sdlziter, 1, sizeof(sdlz_dbiterator_t));
 
 	*iteratorp = NULL;
 }
@@ -1395,7 +1397,7 @@ dns_sdlzcreateDBP(isc_mem_t *mctx, void *driverarg, void *dbdata,
 	imp = (dns_sdlzimplementation_t *)driverarg;
 
 	/* allocate and zero memory for driver structure */
-	sdlzdb = isc_mem_get(mctx, sizeof(*sdlzdb));
+	sdlzdb = isc_mem_get(mctx, 1, sizeof(*sdlzdb));
 
 	*sdlzdb = (dns_sdlz_db_t) {
 		.dlzimp = imp,
@@ -1423,7 +1425,7 @@ dns_sdlzcreateDBP(isc_mem_t *mctx, void *driverarg, void *dbdata,
 
 	return (result);
 mem_cleanup:
-	isc_mem_put(mctx, sdlzdb, sizeof(*sdlzdb));
+	isc_mem_put(mctx, sdlzdb, 1, sizeof(*sdlzdb));
 	return (result);
 }
 
@@ -1730,7 +1732,7 @@ dns_sdlz_putrr(dns_sdlzlookup_t *lookup, const char *type, dns_ttl_t ttl,
 	}
 
 	if (rdatalist == NULL) {
-		rdatalist = isc_mem_get(mctx, sizeof(dns_rdatalist_t));
+		rdatalist = isc_mem_get(mctx, 1, sizeof(dns_rdatalist_t));
 		dns_rdatalist_init(rdatalist);
 		rdatalist->rdclass = lookup->sdlz->common.rdclass;
 		rdatalist->type = typeval;
@@ -1747,7 +1749,7 @@ dns_sdlz_putrr(dns_sdlzlookup_t *lookup, const char *type, dns_ttl_t ttl,
 		rdatalist->ttl = ttl;
 	}
 
-	rdata = isc_mem_get(mctx, sizeof(dns_rdata_t));
+	rdata = isc_mem_get(mctx, 1, sizeof(dns_rdata_t));
 	dns_rdata_init(rdata);
 
 	if ((lookup->sdlz->dlzimp->flags & DNS_SDLZFLAG_RELATIVERDATA) != 0) {
@@ -1808,7 +1810,7 @@ failure:
 	if (lex != NULL) {
 		isc_lex_destroy(&lex);
 	}
-	isc_mem_put(mctx, rdata, sizeof(dns_rdata_t));
+	isc_mem_put(mctx, rdata, 1, sizeof(dns_rdata_t));
 
 	return (result);
 }
@@ -1853,7 +1855,7 @@ dns_sdlz_putnamedrr(dns_sdlzallnodes_t *allnodes, const char *name,
 		if (result != ISC_R_SUCCESS) {
 			return (result);
 		}
-		sdlznode->name = isc_mem_get(mctx, sizeof(dns_name_t));
+		sdlznode->name = isc_mem_get(mctx, 1, sizeof(dns_name_t));
 		dns_name_init(sdlznode->name, NULL);
 		dns_name_dup(newname, mctx, sdlznode->name);
 		ISC_LIST_PREPEND(allnodes->nodelist, sdlznode, link);
@@ -1911,7 +1913,7 @@ dns_sdlzregister(const char *drivername, const dns_sdlzmethods_t *methods,
 	 * Allocate memory for a sdlz_implementation object.  Error if
 	 * we cannot.
 	 */
-	imp = isc_mem_get(mctx, sizeof(*imp));
+	imp = isc_mem_get(mctx, 1, sizeof(*imp));
 
 	/* Store the data passed into this method */
 	*imp = (dns_sdlzimplementation_t){
@@ -1955,7 +1957,7 @@ cleanup_mutex:
 	 * return the memory back to the available memory pool and
 	 * remove it from the memory context.
 	 */
-	isc_mem_putanddetach(&imp->mctx, imp, sizeof(*imp));
+	isc_mem_putanddetach(&imp->mctx, imp, 1, sizeof(*imp));
 	return (result);
 }
 
@@ -1984,7 +1986,8 @@ dns_sdlzunregister(dns_sdlzimplementation_t **sdlzimp) {
 	 * return the memory back to the available memory pool and
 	 * remove it from the memory context.
 	 */
-	isc_mem_putanddetach(&imp->mctx, imp, sizeof(dns_sdlzimplementation_t));
+	isc_mem_putanddetach(&imp->mctx, imp, 1,
+			     sizeof(dns_sdlzimplementation_t));
 }
 
 isc_result_t

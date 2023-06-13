@@ -133,7 +133,7 @@ dns_cache_create(isc_loopmgr_t *loopmgr, dns_rdataclass_t rdclass,
 	isc_mem_create(&hmctx);
 	isc_mem_setname(hmctx, "cache_heap");
 
-	cache = isc_mem_get(mctx, sizeof(*cache));
+	cache = isc_mem_get(mctx, 1, sizeof(*cache));
 	*cache = (dns_cache_t){
 		.mctx = mctx,
 		.hmctx = hmctx,
@@ -182,7 +182,7 @@ cleanup_lock:
 	isc_mutex_destroy(&cache->lock);
 	isc_mem_free(mctx, cache->name);
 	isc_mem_detach(&cache->hmctx);
-	isc_mem_putanddetach(&cache->mctx, cache, sizeof(*cache));
+	isc_mem_putanddetach(&cache->mctx, cache, 1, sizeof(*cache));
 	return (result);
 }
 
@@ -201,7 +201,7 @@ cache_free(dns_cache_t *cache) {
 
 	cache->magic = 0;
 	isc_mem_detach(&cache->hmctx);
-	isc_mem_putanddetach(&cache->mctx, cache, sizeof(*cache));
+	isc_mem_putanddetach(&cache->mctx, cache, 1, sizeof(*cache));
 }
 
 void

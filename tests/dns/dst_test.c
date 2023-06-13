@@ -77,7 +77,7 @@ sig_fromfile(const char *path, isc_buffer_t *buf) {
 	result = isc_file_getsizefd(fileno(fp), &size);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	data = isc_mem_get(mctx, (size + 1));
+	data = isc_mem_get(mctx, (size + 1), sizeof(char));
 	assert_non_null(data);
 
 	len = (size_t)size;
@@ -127,7 +127,7 @@ sig_fromfile(const char *path, isc_buffer_t *buf) {
 	result = ISC_R_SUCCESS;
 
 err:
-	isc_mem_put(mctx, data, size + 1);
+	isc_mem_put(mctx, data, size + 1, sizeof(char));
 	return (result);
 }
 
@@ -158,7 +158,7 @@ check_sig(const char *datapath, const char *sigpath, const char *keyname,
 	result = isc_file_getsizefd(fileno(fp), &size);
 	assert_int_equal(result, ISC_R_SUCCESS);
 
-	data = isc_mem_get(mctx, (size + 1));
+	data = isc_mem_get(mctx, (size + 1), sizeof(char));
 	assert_non_null(data);
 
 	p = data;
@@ -245,7 +245,7 @@ check_sig(const char *datapath, const char *sigpath, const char *keyname,
 		fprintf(stderr, "# %s:\n# %s\n", sigpath, hexbuf);
 	}
 
-	isc_mem_put(mctx, data, size + 1);
+	isc_mem_put(mctx, data, size + 1, sizeof(char));
 	dst_context_destroy(&ctx);
 	dst_key_free(&key);
 

@@ -31,7 +31,7 @@ dns_iptable_create(isc_mem_t *mctx, dns_iptable_t **target) {
 	isc_result_t result;
 	dns_iptable_t *tab;
 
-	tab = isc_mem_get(mctx, sizeof(*tab));
+	tab = isc_mem_get(mctx, 1, sizeof(*tab));
 	tab->mctx = NULL;
 	isc_mem_attach(mctx, &tab->mctx);
 	isc_refcount_init(&tab->refcount, 1);
@@ -170,5 +170,5 @@ destroy_iptable(dns_iptable_t *dtab) {
 	}
 
 	dtab->magic = 0;
-	isc_mem_putanddetach(&dtab->mctx, dtab, sizeof(*dtab));
+	isc_mem_putanddetach(&dtab->mctx, dtab, 1, sizeof(*dtab));
 }

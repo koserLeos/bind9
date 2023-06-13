@@ -323,7 +323,7 @@ isc_loopmgr_create(isc_mem_t *mctx, uint32_t nloops, isc_loopmgr_t **loopmgrp) {
 	threadpool_initialize(nloops);
 	isc__tid_initcount(nloops);
 
-	loopmgr = isc_mem_get(mctx, sizeof(*loopmgr));
+	loopmgr = isc_mem_get(mctx, 1, sizeof(*loopmgr));
 	*loopmgr = (isc_loopmgr_t){
 		.nloops = nloops,
 	};
@@ -335,8 +335,8 @@ isc_loopmgr_create(isc_mem_t *mctx, uint32_t nloops, isc_loopmgr_t **loopmgrp) {
 	isc_barrier_init(&loopmgr->starting, loopmgr->nloops);
 	isc_barrier_init(&loopmgr->stopping, loopmgr->nloops);
 
-	loopmgr->loops = isc_mem_get(
-		loopmgr->mctx, loopmgr->nloops * sizeof(loopmgr->loops[0]));
+	loopmgr->loops = isc_mem_get(loopmgr->mctx, loopmgr->nloops,
+				     sizeof(loopmgr->loops[0]));
 	for (size_t i = 0; i < loopmgr->nloops; i++) {
 		isc_loop_t *loop = &loopmgr->loops[i];
 		loop_init(loop, loopmgr, i);
@@ -361,7 +361,7 @@ isc_loop_setup(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
 	REQUIRE(cb != NULL);
 
 	isc_loopmgr_t *loopmgr = loop->loopmgr;
-	isc_job_t *job = isc_mem_get(loop->mctx, sizeof(*job));
+	isc_job_t *job = isc_mem_get(loop->mctx, 1, sizeof(*job));
 	*job = (isc_job_t){
 		.cb = cb,
 		.cbarg = cbarg,
@@ -383,7 +383,7 @@ isc_loop_teardown(isc_loop_t *loop, isc_job_cb cb, void *cbarg) {
 	REQUIRE(VALID_LOOP(loop));
 
 	isc_loopmgr_t *loopmgr = loop->loopmgr;
-	isc_job_t *job = isc_mem_get(loop->mctx, sizeof(*job));
+	isc_job_t *job = isc_mem_get(loop->mctx, 1, sizeof(*job));
 	*job = (isc_job_t){
 		.cb = cb,
 		.cbarg = cbarg,
@@ -537,15 +537,15 @@ isc_loopmgr_destroy(isc_loopmgr_t **loopmgrp) {
 		isc_loop_t *loop = &loopmgr->loops[i];
 		loop_close(loop);
 	}
-	isc_mem_put(loopmgr->mctx, loopmgr->loops,
-		    loopmgr->nloops * sizeof(loopmgr->loops[0]));
+	isc_mem_put(loopmgr->mctx, loopmgr->loops, loopmgr->nloops,
+		    sizeof(loopmgr->loops[0]));
 
 	isc_barrier_destroy(&loopmgr->starting);
 	isc_barrier_destroy(&loopmgr->stopping);
 	isc_barrier_destroy(&loopmgr->resuming);
 	isc_barrier_destroy(&loopmgr->pausing);
 
-	isc_mem_putanddetach(&loopmgr->mctx, loopmgr, sizeof(*loopmgr));
+	isc_mem_putanddetach(&loopmgr->mctx, loopmgr, 1, sizeof(*loopmgr));
 }
 
 uint32_t

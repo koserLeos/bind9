@@ -222,9 +222,9 @@ freelist(dns_rdataset_t *rdataset) {
 	     rdata = ISC_LIST_HEAD(rdlist->rdata))
 	{
 		ISC_LIST_UNLINK(rdlist->rdata, rdata, link);
-		isc_mem_put(mctx, rdata, sizeof(*rdata));
+		isc_mem_put(mctx, rdata, 1, sizeof(*rdata));
 	}
-	isc_mem_put(mctx, rdlist, sizeof(*rdlist));
+	isc_mem_put(mctx, rdlist, 1, sizeof(*rdlist));
 	dns_rdataset_disassociate(rdataset);
 }
 
@@ -537,7 +537,7 @@ match_keyset_dsset(dns_rdataset_t *keyset, dns_rdataset_t *dsset,
 
 	nkey = dns_rdataset_count(keyset);
 
-	keytable = isc_mem_getx(mctx, sizeof(keytable[0]) * nkey, ISC_MEM_ZERO);
+	keytable = isc_mem_getx(mctx, nkey, sizeof(keytable[0]), ISC_MEM_ZERO);
 
 	for (result = dns_rdataset_first(keyset), i = 0, ki = keytable;
 	     result == ISC_R_SUCCESS;
@@ -593,7 +593,7 @@ free_keytable(keyinfo_t **keytable_p) {
 		}
 	}
 
-	isc_mem_put(mctx, keytable, sizeof(keytable[0]) * nkey);
+	isc_mem_put(mctx, keytable, nkey, sizeof(keytable[0]));
 }
 
 /*
@@ -614,7 +614,7 @@ matching_sigs(keyinfo_t *keytbl, dns_rdataset_t *rdataset,
 
 	REQUIRE(keytbl != NULL);
 
-	algo = isc_mem_getx(mctx, nkey * sizeof(algo[0]), ISC_MEM_ZERO);
+	algo = isc_mem_getx(mctx, nkey, sizeof(algo[0]), ISC_MEM_ZERO);
 
 	for (result = dns_rdataset_first(sigset); result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(sigset))
@@ -697,7 +697,7 @@ signed_loose(dns_secalg_t *algo) {
 			ok = true;
 		}
 	}
-	isc_mem_put(mctx, algo, nkey * sizeof(algo[0]));
+	isc_mem_put(mctx, algo, nkey, sizeof(algo[0]));
 	return (ok);
 }
 
@@ -739,7 +739,7 @@ signed_strict(dns_rdataset_t *dsset, dns_secalg_t *algo) {
 		}
 	}
 
-	isc_mem_put(mctx, algo, nkey);
+	isc_mem_put(mctx, algo, nkey, sizeof(algo[0]));
 	return (all_ok);
 }
 
@@ -802,7 +802,7 @@ append_new_ds_set(ds_maker_func_t *ds_from_rdata, isc_buffer_t *buf,
 
 		dns_rdataset_current(crdset, &crdata);
 
-		ds = isc_mem_get(mctx, sizeof(*ds));
+		ds = isc_mem_get(mctx, 1, sizeof(*ds));
 		dns_rdata_init(ds);
 
 		result = ds_from_rdata(buf, ds, dt, &crdata);
@@ -812,13 +812,13 @@ append_new_ds_set(ds_maker_func_t *ds_from_rdata, isc_buffer_t *buf,
 			ISC_LIST_APPEND(dslist->rdata, ds, link);
 			break;
 		case ISC_R_IGNORE:
-			isc_mem_put(mctx, ds, sizeof(*ds));
+			isc_mem_put(mctx, ds, 1, sizeof(*ds));
 			continue;
 		case ISC_R_NOSPACE:
-			isc_mem_put(mctx, ds, sizeof(*ds));
+			isc_mem_put(mctx, ds, 1, sizeof(*ds));
 			return (result);
 		default:
-			isc_mem_put(mctx, ds, sizeof(*ds));
+			isc_mem_put(mctx, ds, 1, sizeof(*ds));
 			check_result(result, "ds_from_rdata()");
 		}
 	}
@@ -836,7 +836,7 @@ make_new_ds_set(ds_maker_func_t *ds_from_rdata, uint32_t ttl,
 		dns_rdatalist_t *dslist = NULL;
 		size_t n;
 
-		dslist = isc_mem_get(mctx, sizeof(*dslist));
+		dslist = isc_mem_get(mctx, 1, sizeof(*dslist));
 		dns_rdatalist_init(dslist);
 		dslist->rdclass = rdclass;
 		dslist->type = dns_rdatatype_ds;
@@ -894,7 +894,7 @@ consistent_digests(dns_rdataset_t *dsset) {
 
 	n = dns_rdataset_count(dsset);
 
-	arrdata = isc_mem_get(mctx, n * sizeof(dns_rdata_t));
+	arrdata = isc_mem_get(mctx, n, sizeof(dns_rdata_t));
 
 	for (result = dns_rdataset_first(dsset), i = 0; result == ISC_R_SUCCESS;
 	     result = dns_rdataset_next(dsset), i++)
@@ -908,7 +908,7 @@ consistent_digests(dns_rdataset_t *dsset) {
 	/*
 	 * Convert sorted arrdata to more accessible format
 	 */
-	ds = isc_mem_get(mctx, n * sizeof(dns_rdata_ds_t));
+	ds = isc_mem_get(mctx, n, sizeof(dns_rdata_ds_t));
 
 	for (i = 0; i < n; i++) {
 		result = dns_rdata_tostruct(&arrdata[i], &ds[i], NULL);
@@ -947,8 +947,8 @@ consistent_digests(dns_rdataset_t *dsset) {
 	/*
 	 * Done!
 	 */
-	isc_mem_put(mctx, ds, n * sizeof(dns_rdata_ds_t));
-	isc_mem_put(mctx, arrdata, n * sizeof(dns_rdata_t));
+	isc_mem_put(mctx, ds, n, sizeof(dns_rdata_ds_t));
+	isc_mem_put(mctx, arrdata, n, sizeof(dns_rdata_t));
 
 	return (match);
 }

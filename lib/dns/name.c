@@ -1896,7 +1896,7 @@ dns_name_dup(const dns_name_t *source, isc_mem_t *mctx, dns_name_t *target) {
 	 */
 	MAKE_EMPTY(target);
 
-	target->ndata = isc_mem_get(mctx, source->length);
+	target->ndata = isc_mem_get(mctx, source->length, sizeof(char));
 
 	memmove(target->ndata, source->ndata, source->length);
 
@@ -1933,7 +1933,8 @@ dns_name_dupwithoffsets(const dns_name_t *source, isc_mem_t *mctx,
 	 */
 	MAKE_EMPTY(target);
 
-	target->ndata = isc_mem_get(mctx, source->length + source->labels);
+	target->ndata = isc_mem_get(mctx, source->length + source->labels,
+				    sizeof(char));
 
 	memmove(target->ndata, source->ndata, source->length);
 
@@ -1968,7 +1969,7 @@ dns_name_free(dns_name_t *name, isc_mem_t *mctx) {
 	if (name->attributes.dynoffsets) {
 		size += name->labels;
 	}
-	isc_mem_put(mctx, name->ndata, size);
+	isc_mem_put(mctx, name->ndata, size, sizeof(char));
 	dns_name_invalidate(name);
 }
 
