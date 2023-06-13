@@ -10782,10 +10782,9 @@ dns_resolver_disable_algorithm(dns_resolver_t *resolver, const dns_name_t *name,
 		 * bitfield and copy the old (smaller) bitfield
 		 * into it if one exists.
 		 */
-		node->data = algorithms =
-			isc_mem_regetx(resolver->mctx, algorithms,
-				       algorithms_len, len, sizeof(char),
-				       ISC_MEM_ZERO);
+		node->data = algorithms = isc_mem_regetx(
+			resolver->mctx, algorithms, algorithms_len, len,
+			sizeof(char), ISC_MEM_ZERO);
 		/* store the new length */
 		algorithms[0] = len;
 	}

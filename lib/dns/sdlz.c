@@ -717,8 +717,7 @@ createiterator(dns_db_t *db, unsigned int options,
 	}
 	isc_buffer_putuint8(&b, 0);
 
-	sdlziter = isc_mem_get(sdlz->common.mctx, 1,
-			       sizeof(sdlz_dbiterator_t));
+	sdlziter = isc_mem_get(sdlz->common.mctx, 1, sizeof(sdlz_dbiterator_t));
 
 	sdlziter->common.methods = &dbiterator_methods;
 	sdlziter->common.db = NULL;

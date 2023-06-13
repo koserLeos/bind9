@@ -316,10 +316,9 @@ dns_acl_merge(dns_acl_t *dest, dns_acl_t *source, bool pos) {
 			newalloc = 4;
 		}
 
-		dest->elements = isc_mem_regetx(dest->mctx, dest->elements,
-						dest->alloc, newalloc,
-						sizeof(dest->elements[0]),
-						ISC_MEM_ZERO);
+		dest->elements = isc_mem_regetx(
+			dest->mctx, dest->elements, dest->alloc, newalloc,
+			sizeof(dest->elements[0]), ISC_MEM_ZERO);
 		dest->alloc = newalloc;
 	}
 

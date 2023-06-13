@@ -691,9 +691,8 @@ reclaim_chunks(dns_qpmulti_t *multi) {
 		return;
 	}
 
-	qp_rcuctx_t *rcuctx =
-		isc_mem_get(qp->mctx, STRUCT_FLEX_SIZE(rcuctx, chunk, count),
-			    sizeof(char));
+	qp_rcuctx_t *rcuctx = isc_mem_get(
+		qp->mctx, STRUCT_FLEX_SIZE(rcuctx, chunk, count), sizeof(char));
 	*rcuctx = (qp_rcuctx_t){
 		.magic = QPRCU_MAGIC,
 		.multi = multi,

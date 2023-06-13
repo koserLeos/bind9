@@ -2520,8 +2520,7 @@ resume:
 			newstack = isc_mem_get(mctx, newsize, sizeof(char));
 			if (stackcount != 0) {
 				memmove(newstack, stack, oldsize);
-				isc_mem_put(mctx, stack, oldsize,
-					    sizeof(char));
+				isc_mem_put(mctx, stack, oldsize, sizeof(char));
 			}
 			stack = newstack;
 			stackcount = newlen;

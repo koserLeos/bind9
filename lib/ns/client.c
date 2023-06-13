@@ -1650,8 +1650,8 @@ ns__client_put_cb(void *client0) {
 
 	client->magic = 0;
 
-	isc_mem_put(manager->mctx, client->sendbuf,
-		    NS_CLIENT_SEND_BUFFER_SIZE, sizeof(char));
+	isc_mem_put(manager->mctx, client->sendbuf, NS_CLIENT_SEND_BUFFER_SIZE,
+		    sizeof(char));
 	if (client->opt != NULL) {
 		INSIST(dns_rdataset_isassociated(client->opt));
 		dns_rdataset_disassociate(client->opt);

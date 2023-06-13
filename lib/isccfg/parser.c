@@ -401,8 +401,7 @@ free_tuple(cfg_parser_t *pctx, cfg_obj_t *obj) {
 		CLEANUP_OBJ(obj->value.tuple[i]);
 		nfields++;
 	}
-	isc_mem_put(pctx->mctx, obj->value.tuple, nfields,
-		    sizeof(cfg_obj_t *));
+	isc_mem_put(pctx->mctx, obj->value.tuple, nfields, sizeof(cfg_obj_t *));
 }
 
 bool
@@ -1275,8 +1274,7 @@ create_string(cfg_parser_t *pctx, const char *contents, const cfg_type_t *type,
 	CHECK(cfg_create_obj(pctx, type, &obj));
 	len = strlen(contents);
 	obj->value.string.length = len;
-	obj->value.string.base = isc_mem_get(pctx->mctx, len + 1,
-					     sizeof(char));
+	obj->value.string.base = isc_mem_get(pctx->mctx, len + 1, sizeof(char));
 	if (obj->value.string.base == 0) {
 		isc_mem_put(pctx->mctx, obj, 1, sizeof(*obj));
 		return (ISC_R_NOMEMORY);

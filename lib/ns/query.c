@@ -772,9 +772,8 @@ query_reset(ns_client_t *client, bool everything) {
 		rpz_st_clear(client);
 		if (everything) {
 			INSIST(client->query.rpz_st->rpsdb == NULL);
-			isc_mem_put(client->manager->mctx,
-				    client->query.rpz_st, 1,
-				    sizeof(*client->query.rpz_st));
+			isc_mem_put(client->manager->mctx, client->query.rpz_st,
+				    1, sizeof(*client->query.rpz_st));
 			client->query.rpz_st = NULL;
 		}
 	}
@@ -4982,8 +4981,7 @@ dns64_aaaaok(ns_client_t *client, dns_rdataset_t *rdataset,
 		return (true);
 	}
 	if (aaaaok != NULL) {
-		isc_mem_put(client->manager->mctx, aaaaok, count,
-			    sizeof(bool));
+		isc_mem_put(client->manager->mctx, aaaaok, count, sizeof(bool));
 	}
 	return (false);
 }
@@ -6925,8 +6923,7 @@ ns_query_hookasync(query_ctx_t *qctx, ns_query_starthookasync_t runasync,
 		goto cleanup;
 	}
 
-	saved_qctx = isc_mem_get(client->manager->mctx, 1,
-				 sizeof(*saved_qctx));
+	saved_qctx = isc_mem_get(client->manager->mctx, 1, sizeof(*saved_qctx));
 	qctx_save(qctx, saved_qctx);
 	result = runasync(saved_qctx, client->manager->mctx, arg,
 			  client->manager->loop, query_hookresume, client,

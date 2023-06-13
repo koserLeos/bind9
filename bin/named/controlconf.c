@@ -440,9 +440,8 @@ control_recvmessage(isc_nmhandle_t *handle ISC_ATTR_UNUSED, isc_result_t result,
 		isccc_region_t ccregion;
 
 		isccc_ccmsg_toregion(&conn->ccmsg, &ccregion);
-		conn->secret.rstart = isc_mem_get(listener->mctx,
-						  key->secret.length,
-						  sizeof(char));
+		conn->secret.rstart = isc_mem_get(
+			listener->mctx, key->secret.length, sizeof(char));
 		memmove(conn->secret.rstart, key->secret.base,
 			key->secret.length);
 		conn->secret.rend = conn->secret.rstart + key->secret.length;
@@ -776,9 +775,8 @@ register_keys(const cfg_obj_t *control, const cfg_obj_t *keylist,
 			}
 
 			keyid->secret.length = isc_buffer_usedlength(&b);
-			keyid->secret.base = isc_mem_get(mctx,
-							 keyid->secret.length,
-							 sizeof(char));
+			keyid->secret.base = isc_mem_get(
+				mctx, keyid->secret.length, sizeof(char));
 			memmove(keyid->secret.base, isc_buffer_base(&b),
 				keyid->secret.length);
 		}

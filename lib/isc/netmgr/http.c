@@ -397,8 +397,7 @@ new_http_cstream(isc_nmsocket_t *sock, http_cstream_t **streamp) {
 
 	isc__nmsocket_attach(sock, &stream->httpsock);
 	stream->authoritylen = stream->up.field_data[ISC_UF_HOST].len;
-	stream->authority = isc_mem_get(mctx,
-					stream->authoritylen + AUTHEXTRA,
+	stream->authority = isc_mem_get(mctx, stream->authoritylen + AUTHEXTRA,
 					sizeof(char));
 	memmove(stream->authority, &uri[stream->up.field_data[ISC_UF_HOST].off],
 		stream->up.field_data[ISC_UF_HOST].len);
@@ -2959,9 +2958,8 @@ isc_nm_http_set_endpoints(isc_nmsocket_t *listener,
 	for (size_t i = 0; i < isc_loopmgr_nloops(loopmgr); i++) {
 		isc__networker_t *worker =
 			&listener->worker->netmgr->workers[i];
-		http_endpoints_data_t *data = isc_mem_getx(worker->loop->mctx,
-							   1, sizeof(*data),
-							   ISC_MEM_ZERO);
+		http_endpoints_data_t *data = isc_mem_getx(
+			worker->loop->mctx, 1, sizeof(*data), ISC_MEM_ZERO);
 
 		isc__nmsocket_attach(listener, &data->listener);
 		isc_nm_http_endpoints_attach(eps, &data->endpoints);

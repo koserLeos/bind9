@@ -414,8 +414,7 @@ isc_histomulti_destroy(isc_histomulti_t **hmp) {
 		isc_histo_destroy(&hm->hg[i]);
 	}
 
-	isc_mem_put(mctx, hm, STRUCT_FLEX_SIZE(hm, hg, hm->size),
-		    sizeof(char));
+	isc_mem_put(mctx, hm, STRUCT_FLEX_SIZE(hm, hg, hm->size), sizeof(char));
 }
 
 void

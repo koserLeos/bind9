@@ -1233,8 +1233,7 @@ zone_free(dns_zone_t *zone) {
 		ISC_LIST_UNLINK(zone->signing, signing, link);
 		dns_db_detach(&signing->db);
 		dns_dbiterator_destroy(&signing->dbiterator);
-		isc_mem_put(zone->mctx, signing, sizeof *signing,
-			    sizeof(char));
+		isc_mem_put(zone->mctx, signing, sizeof *signing, sizeof(char));
 	}
 	for (nsec3chain = ISC_LIST_HEAD(zone->nsec3chain); nsec3chain != NULL;
 	     nsec3chain = ISC_LIST_HEAD(zone->nsec3chain))
@@ -1250,16 +1249,14 @@ zone_free(dns_zone_t *zone) {
 	{
 		ISC_LIST_UNLINK(zone->includes, include, link);
 		isc_mem_free(zone->mctx, include->name);
-		isc_mem_put(zone->mctx, include, sizeof *include,
-			    sizeof(char));
+		isc_mem_put(zone->mctx, include, sizeof *include, sizeof(char));
 	}
 	for (include = ISC_LIST_HEAD(zone->newincludes); include != NULL;
 	     include = ISC_LIST_HEAD(zone->newincludes))
 	{
 		ISC_LIST_UNLINK(zone->newincludes, include, link);
 		isc_mem_free(zone->mctx, include->name);
-		isc_mem_put(zone->mctx, include, sizeof *include,
-			    sizeof(char));
+		isc_mem_put(zone->mctx, include, sizeof *include, sizeof(char));
 	}
 	if (zone->masterfile != NULL) {
 		isc_mem_free(zone->mctx, zone->masterfile);
@@ -8806,8 +8803,8 @@ failure:
 		if (nsec3chain->done) {
 			dns_db_detach(&nsec3chain->db);
 			dns_dbiterator_destroy(&nsec3chain->dbiterator);
-			isc_mem_put(zone->mctx, nsec3chain,
-				    sizeof *nsec3chain, sizeof(char));
+			isc_mem_put(zone->mctx, nsec3chain, sizeof *nsec3chain,
+				    sizeof(char));
 		} else {
 			result = dns_dbiterator_first(nsec3chain->dbiterator);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
@@ -8825,8 +8822,8 @@ failure:
 		if (nsec3chain->done) {
 			dns_db_detach(&nsec3chain->db);
 			dns_dbiterator_destroy(&nsec3chain->dbiterator);
-			isc_mem_put(zone->mctx, nsec3chain,
-				    sizeof *nsec3chain, sizeof(char));
+			isc_mem_put(zone->mctx, nsec3chain, sizeof *nsec3chain,
+				    sizeof(char));
 		} else {
 			LOCK_ZONE(zone);
 			ISC_LIST_PREPEND(zone->nsec3chain, nsec3chain, link);
@@ -9650,8 +9647,7 @@ pauseall:
 		ISC_LIST_UNLINK(cleanup, signing, link);
 		dns_db_detach(&signing->db);
 		dns_dbiterator_destroy(&signing->dbiterator);
-		isc_mem_put(zone->mctx, signing, sizeof *signing,
-			    sizeof(char));
+		isc_mem_put(zone->mctx, signing, sizeof *signing, sizeof(char));
 		signing = ISC_LIST_HEAD(cleanup);
 	}
 
@@ -19529,8 +19525,7 @@ cleanup:
 		if (signing->dbiterator != NULL) {
 			dns_dbiterator_destroy(&signing->dbiterator);
 		}
-		isc_mem_put(zone->mctx, signing, sizeof *signing,
-			    sizeof(char));
+		isc_mem_put(zone->mctx, signing, sizeof *signing, sizeof(char));
 	}
 	if (db != NULL) {
 		dns_db_detach(&db);
@@ -20933,8 +20928,7 @@ cleanup:
 	}
 
 	dns_name_free(zname, mctx);
-	isc_mem_putanddetach(&nsfetch->mctx, nsfetch, 1,
-			     sizeof(dns_nsfetch_t));
+	isc_mem_putanddetach(&nsfetch->mctx, nsfetch, 1, sizeof(dns_nsfetch_t));
 
 	free_needed = exit_check(zone);
 	UNLOCK_ZONE(zone);

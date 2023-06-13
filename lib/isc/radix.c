@@ -499,8 +499,7 @@ isc_radix_insert(isc_radix_tree_t *radix, isc_radix_node_t **target,
 	new_node->prefix = NULL;
 	result = _ref_prefix(radix->mctx, &new_node->prefix, prefix);
 	if (result != ISC_R_SUCCESS) {
-		isc_mem_put(radix->mctx, new_node, 1,
-			    sizeof(isc_radix_node_t));
+		isc_mem_put(radix->mctx, new_node, 1, sizeof(isc_radix_node_t));
 		if (glue != NULL) {
 			isc_mem_put(radix->mctx, glue, 1,
 				    sizeof(isc_radix_node_t));

@@ -481,7 +481,8 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 
 	if (lcfg->channellist_count > 0) {
 		isc_mem_put(mctx, lcfg->channellists,
-			    lcfg->channellist_count * sizeof(ISC_LIST(isc_logchannellist_t)),
+			    lcfg->channellist_count *
+				    sizeof(ISC_LIST(isc_logchannellist_t)),
 			    sizeof(char));
 	}
 
@@ -1704,10 +1705,11 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 						ISC_LIST_UNLINK(lctx->messages,
 								message, link);
 
-						isc_mem_put(lctx->mctx,
-							    message,
-							    sizeof(*message) + 1 + strlen(message->text),
-							    sizeof(char));
+						isc_mem_put(
+							lctx->mctx, message,
+							sizeof(*message) + 1 +
+								strlen(message->text),
+							sizeof(char));
 
 						message = next;
 						continue;

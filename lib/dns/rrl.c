@@ -936,8 +936,7 @@ make_log_buf(dns_rrl_t *rrl, dns_rrl_entry_t *e, const char *str1,
 			if (qbuf != NULL) {
 				ISC_LIST_UNLINK(rrl->qname_free, qbuf, link);
 			} else if (rrl->num_qnames < DNS_RRL_QNAMES) {
-				qbuf = isc_mem_get(rrl->mctx, 1,
-						   sizeof(*qbuf));
+				qbuf = isc_mem_get(rrl->mctx, 1, sizeof(*qbuf));
 				*qbuf = (dns_rrl_qname_buf_t){
 					.index = rrl->num_qnames,
 				};

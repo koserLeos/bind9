@@ -2142,14 +2142,14 @@ _new_query(dig_lookup_t *lookup, char *servname, char *userarg,
 
 	query = isc_mem_allocate(mctx, sizeof(dig_query_t));
 	debug("create query %p linked to lookup %p", query, lookup);
-	*query = (dig_query_t){ .sendbuf = lookup->renderbuf,
-				.servname = servname,
-				.userarg = userarg,
-				.warn_id = true,
-				.recvspace = isc_mem_get(mctx, COMMSIZE,
-							 sizeof(char)),
-				.tmpsendspace = isc_mem_get(mctx, COMMSIZE,
-							    sizeof(char)) };
+	*query = (dig_query_t){
+		.sendbuf = lookup->renderbuf,
+		.servname = servname,
+		.userarg = userarg,
+		.warn_id = true,
+		.recvspace = isc_mem_get(mctx, COMMSIZE, sizeof(char)),
+		.tmpsendspace = isc_mem_get(mctx, COMMSIZE, sizeof(char))
+	};
 
 	lookup_attach(lookup, &query->lookup);
 

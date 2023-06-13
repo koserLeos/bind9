@@ -1633,8 +1633,7 @@ xfrout_ctx_destroy(xfrout_ctx_t **xfrp) {
 			    sizeof(char));
 	}
 	if (xfr->txmem != NULL) {
-		isc_mem_put(xfr->mctx, xfr->txmem, xfr->txmemlen,
-			    sizeof(char));
+		isc_mem_put(xfr->mctx, xfr->txmem, xfr->txmemlen, sizeof(char));
 	}
 	if (xfr->lasttsig != NULL) {
 		isc_buffer_free(&xfr->lasttsig);

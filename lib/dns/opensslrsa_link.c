@@ -787,16 +787,14 @@ opensslrsa_tofile(const dst_key_t *key, const char *directory) {
 
 	priv.elements[i].tag = TAG_RSA_MODULUS;
 	priv.elements[i].length = BN_num_bytes(c.n);
-	bufs[i] = isc_mem_get(key->mctx, priv.elements[i].length,
-			      sizeof(char));
+	bufs[i] = isc_mem_get(key->mctx, priv.elements[i].length, sizeof(char));
 	BN_bn2bin(c.n, bufs[i]);
 	priv.elements[i].data = bufs[i];
 	i++;
 
 	priv.elements[i].tag = TAG_RSA_PUBLICEXPONENT;
 	priv.elements[i].length = BN_num_bytes(c.e);
-	bufs[i] = isc_mem_get(key->mctx, priv.elements[i].length,
-			      sizeof(char));
+	bufs[i] = isc_mem_get(key->mctx, priv.elements[i].length, sizeof(char));
 	BN_bn2bin(c.e, bufs[i]);
 	priv.elements[i].data = bufs[i];
 	i++;
@@ -889,8 +887,8 @@ opensslrsa_tofile(const dst_key_t *key, const char *directory) {
 err:
 	for (i = 0; i < ARRAY_SIZE(bufs); i++) {
 		if (bufs[i] != NULL) {
-			isc_mem_put(key->mctx, bufs[i],
-				    priv.elements[i].length, sizeof(char));
+			isc_mem_put(key->mctx, bufs[i], priv.elements[i].length,
+				    sizeof(char));
 		}
 	}
 	opensslrsa_components_free(&c);

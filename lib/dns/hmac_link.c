@@ -344,8 +344,7 @@ hmac_fromdns(const isc_md_type_t *type, dst_key_t *key, isc_buffer_t *data) {
 		if (isc_md(type, r.base, r.length, hkey->key, &keylen) !=
 		    ISC_R_SUCCESS)
 		{
-			isc_mem_put(key->mctx, hkey, 1,
-				    sizeof(dst_hmac_key_t));
+			isc_mem_put(key->mctx, hkey, 1, sizeof(dst_hmac_key_t));
 			return (DST_R_OPENSSLFAILURE);
 		}
 	} else {

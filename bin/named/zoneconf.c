@@ -669,8 +669,8 @@ cleanup:
 		while ((rdata = ISC_LIST_HEAD(rdatalists[i]->rdata)) != NULL) {
 			ISC_LIST_UNLINK(rdatalists[i]->rdata, rdata, link);
 			dns_rdata_toregion(rdata, &region);
-			isc_mem_putfx(mctx, rdata, region.length,
-				      sizeof(char), sizeof(*rdata), 0);
+			isc_mem_putfx(mctx, rdata, region.length, sizeof(char),
+				      sizeof(*rdata), 0);
 		}
 	}
 

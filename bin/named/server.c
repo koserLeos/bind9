@@ -11342,8 +11342,7 @@ dumpcontext_destroy(struct dumpcontext *dctx) {
 		while (zle != NULL) {
 			ISC_LIST_UNLINK(vle->zonelist, zle, link);
 			dns_zone_detach(&zle->zone);
-			isc_mem_put(dctx->mctx, zle, sizeof *zle,
-				    sizeof(char));
+			isc_mem_put(dctx->mctx, zle, sizeof *zle, sizeof(char));
 			zle = ISC_LIST_HEAD(vle->zonelist);
 		}
 		dns_view_detach(&vle->view);
