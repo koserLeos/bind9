@@ -8,7 +8,9 @@
 #
 # See the COPYRIGHT file distributed with this work for additional
 # information regarding copyright ownership.
+import pytest
 
 
+@pytest.mark.timeout(600)
 def test_digdelv(run_tests_sh):
     run_tests_sh()
