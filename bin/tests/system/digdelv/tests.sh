@@ -15,6 +15,7 @@
 . ../conf.sh
 
 set -e
+set -o xtrace
 
 status=0
 n=0
