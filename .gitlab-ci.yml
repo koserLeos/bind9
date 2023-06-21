@@ -357,7 +357,41 @@ stages:
     - *find_pytest
     - cd bin/tests/system
     - >
-      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -n "$TEST_PARALLEL_JOBS" | tee pytest.out.txt
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
+    - >
+      "$PYTEST" --junit-xml="$CI_PROJECT_DIR"/junit.xml -k digdelv | tee pytest.out.txt
     - '( ! grep -F "grep: warning:" pytest.out.txt )'
   after_script:
     - *display_pytest_failures
