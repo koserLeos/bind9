@@ -888,7 +888,7 @@ unit:gcc:ossl3:amd64:
 gcc:sid:amd64:
   variables:
     CC: gcc
-    CFLAGS: "${CFLAGS_COMMON} -O3 -DOPENSSL_API_COMPAT=10100"
+    CFLAGS: "${CFLAGS_COMMON} -O3"
     # For the jemalloc ./configure option, see https://gitlab.isc.org/isc-projects/bind9/-/issues/3444
     EXTRA_CONFIGURE: "--with-libidn2 --without-lmdb --without-jemalloc --disable-leak-detection ${WITH_READLINE}"
     RUN_MAKE_INSTALL: 1
@@ -1181,7 +1181,7 @@ clang:bookworm:amd64:
   variables:
     BUILD_CONTRIB: 1
     CC: ${CLANG}
-    CFLAGS: "${CFLAGS_COMMON} -Wenum-conversion"
+    CFLAGS: "${CFLAGS_COMMON} -Wenum-conversion -DOPENSSL_API_COMPAT=10100"
     # See https://gitlab.isc.org/isc-projects/bind9/-/issues/3444
     EXTRA_CONFIGURE: "--without-jemalloc --disable-leak-detection"
     RUN_MAKE_INSTALL: 1
