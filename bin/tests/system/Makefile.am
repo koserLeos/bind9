@@ -100,7 +100,6 @@ TESTS +=			\
 	checknames		\
 	checkzone		\
 	database		\
-	dialup			\
 	dlzexternal		\
 	dns64			\
 	dsdigest		\
