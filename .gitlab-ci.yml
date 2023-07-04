@@ -363,7 +363,7 @@ stages:
 .system_test_legacy: &system_test_legacy
   script:
     - cd bin/tests/system
-    - make -j${TEST_PARALLEL_JOBS:-1} -k check V=1
+    - while ./legacy.run.sh timeouts ; do true; done
     - if git rev-parse > /dev/null 2>&1; then ( ! grep "^I:.*:file.*not removed$" *.log ); fi
     - '( ! grep -F "grep: warning:" *.log )'
   after_script:
