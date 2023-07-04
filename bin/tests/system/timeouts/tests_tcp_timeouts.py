@@ -206,9 +206,13 @@ def test_send_timeout(named_port):
         with pytest.raises(EOFError):
             try:
                 (sbytes, stime) = dns.query.send_tcp(sock, msg, timeout())
+                print(sbytes, stime)
                 (response, rtime) = dns.query.receive_tcp(sock, timeout())
+                print(response, rtime)
             except ConnectionError as e:
                 raise EOFError from e
+            except Exception as e:
+                print(e)
 
 
 @pytest_custom_markers.long_test
