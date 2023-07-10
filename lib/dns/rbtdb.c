@@ -1168,7 +1168,9 @@ free_rbtdb(dns_rbtdb_t *rbtdb, bool log) {
 	rbtdb->common.impmagic = 0;
 	isc_mem_detach(&rbtdb->hmctx);
 
-	INSIST(ISC_LIST_EMPTY(rbtdb->common.update_listeners));
+	if (rbtdb->common.update_listeners != NULL) {
+		INSIST(!cds_lfht_destroy(rbtdb->common.update_listeners, NULL));
+	}
 
 	isc_mem_putanddetach(&rbtdb->common.mctx, rbtdb, sizeof(*rbtdb));
 }
@@ -8297,8 +8299,6 @@ dns_rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 	rbtdb->common.rdclass = rdclass;
 	rbtdb->common.mctx = NULL;
 
-	ISC_LIST_INIT(rbtdb->common.update_listeners);
-
 	RBTDB_INITLOCK(&rbtdb->lock);
 
 	TREE_INITLOCK(&rbtdb->tree_lock);
@@ -8322,6 +8322,9 @@ dns_rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 	INSIST(rbtdb->node_lock_count < (1 << DNS_RBT_LOCKLENGTH));
 	rbtdb->node_locks = isc_mem_get(mctx, rbtdb->node_lock_count *
 						      sizeof(rbtdb_nodelock_t));
+
+	rbtdb->common.update_listeners =
+		cds_lfht_new(16, 2, 0, CDS_LFHT_ACCOUNTING, NULL);
 
 	rbtdb->cachestats = NULL;
 	rbtdb->gluecachestats = NULL;
