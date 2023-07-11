@@ -86,5 +86,7 @@ grep -q "flags:[^;]* tc" dig.out.$n || ret=1
 if [ "$ret" -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
+killall -ABRT named
+
 echo_i "exit status: $status"
 [ $status -eq 0 ] || exit 1

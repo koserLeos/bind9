@@ -106,7 +106,7 @@ foreach my $name (@ns) {
 	stop_signal($name, "TERM");
 }
 
-@ns = wait_for_servers(300, @ns);
+@ns = wait_for_servers(3, @ns);
 
 foreach my $name(@ans) {
 	stop_signal($name, "TERM", 1);
