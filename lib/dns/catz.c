@@ -1,15 +1,15 @@
-> /*
-   * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
-   *
-   * SPDX-License-Identifier: MPL-2.0
-   *
-   * This Source Code Form is subject to the terms of the Mozilla Public
-   * License, v. 2.0. If a copy of the MPL was not distributed with this
-   * file, you can obtain one at https://mozilla.org/MPL/2.0/.
-   *
-   * See the COPYRIGHT file distributed with this work for additional
-   * information regarding copyright ownership.
-   */
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
 /*! \file */
 
 #include <inttypes.h>
@@ -47,10 +47,10 @@
 
 #define DNS_CATZ_VERSION_UNDEFINED ((uint32_t)(-1))
 
-	/*%
-	 * Change of ownership permissions
-	 */
-	struct dns_catz_coo {
+/*%
+ * Change of ownership permissions
+ */
+struct dns_catz_coo {
 	unsigned int magic;
 	isc_mem_t *mctx;
 	dns_name_t name;
@@ -609,7 +609,6 @@ zones_merge_process_coo(dns_catz_zone_t *catz, dns_catz_entry_t *entry,
 			      zname, pczname, isc_result_totext(result));
 	}
 
-restore:
 	rcu_read_unlock();
 	UNLOCK(&parentcatz->lock);
 	LOCK(&catz->lock);
@@ -667,7 +666,6 @@ dns__catz_zones_merge(dns_catz_zone_t *catz, dns_catz_zone_t *newcatz) {
 	rcu_read_lock();
 
 	struct cds_lfht_iter iter;
-	struct cds_lfht_node *ht_node = NULL;
 	dns_catz_entry_t *entry = NULL;
 
 	cds_lfht_for_each_entry(newcatz->entries, &iter, entry, ht_node) {
