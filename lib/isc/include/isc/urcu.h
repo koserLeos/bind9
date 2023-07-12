@@ -117,3 +117,25 @@
 #define rcu_dereference(ptr) isc_qsbr_rcu_dereference(ptr)
 
 #endif /* RCU_QSBR */
+
+/* clang-format off */
+/* NOTE: Copied verbatim from Userspace RCU development branch */
+#if !defined(caa_container_of_check_null)
+/*
+ * caa_container_of_check_null - Get the address of an object containing a field.
+ *
+ * @ptr: pointer to the field.
+ * @type: type of the object.
+ * @member: name of the field within the object.
+ *
+ * Return the address of the object containing the field. Return NULL if
+ * @ptr is NULL.
+ */
+#define caa_container_of_check_null(ptr, type, member)			\
+	__extension__							\
+	({								\
+		const __typeof__(((type *) NULL)->member) * __ptr = (ptr); \
+		(__ptr) ? (type *)((char *)__ptr - offsetof(type, member)) : NULL; \
+	})
+#endif
+/* clang-format on */

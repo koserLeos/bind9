@@ -1,16 +1,15 @@
-/*
- * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
- *
- * SPDX-License-Identifier: MPL-2.0
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, you can obtain one at https://mozilla.org/MPL/2.0/.
- *
- * See the COPYRIGHT file distributed with this work for additional
- * information regarding copyright ownership.
- */
-
+> /*
+   * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+   *
+   * SPDX-License-Identifier: MPL-2.0
+   *
+   * This Source Code Form is subject to the terms of the Mozilla Public
+   * License, v. 2.0. If a copy of the MPL was not distributed with this
+   * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+   *
+   * See the COPYRIGHT file distributed with this work for additional
+   * information regarding copyright ownership.
+   */
 /*! \file */
 
 #include <inttypes.h>
@@ -48,10 +47,10 @@
 
 #define DNS_CATZ_VERSION_UNDEFINED ((uint32_t)(-1))
 
-/*%
- * Change of ownership permissions
- */
-struct dns_catz_coo {
+	/*%
+	 * Change of ownership permissions
+	 */
+	struct dns_catz_coo {
 	unsigned int magic;
 	isc_mem_t *mctx;
 	dns_name_t name;
@@ -588,33 +587,27 @@ zones_merge_process_coo(dns_catz_zone_t *catz, dns_catz_entry_t *entry,
 	struct cds_lfht_iter iter;
 	cds_lfht_lookup(parentcatz->coos, dns_name_hash(&entry->name),
 			catz_coo_match, &entry->name, &iter);
-	struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
-	if (ht_node == NULL) {
-		goto restore;
+	dns_catz_coo_t *coo = caa_container_of_check_null(
+		cds_lfht_iter_get_node(&iter), dns_catz_coo_t, ht_node);
+	if (coo != NULL && dns_name_equal(&coo->name, &catz->name)) {
+		char pczname[DNS_NAME_FORMATSIZE];
+		dns_name_format(&parentcatz->name, pczname,
+				DNS_NAME_FORMATSIZE);
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+			      DNS_LOGMODULE_MASTER, ISC_LOG_DEBUG(3),
+			      "catz: zone '%s' "
+			      "change of ownership from "
+			      "'%s' to '%s'",
+			      zname, pczname, czname);
+
+		result = delzone(entry, parentcatz, parentcatz->catzs->view,
+				 parentcatz->catzs->zmm->udata);
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+			      DNS_LOGMODULE_MASTER, ISC_LOG_INFO,
+			      "catz: deleting zone '%s' "
+			      "from catalog '%s' - %s",
+			      zname, pczname, isc_result_totext(result));
 	}
-
-	dns_catz_coo_t *coo = caa_container_of(ht_node, dns_catz_coo_t,
-					       ht_node);
-	if (!dns_name_equal(&coo->name, &catz->name)) {
-		goto restore;
-	}
-
-	char pczname[DNS_NAME_FORMATSIZE];
-	dns_name_format(&parentcatz->name, pczname, DNS_NAME_FORMATSIZE);
-	isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_MASTER,
-		      ISC_LOG_DEBUG(3),
-		      "catz: zone '%s' "
-		      "change of ownership from "
-		      "'%s' to '%s'",
-		      zname, pczname, czname);
-
-	result = delzone(entry, parentcatz, parentcatz->catzs->view,
-			 parentcatz->catzs->zmm->udata);
-	isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_MASTER,
-		      ISC_LOG_INFO,
-		      "catz: deleting zone '%s' "
-		      "from catalog '%s' - %s",
-		      zname, pczname, isc_result_totext(result));
 
 restore:
 	rcu_read_unlock();
@@ -711,9 +704,11 @@ dns__catz_zones_merge(dns_catz_zone_t *catz, dns_catz_zone_t *newcatz) {
 		cds_lfht_lookup(catz->entries, dns_name_hash(&entry->mhash),
 				entry_match, &entry->mhash, &iter);
 
-		ht_node = cds_lfht_iter_get_node(&iter);
+		oentry = caa_container_of_check_null(
+			cds_lfht_iter_get_node(&iter), dns_catz_entry_t,
+			ht_node);
 
-		if (ht_node == NULL) {
+		if (oentry == NULL) {
 			if (result == ISC_R_SUCCESS && parentcatz == catz) {
 				/*
 				 * This means that the zone's unique label
@@ -739,8 +734,6 @@ dns__catz_zones_merge(dns_catz_zone_t *catz, dns_catz_zone_t *newcatz) {
 					      "adding", zname, czname);
 			continue;
 		}
-
-		oentry = caa_container_of(ht_node, dns_catz_entry_t, ht_node);
 
 		if (result != ISC_R_SUCCESS) {
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
@@ -993,18 +986,16 @@ dns_catz_zone_get(dns_catz_zones_t *catzs, const dns_name_t *name) {
 	rcu_read_lock();
 
 	struct cds_lfht *zones = rcu_dereference(catzs->zones);
+	if (zones != NULL) {
+		struct cds_lfht_iter iter;
+		cds_lfht_lookup(zones, dns_name_hash(name), catz_match, name,
+				&iter);
 
-	if (zones == NULL) {
-		goto exit;
+		catz = caa_container_of_check_null(
+			cds_lfht_iter_get_node(&iter), dns_catz_zone_t,
+			ht_node);
 	}
 
-	struct cds_lfht_iter iter;
-	cds_lfht_lookup(zones, dns_name_hash(name), catz_match, name, &iter);
-
-	struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
-	catz = ht_node ? caa_container_of(ht_node, dns_catz_zone_t, ht_node)
-		       : NULL;
-exit:
 	rcu_read_unlock();
 
 	return (catz);
@@ -1265,19 +1256,12 @@ catz_process_coo(dns_catz_zone_t *catz, dns_name_t *mhash,
 	}
 
 	struct cds_lfht_iter iter;
-
 	cds_lfht_lookup(catz->entries, dns_name_hash(&entry->mhash),
 			entry_match, mhash, &iter);
 
-	struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
-	if (ht_node == NULL) {
-		/* The entry was not found .*/
-		goto cleanup;
-	}
-
-	entry = caa_container_of(ht_node, dns_catz_entry_t, ht_node);
-
-	if (dns_name_countlabels(&entry->name) == 0) {
+	entry = caa_container_of_check_null(cds_lfht_iter_get_node(&iter),
+					    dns_catz_entry_t, ht_node);
+	if (entry == NULL || dns_name_countlabels(&entry->name) == 0) {
 		result = ISC_R_FAILURE;
 		goto cleanup;
 	}
@@ -2202,18 +2186,16 @@ dns_catz_dbupdate_callback(dns_db_t *db, void *fn_arg) {
 	}
 
 	struct cds_lfht_iter iter;
-
 	cds_lfht_lookup(zones, dns_name_hash(&db->origin), catz_match,
 			&db->origin, &iter);
 
-	struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+	dns_catz_zone_t *catz = caa_container_of_check_null(
+		cds_lfht_iter_get_node(&iter), dns_catz_zone_t, ht_node);
 
-	if (ht_node == NULL) {
+	if (catz == NULL) {
+		result = ISC_R_NOTFOUND;
 		goto exit;
 	}
-
-	dns_catz_zone_t *catz = caa_container_of(ht_node, dns_catz_zone_t,
-						 ht_node);
 
 	LOCK(&catz->lock);
 
