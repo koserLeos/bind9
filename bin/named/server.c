@@ -3032,6 +3032,11 @@ configure_catz_zone(dns_view_t *view, const cfg_obj_t *config,
 	}
 
 	zone = dns_catz_zone_add(view->catzs, &origin);
+	if (zone == NULL) {
+		cfg_obj_log(catz_obj, named_g_lctx, DNS_CATZ_ERROR_LEVEL,
+			    "catz: shutting down");
+		goto cleanup;
+	}
 
 	dns_catz_zone_resetdefoptions(zone);
 	opts = dns_catz_zone_getdefoptions(zone);

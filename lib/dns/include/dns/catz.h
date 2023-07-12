@@ -133,13 +133,15 @@ dns_catz_entry_getname(dns_catz_entry_t *entry);
  */
 
 dns_catz_entry_t *
-dns_catz_entry_new(isc_mem_t *mctx, const dns_name_t *domain);
+dns_catz_entry_new(isc_mem_t *mctx, const dns_name_t *domain,
+		   const dns_name_t *mhash);
 /*%<
  * Allocate a new catz_entry on 'mctx', with the name 'domain'
  *
  * Requires:
  * \li	'mctx' to be a valid memory context.
  * \li	'domain' to be valid dns_name or NULL.
+ * \li	'mhash' to be valid dns_label
  *
  * Returns:
  * \li	ISC_R_SUCCESS on success
@@ -178,16 +180,6 @@ dns_catz_entry_detach(dns_catz_zone_t *catz, dns_catz_entry_t **entryp);
  * Requires:
  * \li	'catz' is a valid dns_catz_zone_t.
  * \li	'entryp' is not NULL and '*entryp' is not NULL.
- */
-
-bool
-dns_catz_entry_validate(const dns_catz_entry_t *entry);
-/*%<
- * Validate whether entry is correct.
- * (NOT YET IMPLEMENTED: always returns true)
- *
- * Requires:
- *\li	'entry' is a valid dns_catz_entry_t.
  */
 
 bool
