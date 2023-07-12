@@ -2871,7 +2871,7 @@ cleanup:
 	if (zoneconf != NULL) {
 		cfg_obj_destroy(cfg->add_parser, &zoneconf);
 	}
-	dns_catz_entry_detach(cz->origin, &cz->entry);
+	dns_catz_entry_detach(&cz->entry);
 	dns_catz_zone_detach(&cz->origin);
 	dns_view_detach(&cz->view);
 	isc_mem_putanddetach(&cz->mctx, cz, sizeof(*cz));
@@ -2945,7 +2945,7 @@ cleanup:
 	if (zone != NULL) {
 		dns_zone_detach(&zone);
 	}
-	dns_catz_entry_detach(cz->origin, &cz->entry);
+	dns_catz_entry_detach(&cz->entry);
 	dns_catz_zone_detach(&cz->origin);
 	dns_view_detach(&cz->view);
 	isc_mem_putanddetach(&cz->mctx, cz, sizeof(*cz));

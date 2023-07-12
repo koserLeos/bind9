@@ -16,7 +16,7 @@
 /*
  * Define this for reference count tracing in the unit
  */
-#undef DNS_CATZ_TRACE
+#define DNS_CATZ_TRACE 1
 
 #include <inttypes.h>
 #include <stdbool.h>
@@ -160,26 +160,6 @@ dns_catz_entry_copy(dns_catz_zone_t *catz, const dns_catz_entry_t *entry);
  * Returns:
  * \li	ISC_R_SUCCESS on success
  * \li	ISC_R_NOMEMORY on allocation failure
- */
-
-void
-dns_catz_entry_attach(dns_catz_entry_t *entry, dns_catz_entry_t **entryp);
-/*%<
- * Attach an entry
- *
- * Requires:
- * \li	'entry' is a valid dns_catz_entry_t.
- * \li	'entryp' is not NULL and '*entryp' is NULL.
- */
-
-void
-dns_catz_entry_detach(dns_catz_zone_t *catz, dns_catz_entry_t **entryp);
-/*%<
- * Detach an entry, free if no further references
- *
- * Requires:
- * \li	'catz' is a valid dns_catz_zone_t.
- * \li	'entryp' is not NULL and '*entryp' is not NULL.
  */
 
 bool
@@ -391,7 +371,15 @@ dns_catz_zones_shutdown(dns_catz_zones_t *catzs);
  */
 
 #ifdef DNS_CATZ_TRACE
-/* Compatibility macros */
+#define dns_catz_entry_attach(catz, catzp) \
+	dns_catz_entry__attach(catz, catzp, __func__, __FILE__, __LINE__)
+#define dns_catz_entry_detach(catzp) \
+	dns_catz_entry__detach(catzp, __func__, __FILE__, __LINE__)
+#define dns_catz_entry_ref(ptr) \
+	dns_catz_entry__ref(ptr, __func__, __FILE__, __LINE__)
+#define dns_catz_entry_unref(ptr) \
+	dns_catz_entry__unref(ptr, __func__, __FILE__, __LINE__)
+
 #define dns_catz_zone_attach(catz, catzp) \
 	dns_catz_zone__attach(catz, catzp, __func__, __FILE__, __LINE__)
 #define dns_catz_zone_detach(catzp) \
@@ -410,9 +398,11 @@ dns_catz_zones_shutdown(dns_catz_zones_t *catzs);
 #define dns_catz_zones_unref(ptr) \
 	dns_catz_zones__unref(ptr, __func__, __FILE__, __LINE__)
 
+ISC_REFCOUNT_TRACE_DECL(dns_catz_entry);
 ISC_REFCOUNT_TRACE_DECL(dns_catz_zone);
 ISC_REFCOUNT_TRACE_DECL(dns_catz_zones);
 #else
+ISC_REFCOUNT_DECL(dns_catz_entry);
 ISC_REFCOUNT_DECL(dns_catz_zone);
 ISC_REFCOUNT_DECL(dns_catz_zones);
 #endif /* DNS_CATZ_TRACE */

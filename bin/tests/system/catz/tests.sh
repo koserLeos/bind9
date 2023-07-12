@@ -85,34 +85,34 @@ n=0
 n=$((n+1))
 echo_i "checking that catalog-bad1.example (with no version) has failed to load ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: zone 'catalog-bad1.example' has no 'version' record and will not be processed" &&
+wait_for_message ns2/named.run "zone 'catalog-bad1.example' has no 'version' record and will not be processed" &&
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
 n=$((n+1))
 echo_i "checking that catalog-bad2.example (with unsupported version) has failed to load ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: zone 'catalog-bad2.example' unsupported version '99'" &&
-wait_for_message ns2/named.run "catz: new catalog zone 'catalog-bad2.example' is broken and will not be processed" || ret=1
+wait_for_message ns2/named.run "zone 'catalog-bad2.example' unsupported version '99'" &&
+wait_for_message ns2/named.run "new catalog zone 'catalog-bad2.example' is broken and will not be processed" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
 n=$((n+1))
 echo_i "checking that catalog-bad3.example (with two supported version records) has failed to load ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: 'version' property TXT RRset contains more than one record, which is invalid" &&
-wait_for_message ns2/named.run "catz: invalid record in catalog zone - version.catalog-bad3.example IN TXT (failure) - ignoring" &&
-wait_for_message ns2/named.run "catz: zone 'catalog-bad3.example' version is not set" &&
-wait_for_message ns2/named.run "catz: new catalog zone 'catalog-bad3.example' is broken and will not be processed" || ret=1
+wait_for_message ns2/named.run "'version' property TXT RRset contains more than one record, which is invalid" &&
+wait_for_message ns2/named.run "invalid record in catalog zone - version.catalog-bad3.example IN TXT (failure) - ignoring" &&
+wait_for_message ns2/named.run "zone 'catalog-bad3.example' version is not set" &&
+wait_for_message ns2/named.run "new catalog zone 'catalog-bad3.example' is broken and will not be processed" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
 n=$((n+1))
 echo_i "checking that catalog-bad4.example (with only spurious type A version record) has failed to load ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: invalid record in catalog zone - version.catalog-bad4.example IN A (failure) - ignoring" &&
-wait_for_message ns2/named.run "catz: zone 'catalog-bad4.example' version is not set" &&
-wait_for_message ns2/named.run "catz: new catalog zone 'catalog-bad4.example' is broken and will not be processed" || ret=1
+wait_for_message ns2/named.run "invalid record in catalog zone - version.catalog-bad4.example IN A (failure) - ignoring" &&
+wait_for_message ns2/named.run "zone 'catalog-bad4.example' version is not set" &&
+wait_for_message ns2/named.run "new catalog zone 'catalog-bad4.example' is broken and will not be processed" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -121,7 +121,7 @@ echo_i "checking that catalog-bad5.example (non-IN class) has failed to load ($n
 ret=0
 wait_for_message ns2/named.run "'catalog-zones' option is only supported for views with class IN" &&
 wait_for_message ns2/named.run "all zones loaded" || ret=1
-grep -F "catz: dns_catz_add_zone catalog-bad5.example" ns2/named.run && ret=1
+grep -F "dns_catz_add_zone catalog-bad5.example" ns2/named.run && ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -173,7 +173,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: adding zone 'dom1.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom1.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run "transfer of 'dom1.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -293,7 +293,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: catz_delzone_cb: zone 'dom1.example' deleted" || ret=1
+wait_for_message ns2/named.run "catz_delzone_cb: zone 'dom1.example' deleted" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -381,10 +381,10 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: updating catalog zone 'catalog2.example' with serial 2670950425" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom2.example' from catalog 'catalog1.example'" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom3.example' from catalog 'catalog1.example'" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom4.example' from catalog 'catalog2.example'" &&
+wait_for_message ns2/named.run "updating catalog zone 'catalog2.example' with serial 2670950425" &&
+wait_for_message ns2/named.run "adding zone 'dom2.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom3.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom4.example' from catalog 'catalog2.example'" &&
 wait_for_message ns2/named.run "transfer of 'dom4.example/IN/default' from 10.53.0.1#${EXTRAPORT1}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -454,7 +454,7 @@ n=$((n+1))
 echo_i "waiting for secondary to sync up, and checking that the reused label has been caught ($n)"
 ret=0
 wait_for_message ns2/named.run "de26b88d855397a03f77ff1162fd055d8b419584.zones.catalog2.example IN PTR (failure)" &&
-wait_for_message ns2/named.run "catz: new catalog zone 'catalog2.example' is broken and will not be processed" || ret=1
+wait_for_message ns2/named.run "new catalog zone 'catalog2.example' is broken and will not be processed" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -489,9 +489,9 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up, and checking that the zone has been reset ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: zone 'dom4.example' unique label has changed, reset state" &&
-wait_for_message ns2/named.run "catz: deleting zone 'dom4.example' from catalog 'catalog2.example' - success" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom4.example' from catalog 'catalog2.example' - success" || ret=1
+wait_for_message ns2/named.run "zone 'dom4.example' unique label has changed, reset state" &&
+wait_for_message ns2/named.run "deleting zone 'dom4.example' from catalog 'catalog2.example' - success" &&
+wait_for_message ns2/named.run "adding zone 'dom4.example' from catalog 'catalog2.example' - success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -512,7 +512,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: adding zone 'dom2.example' from catalog 'catalog2.example'" || ret=1
+wait_for_message ns2/named.run "adding zone 'dom2.example' from catalog 'catalog2.example'" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -547,8 +547,8 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: updating catalog zone 'catalog1.example'" &&
-wait_for_message ns2/named.run "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run "updating catalog zone 'catalog1.example'" &&
+wait_for_message ns2/named.run "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -569,9 +569,9 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up and checking that the change of ownership was successful ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: zone 'dom2.example' change of ownership from 'catalog1.example' to 'catalog2.example'" &&
-wait_for_message ns2/named.run "catz: deleting zone 'dom2.example' from catalog 'catalog1.example' - success" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom2.example' from catalog 'catalog2.example'" &&
+wait_for_message ns2/named.run "zone 'dom2.example' change of ownership from 'catalog1.example' to 'catalog2.example'" &&
+wait_for_message ns2/named.run "deleting zone 'dom2.example' from catalog 'catalog1.example' - success" &&
+wait_for_message ns2/named.run "adding zone 'dom2.example' from catalog 'catalog2.example'" &&
 wait_for_message ns2/named.run "transfer of 'dom2.example/IN/default' from 10.53.0.3#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -601,7 +601,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: update_from_db: iteration finished" || ret=1
+wait_for_message ns2/named.run "update_from_db: iteration finished" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -621,7 +621,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: update_from_db: iteration finished" || ret=1
+wait_for_message ns2/named.run "update_from_db: iteration finished" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -743,7 +743,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: adding zone 'dom-existing.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom-existing.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run "catz_addmodzone_cb: zone 'dom-existing.example' will not be added because it is an explicitly configured zone" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -789,7 +789,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: adding zone 'dom-existing-forward.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom-existing-forward.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run "catz_addmodzone_cb: zone 'dom-existing-forward.example' will not be processed because of the explicitly configured forwarding for that zone" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -834,7 +834,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: adding zone 'dom-existing-forward-off.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom-existing-forward-off.example' from catalog 'catalog1.example'" &&
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -901,7 +901,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom5.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom5.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "transfer of 'dom5.example/IN/default' from 10.53.0.3#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -928,7 +928,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone 'dom5.example' deleted" || ret=1
+wait_for_message ns2/named.run  "catz_delzone_cb: zone 'dom5.example' deleted" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -958,7 +958,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom6.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom6.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "transfer of 'dom6.example/IN/default' from " > /dev/null || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -986,7 +986,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone 'dom6.example' deleted" || ret=1
+wait_for_message ns2/named.run  "catz_delzone_cb: zone 'dom6.example' deleted" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1014,7 +1014,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom6.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom6.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "error \"failure\" while trying to generate config for zone 'dom6.example'" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1034,7 +1034,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: deleting zone 'dom6.example' from catalog 'catalog1.example' - success" > /dev/null || ret=1
+wait_for_message ns2/named.run  "deleting zone 'dom6.example' from catalog 'catalog1.example' - success" > /dev/null || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1086,7 +1086,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom7.example' from catalog 'catalog1.example'" > /dev/null &&
+wait_for_message ns2/named.run  "adding zone 'dom7.example' from catalog 'catalog1.example'" > /dev/null &&
 wait_for_message ns2/named.run  "transfer of 'dom7.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1129,7 +1129,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" &&
+wait_for_message ns2/named.run  "update_from_db: new zone merged" &&
 wait_for_message ns2/named.run  "transfer of 'dom8.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1177,7 +1177,7 @@ END
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1248,7 +1248,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom9.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom9.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "transfer of 'dom9.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1282,7 +1282,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: modifying zone 'dom9.example' from catalog 'catalog1.example'" || ret=1
+wait_for_message ns2/named.run  "modifying zone 'dom9.example' from catalog 'catalog1.example'" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1326,7 +1326,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: deleting zone 'dom9.example' from catalog 'catalog1.example' - success" || ret=1
+wait_for_message ns2/named.run  "deleting zone 'dom9.example' from catalog 'catalog1.example' - success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1354,7 +1354,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom9.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom9.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "error \"failure\" while trying to generate config for zone 'dom9.example'" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1374,7 +1374,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: deleting zone 'dom9.example' from catalog 'catalog1.example'" || ret=1
+wait_for_message ns2/named.run  "deleting zone 'dom9.example' from catalog 'catalog1.example'" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1449,7 +1449,7 @@ END
     n=$((n+1))
     echo_i "waiting for secondary to sync up ($n)"
     ret=0
-    wait_for_message ns2/named.run  "catz: adding zone '$special' from catalog 'catalog1.example'" &&
+    wait_for_message ns2/named.run  "adding zone '$special' from catalog 'catalog1.example'" &&
     wait_for_message ns2/named.run  "transfer of '$special/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
     if [ $ret -ne 0 ]; then echo_i "failed"; fi
     status=$((status+ret))
@@ -1482,7 +1482,7 @@ END
     n=$((n+1))
     echo_i "waiting for secondary to sync up ($n)"
     ret=0
-    wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone '${special}' deleted" || ret=1
+    wait_for_message ns2/named.run  "catz_delzone_cb: zone '${special}' deleted" || ret=1
     if [ $ret -ne 0 ]; then echo_i "failed"; fi
     status=$((status+ret))
 
@@ -1543,7 +1543,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom11.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom11.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "transfer of 'dom11.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1594,7 +1594,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'subdomain.of.dom11.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'subdomain.of.dom11.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "transfer of 'subdomain.of.dom11.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1620,7 +1620,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone 'dom11.example' deleted" || ret=1
+wait_for_message ns2/named.run  "catz_delzone_cb: zone 'dom11.example' deleted" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1652,7 +1652,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone 'subdomain.of.dom11.example' deleted" || ret=1
+wait_for_message ns2/named.run  "catz_delzone_cb: zone 'subdomain.of.dom11.example' deleted" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1721,7 +1721,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom12.example' from catalog 'catalog4.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom12.example' from catalog 'catalog4.example'" &&
 wait_for_message ns2/named.run  "transfer of 'dom12.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1836,7 +1836,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom13.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom13.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "transfer of 'dom13.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -1866,7 +1866,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1895,7 +1895,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1922,7 +1922,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -1976,7 +1976,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: adding zone 'dom16.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run  "adding zone 'dom16.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run  "transfer of 'dom16.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -2017,7 +2017,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -2046,7 +2046,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -2141,7 +2141,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -2170,7 +2170,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -2222,7 +2222,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -2252,7 +2252,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: update_from_db: new zone merged" || ret=1
+wait_for_message ns2/named.run  "update_from_db: new zone merged" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -2372,9 +2372,9 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: invalid record in catalog zone - primaries.dom17.zones.catalog1.example IN A (failure) - ignoring" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom17.example' from catalog 'catalog1.example'" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom18.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "invalid record in catalog zone - primaries.dom17.zones.catalog1.example IN A (failure) - ignoring" &&
+wait_for_message ns2/named.run "adding zone 'dom17.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom18.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run "transfer of 'dom17.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" &&
 wait_for_message ns2/named.run "transfer of 'dom18.example/IN/default' from 10.53.0.3#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
@@ -2423,8 +2423,8 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone 'dom17.example' deleted" &&
-wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone 'dom18.example' deleted" &&
+wait_for_message ns2/named.run  "catz_delzone_cb: zone 'dom17.example' deleted" &&
+wait_for_message ns2/named.run  "catz_delzone_cb: zone 'dom18.example' deleted" &&
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -2461,9 +2461,9 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: invalid record in catalog zone - primaries.ext.dom18.zones.catalog2.example IN A (failure) - ignoring" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom17.example' from catalog 'catalog2.example'" &&
-wait_for_message ns2/named.run "catz: adding zone 'dom18.example' from catalog 'catalog2.example'" &&
+wait_for_message ns2/named.run "invalid record in catalog zone - primaries.ext.dom18.zones.catalog2.example IN A (failure) - ignoring" &&
+wait_for_message ns2/named.run "adding zone 'dom17.example' from catalog 'catalog2.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom18.example' from catalog 'catalog2.example'" &&
 wait_for_message ns2/named.run "transfer of 'dom17.example/IN/default' from 10.53.0.3#${PORT}: Transfer status: success" &&
 wait_for_message ns2/named.run "transfer of 'dom18.example/IN/default' from 10.53.0.1#${EXTRAPORT1}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
@@ -2512,8 +2512,8 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone 'dom17.example' deleted" &&
-wait_for_message ns2/named.run  "catz: catz_delzone_cb: zone 'dom18.example' deleted" || ret=1
+wait_for_message ns2/named.run  "catz_delzone_cb: zone 'dom17.example' deleted" &&
+wait_for_message ns2/named.run  "catz_delzone_cb: zone 'dom18.example' deleted" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
@@ -2576,7 +2576,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: adding zone 'dom19.example' from catalog 'catalog1.example'" &&
+wait_for_message ns2/named.run "adding zone 'dom19.example' from catalog 'catalog1.example'" &&
 wait_for_message ns2/named.run "transfer of 'dom19.example/IN/default' from 10.53.0.1#${PORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
@@ -2619,7 +2619,7 @@ status=$((status+ret))
 n=$((n+1))
 echo_i "waiting for secondary to sync up ($n)"
 ret=0
-wait_for_message ns4/named.run "catz: adding zone 'tls1.example' from catalog 'catalog-tls.example'" &&
+wait_for_message ns4/named.run "adding zone 'tls1.example' from catalog 'catalog-tls.example'" &&
 wait_for_message ns4/named.run "transfer of 'tls1.example/IN' from 10.53.0.1#${TLSPORT}: Transfer status: success" || ret=1
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
