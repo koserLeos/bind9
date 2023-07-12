@@ -85,8 +85,7 @@ n=0
 n=$((n+1))
 echo_i "checking that catalog-bad1.example (with no version) has failed to load ($n)"
 ret=0
-wait_for_message ns2/named.run "catz: zone 'catalog-bad1.example' has no 'version' record" &&
-wait_for_message ns2/named.run "catz: new catalog zone 'catalog-bad1.example' is broken and will not be processed" || ret=1
+wait_for_message ns2/named.run "catz: zone 'catalog-bad1.example' has no 'version' record and will not be processed" &&
 if [ $ret -ne 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 

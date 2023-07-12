@@ -132,32 +132,28 @@ dns_catz_entry_getname(dns_catz_entry_t *entry);
  * \li	domain name for entry.
  */
 
-void
-dns_catz_entry_new(isc_mem_t *mctx, const dns_name_t *domain,
-		   dns_catz_entry_t **nentryp);
+dns_catz_entry_t *
+dns_catz_entry_new(isc_mem_t *mctx, const dns_name_t *domain);
 /*%<
  * Allocate a new catz_entry on 'mctx', with the name 'domain'
  *
  * Requires:
  * \li	'mctx' to be a valid memory context.
  * \li	'domain' to be valid dns_name or NULL.
- * \li	'nentryp' to be non NULL, *nentryp to be NULL.
  *
  * Returns:
  * \li	ISC_R_SUCCESS on success
  * \li	ISC_R_NOMEMORY on allocation failure
  */
 
-void
-dns_catz_entry_copy(dns_catz_zone_t *catz, const dns_catz_entry_t *entry,
-		    dns_catz_entry_t **nentryp);
+dns_catz_entry_t *
+dns_catz_entry_copy(dns_catz_zone_t *catz, const dns_catz_entry_t *entry);
 /*%<
  * Allocate a new catz_entry and deep copy 'entry' into 'nentryp'.
  *
  * Requires:
  * \li	'mctx' to be a valid memory context.
  * \li	'entry' to be non NULL.
- * \li	'nentryp' to be non NULL, *nentryp to be NULL.
  *
  * Returns:
  * \li	ISC_R_SUCCESS on success
@@ -208,9 +204,8 @@ dns_catz_entry_cmp(const dns_catz_entry_t *ea, const dns_catz_entry_t *eb);
  * \li 'false' if the entries differ.
  */
 
-isc_result_t
-dns_catz_new_zone(dns_catz_zones_t *catzs, dns_catz_zone_t **catzp,
-		  const dns_name_t *name);
+dns_catz_zone_t *
+dns_catz_new_zone(dns_catz_zones_t *catzs, const dns_name_t *name);
 /*%<
  * Allocate a new catz zone on catzs mctx
  *
@@ -291,9 +286,9 @@ struct dns_catz_zonemodmethods {
 	void		    *udata;
 };
 
-void
+dns_catz_zones_t *
 dns_catz_new_zones(isc_mem_t *mctx, isc_loopmgr_t *loopmgr,
-		   dns_catz_zones_t **catzsp, dns_catz_zonemodmethods_t *zmm);
+		   dns_catz_zonemodmethods_t *zmm);
 /*%<
  * Allocate a new catz_zones object, a collection storing all catalog zones
  * for a view.
@@ -306,9 +301,8 @@ dns_catz_new_zones(isc_mem_t *mctx, isc_loopmgr_t *loopmgr,
  *
  */
 
-isc_result_t
-dns_catz_add_zone(dns_catz_zones_t *catzs, const dns_name_t *name,
-		  dns_catz_zone_t **catzp);
+dns_catz_zone_t *
+dns_catz_add_zone(dns_catz_zones_t *catzs, const dns_name_t *name);
 /*%<
  * Allocate a new catz named 'name' and put it in 'catzs' collection.
  *
@@ -355,7 +349,7 @@ dns_catz_dbupdate_callback(dns_db_t *db, void *fn_arg);
  */
 
 void
-dns_catz_dbupdate_unregister(dns_db_t *db, dns_catz_zones_t *catzs);
+dns_catz_dbupdate_register(dns_db_t *db, dns_catz_zones_t *catzs);
 /*%<
  * Register the catalog zone database update notify callback.
  *
@@ -365,7 +359,7 @@ dns_catz_dbupdate_unregister(dns_db_t *db, dns_catz_zones_t *catzs);
  */
 
 void
-dns_catz_dbupdate_register(dns_db_t *db, dns_catz_zones_t *catzs);
+dns_catz_dbupdate_unregister(dns_db_t *db, dns_catz_zones_t *catzs);
 /*%<
  * Unregister the catalog zone database update notify callback.
  *
@@ -392,17 +386,6 @@ dns_catz_postreconfig(dns_catz_zones_t *catzs);
  *
  * Requires:
  * \li	'catzs' is a valid dns_catz_zones_t.
- */
-
-void
-dns_catz_get_iterator(dns_catz_zone_t *catz, isc_ht_iter_t **itp);
-/*%<
- * Get the hashtable iterator on catalog zone members, point '*itp' to it.
- *
- * Requires:
- * \li	'catzs' is a valid dns_catz_zones_t.
- * \li	'itp' is not NULL and '*itp' is NULL.
- *
  */
 
 void
