@@ -2872,7 +2872,7 @@ cleanup:
 		cfg_obj_destroy(cfg->add_parser, &zoneconf);
 	}
 	dns_catz_entry_detach(cz->origin, &cz->entry);
-	dns_catz_detach_catz(&cz->origin);
+	dns_catz_zone_detach(&cz->origin);
 	dns_view_detach(&cz->view);
 	isc_mem_putanddetach(&cz->mctx, cz, sizeof(*cz));
 }
@@ -2946,7 +2946,7 @@ cleanup:
 		dns_zone_detach(&zone);
 	}
 	dns_catz_entry_detach(cz->origin, &cz->entry);
-	dns_catz_detach_catz(&cz->origin);
+	dns_catz_zone_detach(&cz->origin);
 	dns_view_detach(&cz->view);
 	isc_mem_putanddetach(&cz->mctx, cz, sizeof(*cz));
 }
@@ -2978,7 +2978,7 @@ catz_run(dns_catz_entry_t *entry, dns_catz_zone_t *origin, dns_view_t *view,
 	isc_mem_attach(view->mctx, &cz->mctx);
 
 	dns_catz_entry_attach(entry, &cz->entry);
-	dns_catz_attach_catz(origin, &cz->origin);
+	dns_catz_zone_attach(origin, &cz->origin);
 	dns_view_attach(view, &cz->view);
 
 	isc_async_run(named_g_mainloop, action, cz);
@@ -3031,7 +3031,7 @@ configure_catz_zone(dns_view_t *view, const cfg_obj_t *config,
 		goto cleanup;
 	}
 
-	zone = dns_catz_add_zone(view->catzs, &origin);
+	zone = dns_catz_zone_add(view->catzs, &origin);
 
 	dns_catz_zone_resetdefoptions(zone);
 	opts = dns_catz_zone_getdefoptions(zone);
@@ -3108,11 +3108,11 @@ configure_catz(dns_view_t *view, dns_view_t *pview, const cfg_obj_t *config,
 	}
 
 	if (old != NULL) {
-		dns_catz_attach_catzs(pview->catzs, &view->catzs);
-		dns_catz_detach_catzs(&pview->catzs);
+		dns_catz_zones_attach(pview->catzs, &view->catzs);
+		dns_catz_zones_detach(&pview->catzs);
 		dns_catz_prereconfig(view->catzs);
 	} else {
-		view->catzs = dns_catz_new_zones(view->mctx, named_g_loopmgr,
+		view->catzs = dns_catz_zones_new(view->mctx, named_g_loopmgr,
 						 &ns_catz_zonemodmethods);
 	}
 
@@ -6666,7 +6666,7 @@ configure_zone(const cfg_obj_t *config, const cfg_obj_t *zconfig,
 	}
 
 	if (view->catzs != NULL &&
-	    dns_catz_get_zone(view->catzs, origin) != NULL)
+	    dns_catz_zone_get(view->catzs, origin) != NULL)
 	{
 		zone_is_catz = true;
 	}
