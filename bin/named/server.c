@@ -2871,7 +2871,7 @@ cleanup:
 	if (zoneconf != NULL) {
 		cfg_obj_destroy(cfg->add_parser, &zoneconf);
 	}
-	dns_catz_entry_detach(cz->origin, &cz->entry);
+	dns_catz_entry_detach(&cz->entry);
 	dns_catz_zone_detach(&cz->origin);
 	dns_view_detach(&cz->view);
 	isc_mem_putanddetach(&cz->mctx, cz, sizeof(*cz));
@@ -2945,7 +2945,7 @@ cleanup:
 	if (zone != NULL) {
 		dns_zone_detach(&zone);
 	}
-	dns_catz_entry_detach(cz->origin, &cz->entry);
+	dns_catz_entry_detach(&cz->entry);
 	dns_catz_zone_detach(&cz->origin);
 	dns_view_detach(&cz->view);
 	isc_mem_putanddetach(&cz->mctx, cz, sizeof(*cz));
@@ -3032,6 +3032,11 @@ configure_catz_zone(dns_view_t *view, const cfg_obj_t *config,
 	}
 
 	zone = dns_catz_zone_add(view->catzs, &origin);
+	if (zone == NULL) {
+		cfg_obj_log(catz_obj, named_g_lctx, DNS_CATZ_ERROR_LEVEL,
+			    "catz: shutting down");
+		goto cleanup;
+	}
 
 	dns_catz_zone_resetdefoptions(zone);
 	opts = dns_catz_zone_getdefoptions(zone);

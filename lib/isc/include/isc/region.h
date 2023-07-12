@@ -78,7 +78,7 @@ struct isc_consttextregion {
 ISC_LANG_BEGINDECLS
 
 int
-isc_region_compare(isc_region_t *r1, isc_region_t *r2);
+isc_region_compare(const isc_region_t *r1, const isc_region_t *r2);
 /*%<
  * Compares the contents of two regions
  *

@@ -82,7 +82,8 @@ umask_initialize(void) {
 
 unsigned int
 isc_os_ncpus(void) {
-	return (isc__os_ncpus);
+	return (1);
+	/* return (isc__os_ncpus); */
 }
 
 unsigned long
