@@ -1101,6 +1101,7 @@ dnssecttl_free(void *element, void *memp) {
 	isc_mem_t *mctx = (isc_mem_t *)memp;
 	isc_mem_put(mctx, dttl, sizeof(*dttl));
 }
+
 static bool
 dnssecttl_expired(dns_dnssecttl_t *dttl, isc_time_t now) {
 	REQUIRE(dttl != NULL);
