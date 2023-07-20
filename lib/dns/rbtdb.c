@@ -1230,7 +1230,10 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 
 	POST(nlocktype);
 
+	/* We are accessing the deadnodes here */
 	NODE_RDLOCK(nodelock, &nlocktype);
+
+	SPINLOCK(&node->spinlock);
 
 	/*
 	 * Check if we can possibly cleanup the dead node.  If so, upgrade
@@ -1246,7 +1249,12 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		/*
 		 * Upgrade the lock and test if we still need to unlink.
 		 */
-		NODE_FORCEUPGRADE(nodelock, &nlocktype);
+		if (NODE_TRYUPGRADE(nodelock, &nlocktype) != ISC_R_SUCCESS) {
+			SPINUNLOCK(&node->spinlock);
+			NODE_UNLOCK(nodelock, &nlocktype);
+			NODE_WRLOCK(nodelock, &nlocktype);
+			SPINLOCK(&node->spinlock);
+		}
 		POST(nlocktype);
 		if (ISC_LINK_LINKED(node, deadlink)) {
 			ISC_LIST_UNLINK(rbtdb->deadnodes[node->locknum], node,
@@ -1259,6 +1267,8 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	}
 
 	dns__rbtdb_newref(rbtdb, node, nlocktype DNS__DB_FLARG_PASS);
+
+	SPINUNLOCK(&node->spinlock);
 
 	NODE_UNLOCK(nodelock, &nlocktype);
 }
@@ -1298,6 +1308,8 @@ dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	((n)->data != NULL || ((l) && (n)->down != NULL) || \
 	 (n) == (r)->origin_node || (n) == (r)->nsec3_origin_node)
 
+	SPINLOCK(&node->spinlock);
+
 	/* Handle easy and typical case first. */
 	if (!node->dirty && KEEP_NODE(node, rbtdb, locked)) {
 		refs = isc_refcount_decrement(&node->references);
@@ -1308,6 +1320,9 @@ dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 #else
 		UNUSED(refs);
 #endif
+
+		SPINUNLOCK(&node->spinlock);
+
 		if (refs == 1) {
 			refs = isc_refcount_decrement(&nodelock->references);
 #if DNS_DB_NODETRACE
@@ -1326,7 +1341,15 @@ dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 
 	/* Upgrade the lock? */
 	if (*nlocktypep == isc_rwlocktype_read) {
-		NODE_FORCEUPGRADE(&nodelock->lock, nlocktypep);
+		/* We need to keep the node lock here because the deadnodes */
+		if (NODE_TRYUPGRADE(&nodelock->lock, nlocktypep) !=
+		    ISC_R_SUCCESS)
+		{
+			SPINUNLOCK(&node->spinlock);
+			NODE_UNLOCK(&nodelock->lock, nlocktypep);
+			NODE_WRLOCK(&nodelock->lock, nlocktypep);
+			SPINLOCK(&node->spinlock);
+		}
 	}
 
 	refs = isc_refcount_decrement(&node->references);
@@ -1337,6 +1360,7 @@ dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	UNUSED(refs);
 #endif
 	if (refs > 1) {
+		SPINUNLOCK(&node->spinlock);
 		return (false);
 	}
 
@@ -1431,7 +1455,9 @@ dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 				isc_rwlocktype_write DNS__DB_FLARG_PASS);
 			no_reference = false;
 		} else {
+			SPINUNLOCK(&node->spinlock);
 			delete_node(rbtdb, node);
+			goto restore_nodelock;
 		}
 	} else {
 		INSIST(node->data == NULL);
@@ -1442,9 +1468,11 @@ dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	}
 
 restore_locks:
+	SPINUNLOCK(&node->spinlock);
 	/*
 	 * Relock a read lock, or unlock the write lock if no lock was held.
 	 */
+restore_nodelock:
 	if (!locked && write_locked) {
 		TREE_UNLOCK(&rbtdb->tree_lock, tlocktypep);
 	}
@@ -1629,12 +1657,11 @@ setnsec3parameters(dns_db_t *db, dns_rbtdb_version_t *version) {
 	unsigned int count, length;
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)db;
 	isc_rwlocktype_t tlocktype = isc_rwlocktype_none;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
 	TREE_RDLOCK(&rbtdb->tree_lock, &tlocktype);
 	version->havensec3 = false;
 	node = rbtdb->origin_node;
-	NODE_RDLOCK(&(rbtdb->node_locks[node->locknum].lock), &nlocktype);
+	SPINLOCK(&node->spinlock);
 	for (header = node->data; header != NULL; header = header_next) {
 		header_next = header->next;
 		do {
@@ -1701,7 +1728,7 @@ setnsec3parameters(dns_db_t *db, dns_rbtdb_version_t *version) {
 		}
 	}
 unlock:
-	NODE_UNLOCK(&(rbtdb->node_locks[node->locknum].lock), &nlocktype);
+	SPINUNLOCK(&node->spinlock);
 	TREE_UNLOCK(&rbtdb->tree_lock, &tlocktype);
 }
 
@@ -3266,6 +3293,7 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 	}
 
 	NODE_WRLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINLOCK(&rbtnode->spinlock);
 
 	if (rbtdb->rrsetstats != NULL) {
 		DNS_SLABHEADER_SETATTR(newheader, DNS_SLABHEADERATTR_STATCOUNT);
@@ -3324,6 +3352,7 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 		rbtnode->find_callback = 1;
 	}
 
+	SPINUNLOCK(&rbtnode->spinlock);
 	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
 
 	if (tlocktype != isc_rwlocktype_none) {
@@ -3359,7 +3388,6 @@ dns__rbtdb_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 	isc_result_t result;
 	rbtdb_changed_t *changed = NULL;
 	isc_rwlocktype_t tlocktype = isc_rwlocktype_none;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
 	REQUIRE(VALID_RBTDB(rbtdb));
 	REQUIRE(rbtversion != NULL && rbtversion->rbtdb == rbtdb);
@@ -3408,13 +3436,12 @@ dns__rbtdb_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 		newheader->resign_lsb = 0;
 	}
 
-	NODE_WRLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINLOCK(&rbtnode->spinlock);
 
 	changed = add_changed(newheader, rbtversion DNS__DB_FLARG_PASS);
 	if (changed == NULL) {
 		dns_slabheader_destroy(&newheader);
-		NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
-			    &nlocktype);
+		SPINUNLOCK(&rbtnode->spinlock);
 		return (ISC_R_NOMEMORY);
 	}
 
@@ -3545,7 +3572,7 @@ dns__rbtdb_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 	}
 
 unlock:
-	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINUNLOCK(&rbtnode->spinlock);
 
 	/*
 	 * Update the zone's secure status.  If version is non-NULL
@@ -3572,7 +3599,6 @@ dns__rbtdb_deleterdataset(dns_db_t *db, dns_dbnode_t *node,
 	dns_name_t *nodename = dns_fixedname_initname(&fname);
 	isc_result_t result;
 	dns_slabheader_t *newheader = NULL;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
 	REQUIRE(VALID_RBTDB(rbtdb));
 	INSIST(rbtversion == NULL || rbtversion->rbtdb == rbtdb);
@@ -3594,11 +3620,11 @@ dns__rbtdb_deleterdataset(dns_db_t *db, dns_dbnode_t *node,
 
 	dns__rbtdb_nodefullname(db, node, nodename);
 
-	NODE_WRLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINLOCK(&rbtnode->spinlock);
 	result = dns__rbtdb_add(rbtdb, rbtnode, nodename, rbtversion, newheader,
 				DNS_DBADD_FORCE, false, NULL,
 				0 DNS__DB_FLARG_PASS);
-	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINUNLOCK(&rbtnode->spinlock);
 
 	/*
 	 * Update the zone's secure status.  If version is non-NULL
@@ -3615,21 +3641,25 @@ dns__rbtdb_deleterdataset(dns_db_t *db, dns_dbnode_t *node,
 }
 
 static void
-delete_callback(void *data, void *arg) {
-	dns_rbtdb_t *rbtdb = arg;
-	dns_slabheader_t *current = NULL, *next = NULL;
-	unsigned int locknum;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
+delete_callback_rcu(struct rcu_head *rcu_head) {
+	dns_slabheader_t *header = caa_container_of(rcu_head, dns_slabheader_t,
+						    rcu_head);
 
-	current = data;
-	locknum = HEADER_NODE(current)->locknum;
-	NODE_WRLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
+	dns_slabheader_destroy(&header);
+}
+
+static void
+delete_callback(void *data, void *arg ISC_ATTR_UNUSED) {
+	dns_slabheader_t *current = data, *next = NULL;
+
+	rcu_read_lock();
 	while (current != NULL) {
+		SPINLOCK(&HEADER_NODE(current)->spinlock);
 		next = current->next;
-		dns_slabheader_destroy(&current);
+		call_rcu(&current->rcu_head, delete_callback_rcu);
+		SPINUNLOCK(&HEADER_NODE(current)->spinlock);
 		current = next;
 	}
-	NODE_UNLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
 }
 
 unsigned int
@@ -4026,9 +4056,8 @@ rdatasetiter_first(dns_rdatasetiter_t *iterator DNS__DB_FLARG) {
 	dns_rbtdb_version_t *rbtversion = rbtiterator->common.version;
 	dns_slabheader_t *header = NULL, *top_next = NULL;
 	uint32_t serial = IS_CACHE(rbtdb) ? 1 : rbtversion->serial;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
-	NODE_RDLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINLOCK(&rbtnode->spinlock);
 
 	for (header = rbtnode->data; header != NULL; header = top_next) {
 		top_next = header->next;
@@ -4055,7 +4084,7 @@ rdatasetiter_first(dns_rdatasetiter_t *iterator DNS__DB_FLARG) {
 		}
 	}
 
-	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINUNLOCK(&rbtnode->spinlock);
 
 	rbtiterator->current = header;
 
@@ -4076,7 +4105,6 @@ rdatasetiter_next(dns_rdatasetiter_t *iterator DNS__DB_FLARG) {
 	uint32_t serial = IS_CACHE(rbtdb) ? 1 : rbtversion->serial;
 	dns_typepair_t type, negtype;
 	dns_rdatatype_t rdtype, covers;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 	bool expiredok = EXPIREDOK(rbtiterator);
 
 	header = rbtiterator->current;
@@ -4084,7 +4112,7 @@ rdatasetiter_next(dns_rdatasetiter_t *iterator DNS__DB_FLARG) {
 		return (ISC_R_NOMORE);
 	}
 
-	NODE_RDLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINLOCK(&rbtnode->spinlock);
 
 	type = header->type;
 	rdtype = DNS_TYPEPAIR_TYPE(header->type);
@@ -4148,7 +4176,7 @@ rdatasetiter_next(dns_rdatasetiter_t *iterator DNS__DB_FLARG) {
 		}
 	}
 
-	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINUNLOCK(&rbtnode->spinlock);
 
 	rbtiterator->current = header;
 
@@ -4166,18 +4194,17 @@ rdatasetiter_current(dns_rdatasetiter_t *iterator,
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)(rbtiterator->common.db);
 	dns_rbtnode_t *rbtnode = rbtiterator->common.node;
 	dns_slabheader_t *header = NULL;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
 	header = rbtiterator->current;
 	REQUIRE(header != NULL);
 
-	NODE_RDLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINLOCK(&rbtnode->spinlock);
 
 	dns__rbtdb_bindrdataset(rbtdb, rbtnode, header, rbtiterator->common.now,
 				isc_rwlocktype_read,
 				rdataset DNS__DB_FLARG_PASS);
 
-	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINUNLOCK(&rbtnode->spinlock);
 }
 
 /*

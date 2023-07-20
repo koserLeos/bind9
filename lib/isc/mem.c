@@ -585,6 +585,15 @@ isc__mem_destroy(isc_mem_t **ctxp FLARG) {
 	 * before checking for memory leaks
 	 */
 	rcu_barrier();
+	rcu_barrier();
+	rcu_barrier();
+	rcu_barrier();
+	rcu_barrier();
+	rcu_barrier();
+	rcu_barrier();
+	rcu_barrier();
+	rcu_barrier();
+	rcu_barrier();
 
 #if ISC_MEM_TRACKLINES
 	if ((ctx->debugging & ISC_MEM_DEBUGTRACE) != 0) {

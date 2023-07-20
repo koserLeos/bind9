@@ -22,6 +22,7 @@
 #include <isc/region.h>
 #include <isc/result.h>
 #include <isc/string.h>
+#include <isc/urcu.h>
 #include <isc/util.h>
 
 #include <dns/db.h>

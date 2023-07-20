@@ -23,6 +23,7 @@
 #include <isc/lang.h>
 #include <isc/magic.h>
 #include <isc/refcount.h>
+#include <isc/spinlock.h>
 
 #include <dns/types.h>
 
@@ -143,6 +144,7 @@ struct dns_rbtnode {
 	uint8_t	      : 0;	/* end of bitfields c/o node lock */
 	uint16_t       locknum; /* note that this is not in the bitfield */
 	isc_refcount_t references;
+	isc_spinlock_t spinlock;
 	/*@}*/
 };
 
@@ -698,7 +700,7 @@ dns_rbt_destroy2(dns_rbt_t **rbtp, unsigned int quantum);
 
 void
 dns_rbt_printtext(dns_rbt_t *rbt, void (*data_printer)(FILE *, void *),
-		  FILE	    *f);
+		  FILE *f);
 /*%<
  * Print an ASCII representation of the internal structure of the red-black
  * tree of trees to the passed stream.
