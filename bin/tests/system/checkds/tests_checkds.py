@@ -11,7 +11,6 @@
 # See the COPYRIGHT file distributed with this work for additional
 # information regarding copyright ownership.
 
-import mmap
 import os
 import subprocess
 import sys
@@ -256,33 +255,7 @@ def rekey(zone):
     assert controller.returncode == 0
 
 
-def wait_for_log(filename, zone, log):
-    found = False
-
-    for _ in range(10):
-        print("read log file {}".format(filename))
-
-        try:
-            with open(filename, "r", encoding="utf-8") as file:
-                s = mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ)
-                if s.find(bytes(log, "ascii")) != -1:
-                    found = True
-        except FileNotFoundError:
-            print("file not found {}".format(filename))
-
-        if found:
-            break
-
-        print("rekey")
-        rekey(zone)
-
-        print("sleep")
-        time.sleep(1)
-
-    assert found
-
-
-def checkds_dspublished(named_port, checkds, addr):
+def checkds_dspublished(named_port, servers, checkds, addr):
     # We create resolver instances that will be used to send queries.
     server = dns.resolver.Resolver()
     server.nameservers = ["10.53.0.9"]
@@ -300,11 +273,9 @@ def checkds_dspublished(named_port, checkds, addr):
     # The simple case.
     zone = "good.{}.dspublish.ns2".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from {}".format(zone, addr),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from {addr}"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSPublish")
 
     #
@@ -313,11 +284,9 @@ def checkds_dspublished(named_port, checkds, addr):
     #
     zone = "not-yet.{}.dspublish.ns5".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from 10.53.0.5".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from 10.53.0.5"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "!DSPublish")
 
     #
@@ -327,19 +296,13 @@ def checkds_dspublished(named_port, checkds, addr):
     zone = "bad.{}.dspublish.ns6".format(checkds)
     zone_check(server, zone)
     if checkds == "explicit":
-        wait_for_log(
-            "ns9/named.run",
-            zone,
-            "zone {}/IN (signed): checkds: bad DS response from 10.53.0.6".format(zone),
-        )
+        with servers["ns9"].watch_log_from_start() as watcher:
+            line = f"zone {zone}/IN (signed): checkds: bad DS response from 10.53.0.6"
+            watcher.wait_for_line(line)
     elif checkds == "yes":
-        wait_for_log(
-            "ns9/named.run",
-            zone,
-            "zone {}/IN (signed): checkds: error during parental-agents processing".format(
-                zone
-            ),
-        )
+        with servers["ns9"].watch_log_from_start() as watcher:
+            line = f"zone {zone}/IN (signed): checkds: error during parental-agents processing"
+            watcher.wait_for_line(line)
     keystate_check(parent, zone, "!DSPublish")
 
     #
@@ -353,16 +316,12 @@ def checkds_dspublished(named_port, checkds, addr):
     #
     zone = "good.{}.dspublish.ns2-4".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from {}".format(zone, addr),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.4".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from {addr}"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.4"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSPublish")
 
     #
@@ -371,21 +330,15 @@ def checkds_dspublished(named_port, checkds, addr):
     #
     zone = "incomplete.{}.dspublish.ns2-4-5".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from {}".format(zone, addr),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.4".format(zone),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from 10.53.0.5".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from {addr}"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.4"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from 10.53.0.5"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "!DSPublish")
 
     #
@@ -394,21 +347,15 @@ def checkds_dspublished(named_port, checkds, addr):
     #
     zone = "bad.{}.dspublish.ns2-4-6".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from {}".format(zone, addr),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.4".format(zone),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: bad DS response from 10.53.0.6".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from {addr}"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.4"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: bad DS response from 10.53.0.6"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "!DSPublish")
 
     #
@@ -420,7 +367,7 @@ def checkds_dspublished(named_port, checkds, addr):
     # TBD: Check with TLS
 
 
-def checkds_dswithdrawn(named_port, checkds, addr):
+def checkds_dswithdrawn(named_port, servers, checkds, addr):
     # We create resolver instances that will be used to send queries.
     server = dns.resolver.Resolver()
     server.nameservers = ["10.53.0.9"]
@@ -438,11 +385,9 @@ def checkds_dswithdrawn(named_port, checkds, addr):
     # The simple case.
     zone = "good.{}.dsremoved.ns5".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from {}".format(zone, addr),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from {addr}"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSRemoved")
 
     #
@@ -451,11 +396,9 @@ def checkds_dswithdrawn(named_port, checkds, addr):
     #
     zone = "still-there.{}.dsremoved.ns2".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.2".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.2"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "!DSRemoved")
 
     #
@@ -465,19 +408,13 @@ def checkds_dswithdrawn(named_port, checkds, addr):
     zone = "bad.{}.dsremoved.ns6".format(checkds)
     zone_check(server, zone)
     if checkds == "explicit":
-        wait_for_log(
-            "ns9/named.run",
-            zone,
-            "zone {}/IN (signed): checkds: bad DS response from 10.53.0.6".format(zone),
-        )
+        with servers["ns9"].watch_log_from_start() as watcher:
+            line = f"zone {zone}/IN (signed): checkds: bad DS response from 10.53.0.6"
+            watcher.wait_for_line(line)
     elif checkds == "yes":
-        wait_for_log(
-            "ns9/named.run",
-            zone,
-            "zone {}/IN (signed): checkds: error during parental-agents processing".format(
-                zone
-            ),
-        )
+        with servers["ns9"].watch_log_from_start() as watcher:
+            line = f"zone {zone}/IN (signed): checkds: error during parental-agents processing"
+            watcher.wait_for_line(line)
     keystate_check(parent, zone, "!DSRemoved")
 
     #
@@ -491,16 +428,12 @@ def checkds_dswithdrawn(named_port, checkds, addr):
     #
     zone = "good.{}.dsremoved.ns5-7".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from {}".format(zone, addr),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from 10.53.0.7".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from {addr}"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from 10.53.0.7"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSRemoved")
 
     #
@@ -509,21 +442,15 @@ def checkds_dswithdrawn(named_port, checkds, addr):
     #
     zone = "incomplete.{}.dsremoved.ns2-5-7".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.2".format(zone),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from {}".format(zone, addr),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from 10.53.0.7".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.2"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from {addr}"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from 10.53.0.7"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "!DSRemoved")
 
     #
@@ -532,21 +459,15 @@ def checkds_dswithdrawn(named_port, checkds, addr):
     #
     zone = "bad.{}.dsremoved.ns5-6-7".format(checkds)
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from {}".format(zone, addr),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from 10.53.0.7".format(zone),
-    )
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: bad DS response from 10.53.0.6".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from {addr}"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from 10.53.0.7"
+        watcher.wait_for_line(line)
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: bad DS response from 10.53.0.6"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "!DSRemoved")
 
     #
@@ -555,7 +476,7 @@ def checkds_dswithdrawn(named_port, checkds, addr):
     # TBD
 
 
-def test_checkds_reference(named_port):
+def test_checkds_reference(named_port, servers):
     # We create resolver instances that will be used to send queries.
     server = dns.resolver.Resolver()
     server.nameservers = ["10.53.0.9"]
@@ -568,15 +489,13 @@ def test_checkds_reference(named_port):
     # Using a reference to parental-agents.
     zone = "reference.explicit.dspublish.ns2"
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.8".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.8"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSPublish")
 
 
-def test_checkds_resolver(named_port):
+def test_checkds_resolver(named_port, servers):
     # We create resolver instances that will be used to send queries.
     server = dns.resolver.Resolver()
     server.nameservers = ["10.53.0.9"]
@@ -589,25 +508,21 @@ def test_checkds_resolver(named_port):
     # Using a resolver as parental-agent (ns3).
     zone = "resolver.explicit.dspublish.ns2"
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.3".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.3"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSPublish")
 
     # Using a resolver as parental-agent (ns3).
     zone = "resolver.explicit.dsremoved.ns5"
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: empty DS response from 10.53.0.3".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: empty DS response from 10.53.0.3"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSRemoved")
 
 
-def test_checkds_no_ent(named_port):
+def test_checkds_no_ent(named_port, servers):
     # We create resolver instances that will be used to send queries.
     server = dns.resolver.Resolver()
     server.nameservers = ["10.53.0.9"]
@@ -619,31 +534,27 @@ def test_checkds_no_ent(named_port):
 
     zone = "no-ent.ns2"
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.2".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.2"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSPublish")
 
     zone = "no-ent.ns5"
     zone_check(server, zone)
-    wait_for_log(
-        "ns9/named.run",
-        zone,
-        "zone {}/IN (signed): checkds: DS response from 10.53.0.5".format(zone),
-    )
+    with servers["ns9"].watch_log_from_start() as watcher:
+        line = f"zone {zone}/IN (signed): checkds: DS response from 10.53.0.5"
+        watcher.wait_for_line(line)
     keystate_check(parent, zone, "DSRemoved")
 
 
-def test_checkds_dspublished(named_port):
-    checkds_dspublished(named_port, "explicit", "10.53.0.8")
-    checkds_dspublished(named_port, "yes", "10.53.0.2")
+def test_checkds_dspublished(named_port, servers):
+    checkds_dspublished(named_port, servers, "explicit", "10.53.0.8")
+    checkds_dspublished(named_port, servers, "yes", "10.53.0.2")
 
 
-def test_checkds_dswithdrawn(named_port):
-    checkds_dswithdrawn(named_port, "explicit", "10.53.0.10")
-    checkds_dswithdrawn(named_port, "yes", "10.53.0.5")
+def test_checkds_dswithdrawn(named_port, servers):
+    checkds_dswithdrawn(named_port, servers, "explicit", "10.53.0.10")
+    checkds_dswithdrawn(named_port, servers, "yes", "10.53.0.5")
 
 
 def test_checkds_no(named_port):
