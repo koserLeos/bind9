@@ -13,6 +13,8 @@ import logging
 import os
 import pytest
 
+import isctest
+
 
 # ======================= LEGACY=COMPATIBLE FIXTURES =========================
 # The following fixtures are designed to work with both pytest system test
@@ -39,6 +41,33 @@ def named_httpsport():
 @pytest.fixture(scope="module")
 def control_port():
     return int(os.environ.get("CONTROLPORT", default=9953))
+
+
+@pytest.fixture(scope="module")
+def rndc_logger():
+    formatter = logging.Formatter("[%(asctime)s] %(message)s")
+    handler = logging.FileHandler("rndc.log")
+    handler.setFormatter(formatter)
+    logger = logging.getLogger("rndc")
+    logger.addHandler(handler)
+    logger.setLevel("DEBUG")
+    return logger
+
+
+@pytest.fixture(scope="module")
+def servers(named_port, control_port, rndc_logger):
+    instances = {}
+    with os.scandir() as iterator:
+        for entry in iterator:
+            if entry.is_dir():
+                try:
+                    dir_name = entry.name
+                    ports = isctest.NamedPorts(dns=named_port, rndc=control_port)
+                    instance = isctest.NamedInstance(dir_name, ports, rndc_logger)
+                    instances[dir_name] = instance
+                except ValueError:
+                    continue
+    return instances
 
 
 if os.getenv("LEGACY_TEST_RUNNER", "0") != "0":
