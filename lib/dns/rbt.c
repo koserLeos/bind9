@@ -26,6 +26,7 @@
 #include <isc/mem.h>
 #include <isc/once.h>
 #include <isc/refcount.h>
+#include <isc/spinlock.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
 #include <isc/util.h>
@@ -1423,6 +1424,7 @@ dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, bool recurse) {
 	node->magic = 0;
 #endif /* if DNS_RBT_USEMAGIC */
 	isc_refcount_destroy(&node->references);
+	isc_spinlock_destroy(&node->spinlock);
 
 	freenode(rbt, &node);
 
@@ -1526,6 +1528,7 @@ create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	node->wild = 0;
 	node->dirty = 0;
 	isc_refcount_init(&node->references, 0);
+	isc_spinlock_init(&node->spinlock);
 	node->find_callback = 0;
 	node->nsec = DNS_RBT_NSEC_NORMAL;
 

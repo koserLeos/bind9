@@ -297,9 +297,7 @@ setup_delegation(rbtdb_search_t *search, dns_dbnode_t **nodep,
 		search->need_cleanup = false;
 	}
 	if (rdataset != NULL) {
-		isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
-		NODE_RDLOCK(&(search->rbtdb->node_locks[node->locknum].lock),
-			    &nlocktype);
+		SPINLOCK(&node->spinlock);
 		dns__rbtdb_bindrdataset(search->rbtdb, node,
 					search->zonecut_header, search->now,
 					isc_rwlocktype_read,
@@ -310,8 +308,7 @@ setup_delegation(rbtdb_search_t *search, dns_dbnode_t **nodep,
 				search->now, isc_rwlocktype_read,
 				sigrdataset DNS__DB_FLARG_PASS);
 		}
-		NODE_UNLOCK(&(search->rbtdb->node_locks[node->locknum].lock),
-			    &nlocktype);
+		SPINUNLOCK(&node->spinlock);
 	}
 
 	if (type == dns_rdatatype_dname) {
@@ -448,6 +445,7 @@ cache_zonecut_callback(dns_rbtnode_t *node, dns_name_t *name,
 
 	lock = &(search->rbtdb->node_locks[node->locknum].lock);
 	NODE_RDLOCK(lock, &nlocktype);
+	SPINLOCK(&node->spinlock);
 
 	/*
 	 * Look for a DNAME or RRSIG DNAME rdataset.
@@ -492,6 +490,7 @@ cache_zonecut_callback(dns_rbtnode_t *node, dns_name_t *name,
 		result = DNS_R_CONTINUE;
 	}
 
+	SPINUNLOCK(&node->spinlock);
 	NODE_UNLOCK(lock, &nlocktype);
 
 	return (result);
@@ -523,6 +522,7 @@ find_deepest_zonecut(rbtdb_search_t *search, dns_rbtnode_t *node,
 		isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
 		NODE_RDLOCK(lock, &nlocktype);
+		SPINLOCK(&node->spinlock);
 
 		/*
 		 * Look for NS and RRSIG NS rdatasets.
@@ -607,7 +607,14 @@ find_deepest_zonecut(rbtdb_search_t *search, dns_rbtnode_t *node,
 			     need_headerupdate(foundsig, search->now)))
 			{
 				if (nlocktype != isc_rwlocktype_write) {
-					NODE_FORCEUPGRADE(lock, &nlocktype);
+					if (NODE_TRYUPGRADE(lock, &nlocktype) !=
+					    ISC_R_SUCCESS)
+					{
+						SPINUNLOCK(&node->spinlock);
+						NODE_UNLOCK(lock, &nlocktype);
+						NODE_WRLOCK(lock, &nlocktype);
+						SPINLOCK(&node->spinlock);
+					}
 					POST(nlocktype);
 				}
 				if (need_headerupdate(found, search->now)) {
@@ -624,6 +631,7 @@ find_deepest_zonecut(rbtdb_search_t *search, dns_rbtnode_t *node,
 		}
 
 	node_exit:
+		SPINUNLOCK(&node->spinlock);
 		NODE_UNLOCK(lock, &nlocktype);
 
 		if (found == NULL && i > 0) {
@@ -709,6 +717,7 @@ find_coveringnsec(rbtdb_search_t *search, const dns_name_t *name,
 
 	lock = &(search->rbtdb->node_locks[node->locknum].lock);
 	NODE_RDLOCK(lock, &nlocktype);
+	SPINLOCK(&node->spinlock);
 	for (header = node->data; header != NULL; header = header_next) {
 		header_next = header->next;
 		if (check_stale_header(node, header, &nlocktype, lock, search,
@@ -752,6 +761,7 @@ find_coveringnsec(rbtdb_search_t *search, const dns_name_t *name,
 	} else {
 		result = ISC_R_NOTFOUND;
 	}
+	SPINUNLOCK(&node->spinlock);
 	NODE_UNLOCK(lock, &nlocktype);
 	return (result);
 }
@@ -858,6 +868,7 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 
 	lock = &(search.rbtdb->node_locks[node->locknum].lock);
 	NODE_RDLOCK(lock, &nlocktype);
+	SPINLOCK(&node->spinlock);
 
 	/*
 	 * These pointers need to be reset here in case we did
@@ -968,6 +979,7 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 		 * extant rdatasets.  That means that this node doesn't
 		 * meaningfully exist, and that we really have a partial match.
 		 */
+		SPINUNLOCK(&node->spinlock);
 		NODE_UNLOCK(lock, &nlocktype);
 		if ((search.options & DNS_DBFIND_COVERINGNSEC) != 0) {
 			result = find_coveringnsec(
@@ -1027,6 +1039,7 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 		if (found == NULL && (found_noqname || all_negative) &&
 		    (search.options & DNS_DBFIND_COVERINGNSEC) != 0)
 		{
+			SPINUNLOCK(&node->spinlock);
 			NODE_UNLOCK(lock, &nlocktype);
 			result = find_coveringnsec(
 				&search, name, nodep, now, foundname, rdataset,
@@ -1069,6 +1082,7 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 		/*
 		 * Go find the deepest zone cut.
 		 */
+		SPINUNLOCK(&node->spinlock);
 		NODE_UNLOCK(lock, &nlocktype);
 		goto find_ns;
 	}
@@ -1130,7 +1144,12 @@ node_exit:
 	if ((update != NULL || updatesig != NULL) &&
 	    nlocktype != isc_rwlocktype_write)
 	{
-		NODE_FORCEUPGRADE(lock, &nlocktype);
+		if (NODE_TRYUPGRADE(lock, &nlocktype) != ISC_R_SUCCESS) {
+			SPINUNLOCK(&node->spinlock);
+			NODE_UNLOCK(lock, &nlocktype);
+			NODE_WRLOCK(lock, &nlocktype);
+			SPINLOCK(&node->spinlock);
+		}
 		POST(nlocktype);
 	}
 	if (update != NULL && need_headerupdate(update, search.now)) {
@@ -1140,6 +1159,7 @@ node_exit:
 		update_header(search.rbtdb, updatesig, search.now);
 	}
 
+	SPINUNLOCK(&node->spinlock);
 	NODE_UNLOCK(lock, &nlocktype);
 
 tree_exit:
@@ -1233,6 +1253,7 @@ cache_findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 
 	lock = &(search.rbtdb->node_locks[node->locknum].lock);
 	NODE_RDLOCK(lock, &nlocktype);
+	SPINLOCK(&node->spinlock);
 
 	for (header = node->data; header != NULL; header = header_next) {
 		header_next = header->next;
@@ -1249,6 +1270,7 @@ cache_findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 			 * zonecut we know about. If so, find the deepest
 			 * zonecut from this node up and return that instead.
 			 */
+			SPINUNLOCK(&node->spinlock);
 			NODE_UNLOCK(lock, &nlocktype);
 			result = find_deepest_zonecut(
 				&search, node, nodep, foundname, rdataset,
@@ -1284,6 +1306,7 @@ cache_findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 		/*
 		 * No NS records here.
 		 */
+		SPINUNLOCK(&node->spinlock);
 		NODE_UNLOCK(lock, &nlocktype);
 		result = find_deepest_zonecut(&search, node, nodep, foundname,
 					      rdataset,
@@ -1309,7 +1332,13 @@ cache_findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 	    (foundsig != NULL && need_headerupdate(foundsig, search.now)))
 	{
 		if (nlocktype != isc_rwlocktype_write) {
-			NODE_FORCEUPGRADE(lock, &nlocktype);
+			if (NODE_TRYUPGRADE(lock, &nlocktype) != ISC_R_SUCCESS)
+			{
+				SPINUNLOCK(&node->spinlock);
+				NODE_UNLOCK(lock, &nlocktype);
+				NODE_WRLOCK(lock, &nlocktype);
+				SPINLOCK(&node->spinlock);
+			}
 			POST(nlocktype);
 		}
 		if (need_headerupdate(found, search.now)) {
@@ -1321,6 +1350,7 @@ cache_findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 		}
 	}
 
+	SPINUNLOCK(&node->spinlock);
 	NODE_UNLOCK(lock, &nlocktype);
 
 tree_exit:
@@ -1364,6 +1394,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	lock = &rbtdb->node_locks[rbtnode->locknum].lock;
 	NODE_RDLOCK(lock, &nlocktype);
+	SPINLOCK(&rbtnode->spinlock);
 
 	matchtype = DNS_TYPEPAIR_VALUE(type, covers);
 	negtype = DNS_TYPEPAIR_VALUE(0, type);
@@ -1418,6 +1449,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		}
 	}
 
+	SPINUNLOCK(&rbtnode->spinlock);
 	NODE_UNLOCK(lock, &nlocktype);
 
 	if (found == NULL) {
@@ -1526,17 +1558,15 @@ getservestalerefresh(dns_db_t *db, uint32_t *interval) {
 }
 
 static void
-expiredata(dns_db_t *db, dns_dbnode_t *node, void *data) {
-	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)db;
+expiredata(dns_db_t *db ISC_ATTR_UNUSED, dns_dbnode_t *node, void *data) {
 	dns_rbtnode_t *rbtnode = (dns_rbtnode_t *)node;
 	dns_slabheader_t *header = data;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 	isc_rwlocktype_t tlocktype = isc_rwlocktype_none;
 
-	NODE_WRLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINLOCK(&rbtnode->spinlock);
 	dns__cachedb_expireheader(header, &tlocktype,
 				  dns_expire_flush DNS__DB_FLARG_PASS);
-	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
+	SPINUNLOCK(&rbtnode->spinlock);
 	INSIST(tlocktype == isc_rwlocktype_none);
 }
 
