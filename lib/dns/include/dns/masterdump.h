@@ -120,6 +120,8 @@ typedef struct dns_master_style dns_master_style_t;
  */
 #define DNS_STYLEFLAG_CLASS_PERNAME 0x400000000ULL
 
+#define DNS_STYLEFLAG_HUMAN 0x800000000ULL
+
 ISC_LANG_BEGINDECLS
 
 /***

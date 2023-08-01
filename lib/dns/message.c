@@ -3326,8 +3326,10 @@ dns_message_sectiontotext(dns_message_t *msg, dns_section_t section,
 				INDENT(style);
 				if ((sflags & DNS_STYLEFLAG_YAML) != 0) {
 					ADD_STRING(target, "- ");
+				} else if ((sflags & DNS_STYLEFLAG_HUMAN) != 0) {
+					ADD_STRING(target, ";    ");
 				} else {
-					ADD_STRING(target, ";");
+					ADD_STRING(target, "; ");
 				}
 				result = dns_master_questiontotext(
 					name, rdataset, style, target);
@@ -3842,6 +3844,7 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 	isc_result_t result;
 	char buf[sizeof(" (65000 bytes)")];
 	uint32_t mbz;
+	bool human = false;
 	dns_rdata_t rdata;
 	isc_buffer_t optbuf;
 	uint16_t optcode, optlen;
@@ -3854,6 +3857,9 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 	if ((dns_master_styleflags(style) & DNS_STYLEFLAG_YAML) != 0) {
 		return (dns_message_pseudosectiontoyaml(msg, section, style,
 							flags, target));
+	}
+	if ((dns_master_styleflags(style) & DNS_STYLEFLAG_HUMAN) != 0) {
+		human = true;
 	}
 
 	switch (section) {
@@ -3868,7 +3874,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 		}
 
 		INDENT(style);
-		ADD_STRING(target, "; EDNS: version: ");
+		if (human) {
+			ADD_STRING(target, ";    EDNS: version: ");
+		} else {
+			ADD_STRING(target, "; EDNS: version: ");
+		}
 		snprintf(buf, sizeof(buf), "%u",
 			 (unsigned int)((ps->ttl & 0x00ff0000) >> 16));
 		ADD_STRING(target, buf);
@@ -3916,7 +3926,7 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 			INDENT(style);
 
 			if (optcode == DNS_OPT_LLQ) {
-				ADD_STRING(target, "; LLQ:");
+				ADD_STRING(target, ";   LLQ:");
 				if (optlen == 18U) {
 					result = render_llq(&optbuf, target);
 					if (result != ISC_R_SUCCESS) {
@@ -3926,13 +3936,25 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 					continue;
 				}
 			} else if (optcode == DNS_OPT_NSID) {
-				ADD_STRING(target, "; NSID:");
+				if (human) {
+					ADD_STRING(target, ";    NSID:");
+				} else {
+					ADD_STRING(target, "; NSID:");
+				}
 			} else if (optcode == DNS_OPT_COOKIE) {
-				ADD_STRING(target, "; COOKIE:");
+				if (human) {
+					ADD_STRING(target, ";    COOKIE:");
+				} else {
+					ADD_STRING(target, "; COOKIE:");
+				}
 			} else if (optcode == DNS_OPT_CLIENT_SUBNET) {
 				isc_buffer_t ecsbuf;
 
-				ADD_STRING(target, "; CLIENT-SUBNET:");
+				if (human) {
+					ADD_STRING(target, ";    CLIENT-SUBNET:");
+				} else {
+					ADD_STRING(target, "; CLIENT-SUBNET:");
+				}
 				isc_buffer_init(&ecsbuf,
 						isc_buffer_current(&optbuf),
 						optlen);
@@ -3947,7 +3969,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 					continue;
 				}
 			} else if (optcode == DNS_OPT_EXPIRE) {
-				ADD_STRING(target, "; EXPIRE:");
+				if (human) {
+					ADD_STRING(target, ";    EXPIRE:");
+				} else {
+					ADD_STRING(target, "; EXPIRE:");
+				}
 				if (optlen == 4) {
 					uint32_t secs;
 					secs = isc_buffer_getuint32(&optbuf);
@@ -3963,7 +3989,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 					continue;
 				}
 			} else if (optcode == DNS_OPT_TCP_KEEPALIVE) {
-				ADD_STRING(target, "; TCP KEEPALIVE:");
+				if (human) {
+					ADD_STRING(target, ";    TCP KEEPALIVE:");
+				} else {
+					ADD_STRING(target, "; TCP KEEPALIVE:");
+				}
 				if (optlen == 2) {
 					unsigned int dsecs;
 					dsecs = isc_buffer_getuint16(&optbuf);
@@ -3974,7 +4004,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 					continue;
 				}
 			} else if (optcode == DNS_OPT_PAD) {
-				ADD_STRING(target, "; PAD:");
+				if (human) {
+					ADD_STRING(target, ";    PAD:");
+				} else {
+					ADD_STRING(target, "; PAD:");
+				}
 				if (optlen > 0U) {
 					snprintf(buf, sizeof(buf),
 						 " (%u bytes)", optlen);
@@ -3984,7 +4018,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 				ADD_STRING(target, "\n");
 				continue;
 			} else if (optcode == DNS_OPT_KEY_TAG) {
-				ADD_STRING(target, "; KEY-TAG:");
+				if (human) {
+					ADD_STRING(target, ";    KEY-TAG:");
+				} else {
+					ADD_STRING(target, "; KEY-TAG:");
+				}
 				if (optlen > 0U && (optlen % 2U) == 0U) {
 					const char *sep = "";
 					uint16_t id;
@@ -4001,7 +4039,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 					continue;
 				}
 			} else if (optcode == DNS_OPT_EDE) {
-				ADD_STRING(target, "; EDE:");
+				if (human) {
+					ADD_STRING(target, ";    EDE:");
+				} else {
+					ADD_STRING(target, "; EDE:");
+				}
 				if (optlen >= 2U) {
 					uint16_t ede;
 					ede = isc_buffer_getuint16(&optbuf);
@@ -4031,7 +4073,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 				}
 			} else if (optcode == DNS_OPT_CLIENT_TAG) {
 				uint16_t id;
-				ADD_STRING(target, "; CLIENT-TAG:");
+				if (human) {
+					ADD_STRING(target, ";    CLIENT-TAG:");
+				} else {
+					ADD_STRING(target, "; CLIENT-TAG:");
+				}
 				if (optlen == 2U) {
 					id = isc_buffer_getuint16(&optbuf);
 					snprintf(buf, sizeof(buf), " %u\n", id);
@@ -4042,7 +4088,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 				}
 			} else if (optcode == DNS_OPT_SERVER_TAG) {
 				uint16_t id;
-				ADD_STRING(target, "; SERVER-TAG:");
+				if (human) {
+					ADD_STRING(target, ";   SERVER-TAG:");
+				} else {
+					ADD_STRING(target, "; CLIENT-TAG:");
+				}
 				if (optlen == 2U) {
 					id = isc_buffer_getuint16(&optbuf);
 					snprintf(buf, sizeof(buf), " %u\n", id);
@@ -4052,7 +4102,11 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 					continue;
 				}
 			} else {
-				ADD_STRING(target, "; OPT=");
+				if (human) {
+					ADD_STRING(target, ";    OPT=");
+				} else {
+					ADD_STRING(target, "; OPT=");
+				}
 				snprintf(buf, sizeof(buf), "%u:", optcode);
 				ADD_STRING(target, buf);
 			}
@@ -4149,6 +4203,9 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 			}
 			ADD_STRING(target, "\n");
 		}
+		if (human) {
+			ADD_STRING(target, "\n");
+		}
 		return (ISC_R_SUCCESS);
 	case DNS_PSEUDOSECTION_TSIG:
 		ps = dns_message_gettsig(msg, &name);
@@ -4194,16 +4251,21 @@ isc_result_t
 dns_message_headertotext(dns_message_t *msg, const dns_master_style_t *style,
 			 dns_messagetextflag_t flags, isc_buffer_t *target) {
 	char buf[sizeof("1234567890")];
+	bool human;
+	dns_masterstyle_flags_t sflags;
+
 	isc_result_t result;
 
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	REQUIRE(target != NULL);
 
+	sflags = dns_master_styleflags(style);
+
 	if ((flags & DNS_MESSAGETEXTFLAG_NOHEADERS) != 0) {
 		return (ISC_R_SUCCESS);
 	}
 
-	if (dns_master_styleflags(style) & DNS_STYLEFLAG_YAML) {
+	if (sflags & DNS_STYLEFLAG_YAML) {
 		INDENT(style);
 		ADD_STRING(target, "opcode: ");
 		ADD_STRING(target, opcodetext[msg->opcode]);
@@ -4292,20 +4354,39 @@ dns_message_headertotext(dns_message_t *msg, const dns_master_style_t *style,
 		ADD_STRING(target, buf);
 		ADD_STRING(target, "\n");
 	} else {
+		if (sflags & DNS_STYLEFLAG_YAML) {
+			human = true;
+		}
 		INDENT(style);
-		ADD_STRING(target, ";; ->>HEADER<<- opcode: ");
+		if (human) {
+			ADD_STRING(target, ";; HEADER: \n;   opcode: ");
+		} else {
+			ADD_STRING(target, ";; ->>HEADER<<- opcode: ");
+		}
 		ADD_STRING(target, opcodetext[msg->opcode]);
-		ADD_STRING(target, ", status: ");
+		if (human) {
+			ADD_STRING(target, "\n;    status: ");
+		} else {
+			ADD_STRING(target, ", status: ");
+		}
 		result = dns_rcode_totext(msg->rcode, target);
 		if (result != ISC_R_SUCCESS) {
 			return (result);
 		}
-		ADD_STRING(target, ", id: ");
+		if (human) {
+			ADD_STRING(target, "\n;    id: ");
+		} else {
+			ADD_STRING(target, ", id: ");
+		}
 		snprintf(buf, sizeof(buf), "%6u", msg->id);
 		ADD_STRING(target, buf);
 		ADD_STRING(target, "\n");
 		INDENT(style);
-		ADD_STRING(target, ";; flags:");
+		if (human) {
+			ADD_STRING(target, ";    flags:");
+		} else {
+			ADD_STRING(target, "; flags:");
+		}
 		if ((msg->flags & DNS_MESSAGEFLAG_QR) != 0) {
 			ADD_STRING(target, " qr");
 		}
@@ -4334,12 +4415,17 @@ dns_message_headertotext(dns_message_t *msg, const dns_master_style_t *style,
 			INDENT(style);
 			ADD_STRING(target, "; MBZ: 0x4");
 		}
+		if (human) {
+			ADD_STRING(target, "\n;   ");
+		} else {
+			ADD_STRING(target, "; ");
+		}
 		if (msg->opcode != dns_opcode_update) {
 			INDENT(style);
-			ADD_STRING(target, "; QUESTION: ");
+			ADD_STRING(target, "QUESTION: ");
 		} else {
 			INDENT(style);
-			ADD_STRING(target, "; ZONE: ");
+			ADD_STRING(target, "ZONE: ");
 		}
 		snprintf(buf, sizeof(buf), "%1u",
 			 msg->counts[DNS_SECTION_QUESTION]);
