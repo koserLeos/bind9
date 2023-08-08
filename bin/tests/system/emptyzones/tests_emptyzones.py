@@ -17,16 +17,18 @@ import isctest
 def test_emptyzones(servers: Dict[str, isctest.NamedInstance]):
     """check that switching to automatic empty zones works"""
     ns1 = servers["ns1"]
-    ns1.copy_setports("named1.conf.in", "named.conf")
+
+    # TODO: these could really be one call
+    #       something like: ns1.reconfig("automatic_empty_zones.conf.in")
+    ns1.copy_setports("automatic_empty_zones.conf.in", "named.conf")
     ns1.reload()
-    ns1.copy_setports("named2.conf.in", "named.conf")
-    ns1.reload()
+
     ns1.tcp_query("version.bind", "TXT", "CH")
 
 
 def test_emptyzones_allow_transfer_none(servers: Dict[str, isctest.NamedInstance]):
-    """ "check that allow-transfer { none; } works"""
+    """check allow-transfer { none; } is correctly inherited from automatic empty zone"""
     ns1 = servers["ns1"]
-    ns1.copy_setports("named2.conf.in", "named.conf")
+    ns1.copy_setports("automatic_empty_zones_deny_transfer.conf.in", "named.conf")
     ns1.reload()
     ns1.tcp_query("10.in-addr.arpa", "AXFR").expect_refused()
