@@ -11,7 +11,7 @@
 # See the COPYRIGHT file distributed with this work for additional
 # information regarding copyright ownership.
 
-from typing import Any, Dict, NamedTuple, Optional, TextIO
+from typing import Any, Dict, NamedTuple, Optional, TextIO, Union
 
 import abc
 import logging
@@ -19,6 +19,8 @@ import os
 import re
 import subprocess
 import time
+
+from jinja2 import Environment, FileSystemLoader
 
 
 class WatchLog:
@@ -350,9 +352,17 @@ class NamedInstance:
             raise ValueError("Invalid named instance identifier" + identifier)
         self.ip = "10.53.0." + regex_match.group("index")
         self.ports = ports
+        self.identifier = identifier
+
         self._log_file = os.path.join(identifier, "named.run")
         self._rndc_executor = rndc_executor
         self._rndc_logger = rndc_logger
+
+        loader = FileSystemLoader(identifier)
+        rndc_logger.log(20, identifier)
+        self._jinja_env = Environment(
+            loader=loader, variable_start_string="@", variable_end_string="@"
+        )
 
     def rndc(self, command: str, ignore_errors: bool = False, log: bool = True) -> str:
         """
@@ -446,3 +456,10 @@ class NamedInstance:
                 "response": response,
             },
         )
+
+    def copy_setports(
+        self, path_in: Union[str, os.PathLike], path_out: Union[str, os.PathLike]
+    ):
+        template = self._jinja_env.get_template(path_in)
+        with open(os.path.join(self.identifier, path_out), "w") as f:
+            f.write(template.render(os.environ))
