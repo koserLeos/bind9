@@ -12,6 +12,5 @@
 # information regarding copyright ownership.
 
 . ../conf.sh
-
-$SHELL clean.sh
+# TODO: Find a way to do this in pytest and then delete this file
 copy_setports ns1/named1.conf.in ns1/named.conf
