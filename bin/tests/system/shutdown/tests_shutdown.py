@@ -163,7 +163,7 @@ def wait_for_proc_termination(proc, max_timeout=10):
 
 
 # We test named shutting down using two methods:
-# Method 1: using rndc ctop
+# Method 1: using rndc stop
 # Method 2: killing with SIGTERM
 # In both methods named should exit gracefully.
 @pytest.mark.parametrize(
