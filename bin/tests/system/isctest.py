@@ -20,6 +20,12 @@ import re
 import subprocess
 import time
 
+import dns.message
+import dns.name
+import dns.rcode
+import dns.rdataclass
+import dns.rdatatype
+import dns.query
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -476,3 +482,51 @@ class NamedInstance:
         template = self._jinja_env.get_template(path_in)
         with open(os.path.join(self.identifier, path_out), "w") as f:
             f.write(template.render(os.environ))
+
+    # TODO: find a nice way for this to support flags
+    def tcp_query(
+        self,
+        qname: Union[dns.name.Name, str],
+        qtype: Union[dns.rdatatype.RdataType, str],
+        qclass: Union[dns.rdataclass.RdataClass, str] = dns.rdataclass.IN,
+    ):
+        question = dns.message.make_query(qname, qtype, qclass)
+        reply = dns.query.tcp(question, self.ip, timeout=5, port=self.ports.dns)
+        return CheckableReply(reply)
+
+
+# TODO: find a better name for this
+class ReplyError(Exception):
+    def __init__(self, what, expected, got):
+        self.what = what
+        self.expected = expected
+        self.got = got
+
+    def __str__(self):
+        return f"Expected {self.what} {self.expected} got {self.got}"
+
+
+# TODO: find a better name for this
+class CheckableReply:
+    """
+    Wrapper class for `dns.message.Message` to easily check different attributes
+    of an incomming DNS message.
+    """
+
+    def __init__(self, message: dns.message.Message):
+        self.message = message
+
+    def expect_rcode(self, rcode: dns.rcode.Rcode) -> "CheckableReply":
+        if self.message.rcode() != rcode:
+            raise ReplyError(
+                "rcode",
+                dns.rcode.Rcode.to_text(rcode),
+                dns.rcode.Rcode.to_text(self.message.rcode()),
+            )
+        return self
+
+    def expect_noerror(self):
+        return self.expect_rcode(dns.rcode.NOERROR)
+
+    def expect_refused(self):
+        return self.expect_rcode(dns.rcode.REFUSED)
