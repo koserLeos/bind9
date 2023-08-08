@@ -441,6 +441,19 @@ class NamedInstance:
             self.rndc("reconfig")
             watcher.wait_for_line("any newly configured zones are now loaded")
 
+    def reload(self, zone: Optional[str] = None) -> None:
+        """
+        TODO: document this and maybe split it into reload and reload_zone as
+        it's weird that one is synchronous and the other isn't. Also I don't
+        like the fact that we rely on the exact wording of log messages.
+        """
+        if zone is not None:
+            self.rndc(f"reload {zone}")
+            return
+        with self.watch_log_from_here() as watcher:
+            self.rndc("reload")
+            watcher.wait_for_line("all zones loaded")
+
     def _rndc_log(self, command: str, response: str) -> None:
         """
         Log an `rndc` invocation (and its output) to the `rndc.log` file in the
