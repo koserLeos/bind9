@@ -578,7 +578,9 @@ else:
                 perl("testsock.pl", ["-p", env["PORT"]])
             except subprocess.CalledProcessError as exc:
                 mlogger.error("testsock.pl: exited with code %d", exc.returncode)
-                pytest.skip("Network interface aliases not set up.")
+                pytest.skip(
+                    "Network interface aliases not set up.\n Run `sudo sh bin/tests/system/ifconfig.sh up` to set them up."
+                )
 
         def check_prerequisites():
             try:
