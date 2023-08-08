@@ -365,7 +365,6 @@ class NamedInstance:
         self._rndc_logger = rndc_logger
 
         loader = FileSystemLoader(identifier)
-        rndc_logger.log(20, identifier)
         self._jinja_env = Environment(
             loader=loader, variable_start_string="@", variable_end_string="@"
         )
