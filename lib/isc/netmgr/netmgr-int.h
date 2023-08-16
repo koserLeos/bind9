@@ -198,8 +198,6 @@ typedef struct isc__networker {
 	bool recvbuf_inuse;
 
 	ISC_LIST(isc_nmsocket_t) active_sockets;
-
-	isc_mempool_t *uvreq_pool;
 } isc__networker_t;
 
 ISC_REFCOUNT_DECL(isc__networker);
@@ -618,11 +616,6 @@ struct isc_nmsocket {
 	 * timeout instead of the default idle timeout.
 	 */
 	bool keepalive;
-
-	/*%
-	 * 'spare' handles for that can be reused to avoid allocations, for UDP.
-	 */
-	ISC_LIST(isc_nmhandle_t) inactive_handles;
 
 	/*%
 	 * 'active' handles and uvreqs, mostly for debugging purposes.
