@@ -1703,12 +1703,6 @@ gcov:
     - job: system:gcc:bookworm:amd64
       artifacts: true
   script:
-    # Ensure gcov files for unit tests are found via tests/ rather than
-    # lib/*/tests/ to prevent confusing gcovr.
-    - find lib/ -name tests -type l -delete
-    # The "a-conftest.gcno" file is result of the ./configure step and
-    # should be removed as it does not belong to the BIND 9 code base.
-    - rm a-conftest.gcno
     # Generate XML file in the Cobertura XML format suitable for use by GitLab
     # for the purpose of displaying code coverage information in the diff view
     # of a given merge request.
