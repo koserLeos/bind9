@@ -79,9 +79,29 @@ enable_fips_mode(void) {
 #endif
 }
 
+static void
+detect_uncleared_libcrypto_error(const char *xfile, int xline) {
+	const char *file, *func, *data;
+	int line, flags;
+	long err;
+	bool leak = false;
+	while ((err = ERR_get_error_all(&file, &line, &func, &data, &flags)) !=
+	       0L)
+	{
+		fprintf(stderr,
+			"# Uncleared libcrypto error: %s:%d %s:%d %s %s %ld "
+			"%x\n",
+			xfile, xline, file, line, func, data, err, flags);
+		leak = true;
+	}
+	INSIST(!leak);
+}
+
 isc_result_t
 dst__openssl_init(const char *engine) {
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	enable_fips_mode();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 
 	if (engine != NULL && *engine == '\0') {
 		engine = NULL;
