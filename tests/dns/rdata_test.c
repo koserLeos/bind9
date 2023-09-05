@@ -789,6 +789,7 @@ static void
 check_rdata(const text_ok_t *text_ok, const wire_ok_t *wire_ok,
 	    const compare_ok_t *compare_ok, bool empty_ok,
 	    dns_rdataclass_t rdclass, dns_rdatatype_t type, size_t structsize) {
+	detect_uncleared_libcrypto_error();
 	if (text_ok != NULL) {
 		check_text_ok(text_ok, rdclass, type, structsize);
 	}
