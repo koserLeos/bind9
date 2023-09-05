@@ -41,18 +41,48 @@ isc__initialize(void) ISC_CONSTRUCTOR;
 void
 isc__shutdown(void) ISC_DESTRUCTOR;
 
+#include <openssl/err.h>
+
+static void
+detect_uncleared_libcrypto_error(const char *xfile, int xline) {
+       const char *file, *func, *data;
+       int line, flags;
+       long err;
+       bool leak = false;
+       while ((err = ERR_get_error_all(&file, &line, &func, &data, &flags)) !=
+              0L)
+       {
+               fprintf(stderr,
+                       "# Uncleared libcrypto error: %s:%d %s:%d %s %s %ld "
+                       "%x\n",
+                       xfile, xline, file, line, func, data, err, flags);
+               leak = true;
+       }
+       INSIST(!leak);
+}
+
 void
 isc__initialize(void) {
 	isc__os_initialize();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	isc__mutex_initialize();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	isc__mem_initialize();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	isc__tls_initialize();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	isc__uv_initialize();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	isc__xml_initialize();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	isc__md_initialize();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	isc__iterated_hash_initialize();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	(void)isc_os_ncpus();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	rcu_register_thread();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 }
 
 void
