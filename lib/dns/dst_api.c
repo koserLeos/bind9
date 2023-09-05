@@ -189,7 +189,7 @@ addsuffix(char *filename, int len, const char *dirname, const char *ofilename,
 	} while (0);
 
 static void
-detect_uncleared_libcrypto_error(void) {
+detect_uncleared_libcrypto_error(const char *xfile, int xline) {
 	const char *file, *func, *data;
 	int line, flags;
 	long err;
@@ -198,8 +198,8 @@ detect_uncleared_libcrypto_error(void) {
 	       0L)
 	{
 		fprintf(stderr,
-			"# Uncleared libcrypto error: %s:%d %s %s %ld %x\n",
-			file, line, func, data, err, flags);
+			"# Uncleared libcrypto error: %s:%d %s:%d %s %s %ld %x\n",
+			xfile, xline, file, line, func, data, err, flags);
 		leak = true;
 	}
 	INSIST(!leak);
@@ -216,45 +216,45 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 
 	memset(dst_t_func, 0, sizeof(dst_t_func));
 	RETERR(dst__openssl_init(engine)); /* Sets FIPS mode. */
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__hmacmd5_init(&dst_t_func[DST_ALG_HMACMD5]));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__hmacsha1_init(&dst_t_func[DST_ALG_HMACSHA1]));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__hmacsha224_init(&dst_t_func[DST_ALG_HMACSHA224]));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__hmacsha256_init(&dst_t_func[DST_ALG_HMACSHA256]));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__hmacsha384_init(&dst_t_func[DST_ALG_HMACSHA384]));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__hmacsha512_init(&dst_t_func[DST_ALG_HMACSHA512]));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	/* RSASHA1 (NSEC3RSASHA1) is verify only in FIPS mode. */
 	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA1],
 				    DST_ALG_RSASHA1));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_NSEC3RSASHA1],
 				    DST_ALG_NSEC3RSASHA1));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA256],
 				    DST_ALG_RSASHA256));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__opensslrsa_init(&dst_t_func[DST_ALG_RSASHA512],
 				    DST_ALG_RSASHA512));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__opensslecdsa_init(&dst_t_func[DST_ALG_ECDSA256]));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	RETERR(dst__opensslecdsa_init(&dst_t_func[DST_ALG_ECDSA384]));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 #ifdef HAVE_OPENSSL_ED25519
 	RETERR(dst__openssleddsa_init(&dst_t_func[DST_ALG_ED25519],
 				      DST_ALG_ED25519));
 #endif /* ifdef HAVE_OPENSSL_ED25519 */
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 #ifdef HAVE_OPENSSL_ED448
 	RETERR(dst__openssleddsa_init(&dst_t_func[DST_ALG_ED448],
 				      DST_ALG_ED448));
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 #endif /* ifdef HAVE_OPENSSL_ED448 */
 
 #if HAVE_GSSAPI
@@ -265,7 +265,7 @@ dst_lib_init(isc_mem_t *mctx, const char *engine) {
 	return (ISC_R_SUCCESS);
 
 out:
-	detect_uncleared_libcrypto_error();
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	/* avoid immediate crash! */
 	dst_initialized = true;
 	dst_lib_destroy();
