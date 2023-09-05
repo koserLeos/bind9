@@ -1478,6 +1478,7 @@ main(int argc, char *argv[]) {
 #ifdef HAVE_GPERFTOOLS_PROFILER
 	(void)ProfilerStart(NULL);
 #endif /* ifdef HAVE_GPERFTOOLS_PROFILER */
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 
 	/*
 	 * Technically, this call is superfluous because on startup of the main
@@ -1508,6 +1509,7 @@ main(int argc, char *argv[]) {
 		named_main_earlyfatal("program name too long");
 	}
 
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	isc_assertion_setcallback(assertion_failed);
 	isc_error_setfatal(library_fatal_error);
 	isc_error_setunexpected(library_unexpected_error);
