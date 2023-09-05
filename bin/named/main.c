@@ -546,6 +546,24 @@ format_supported_algorithms(void (*emit)(isc_buffer_t *b)) {
 }
 
 static void
+detect_uncleared_libcrypto_error(const char *xfile, int xline) {
+	const char *file, *func, *data;
+	int line, flags;
+	long err;
+	bool leak = false;
+	while ((err = ERR_get_error_all(&file, &line, &func, &data, &flags)) !=
+	       0L)
+	{
+		fprintf(stderr,
+			"# Uncleared libcrypto error: %s:%d %s:%d %s %s %ld "
+			"%x\n",
+			xfile, xline, file, line, func, data, err, flags);
+		leak = true;
+	}
+	INSIST(!leak);
+}
+
+static void
 printversion(bool verbose) {
 	char rndcconf[PATH_MAX], *dot = NULL;
 	isc_mem_t *mctx = NULL;
@@ -625,6 +643,7 @@ printversion(bool verbose) {
 	printf("threads support is enabled\n");
 
 	isc_mem_create(&mctx);
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	result = dst_lib_init(mctx, named_g_engine);
 	if (result == ISC_R_SUCCESS) {
 		isc_buffer_init(&b, buf, sizeof(buf));
@@ -832,6 +851,8 @@ static void
 parse_command_line(int argc, char *argv[]) {
 	int ch;
 	const char *p;
+
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 
 	save_command_line(argc, argv);
 
@@ -1490,9 +1511,9 @@ main(int argc, char *argv[]) {
 	isc_assertion_setcallback(assertion_failed);
 	isc_error_setfatal(library_fatal_error);
 	isc_error_setunexpected(library_unexpected_error);
-
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	named_os_init(program_name);
-
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 	parse_command_line(argc, argv);
 
 #ifdef ENABLE_AFL
