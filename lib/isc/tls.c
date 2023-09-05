@@ -160,6 +160,24 @@ isc__tls_free(void *ptr) {
 
 #endif /* !defined(LIBRESSL_VERSION_NUMBER) */
 
+static void
+detect_uncleared_libcrypto_error(const char *xfile, int xline) {
+	const char *file, *func, *data;
+	int line, flags;
+	long err;
+	bool leak = false;
+	while ((err = ERR_get_error_all(&file, &line, &func, &data, &flags)) !=
+	       0L)
+	{
+		fprintf(stderr,
+			"# Uncleared libcrypto error: %s:%d %s:%d %s %s %ld "
+			"%x\n",
+			xfile, xline, file, line, func, data, err, flags);
+		leak = true;
+	}
+	INSIST(!leak);
+}
+
 void
 isc__tls_initialize(void) {
 	isc_mem_create(&isc__tls_mctx);
@@ -180,6 +198,7 @@ isc__tls_initialize(void) {
 					  isc__tls_realloc_ex, isc__tls_free);
 #endif
 #endif /* !defined(LIBRESSL_VERSION_NUMBER) */
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 	uint64_t opts = OPENSSL_INIT_ENGINE_ALL_BUILTIN |
@@ -193,6 +212,7 @@ isc__tls_initialize(void) {
 #endif
 
 	RUNTIME_CHECK(OPENSSL_init_ssl(opts, NULL) == 1);
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 #else
 	nlocks = CRYPTO_num_locks();
 	locks = isc_mem_cget(isc__tls_mctx, nlocks, sizeof(locks[0]));
@@ -222,6 +242,7 @@ isc__tls_initialize(void) {
 			    "cannot be initialized (see the `PRNG not "
 			    "seeded' message in the OpenSSL FAQ)");
 	}
+	detect_uncleared_libcrypto_error(__FILE__, __LINE__);
 }
 
 void
