@@ -398,6 +398,8 @@ cross-version-config-tests:
     - test -n "${OUT_OF_TREE_WORKSPACE}" && cp -r bin/tests/system/* "${OUT_OF_TREE_WORKSPACE}/bin/tests/system/" && cd "${OUT_OF_TREE_WORKSPACE}"
     - *setup_interfaces
   script:
+    - apt-get -y update && apt-get -y install rr
+    - sysctl kernel.perf_event_paranoid=1
     - *find_pytest
     - cd bin/tests/system
     - >
