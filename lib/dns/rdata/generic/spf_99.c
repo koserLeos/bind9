@@ -63,6 +63,10 @@ compare_spf(ARGS_COMPARE) {
 
 static isc_result_t
 fromstruct_spf(ARGS_FROMSTRUCT) {
+	dns_rdata_spf_t *spf = source;
+
+	REQUIRE(spf != NULL && sizeof(*spf) == size);
+	REQUIRE(spf->common.rdtype == dns_rdatatype_spf);
 	REQUIRE(type == dns_rdatatype_spf);
 
 	return (generic_fromstruct_txt(CALL_FROMSTRUCT));
@@ -72,7 +76,7 @@ static isc_result_t
 tostruct_spf(ARGS_TOSTRUCT) {
 	dns_rdata_spf_t *spf = target;
 
-	REQUIRE(spf != NULL);
+	REQUIRE(spf != NULL && sizeof(*spf) == size);
 	REQUIRE(rdata != NULL);
 	REQUIRE(rdata->type == dns_rdatatype_spf);
 
@@ -87,10 +91,10 @@ static void
 freestruct_spf(ARGS_FREESTRUCT) {
 	dns_rdata_spf_t *spf = source;
 
-	REQUIRE(spf != NULL);
+	REQUIRE(spf != NULL && sizeof(*spf) == size);
 	REQUIRE(spf->common.rdtype == dns_rdatatype_spf);
 
-	generic_freestruct_txt(source);
+	generic_freestruct_txt(CALL_FREESTRUCT);
 }
 
 static isc_result_t

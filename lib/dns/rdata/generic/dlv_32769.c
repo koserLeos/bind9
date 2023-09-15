@@ -83,7 +83,7 @@ tostruct_dlv(ARGS_TOSTRUCT) {
 	dns_rdata_dlv_t *dlv = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_dlv);
-	REQUIRE(dlv != NULL);
+	REQUIRE(dlv != NULL && sizeof(*dlv) == size);
 
 	dlv->common.rdclass = rdata->rdclass;
 	dlv->common.rdtype = rdata->type;
@@ -96,7 +96,7 @@ static void
 freestruct_dlv(ARGS_FREESTRUCT) {
 	dns_rdata_dlv_t *dlv = source;
 
-	REQUIRE(dlv != NULL);
+	REQUIRE(dlv != NULL && sizeof(*dlv) == size);
 	REQUIRE(dlv->common.rdtype == dns_rdatatype_dlv);
 
 	if (dlv->mctx == NULL) {

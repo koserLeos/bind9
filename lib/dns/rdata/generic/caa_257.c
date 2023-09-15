@@ -449,7 +449,7 @@ fromstruct_caa(ARGS_FROMSTRUCT) {
 	unsigned int i;
 
 	REQUIRE(type == dns_rdatatype_caa);
-	REQUIRE(caa != NULL);
+	REQUIRE(caa != NULL && sizeof(*caa) == size);
 	REQUIRE(caa->common.rdtype == type);
 	REQUIRE(caa->common.rdclass == rdclass);
 	REQUIRE(caa->tag != NULL && caa->tag_len != 0);
@@ -493,8 +493,8 @@ tostruct_caa(ARGS_TOSTRUCT) {
 	dns_rdata_caa_t *caa = target;
 	isc_region_t sr;
 
+	REQUIRE(caa != NULL && sizeof(*caa) == size);
 	REQUIRE(rdata->type == dns_rdatatype_caa);
-	REQUIRE(caa != NULL);
 	REQUIRE(rdata->length >= 3U);
 	REQUIRE(rdata->data != NULL);
 
@@ -537,7 +537,7 @@ static void
 freestruct_caa(ARGS_FREESTRUCT) {
 	dns_rdata_caa_t *caa = (dns_rdata_caa_t *)source;
 
-	REQUIRE(caa != NULL);
+	REQUIRE(caa != NULL && sizeof(*caa) == size);
 	REQUIRE(caa->common.rdtype == dns_rdatatype_caa);
 
 	if (caa->mctx == NULL) {

@@ -186,7 +186,7 @@ fromstruct_minfo(ARGS_FROMSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(type == dns_rdatatype_minfo);
-	REQUIRE(minfo != NULL);
+	REQUIRE(minfo != NULL && sizeof(*minfo) == size);
 	REQUIRE(minfo->common.rdtype == type);
 	REQUIRE(minfo->common.rdclass == rdclass);
 
@@ -206,7 +206,7 @@ tostruct_minfo(ARGS_TOSTRUCT) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == dns_rdatatype_minfo);
-	REQUIRE(minfo != NULL);
+	REQUIRE(minfo != NULL && sizeof(*minfo) == size);
 	REQUIRE(rdata->length != 0);
 
 	minfo->common.rdclass = rdata->rdclass;
@@ -231,7 +231,7 @@ static void
 freestruct_minfo(ARGS_FREESTRUCT) {
 	dns_rdata_minfo_t *minfo = source;
 
-	REQUIRE(minfo != NULL);
+	REQUIRE(minfo != NULL && sizeof(*minfo) == size);
 	REQUIRE(minfo->common.rdtype == dns_rdatatype_minfo);
 
 	if (minfo->mctx == NULL) {

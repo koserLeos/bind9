@@ -121,7 +121,7 @@ fromstruct_openpgpkey(ARGS_FROMSTRUCT) {
 	dns_rdata_openpgpkey_t *openpgpkey = source;
 
 	REQUIRE(type == dns_rdatatype_openpgpkey);
-	REQUIRE(openpgpkey != NULL);
+	REQUIRE(openpgpkey != NULL && sizeof(*openpgpkey) == size);
 	REQUIRE(openpgpkey->common.rdtype == type);
 	REQUIRE(openpgpkey->common.rdclass == rdclass);
 	REQUIRE(openpgpkey->keyring != NULL && openpgpkey->length != 0);
@@ -141,7 +141,7 @@ tostruct_openpgpkey(ARGS_TOSTRUCT) {
 	dns_rdata_openpgpkey_t *openpgpkey = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_openpgpkey);
-	REQUIRE(openpgpkey != NULL);
+	REQUIRE(openpgpkey != NULL && sizeof(*openpgpkey) == size);
 	REQUIRE(rdata->length != 0);
 
 	openpgpkey->common.rdclass = rdata->rdclass;
@@ -163,7 +163,7 @@ static void
 freestruct_openpgpkey(ARGS_FREESTRUCT) {
 	dns_rdata_openpgpkey_t *openpgpkey = (dns_rdata_openpgpkey_t *)source;
 
-	REQUIRE(openpgpkey != NULL);
+	REQUIRE(openpgpkey != NULL && sizeof(*openpgpkey) == size);
 	REQUIRE(openpgpkey->common.rdtype == dns_rdatatype_openpgpkey);
 
 	if (openpgpkey->mctx == NULL) {

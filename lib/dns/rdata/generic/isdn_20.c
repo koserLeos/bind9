@@ -112,7 +112,7 @@ fromstruct_isdn(ARGS_FROMSTRUCT) {
 	dns_rdata_isdn_t *isdn = source;
 
 	REQUIRE(type == dns_rdatatype_isdn);
-	REQUIRE(isdn != NULL);
+	REQUIRE(isdn != NULL && sizeof(*isdn) == size);
 	REQUIRE(isdn->common.rdtype == type);
 	REQUIRE(isdn->common.rdclass == rdclass);
 
@@ -134,7 +134,7 @@ tostruct_isdn(ARGS_TOSTRUCT) {
 	isc_region_t r;
 
 	REQUIRE(rdata->type == dns_rdatatype_isdn);
-	REQUIRE(isdn != NULL);
+	REQUIRE(isdn != NULL && sizeof(*isdn) == size);
 	REQUIRE(rdata->length != 0);
 
 	isdn->common.rdclass = rdata->rdclass;
@@ -166,7 +166,7 @@ static void
 freestruct_isdn(ARGS_FREESTRUCT) {
 	dns_rdata_isdn_t *isdn = source;
 
-	REQUIRE(isdn != NULL);
+	REQUIRE(isdn != NULL && sizeof(*isdn) == size);
 
 	if (isdn->mctx == NULL) {
 		return;

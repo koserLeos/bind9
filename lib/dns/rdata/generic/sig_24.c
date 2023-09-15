@@ -400,7 +400,7 @@ fromstruct_sig(ARGS_FROMSTRUCT) {
 	dns_rdata_sig_t *sig = source;
 
 	REQUIRE(type == dns_rdatatype_sig);
-	REQUIRE(sig != NULL);
+	REQUIRE(sig != NULL && sizeof(*sig) == size);
 	REQUIRE(sig->common.rdtype == type);
 	REQUIRE(sig->common.rdclass == rdclass);
 	REQUIRE(sig->signature != NULL || sig->siglen == 0);
@@ -461,7 +461,7 @@ tostruct_sig(ARGS_TOSTRUCT) {
 	dns_name_t signer;
 
 	REQUIRE(rdata->type == dns_rdatatype_sig);
-	REQUIRE(sig != NULL);
+	REQUIRE(sig != NULL && sizeof(*sig) == size);
 	REQUIRE(rdata->length != 0);
 
 	sig->common.rdclass = rdata->rdclass;
@@ -531,7 +531,7 @@ static void
 freestruct_sig(ARGS_FREESTRUCT) {
 	dns_rdata_sig_t *sig = (dns_rdata_sig_t *)source;
 
-	REQUIRE(sig != NULL);
+	REQUIRE(sig != NULL && sizeof(*sig) == size);
 	REQUIRE(sig->common.rdtype == dns_rdatatype_sig);
 
 	if (sig->mctx == NULL) {

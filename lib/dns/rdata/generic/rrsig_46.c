@@ -407,7 +407,7 @@ fromstruct_rrsig(ARGS_FROMSTRUCT) {
 	dns_rdata_rrsig_t *rrsig = source;
 
 	REQUIRE(type == dns_rdatatype_rrsig);
-	REQUIRE(rrsig != NULL);
+	REQUIRE(rrsig != NULL && sizeof(*rrsig) == size);
 	REQUIRE(rrsig->common.rdtype == type);
 	REQUIRE(rrsig->common.rdclass == rdclass);
 	REQUIRE(rrsig->signature != NULL || rrsig->siglen == 0);
@@ -468,7 +468,7 @@ tostruct_rrsig(ARGS_TOSTRUCT) {
 	dns_name_t signer;
 
 	REQUIRE(rdata->type == dns_rdatatype_rrsig);
-	REQUIRE(rrsig != NULL);
+	REQUIRE(rrsig != NULL && sizeof(*rrsig) == size);
 	REQUIRE(rdata->length != 0);
 
 	rrsig->common.rdclass = rdata->rdclass;
@@ -538,7 +538,7 @@ static void
 freestruct_rrsig(ARGS_FREESTRUCT) {
 	dns_rdata_rrsig_t *rrsig = (dns_rdata_rrsig_t *)source;
 
-	REQUIRE(rrsig != NULL);
+	REQUIRE(rrsig != NULL && sizeof(*rrsig) == size);
 	REQUIRE(rrsig->common.rdtype == dns_rdatatype_rrsig);
 
 	if (rrsig->mctx == NULL) {

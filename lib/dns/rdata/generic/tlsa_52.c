@@ -192,7 +192,7 @@ static isc_result_t
 generic_fromstruct_tlsa(ARGS_FROMSTRUCT) {
 	dns_rdata_tlsa_t *tlsa = source;
 
-	REQUIRE(tlsa != NULL);
+	REQUIRE(tlsa != NULL && sizeof(*tlsa) == size);
 	REQUIRE(tlsa->common.rdtype == type);
 	REQUIRE(tlsa->common.rdclass == rdclass);
 
@@ -211,7 +211,7 @@ generic_tostruct_tlsa(ARGS_TOSTRUCT) {
 	dns_rdata_tlsa_t *tlsa = target;
 	isc_region_t region;
 
-	REQUIRE(tlsa != NULL);
+	REQUIRE(tlsa != NULL && sizeof(*tlsa) == size);
 	REQUIRE(rdata->length != 0);
 
 	REQUIRE(tlsa != NULL);
@@ -238,7 +238,7 @@ static void
 generic_freestruct_tlsa(ARGS_FREESTRUCT) {
 	dns_rdata_tlsa_t *tlsa = source;
 
-	REQUIRE(tlsa != NULL);
+	REQUIRE(tlsa != NULL && sizeof(*tlsa) == size);
 
 	if (tlsa->mctx == NULL) {
 		return;
@@ -252,6 +252,10 @@ generic_freestruct_tlsa(ARGS_FREESTRUCT) {
 
 static isc_result_t
 fromstruct_tlsa(ARGS_FROMSTRUCT) {
+	dns_rdata_tlsa_t *tlsa = source;
+
+	REQUIRE(tlsa != NULL && sizeof(*tlsa) == size);
+	REQUIRE(tlsa->common.rdtype == dns_rdatatype_tlsa);
 	REQUIRE(type == dns_rdatatype_tlsa);
 
 	return (generic_fromstruct_tlsa(CALL_FROMSTRUCT));
@@ -278,7 +282,7 @@ freestruct_tlsa(ARGS_FREESTRUCT) {
 	REQUIRE(tlsa != NULL);
 	REQUIRE(tlsa->common.rdtype == dns_rdatatype_tlsa);
 
-	generic_freestruct_tlsa(source);
+	generic_freestruct_tlsa(CALL_FREESTRUCT);
 }
 
 static isc_result_t

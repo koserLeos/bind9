@@ -467,9 +467,12 @@ dns_rdata_tofmttext(dns_rdata_t *rdata, const dns_name_t *origin,
  * it is undefined and falls back to the default value of 'width'
  */
 
+#define dns_rdata_fromstruct(a, b, c, d, e) \
+	dns__rdata_fromstruct(a, b, c, d, sizeof(*d), e)
 isc_result_t
-dns_rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
-		     dns_rdatatype_t type, void *source, isc_buffer_t *target);
+dns__rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
+		      dns_rdatatype_t type, void *source, size_t size,
+		      isc_buffer_t *target);
 /*%<
  * Convert the C structure representation of an rdata into uncompressed wire
  * format in 'target'.
@@ -499,8 +502,10 @@ dns_rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
  *\li	Resource Limit: Not enough space
  */
 
+#define dns_rdata_tostruct(a, b, c) dns__rdata_tostruct(a, b, sizeof(*b), c)
 isc_result_t
-dns_rdata_tostruct(const dns_rdata_t *rdata, void *target, isc_mem_t *mctx);
+dns__rdata_tostruct(const dns_rdata_t *rdata, void *target, size_t size,
+		    isc_mem_t *mctx);
 /*%<
  * Convert an rdata into its C structure representation.
  *
@@ -519,8 +524,9 @@ dns_rdata_tostruct(const dns_rdata_t *rdata, void *target, isc_mem_t *mctx);
  *\li	Not Implemented
  */
 
+#define dns_rdata_freestruct(a) dns__rdata_freestruct(a, sizeof(*a));
 void
-dns_rdata_freestruct(void *source);
+dns__rdata_freestruct(void *source, size_t size);
 /*%<
  * Free dynamic memory attached to 'source' (if any).
  *

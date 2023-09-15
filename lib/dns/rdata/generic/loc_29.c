@@ -688,7 +688,7 @@ fromstruct_loc(ARGS_FROMSTRUCT) {
 	uint8_t c;
 
 	REQUIRE(type == dns_rdatatype_loc);
-	REQUIRE(loc != NULL);
+	REQUIRE(loc != NULL && sizeof(*loc) == size);
 	REQUIRE(loc->common.rdtype == type);
 	REQUIRE(loc->common.rdclass == rdclass);
 
@@ -741,7 +741,7 @@ tostruct_loc(ARGS_TOSTRUCT) {
 	uint8_t version;
 
 	REQUIRE(rdata->type == dns_rdatatype_loc);
-	REQUIRE(loc != NULL);
+	REQUIRE(loc != NULL && sizeof(*loc) == size);
 	REQUIRE(rdata->length != 0);
 
 	UNUSED(mctx);
@@ -777,7 +777,7 @@ static void
 freestruct_loc(ARGS_FREESTRUCT) {
 	dns_rdata_loc_t *loc = source;
 
-	REQUIRE(loc != NULL);
+	REQUIRE(loc != NULL && sizeof(*loc) == size);
 	REQUIRE(loc->common.rdtype == dns_rdatatype_loc);
 
 	UNUSED(source);

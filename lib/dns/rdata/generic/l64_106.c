@@ -125,7 +125,7 @@ fromstruct_l64(ARGS_FROMSTRUCT) {
 	dns_rdata_l64_t *l64 = source;
 
 	REQUIRE(type == dns_rdatatype_l64);
-	REQUIRE(l64 != NULL);
+	REQUIRE(l64 != NULL && sizeof(*l64) == size);
 	REQUIRE(l64->common.rdtype == type);
 	REQUIRE(l64->common.rdclass == rdclass);
 
@@ -142,7 +142,7 @@ tostruct_l64(ARGS_TOSTRUCT) {
 	dns_rdata_l64_t *l64 = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_l64);
-	REQUIRE(l64 != NULL);
+	REQUIRE(l64 != NULL && sizeof(*l64) == size);
 	REQUIRE(rdata->length == 10);
 
 	UNUSED(mctx);
@@ -161,7 +161,7 @@ static void
 freestruct_l64(ARGS_FREESTRUCT) {
 	dns_rdata_l64_t *l64 = source;
 
-	REQUIRE(l64 != NULL);
+	REQUIRE(l64 != NULL && sizeof(*l64) == size);
 	REQUIRE(l64->common.rdtype == dns_rdatatype_l64);
 
 	return;

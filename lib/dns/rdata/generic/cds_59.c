@@ -73,7 +73,11 @@ compare_cds(ARGS_COMPARE) {
 
 static isc_result_t
 fromstruct_cds(ARGS_FROMSTRUCT) {
+	dns_rdata_cds_t *cds = source;
+
 	REQUIRE(type == dns_rdatatype_cds);
+	REQUIRE(cds != NULL && sizeof(*cds) == size);
+	REQUIRE(cds->common.rdtype == dns_rdatatype_cds);
 
 	return (generic_fromstruct_ds(CALL_FROMSTRUCT));
 }
@@ -82,8 +86,8 @@ static isc_result_t
 tostruct_cds(ARGS_TOSTRUCT) {
 	dns_rdata_cds_t *cds = target;
 
+	REQUIRE(cds != NULL && sizeof(*cds) == size);
 	REQUIRE(rdata->type == dns_rdatatype_cds);
-	REQUIRE(cds != NULL);
 	REQUIRE(rdata->length != 0);
 
 	/*
@@ -100,7 +104,7 @@ static void
 freestruct_cds(ARGS_FREESTRUCT) {
 	dns_rdata_cds_t *cds = source;
 
-	REQUIRE(cds != NULL);
+	REQUIRE(cds != NULL && sizeof(*cds) == size);
 	REQUIRE(cds->common.rdtype == dns_rdatatype_cds);
 
 	if (cds->mctx == NULL) {

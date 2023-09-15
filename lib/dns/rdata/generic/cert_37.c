@@ -168,7 +168,7 @@ fromstruct_cert(ARGS_FROMSTRUCT) {
 	dns_rdata_cert_t *cert = source;
 
 	REQUIRE(type == dns_rdatatype_cert);
-	REQUIRE(cert != NULL);
+	REQUIRE(cert != NULL && sizeof(*cert) == size);
 	REQUIRE(cert->common.rdtype == type);
 	REQUIRE(cert->common.rdclass == rdclass);
 
@@ -188,7 +188,7 @@ tostruct_cert(ARGS_TOSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(rdata->type == dns_rdatatype_cert);
-	REQUIRE(cert != NULL);
+	REQUIRE(cert != NULL && sizeof(*cert) == size);
 	REQUIRE(rdata->length != 0);
 
 	cert->common.rdclass = rdata->rdclass;
@@ -214,7 +214,7 @@ static void
 freestruct_cert(ARGS_FREESTRUCT) {
 	dns_rdata_cert_t *cert = source;
 
-	REQUIRE(cert != NULL);
+	REQUIRE(cert != NULL && sizeof(*cert) == size);
 	REQUIRE(cert->common.rdtype == dns_rdatatype_cert);
 
 	if (cert->mctx == NULL) {

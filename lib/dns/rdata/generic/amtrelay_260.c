@@ -270,7 +270,7 @@ fromstruct_amtrelay(ARGS_FROMSTRUCT) {
 	uint32_t n;
 
 	REQUIRE(type == dns_rdatatype_amtrelay);
-	REQUIRE(amtrelay != NULL);
+	REQUIRE(amtrelay != NULL && sizeof(*amtrelay) == size);
 	REQUIRE(amtrelay->common.rdtype == type);
 	REQUIRE(amtrelay->common.rdclass == rdclass);
 
@@ -311,7 +311,7 @@ tostruct_amtrelay(ARGS_TOSTRUCT) {
 	uint32_t n;
 
 	REQUIRE(rdata->type == dns_rdatatype_amtrelay);
-	REQUIRE(amtrelay != NULL);
+	REQUIRE(amtrelay != NULL && sizeof(*amtrelay) == size);
 	REQUIRE(rdata->length >= 2);
 
 	amtrelay->common.rdclass = rdata->rdclass;
@@ -368,7 +368,7 @@ static void
 freestruct_amtrelay(ARGS_FREESTRUCT) {
 	dns_rdata_amtrelay_t *amtrelay = source;
 
-	REQUIRE(amtrelay != NULL);
+	REQUIRE(amtrelay != NULL && sizeof(*amtrelay) == size);
 	REQUIRE(amtrelay->common.rdtype == dns_rdatatype_amtrelay);
 
 	if (amtrelay->mctx == NULL) {

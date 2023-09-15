@@ -285,7 +285,7 @@ fromstruct_soa(ARGS_FROMSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(type == dns_rdatatype_soa);
-	REQUIRE(soa != NULL);
+	REQUIRE(soa != NULL && sizeof(*soa) == size);
 	REQUIRE(soa->common.rdtype == type);
 	REQUIRE(soa->common.rdclass == rdclass);
 
@@ -310,7 +310,7 @@ tostruct_soa(ARGS_TOSTRUCT) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == dns_rdatatype_soa);
-	REQUIRE(soa != NULL);
+	REQUIRE(soa != NULL && sizeof(*soa) == size);
 	REQUIRE(rdata->length != 0);
 
 	soa->common.rdclass = rdata->rdclass;
@@ -352,7 +352,7 @@ static void
 freestruct_soa(ARGS_FREESTRUCT) {
 	dns_rdata_soa_t *soa = source;
 
-	REQUIRE(soa != NULL);
+	REQUIRE(soa != NULL && sizeof(*soa) == size);
 	REQUIRE(soa->common.rdtype == dns_rdatatype_soa);
 
 	if (soa->mctx == NULL) {

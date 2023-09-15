@@ -378,7 +378,7 @@ fromstruct_any_tsig(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_tsig);
 	REQUIRE(rdclass == dns_rdataclass_any);
-	REQUIRE(tsig != NULL);
+	REQUIRE(tsig != NULL && sizeof(*tsig) == size);
 	REQUIRE(tsig->common.rdclass == rdclass);
 	REQUIRE(tsig->common.rdtype == type);
 
@@ -445,15 +445,15 @@ fromstruct_any_tsig(ARGS_FROMSTRUCT) {
 
 static isc_result_t
 tostruct_any_tsig(ARGS_TOSTRUCT) {
-	dns_rdata_any_tsig_t *tsig;
+	dns_rdata_any_tsig_t *tsig = (dns_rdata_any_tsig_t *)target;
 	dns_name_t alg;
 	isc_region_t sr;
 
+	REQUIRE(tsig != NULL && sizeof(*tsig) == size);
 	REQUIRE(rdata->type == dns_rdatatype_tsig);
 	REQUIRE(rdata->rdclass == dns_rdataclass_any);
 	REQUIRE(rdata->length != 0);
 
-	tsig = (dns_rdata_any_tsig_t *)target;
 	tsig->common.rdclass = rdata->rdclass;
 	tsig->common.rdtype = rdata->type;
 	ISC_LINK_INIT(&tsig->common, link);
@@ -532,7 +532,7 @@ static void
 freestruct_any_tsig(ARGS_FREESTRUCT) {
 	dns_rdata_any_tsig_t *tsig = (dns_rdata_any_tsig_t *)source;
 
-	REQUIRE(tsig != NULL);
+	REQUIRE(tsig != NULL && sizeof(*tsig) == size);
 	REQUIRE(tsig->common.rdtype == dns_rdatatype_tsig);
 	REQUIRE(tsig->common.rdclass == dns_rdataclass_any);
 

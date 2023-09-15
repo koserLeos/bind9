@@ -298,7 +298,7 @@ fromstruct_in_a6(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_a6);
 	REQUIRE(rdclass == dns_rdataclass_in);
-	REQUIRE(a6 != NULL);
+	REQUIRE(a6 != NULL && sizeof(*a6) == size);
 	REQUIRE(a6->common.rdtype == type);
 	REQUIRE(a6->common.rdclass == rdclass);
 
@@ -344,7 +344,7 @@ tostruct_in_a6(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == dns_rdatatype_a6);
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
-	REQUIRE(a6 != NULL);
+	REQUIRE(a6 != NULL && sizeof(*a6) == size);
 	REQUIRE(rdata->length != 0);
 
 	a6->common.rdclass = rdata->rdclass;
@@ -384,7 +384,7 @@ static void
 freestruct_in_a6(ARGS_FREESTRUCT) {
 	dns_rdata_in_a6_t *a6 = source;
 
-	REQUIRE(a6 != NULL);
+	REQUIRE(a6 != NULL && sizeof(*a6) == size);
 	REQUIRE(a6->common.rdclass == dns_rdataclass_in);
 	REQUIRE(a6->common.rdtype == dns_rdatatype_a6);
 

@@ -293,7 +293,7 @@ fromstruct_keydata(ARGS_FROMSTRUCT) {
 	dns_rdata_keydata_t *keydata = source;
 
 	REQUIRE(type == dns_rdatatype_keydata);
-	REQUIRE(keydata != NULL);
+	REQUIRE(keydata != NULL && sizeof(*keydata) == size);
 	REQUIRE(keydata->common.rdtype == type);
 	REQUIRE(keydata->common.rdclass == rdclass);
 
@@ -328,7 +328,7 @@ tostruct_keydata(ARGS_TOSTRUCT) {
 	isc_region_t sr;
 
 	REQUIRE(rdata->type == dns_rdatatype_keydata);
-	REQUIRE(keydata != NULL);
+	REQUIRE(keydata != NULL && sizeof(*keydata) == size);
 
 	keydata->common.rdclass = rdata->rdclass;
 	keydata->common.rdtype = rdata->type;
@@ -395,7 +395,7 @@ static void
 freestruct_keydata(ARGS_FREESTRUCT) {
 	dns_rdata_keydata_t *keydata = (dns_rdata_keydata_t *)source;
 
-	REQUIRE(keydata != NULL);
+	REQUIRE(keydata != NULL && sizeof(*keydata) == size);
 	REQUIRE(keydata->common.rdtype == dns_rdatatype_keydata);
 
 	if (keydata->mctx == NULL) {

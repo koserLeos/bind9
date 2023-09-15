@@ -133,7 +133,7 @@ fromstruct_hs_a(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_a);
 	REQUIRE(rdclass == dns_rdataclass_hs);
-	REQUIRE(a != NULL);
+	REQUIRE(a != NULL && sizeof(*a) == size);
 	REQUIRE(a->common.rdtype == type);
 	REQUIRE(a->common.rdclass == rdclass);
 
@@ -154,7 +154,7 @@ tostruct_hs_a(ARGS_TOSTRUCT) {
 	REQUIRE(rdata->type == dns_rdatatype_a);
 	REQUIRE(rdata->rdclass == dns_rdataclass_hs);
 	REQUIRE(rdata->length == 4);
-	REQUIRE(a != NULL);
+	REQUIRE(a != NULL && sizeof(*a) == size);
 
 	UNUSED(mctx);
 
@@ -171,7 +171,11 @@ tostruct_hs_a(ARGS_TOSTRUCT) {
 
 static void
 freestruct_hs_a(ARGS_FREESTRUCT) {
-	UNUSED(source);
+	dns_rdata_hs_a_t *a = source;
+
+	REQUIRE(a != NULL && sizeof(*a) == size);
+	REQUIRE(a->common.rdtype == dns_rdatatype_a);
+	REQUIRE(a->common.rdclass == dns_rdataclass_hs);
 
 	REQUIRE(source != NULL);
 }

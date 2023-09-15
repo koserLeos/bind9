@@ -78,7 +78,7 @@ static isc_result_t fromstruct_ #(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_proforma.c #);
 	REQUIRE(rdclass == #);
-	REQUIRE(# != NULL);
+	REQUIRE(# != NULL && sizeof(#) == size);
 	REQUIRE(#->common.rdtype == dns_rdatatype_proforma.ctype);
 	REQUIRE(#->common.rdclass == rdclass);
 
@@ -86,6 +86,10 @@ static isc_result_t fromstruct_ #(ARGS_FROMSTRUCT) {
 }
 
 static isc_result_t tostruct_ #(ARGS_TOSTRUCT) {
+	dns_rdata_ #_t *# = target;
+
+	REQUIRE(# != NULL);
+	REQUIRE(sizeof(#) == size);
 	REQUIRE(rdata->type == dns_rdatatype_proforma.c #);
 	REQUIRE(rdata->rdclass == #);
 	REQUIRE(rdata->length != 0); /* XXX */
@@ -97,6 +101,7 @@ static void freestruct_ #(ARGS_FREESTRUCT) {
 	dns_rdata_ #_t *# = source;
 
 	REQUIRE(# != NULL);
+	REQUIRE(sizeof(#) == size);
 	REQUIRE(#->common.rdtype == dns_rdatatype_proforma.c #);
 	REQUIRE(#->common.rdclass == #);
 }

@@ -192,7 +192,7 @@ fromstruct_doa(ARGS_FROMSTRUCT) {
 	dns_rdata_doa_t *doa = source;
 
 	REQUIRE(type == dns_rdatatype_doa);
-	REQUIRE(doa != NULL);
+	REQUIRE(doa != NULL && sizeof(*doa) == size);
 	REQUIRE(doa->common.rdtype == dns_rdatatype_doa);
 	REQUIRE(doa->common.rdclass == rdclass);
 
@@ -211,7 +211,7 @@ tostruct_doa(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata != NULL);
 	REQUIRE(rdata->type == dns_rdatatype_doa);
-	REQUIRE(doa != NULL);
+	REQUIRE(doa != NULL && sizeof(*doa) == size);
 	REQUIRE(rdata->length >= 10);
 
 	doa->common.rdclass = rdata->rdclass;
@@ -266,7 +266,7 @@ static void
 freestruct_doa(ARGS_FREESTRUCT) {
 	dns_rdata_doa_t *doa = source;
 
-	REQUIRE(doa != NULL);
+	REQUIRE(doa != NULL && sizeof(*doa) == size);
 	REQUIRE(doa->common.rdtype == dns_rdatatype_doa);
 
 	if (doa->mctx == NULL) {

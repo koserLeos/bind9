@@ -327,7 +327,7 @@ static isc_result_t
 generic_fromstruct_key(ARGS_FROMSTRUCT) {
 	dns_rdata_key_t *key = source;
 
-	REQUIRE(key != NULL);
+	REQUIRE(key != NULL && sizeof(*key) == size);
 	REQUIRE(key->common.rdtype == type);
 	REQUIRE(key->common.rdclass == rdclass);
 
@@ -359,7 +359,7 @@ generic_tostruct_key(ARGS_TOSTRUCT) {
 	REQUIRE(key != NULL);
 	REQUIRE(rdata->length >= 4U);
 
-	REQUIRE(key != NULL);
+	REQUIRE(key != NULL && sizeof(*key) == size);
 	REQUIRE(key->common.rdclass == rdata->rdclass);
 	REQUIRE(key->common.rdtype == rdata->type);
 	REQUIRE(!ISC_LINK_LINKED(&key->common, link));
@@ -389,7 +389,7 @@ static void
 generic_freestruct_key(ARGS_FREESTRUCT) {
 	dns_rdata_key_t *key = (dns_rdata_key_t *)source;
 
-	REQUIRE(key != NULL);
+	REQUIRE(key != NULL && sizeof(*key) == size);
 
 	if (key->mctx == NULL) {
 		return;
@@ -412,7 +412,7 @@ static isc_result_t
 tostruct_key(ARGS_TOSTRUCT) {
 	dns_rdata_key_t *key = target;
 
-	REQUIRE(key != NULL);
+	REQUIRE(key != NULL && sizeof(*key) == size);
 	REQUIRE(rdata != NULL);
 	REQUIRE(rdata->type == dns_rdatatype_key);
 
@@ -430,7 +430,7 @@ freestruct_key(ARGS_FREESTRUCT) {
 	REQUIRE(key != NULL);
 	REQUIRE(key->common.rdtype == dns_rdatatype_key);
 
-	generic_freestruct_key(source);
+	generic_freestruct_key(CALL_FREESTRUCT);
 }
 
 static isc_result_t

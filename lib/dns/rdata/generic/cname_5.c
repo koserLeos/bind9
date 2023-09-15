@@ -126,7 +126,7 @@ fromstruct_cname(ARGS_FROMSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(type == dns_rdatatype_cname);
-	REQUIRE(cname != NULL);
+	REQUIRE(cname != NULL && sizeof(*cname) == size);
 	REQUIRE(cname->common.rdtype == type);
 	REQUIRE(cname->common.rdclass == rdclass);
 
@@ -144,7 +144,7 @@ tostruct_cname(ARGS_TOSTRUCT) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == dns_rdatatype_cname);
-	REQUIRE(cname != NULL);
+	REQUIRE(cname != NULL && sizeof(*cname) == size);
 	REQUIRE(rdata->length != 0);
 
 	cname->common.rdclass = rdata->rdclass;
@@ -164,7 +164,7 @@ static void
 freestruct_cname(ARGS_FREESTRUCT) {
 	dns_rdata_cname_t *cname = source;
 
-	REQUIRE(cname != NULL);
+	REQUIRE(cname != NULL && sizeof(*cname) == size);
 
 	if (cname->mctx == NULL) {
 		return;
