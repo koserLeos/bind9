@@ -118,13 +118,13 @@ compare_openpgpkey(ARGS_COMPARE) {
 
 static isc_result_t
 fromstruct_openpgpkey(ARGS_FROMSTRUCT) {
-	dns_rdata_openpgpkey_t *sig = source;
+	dns_rdata_openpgpkey_t *openpgpkey = source;
 
 	REQUIRE(type == dns_rdatatype_openpgpkey);
-	REQUIRE(sig != NULL);
-	REQUIRE(sig->common.rdtype == type);
-	REQUIRE(sig->common.rdclass == rdclass);
-	REQUIRE(sig->keyring != NULL && sig->length != 0);
+	REQUIRE(openpgpkey != NULL);
+	REQUIRE(openpgpkey->common.rdtype == type);
+	REQUIRE(openpgpkey->common.rdclass == rdclass);
+	REQUIRE(openpgpkey->keyring != NULL && openpgpkey->length != 0);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -132,48 +132,48 @@ fromstruct_openpgpkey(ARGS_FROMSTRUCT) {
 	/*
 	 * Keyring.
 	 */
-	return (mem_tobuffer(target, sig->keyring, sig->length));
+	return (mem_tobuffer(target, openpgpkey->keyring, openpgpkey->length));
 }
 
 static isc_result_t
 tostruct_openpgpkey(ARGS_TOSTRUCT) {
 	isc_region_t sr;
-	dns_rdata_openpgpkey_t *sig = target;
+	dns_rdata_openpgpkey_t *openpgpkey = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_openpgpkey);
-	REQUIRE(sig != NULL);
+	REQUIRE(openpgpkey != NULL);
 	REQUIRE(rdata->length != 0);
 
-	sig->common.rdclass = rdata->rdclass;
-	sig->common.rdtype = rdata->type;
-	ISC_LINK_INIT(&sig->common, link);
+	openpgpkey->common.rdclass = rdata->rdclass;
+	openpgpkey->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&openpgpkey->common, link);
 
 	dns_rdata_toregion(rdata, &sr);
 
 	/*
 	 * Keyring.
 	 */
-	sig->length = sr.length;
-	sig->keyring = mem_maybedup(mctx, sr.base, sig->length);
-	sig->mctx = mctx;
+	openpgpkey->length = sr.length;
+	openpgpkey->keyring = mem_maybedup(mctx, sr.base, openpgpkey->length);
+	openpgpkey->mctx = mctx;
 	return (ISC_R_SUCCESS);
 }
 
 static void
 freestruct_openpgpkey(ARGS_FREESTRUCT) {
-	dns_rdata_openpgpkey_t *sig = (dns_rdata_openpgpkey_t *)source;
+	dns_rdata_openpgpkey_t *openpgpkey = (dns_rdata_openpgpkey_t *)source;
 
-	REQUIRE(sig != NULL);
-	REQUIRE(sig->common.rdtype == dns_rdatatype_openpgpkey);
+	REQUIRE(openpgpkey != NULL);
+	REQUIRE(openpgpkey->common.rdtype == dns_rdatatype_openpgpkey);
 
-	if (sig->mctx == NULL) {
+	if (openpgpkey->mctx == NULL) {
 		return;
 	}
 
-	if (sig->keyring != NULL) {
-		isc_mem_free(sig->mctx, sig->keyring);
+	if (openpgpkey->keyring != NULL) {
+		isc_mem_free(openpgpkey->mctx, openpgpkey->keyring);
 	}
-	sig->mctx = NULL;
+	openpgpkey->mctx = NULL;
 }
 
 static isc_result_t
