@@ -793,6 +793,25 @@ gcc:tarball:nosphinx:
     - job: tarball-create
       artifacts: true
 
+# Run named under rr chaos mode
+
+gcc:rr-chaos-mode:amd64:
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON}"
+    EXTRA_CONFIGURE: "--with-libidn2 ${WITH_READLINE_LIBEDIT} --enable-rr-chaos-mode"
+  <<: *debian_bookworm_amd64_image
+  <<: *build_job
+
+system:gcc:rr-chaos-mode:amd64:
+  <<: *debian_bookworm_amd64_image
+  <<: *system_test_job
+  variables:
+    CI_ENABLE_ALL_TESTS: 1
+  needs:
+    - job: gcc:rr-chaos-mode:amd64
+      artifacts: true
+
 # Jobs for regular GCC builds on Debian 12 "bookworm" (amd64)
 
 gcc:bookworm:amd64:
