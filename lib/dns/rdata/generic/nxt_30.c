@@ -216,7 +216,7 @@ fromstruct_nxt(ARGS_FROMSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(type == dns_rdatatype_nxt);
-	REQUIRE(nxt != NULL);
+	REQUIRE(nxt != NULL && sizeof(*nxt) == size);
 	REQUIRE(nxt->common.rdtype == type);
 	REQUIRE(nxt->common.rdclass == rdclass);
 	REQUIRE(nxt->typebits != NULL || nxt->len == 0);
@@ -240,8 +240,8 @@ tostruct_nxt(ARGS_TOSTRUCT) {
 	dns_rdata_nxt_t *nxt = target;
 	dns_name_t name;
 
+	REQUIRE(nxt != NULL && sizeof(*nxt) == size);
 	REQUIRE(rdata->type == dns_rdatatype_nxt);
-	REQUIRE(nxt != NULL);
 	REQUIRE(rdata->length != 0);
 
 	nxt->common.rdclass = rdata->rdclass;
@@ -265,7 +265,7 @@ static void
 freestruct_nxt(ARGS_FREESTRUCT) {
 	dns_rdata_nxt_t *nxt = source;
 
-	REQUIRE(nxt != NULL);
+	REQUIRE(nxt != NULL && sizeof(*nxt) == size);
 	REQUIRE(nxt->common.rdtype == dns_rdatatype_nxt);
 
 	if (nxt->mctx == NULL) {

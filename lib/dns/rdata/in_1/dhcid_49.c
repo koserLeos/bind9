@@ -123,7 +123,7 @@ fromstruct_in_dhcid(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_dhcid);
 	REQUIRE(rdclass == dns_rdataclass_in);
-	REQUIRE(dhcid != NULL);
+	REQUIRE(dhcid != NULL && sizeof(*dhcid) == size);
 	REQUIRE(dhcid->common.rdtype == type);
 	REQUIRE(dhcid->common.rdclass == rdclass);
 	REQUIRE(dhcid->length != 0);
@@ -141,7 +141,7 @@ tostruct_in_dhcid(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == dns_rdatatype_dhcid);
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
-	REQUIRE(dhcid != NULL);
+	REQUIRE(dhcid != NULL && sizeof(*dhcid) == size);
 	REQUIRE(rdata->length != 0);
 
 	dhcid->common.rdclass = rdata->rdclass;
@@ -159,7 +159,7 @@ static void
 freestruct_in_dhcid(ARGS_FREESTRUCT) {
 	dns_rdata_in_dhcid_t *dhcid = source;
 
-	REQUIRE(dhcid != NULL);
+	REQUIRE(dhcid != NULL && sizeof(*dhcid) == size);
 	REQUIRE(dhcid->common.rdtype == dns_rdatatype_dhcid);
 	REQUIRE(dhcid->common.rdclass == dns_rdataclass_in);
 

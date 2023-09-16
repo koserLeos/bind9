@@ -72,6 +72,10 @@ compare_rkey(ARGS_COMPARE) {
 
 static isc_result_t
 fromstruct_rkey(ARGS_FROMSTRUCT) {
+	dns_rdata_rkey_t *rkey = (dns_rdata_rkey_t *)source;
+
+	REQUIRE(rkey != NULL && sizeof(*rkey) == size);
+	REQUIRE(rkey->common.rdtype == dns_rdatatype_rkey);
 	REQUIRE(type == dns_rdatatype_rkey);
 
 	return (generic_fromstruct_key(CALL_FROMSTRUCT));
@@ -81,7 +85,7 @@ static isc_result_t
 tostruct_rkey(ARGS_TOSTRUCT) {
 	dns_rdata_rkey_t *rkey = target;
 
-	REQUIRE(rkey != NULL);
+	REQUIRE(rkey != NULL && sizeof(*rkey) == size);
 	REQUIRE(rdata != NULL);
 	REQUIRE(rdata->type == dns_rdatatype_rkey);
 
@@ -96,10 +100,10 @@ static void
 freestruct_rkey(ARGS_FREESTRUCT) {
 	dns_rdata_rkey_t *rkey = (dns_rdata_rkey_t *)source;
 
-	REQUIRE(rkey != NULL);
+	REQUIRE(rkey != NULL && sizeof(*rkey) == size);
 	REQUIRE(rkey->common.rdtype == dns_rdatatype_rkey);
 
-	generic_freestruct_key(source);
+	generic_freestruct_key(CALL_FREESTRUCT);
 }
 
 static isc_result_t

@@ -125,7 +125,7 @@ fromstruct_nid(ARGS_FROMSTRUCT) {
 	dns_rdata_nid_t *nid = source;
 
 	REQUIRE(type == dns_rdatatype_nid);
-	REQUIRE(nid != NULL);
+	REQUIRE(nid != NULL && sizeof(*nid) == size);
 	REQUIRE(nid->common.rdtype == type);
 	REQUIRE(nid->common.rdclass == rdclass);
 
@@ -142,7 +142,7 @@ tostruct_nid(ARGS_TOSTRUCT) {
 	dns_rdata_nid_t *nid = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_nid);
-	REQUIRE(nid != NULL);
+	REQUIRE(nid != NULL && sizeof(*nid) == size);
 	REQUIRE(rdata->length == 10);
 
 	UNUSED(mctx);
@@ -161,7 +161,7 @@ static void
 freestruct_nid(ARGS_FREESTRUCT) {
 	dns_rdata_nid_t *nid = source;
 
-	REQUIRE(nid != NULL);
+	REQUIRE(nid != NULL && sizeof(*nid) == size);
 	REQUIRE(nid->common.rdtype == dns_rdatatype_nid);
 
 	return;

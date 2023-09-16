@@ -81,7 +81,7 @@ fromstruct_null(ARGS_FROMSTRUCT) {
 	dns_rdata_null_t *null = source;
 
 	REQUIRE(type == dns_rdatatype_null);
-	REQUIRE(null != NULL);
+	REQUIRE(null != NULL && sizeof(*null) == size);
 	REQUIRE(null->common.rdtype == type);
 	REQUIRE(null->common.rdclass == rdclass);
 	REQUIRE(null->data != NULL || null->length == 0);
@@ -98,7 +98,7 @@ tostruct_null(ARGS_TOSTRUCT) {
 	isc_region_t r;
 
 	REQUIRE(rdata->type == dns_rdatatype_null);
-	REQUIRE(null != NULL);
+	REQUIRE(null != NULL && sizeof(*null) == size);
 
 	null->common.rdclass = rdata->rdclass;
 	null->common.rdtype = rdata->type;
@@ -115,7 +115,7 @@ static void
 freestruct_null(ARGS_FREESTRUCT) {
 	dns_rdata_null_t *null = source;
 
-	REQUIRE(null != NULL);
+	REQUIRE(null != NULL && sizeof(*null) == size);
 	REQUIRE(null->common.rdtype == dns_rdatatype_null);
 
 	if (null->mctx == NULL) {

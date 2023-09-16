@@ -404,13 +404,13 @@ compare_rrsig(ARGS_COMPARE) {
 
 static isc_result_t
 fromstruct_rrsig(ARGS_FROMSTRUCT) {
-	dns_rdata_rrsig_t *sig = source;
+	dns_rdata_rrsig_t *rrsig = source;
 
 	REQUIRE(type == dns_rdatatype_rrsig);
-	REQUIRE(sig != NULL);
-	REQUIRE(sig->common.rdtype == type);
-	REQUIRE(sig->common.rdclass == rdclass);
-	REQUIRE(sig->signature != NULL || sig->siglen == 0);
+	REQUIRE(rrsig != NULL && sizeof(*rrsig) == size);
+	REQUIRE(rrsig->common.rdtype == type);
+	REQUIRE(rrsig->common.rdclass == rdclass);
+	REQUIRE(rrsig->signature != NULL || rrsig->siglen == 0);
 
 	UNUSED(type);
 	UNUSED(rdclass);
@@ -418,138 +418,138 @@ fromstruct_rrsig(ARGS_FROMSTRUCT) {
 	/*
 	 * Type covered.
 	 */
-	RETERR(uint16_tobuffer(sig->covered, target));
+	RETERR(uint16_tobuffer(rrsig->covered, target));
 
 	/*
 	 * Algorithm.
 	 */
-	RETERR(uint8_tobuffer(sig->algorithm, target));
+	RETERR(uint8_tobuffer(rrsig->algorithm, target));
 
 	/*
 	 * Labels.
 	 */
-	RETERR(uint8_tobuffer(sig->labels, target));
+	RETERR(uint8_tobuffer(rrsig->labels, target));
 
 	/*
 	 * Original TTL.
 	 */
-	RETERR(uint32_tobuffer(sig->originalttl, target));
+	RETERR(uint32_tobuffer(rrsig->originalttl, target));
 
 	/*
 	 * Expire time.
 	 */
-	RETERR(uint32_tobuffer(sig->timeexpire, target));
+	RETERR(uint32_tobuffer(rrsig->timeexpire, target));
 
 	/*
 	 * Time signed.
 	 */
-	RETERR(uint32_tobuffer(sig->timesigned, target));
+	RETERR(uint32_tobuffer(rrsig->timesigned, target));
 
 	/*
 	 * Key ID.
 	 */
-	RETERR(uint16_tobuffer(sig->keyid, target));
+	RETERR(uint16_tobuffer(rrsig->keyid, target));
 
 	/*
 	 * Signer name.
 	 */
-	RETERR(name_tobuffer(&sig->signer, target));
+	RETERR(name_tobuffer(&rrsig->signer, target));
 
 	/*
 	 * Signature.
 	 */
-	return (mem_tobuffer(target, sig->signature, sig->siglen));
+	return (mem_tobuffer(target, rrsig->signature, rrsig->siglen));
 }
 
 static isc_result_t
 tostruct_rrsig(ARGS_TOSTRUCT) {
 	isc_region_t sr;
-	dns_rdata_rrsig_t *sig = target;
+	dns_rdata_rrsig_t *rrsig = target;
 	dns_name_t signer;
 
 	REQUIRE(rdata->type == dns_rdatatype_rrsig);
-	REQUIRE(sig != NULL);
+	REQUIRE(rrsig != NULL && sizeof(*rrsig) == size);
 	REQUIRE(rdata->length != 0);
 
-	sig->common.rdclass = rdata->rdclass;
-	sig->common.rdtype = rdata->type;
-	ISC_LINK_INIT(&sig->common, link);
+	rrsig->common.rdclass = rdata->rdclass;
+	rrsig->common.rdtype = rdata->type;
+	ISC_LINK_INIT(&rrsig->common, link);
 
 	dns_rdata_toregion(rdata, &sr);
 
 	/*
 	 * Type covered.
 	 */
-	sig->covered = uint16_fromregion(&sr);
+	rrsig->covered = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
 
 	/*
 	 * Algorithm.
 	 */
-	sig->algorithm = uint8_fromregion(&sr);
+	rrsig->algorithm = uint8_fromregion(&sr);
 	isc_region_consume(&sr, 1);
 
 	/*
 	 * Labels.
 	 */
-	sig->labels = uint8_fromregion(&sr);
+	rrsig->labels = uint8_fromregion(&sr);
 	isc_region_consume(&sr, 1);
 
 	/*
 	 * Original TTL.
 	 */
-	sig->originalttl = uint32_fromregion(&sr);
+	rrsig->originalttl = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 
 	/*
 	 * Expire time.
 	 */
-	sig->timeexpire = uint32_fromregion(&sr);
+	rrsig->timeexpire = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 
 	/*
 	 * Time signed.
 	 */
-	sig->timesigned = uint32_fromregion(&sr);
+	rrsig->timesigned = uint32_fromregion(&sr);
 	isc_region_consume(&sr, 4);
 
 	/*
 	 * Key ID.
 	 */
-	sig->keyid = uint16_fromregion(&sr);
+	rrsig->keyid = uint16_fromregion(&sr);
 	isc_region_consume(&sr, 2);
 
 	dns_name_init(&signer, NULL);
 	dns_name_fromregion(&signer, &sr);
-	dns_name_init(&sig->signer, NULL);
-	name_duporclone(&signer, mctx, &sig->signer);
-	isc_region_consume(&sr, name_length(&sig->signer));
+	dns_name_init(&rrsig->signer, NULL);
+	name_duporclone(&signer, mctx, &rrsig->signer);
+	isc_region_consume(&sr, name_length(&rrsig->signer));
 
 	/*
 	 * Signature.
 	 */
-	sig->siglen = sr.length;
-	sig->signature = mem_maybedup(mctx, sr.base, sig->siglen);
-	sig->mctx = mctx;
+	rrsig->siglen = sr.length;
+	rrsig->signature = mem_maybedup(mctx, sr.base, rrsig->siglen);
+	rrsig->mctx = mctx;
 	return (ISC_R_SUCCESS);
 }
 
 static void
 freestruct_rrsig(ARGS_FREESTRUCT) {
-	dns_rdata_rrsig_t *sig = (dns_rdata_rrsig_t *)source;
+	dns_rdata_rrsig_t *rrsig = (dns_rdata_rrsig_t *)source;
 
-	REQUIRE(sig != NULL);
-	REQUIRE(sig->common.rdtype == dns_rdatatype_rrsig);
+	REQUIRE(rrsig != NULL && sizeof(*rrsig) == size);
+	REQUIRE(rrsig->common.rdtype == dns_rdatatype_rrsig);
 
-	if (sig->mctx == NULL) {
+	if (rrsig->mctx == NULL) {
 		return;
 	}
 
-	dns_name_free(&sig->signer, sig->mctx);
-	if (sig->signature != NULL) {
-		isc_mem_free(sig->mctx, sig->signature);
+	dns_name_free(&rrsig->signer, rrsig->mctx);
+	if (rrsig->signature != NULL) {
+		isc_mem_free(rrsig->mctx, rrsig->signature);
 	}
-	sig->mctx = NULL;
+	rrsig->mctx = NULL;
 }
 
 static isc_result_t

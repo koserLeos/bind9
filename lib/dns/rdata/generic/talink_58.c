@@ -148,7 +148,7 @@ fromstruct_talink(ARGS_FROMSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(type == dns_rdatatype_talink);
-	REQUIRE(talink != NULL);
+	REQUIRE(talink != NULL && sizeof(*talink) == size);
 	REQUIRE(talink->common.rdtype == type);
 	REQUIRE(talink->common.rdclass == rdclass);
 
@@ -168,7 +168,7 @@ tostruct_talink(ARGS_TOSTRUCT) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == dns_rdatatype_talink);
-	REQUIRE(talink != NULL);
+	REQUIRE(talink != NULL && sizeof(*talink) == size);
 	REQUIRE(rdata->length != 0);
 
 	talink->common.rdclass = rdata->rdclass;
@@ -196,7 +196,7 @@ static void
 freestruct_talink(ARGS_FREESTRUCT) {
 	dns_rdata_talink_t *talink = source;
 
-	REQUIRE(talink != NULL);
+	REQUIRE(talink != NULL && sizeof(*talink) == size);
 	REQUIRE(talink->common.rdtype == dns_rdatatype_talink);
 
 	if (talink->mctx == NULL) {

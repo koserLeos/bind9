@@ -305,7 +305,7 @@ fromstruct_ipseckey(ARGS_FROMSTRUCT) {
 	uint32_t n;
 
 	REQUIRE(type == dns_rdatatype_ipseckey);
-	REQUIRE(ipseckey != NULL);
+	REQUIRE(ipseckey != NULL && sizeof(*ipseckey) == size);
 	REQUIRE(ipseckey->common.rdtype == type);
 	REQUIRE(ipseckey->common.rdclass == rdclass);
 
@@ -350,7 +350,7 @@ tostruct_ipseckey(ARGS_TOSTRUCT) {
 	uint32_t n;
 
 	REQUIRE(rdata->type == dns_rdatatype_ipseckey);
-	REQUIRE(ipseckey != NULL);
+	REQUIRE(ipseckey != NULL && sizeof(*ipseckey) == size);
 	REQUIRE(rdata->length >= 3);
 
 	ipseckey->common.rdclass = rdata->rdclass;
@@ -409,7 +409,7 @@ static void
 freestruct_ipseckey(ARGS_FREESTRUCT) {
 	dns_rdata_ipseckey_t *ipseckey = source;
 
-	REQUIRE(ipseckey != NULL);
+	REQUIRE(ipseckey != NULL && sizeof(*ipseckey) == size);
 	REQUIRE(ipseckey->common.rdtype == dns_rdatatype_ipseckey);
 
 	if (ipseckey->mctx == NULL) {

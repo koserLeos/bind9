@@ -84,7 +84,7 @@ static isc_result_t
 tostruct_cdnskey(ARGS_TOSTRUCT) {
 	dns_rdata_cdnskey_t *dnskey = target;
 
-	REQUIRE(dnskey != NULL);
+	REQUIRE(dnskey != NULL && sizeof(*dnskey) == size);
 	REQUIRE(rdata != NULL);
 	REQUIRE(rdata->type == dns_rdatatype_cdnskey);
 
@@ -99,10 +99,10 @@ static void
 freestruct_cdnskey(ARGS_FREESTRUCT) {
 	dns_rdata_cdnskey_t *dnskey = (dns_rdata_cdnskey_t *)source;
 
-	REQUIRE(dnskey != NULL);
+	REQUIRE(dnskey != NULL && sizeof(*dnskey) == size);
 	REQUIRE(dnskey->common.rdtype == dns_rdatatype_cdnskey);
 
-	generic_freestruct_key(source);
+	generic_freestruct_key(CALL_FREESTRUCT);
 }
 
 static isc_result_t

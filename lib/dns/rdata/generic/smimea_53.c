@@ -69,6 +69,10 @@ compare_smimea(ARGS_COMPARE) {
 
 static isc_result_t
 fromstruct_smimea(ARGS_FROMSTRUCT) {
+	dns_rdata_smimea_t *smimea = source;
+
+	REQUIRE(smimea != NULL && sizeof(*smimea) == size);
+	REQUIRE(smimea->common.rdtype == dns_rdatatype_smimea);
 	REQUIRE(type == dns_rdatatype_smimea);
 
 	return (generic_fromstruct_tlsa(CALL_FROMSTRUCT));
@@ -80,7 +84,7 @@ tostruct_smimea(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata != NULL);
 	REQUIRE(rdata->type == dns_rdatatype_smimea);
-	REQUIRE(smimea != NULL);
+	REQUIRE(smimea != NULL && sizeof(*smimea) == size);
 
 	smimea->common.rdclass = rdata->rdclass;
 	smimea->common.rdtype = rdata->type;
@@ -93,10 +97,10 @@ static void
 freestruct_smimea(ARGS_FREESTRUCT) {
 	dns_rdata_smimea_t *smimea = source;
 
-	REQUIRE(smimea != NULL);
+	REQUIRE(smimea != NULL && sizeof(*smimea) == size);
 	REQUIRE(smimea->common.rdtype == dns_rdatatype_smimea);
 
-	generic_freestruct_tlsa(source);
+	generic_freestruct_tlsa(CALL_FREESTRUCT);
 }
 
 static isc_result_t

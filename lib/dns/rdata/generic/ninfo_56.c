@@ -63,7 +63,11 @@ compare_ninfo(ARGS_COMPARE) {
 
 static isc_result_t
 fromstruct_ninfo(ARGS_FROMSTRUCT) {
+	dns_rdata_ninfo_t *ninfo = source;
+
+	REQUIRE(ninfo != NULL && sizeof(*ninfo) == size);
 	REQUIRE(type == dns_rdatatype_ninfo);
+	REQUIRE(ninfo->common.rdtype == dns_rdatatype_ninfo);
 
 	return (generic_fromstruct_txt(CALL_FROMSTRUCT));
 }
@@ -73,7 +77,7 @@ tostruct_ninfo(ARGS_TOSTRUCT) {
 	dns_rdata_ninfo_t *ninfo = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_ninfo);
-	REQUIRE(ninfo != NULL);
+	REQUIRE(ninfo != NULL && sizeof(*ninfo) == size);
 
 	ninfo->common.rdclass = rdata->rdclass;
 	ninfo->common.rdtype = rdata->type;
@@ -86,10 +90,10 @@ static void
 freestruct_ninfo(ARGS_FREESTRUCT) {
 	dns_rdata_ninfo_t *ninfo = source;
 
-	REQUIRE(ninfo != NULL);
+	REQUIRE(ninfo != NULL && sizeof(*ninfo) == size);
 	REQUIRE(ninfo->common.rdtype == dns_rdatatype_ninfo);
 
-	generic_freestruct_txt(source);
+	generic_freestruct_txt(CALL_FREESTRUCT);
 }
 
 static isc_result_t

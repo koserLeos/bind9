@@ -79,7 +79,7 @@ fromstruct_in_https(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_https);
 	REQUIRE(rdclass == dns_rdataclass_in);
-	REQUIRE(https != NULL);
+	REQUIRE(https != NULL && sizeof(*https) == size);
 	REQUIRE(https->common.rdtype == type);
 	REQUIRE(https->common.rdclass == rdclass);
 
@@ -92,7 +92,7 @@ tostruct_in_https(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata->type == dns_rdatatype_https);
-	REQUIRE(https != NULL);
+	REQUIRE(https != NULL && sizeof(*https) == size);
 	REQUIRE(rdata->length != 0);
 
 	return (generic_tostruct_in_svcb(CALL_TOSTRUCT));
@@ -102,7 +102,7 @@ static void
 freestruct_in_https(ARGS_FREESTRUCT) {
 	dns_rdata_in_https_t *https = source;
 
-	REQUIRE(https != NULL);
+	REQUIRE(https != NULL && sizeof(*https) == size);
 	REQUIRE(https->common.rdclass == dns_rdataclass_in);
 	REQUIRE(https->common.rdtype == dns_rdatatype_https);
 

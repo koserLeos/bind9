@@ -185,7 +185,7 @@ fromstruct_afsdb(ARGS_FROMSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(type == dns_rdatatype_afsdb);
-	REQUIRE(afsdb != NULL);
+	REQUIRE(afsdb != NULL && sizeof(*afsdb) == size);
 	REQUIRE(afsdb->common.rdclass == rdclass);
 	REQUIRE(afsdb->common.rdtype == type);
 
@@ -204,7 +204,7 @@ tostruct_afsdb(ARGS_TOSTRUCT) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == dns_rdatatype_afsdb);
-	REQUIRE(afsdb != NULL);
+	REQUIRE(afsdb != NULL && sizeof(*afsdb) == size);
 	REQUIRE(rdata->length != 0);
 
 	afsdb->common.rdclass = rdata->rdclass;
@@ -230,7 +230,7 @@ static void
 freestruct_afsdb(ARGS_FREESTRUCT) {
 	dns_rdata_afsdb_t *afsdb = source;
 
-	REQUIRE(afsdb != NULL);
+	REQUIRE(afsdb != NULL && sizeof(*afsdb) == size);
 	REQUIRE(afsdb->common.rdtype == dns_rdatatype_afsdb);
 
 	if (afsdb->mctx == NULL) {

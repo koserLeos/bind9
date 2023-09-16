@@ -70,6 +70,10 @@ compare_ta(ARGS_COMPARE) {
 
 static isc_result_t
 fromstruct_ta(ARGS_FROMSTRUCT) {
+	dns_rdata_ta_t *ds = source;
+
+	REQUIRE(ds != NULL && sizeof(*ds) == size);
+	REQUIRE(ds->common.rdtype == dns_rdatatype_ta);
 	REQUIRE(type == dns_rdatatype_ta);
 
 	return (generic_fromstruct_ds(CALL_FROMSTRUCT));
@@ -80,7 +84,7 @@ tostruct_ta(ARGS_TOSTRUCT) {
 	dns_rdata_ds_t *ds = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_ta);
-	REQUIRE(ds != NULL);
+	REQUIRE(ds != NULL && sizeof(*ds) == size);
 
 	/*
 	 * Checked by generic_tostruct_ds().
@@ -96,7 +100,7 @@ static void
 freestruct_ta(ARGS_FREESTRUCT) {
 	dns_rdata_ta_t *ds = source;
 
-	REQUIRE(ds != NULL);
+	REQUIRE(ds != NULL && sizeof(*ds) == size);
 	REQUIRE(ds->common.rdtype == dns_rdatatype_ta);
 
 	if (ds->mctx == NULL) {

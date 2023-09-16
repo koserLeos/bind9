@@ -1007,7 +1007,7 @@ generic_fromstruct_in_svcb(ARGS_FROMSTRUCT) {
 	dns_rdata_in_svcb_t *svcb = source;
 	isc_region_t region;
 
-	REQUIRE(svcb != NULL);
+	REQUIRE(svcb != NULL && sizeof(*svcb) == size);
 	REQUIRE(svcb->common.rdtype == type);
 	REQUIRE(svcb->common.rdclass == rdclass);
 
@@ -1027,7 +1027,7 @@ fromstruct_in_svcb(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_svcb);
 	REQUIRE(rdclass == dns_rdataclass_in);
-	REQUIRE(svcb != NULL);
+	REQUIRE(svcb != NULL && sizeof(*svcb) == size);
 	REQUIRE(svcb->common.rdtype == type);
 	REQUIRE(svcb->common.rdclass == rdclass);
 
@@ -1040,7 +1040,7 @@ generic_tostruct_in_svcb(ARGS_TOSTRUCT) {
 	dns_rdata_in_svcb_t *svcb = target;
 	dns_name_t name;
 
-	REQUIRE(svcb != NULL);
+	REQUIRE(svcb != NULL && sizeof(*svcb) == size);
 	REQUIRE(rdata->length != 0);
 
 	svcb->common.rdclass = rdata->rdclass;
@@ -1073,7 +1073,7 @@ tostruct_in_svcb(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata->type == dns_rdatatype_svcb);
-	REQUIRE(svcb != NULL);
+	REQUIRE(svcb != NULL && sizeof(*svcb) == size);
 	REQUIRE(rdata->length != 0);
 
 	return (generic_tostruct_in_svcb(CALL_TOSTRUCT));
@@ -1083,7 +1083,7 @@ static void
 generic_freestruct_in_svcb(ARGS_FREESTRUCT) {
 	dns_rdata_in_svcb_t *svcb = source;
 
-	REQUIRE(svcb != NULL);
+	REQUIRE(svcb != NULL && sizeof(*svcb) == size);
 
 	if (svcb->mctx == NULL) {
 		return;
@@ -1098,7 +1098,7 @@ static void
 freestruct_in_svcb(ARGS_FREESTRUCT) {
 	dns_rdata_in_svcb_t *svcb = source;
 
-	REQUIRE(svcb != NULL);
+	REQUIRE(svcb != NULL && sizeof(*svcb) == size);
 	REQUIRE(svcb->common.rdclass == dns_rdataclass_in);
 	REQUIRE(svcb->common.rdtype == dns_rdatatype_svcb);
 

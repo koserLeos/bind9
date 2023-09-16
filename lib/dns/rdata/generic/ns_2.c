@@ -136,7 +136,7 @@ fromstruct_ns(ARGS_FROMSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(type == dns_rdatatype_ns);
-	REQUIRE(ns != NULL);
+	REQUIRE(ns != NULL && sizeof(*ns) == size);
 	REQUIRE(ns->common.rdtype == type);
 	REQUIRE(ns->common.rdclass == rdclass);
 
@@ -154,7 +154,7 @@ tostruct_ns(ARGS_TOSTRUCT) {
 	dns_name_t name;
 
 	REQUIRE(rdata->type == dns_rdatatype_ns);
-	REQUIRE(ns != NULL);
+	REQUIRE(ns != NULL && sizeof(*ns) == size);
 	REQUIRE(rdata->length != 0);
 
 	ns->common.rdclass = rdata->rdclass;
@@ -174,7 +174,7 @@ static void
 freestruct_ns(ARGS_FREESTRUCT) {
 	dns_rdata_ns_t *ns = source;
 
-	REQUIRE(ns != NULL);
+	REQUIRE(ns != NULL && sizeof(*ns) == size);
 
 	if (ns->mctx == NULL) {
 		return;

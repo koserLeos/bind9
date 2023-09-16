@@ -237,7 +237,7 @@ static isc_result_t
 generic_fromstruct_ds(ARGS_FROMSTRUCT) {
 	dns_rdata_ds_t *ds = source;
 
-	REQUIRE(ds != NULL);
+	REQUIRE(ds != NULL && sizeof(*ds) == size);
 	REQUIRE(ds->common.rdtype == type);
 	REQUIRE(ds->common.rdclass == rdclass);
 
@@ -275,7 +275,7 @@ generic_tostruct_ds(ARGS_TOSTRUCT) {
 	dns_rdata_ds_t *ds = target;
 	isc_region_t region;
 
-	REQUIRE(ds != NULL);
+	REQUIRE(ds != NULL && sizeof(*ds) == size);
 	REQUIRE(rdata->length != 0);
 	REQUIRE(ds->common.rdtype == rdata->type);
 	REQUIRE(ds->common.rdclass == rdata->rdclass);
@@ -301,7 +301,7 @@ tostruct_ds(ARGS_TOSTRUCT) {
 	dns_rdata_ds_t *ds = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_ds);
-	REQUIRE(ds != NULL);
+	REQUIRE(ds != NULL && sizeof(*ds) == size);
 
 	ds->common.rdclass = rdata->rdclass;
 	ds->common.rdtype = rdata->type;
@@ -314,7 +314,7 @@ static void
 freestruct_ds(ARGS_FREESTRUCT) {
 	dns_rdata_ds_t *ds = source;
 
-	REQUIRE(ds != NULL);
+	REQUIRE(ds != NULL && sizeof(*ds) == size);
 	REQUIRE(ds->common.rdtype == dns_rdatatype_ds);
 
 	if (ds->mctx == NULL) {

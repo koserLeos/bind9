@@ -137,7 +137,7 @@ generic_fromstruct_txt(ARGS_FROMSTRUCT) {
 	isc_region_t region;
 	uint8_t length;
 
-	REQUIRE(txt != NULL);
+	REQUIRE(txt != NULL && sizeof(*txt) == size);
 	REQUIRE(txt->common.rdtype == type);
 	REQUIRE(txt->common.rdclass == rdclass);
 	REQUIRE(txt->txt != NULL && txt->txt_len != 0);
@@ -164,7 +164,7 @@ generic_tostruct_txt(ARGS_TOSTRUCT) {
 	dns_rdata_txt_t *txt = target;
 	isc_region_t r;
 
-	REQUIRE(txt != NULL);
+	REQUIRE(txt != NULL && sizeof(*txt) == size);
 	REQUIRE(txt->common.rdclass == rdata->rdclass);
 	REQUIRE(txt->common.rdtype == rdata->type);
 	REQUIRE(!ISC_LINK_LINKED(&txt->common, link));
@@ -181,7 +181,7 @@ static void
 generic_freestruct_txt(ARGS_FREESTRUCT) {
 	dns_rdata_txt_t *txt = source;
 
-	REQUIRE(txt != NULL);
+	REQUIRE(txt != NULL && sizeof(*txt) == size);
 
 	if (txt->mctx == NULL) {
 		return;
@@ -195,6 +195,10 @@ generic_freestruct_txt(ARGS_FREESTRUCT) {
 
 static isc_result_t
 fromstruct_txt(ARGS_FROMSTRUCT) {
+	dns_rdata_txt_t *txt = source;
+
+	REQUIRE(txt != NULL && sizeof(*txt) == size);
+	REQUIRE(txt->common.rdtype == dns_rdatatype_txt);
 	REQUIRE(type == dns_rdatatype_txt);
 
 	return (generic_fromstruct_txt(CALL_FROMSTRUCT));
@@ -205,7 +209,7 @@ tostruct_txt(ARGS_TOSTRUCT) {
 	dns_rdata_txt_t *txt = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_txt);
-	REQUIRE(txt != NULL);
+	REQUIRE(txt != NULL && sizeof(*txt) == size);
 
 	txt->common.rdclass = rdata->rdclass;
 	txt->common.rdtype = rdata->type;
@@ -218,10 +222,10 @@ static void
 freestruct_txt(ARGS_FREESTRUCT) {
 	dns_rdata_txt_t *txt = source;
 
-	REQUIRE(txt != NULL);
+	REQUIRE(txt != NULL && sizeof(*txt) == size);
 	REQUIRE(txt->common.rdtype == dns_rdatatype_txt);
 
-	generic_freestruct_txt(source);
+	generic_freestruct_txt(CALL_FREESTRUCT);
 }
 
 static isc_result_t

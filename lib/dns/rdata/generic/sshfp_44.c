@@ -182,7 +182,7 @@ fromstruct_sshfp(ARGS_FROMSTRUCT) {
 	dns_rdata_sshfp_t *sshfp = source;
 
 	REQUIRE(type == dns_rdatatype_sshfp);
-	REQUIRE(sshfp != NULL);
+	REQUIRE(sshfp != NULL && sizeof(*sshfp) == size);
 	REQUIRE(sshfp->common.rdtype == type);
 	REQUIRE(sshfp->common.rdclass == rdclass);
 
@@ -201,7 +201,7 @@ tostruct_sshfp(ARGS_TOSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(rdata->type == dns_rdatatype_sshfp);
-	REQUIRE(sshfp != NULL);
+	REQUIRE(sshfp != NULL && sizeof(*sshfp) == size);
 	REQUIRE(rdata->length != 0);
 
 	sshfp->common.rdclass = rdata->rdclass;
@@ -225,7 +225,7 @@ static void
 freestruct_sshfp(ARGS_FREESTRUCT) {
 	dns_rdata_sshfp_t *sshfp = source;
 
-	REQUIRE(sshfp != NULL);
+	REQUIRE(sshfp != NULL && sizeof(*sshfp) == size);
 	REQUIRE(sshfp->common.rdtype == dns_rdatatype_sshfp);
 
 	if (sshfp->mctx == NULL) {

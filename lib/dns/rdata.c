@@ -112,18 +112,20 @@
 
 #define CALL_COMPARE rdata1, rdata2
 
-#define ARGS_FROMSTRUCT \
-	int rdclass, dns_rdatatype_t type, void *source, isc_buffer_t *target
+#define ARGS_FROMSTRUCT                                               \
+	int rdclass, dns_rdatatype_t type, void *source, size_t size, \
+		isc_buffer_t *target
 
-#define CALL_FROMSTRUCT rdclass, type, source, target
+#define CALL_FROMSTRUCT rdclass, type, source, size, target
 
-#define ARGS_TOSTRUCT const dns_rdata_t *rdata, void *target, isc_mem_t *mctx
+#define ARGS_TOSTRUCT \
+	const dns_rdata_t *rdata, void *target, size_t size, isc_mem_t *mctx
 
-#define CALL_TOSTRUCT rdata, target, mctx
+#define CALL_TOSTRUCT rdata, target, size, mctx
 
-#define ARGS_FREESTRUCT void *source
+#define ARGS_FREESTRUCT void *source, size_t size
 
-#define CALL_FREESTRUCT source
+#define CALL_FREESTRUCT source, size
 
 #define ARGS_ADDLDATA                                \
 	dns_rdata_t *rdata, const dns_name_t *owner, \
@@ -1237,15 +1239,18 @@ dns_rdata_tofmttext(dns_rdata_t *rdata, const dns_name_t *origin,
 }
 
 isc_result_t
-dns_rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
-		     dns_rdatatype_t type, void *source, isc_buffer_t *target) {
+dns__rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
+		      dns_rdatatype_t type, void *source, size_t size,
+		      isc_buffer_t *target) {
 	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	isc_buffer_t st;
 	isc_region_t region;
 	bool use_default = false;
 	unsigned int length;
+	dns_rdatacommon_t *common = source;
 
-	REQUIRE(source != NULL);
+	REQUIRE(common != NULL && sizeof(*common) <= size);
+
 	if (rdata != NULL) {
 		REQUIRE(DNS_RDATA_INITIALIZED(rdata));
 		REQUIRE(DNS_RDATA_VALIDFLAGS(rdata));
@@ -1276,7 +1281,8 @@ dns_rdata_fromstruct(dns_rdata_t *rdata, dns_rdataclass_t rdclass,
 }
 
 isc_result_t
-dns_rdata_tostruct(const dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
+dns__rdata_tostruct(const dns_rdata_t *rdata, void *target, size_t size,
+		    isc_mem_t *mctx) {
 	isc_result_t result = ISC_R_NOTIMPLEMENTED;
 	bool use_default = false;
 
@@ -1294,9 +1300,10 @@ dns_rdata_tostruct(const dns_rdata_t *rdata, void *target, isc_mem_t *mctx) {
 }
 
 void
-dns_rdata_freestruct(void *source) {
+dns__rdata_freestruct(ARGS_FREESTRUCT) {
 	dns_rdatacommon_t *common = source;
-	REQUIRE(common != NULL);
+
+	REQUIRE(common != NULL && sizeof(*common) <= size);
 
 	FREESTRUCTSWITCH
 }

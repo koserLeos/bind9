@@ -133,6 +133,7 @@ fromstruct_in_nsap_ptr(ARGS_FROMSTRUCT) {
 	REQUIRE(type == dns_rdatatype_nsap_ptr);
 	REQUIRE(rdclass == dns_rdataclass_in);
 	REQUIRE(nsap_ptr != NULL);
+	REQUIRE(sizeof(nsap_ptr) == size);
 	REQUIRE(nsap_ptr->common.rdtype == type);
 	REQUIRE(nsap_ptr->common.rdclass == rdclass);
 
@@ -152,6 +153,7 @@ tostruct_in_nsap_ptr(ARGS_TOSTRUCT) {
 	REQUIRE(rdata->type == dns_rdatatype_nsap_ptr);
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(nsap_ptr != NULL);
+	REQUIRE(sizeof(nsap_ptr) == size);
 	REQUIRE(rdata->length != 0);
 
 	nsap_ptr->common.rdclass = rdata->rdclass;
@@ -172,6 +174,7 @@ freestruct_in_nsap_ptr(ARGS_FREESTRUCT) {
 	dns_rdata_in_nsap_ptr_t *nsap_ptr = source;
 
 	REQUIRE(nsap_ptr != NULL);
+	REQUIRE(sizeof(nsap_ptr) == size);
 	REQUIRE(nsap_ptr->common.rdclass == dns_rdataclass_in);
 	REQUIRE(nsap_ptr->common.rdtype == dns_rdatatype_nsap_ptr);
 

@@ -243,7 +243,7 @@ fromstruct_in_srv(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_srv);
 	REQUIRE(rdclass == dns_rdataclass_in);
-	REQUIRE(srv != NULL);
+	REQUIRE(srv != NULL && sizeof(*srv) == size);
 	REQUIRE(srv->common.rdtype == type);
 	REQUIRE(srv->common.rdclass == rdclass);
 
@@ -265,7 +265,7 @@ tostruct_in_srv(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 	REQUIRE(rdata->type == dns_rdatatype_srv);
-	REQUIRE(srv != NULL);
+	REQUIRE(srv != NULL && sizeof(*srv) == size);
 	REQUIRE(rdata->length != 0);
 
 	srv->common.rdclass = rdata->rdclass;
@@ -291,7 +291,7 @@ static void
 freestruct_in_srv(ARGS_FREESTRUCT) {
 	dns_rdata_in_srv_t *srv = source;
 
-	REQUIRE(srv != NULL);
+	REQUIRE(srv != NULL && sizeof(*srv) == size);
 	REQUIRE(srv->common.rdclass == dns_rdataclass_in);
 	REQUIRE(srv->common.rdtype == dns_rdatatype_srv);
 

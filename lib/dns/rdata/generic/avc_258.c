@@ -73,7 +73,7 @@ tostruct_avc(ARGS_TOSTRUCT) {
 	dns_rdata_avc_t *avc = target;
 
 	REQUIRE(rdata->type == dns_rdatatype_avc);
-	REQUIRE(avc != NULL);
+	REQUIRE(avc != NULL && sizeof(*avc) == size);
 
 	avc->common.rdclass = rdata->rdclass;
 	avc->common.rdtype = rdata->type;
@@ -89,7 +89,7 @@ freestruct_avc(ARGS_FREESTRUCT) {
 	REQUIRE(avc != NULL);
 	REQUIRE(avc->common.rdtype == dns_rdatatype_avc);
 
-	generic_freestruct_txt(source);
+	generic_freestruct_txt(CALL_FREESTRUCT);
 }
 
 static isc_result_t

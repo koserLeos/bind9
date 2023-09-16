@@ -267,7 +267,7 @@ fromstruct_in_apl(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_apl);
 	REQUIRE(rdclass == dns_rdataclass_in);
-	REQUIRE(apl != NULL);
+	REQUIRE(apl != NULL && sizeof(*apl) == size);
 	REQUIRE(apl->common.rdtype == type);
 	REQUIRE(apl->common.rdclass == rdclass);
 	REQUIRE(apl->apl != NULL || apl->apl_len == 0);
@@ -284,7 +284,7 @@ tostruct_in_apl(ARGS_TOSTRUCT) {
 	dns_rdata_in_apl_t *apl = target;
 	isc_region_t r;
 
-	REQUIRE(apl != NULL);
+	REQUIRE(apl != NULL && sizeof(*apl) == size);
 	REQUIRE(rdata->type == dns_rdatatype_apl);
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
 
@@ -304,7 +304,7 @@ static void
 freestruct_in_apl(ARGS_FREESTRUCT) {
 	dns_rdata_in_apl_t *apl = source;
 
-	REQUIRE(apl != NULL);
+	REQUIRE(apl != NULL && sizeof(*apl) == size);
 	REQUIRE(apl->common.rdtype == dns_rdatatype_apl);
 	REQUIRE(apl->common.rdclass == dns_rdataclass_in);
 

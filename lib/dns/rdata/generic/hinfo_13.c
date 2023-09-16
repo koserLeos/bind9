@@ -94,7 +94,7 @@ fromstruct_hinfo(ARGS_FROMSTRUCT) {
 	dns_rdata_hinfo_t *hinfo = source;
 
 	REQUIRE(type == dns_rdatatype_hinfo);
-	REQUIRE(hinfo != NULL);
+	REQUIRE(hinfo != NULL && sizeof(*hinfo) == size);
 	REQUIRE(hinfo->common.rdtype == type);
 	REQUIRE(hinfo->common.rdclass == rdclass);
 
@@ -113,7 +113,7 @@ tostruct_hinfo(ARGS_TOSTRUCT) {
 	isc_region_t region;
 
 	REQUIRE(rdata->type == dns_rdatatype_hinfo);
-	REQUIRE(hinfo != NULL);
+	REQUIRE(hinfo != NULL && sizeof(*hinfo) == size);
 	REQUIRE(rdata->length != 0);
 
 	hinfo->common.rdclass = rdata->rdclass;
@@ -137,7 +137,7 @@ static void
 freestruct_hinfo(ARGS_FREESTRUCT) {
 	dns_rdata_hinfo_t *hinfo = source;
 
-	REQUIRE(hinfo != NULL);
+	REQUIRE(hinfo != NULL && sizeof(*hinfo) == size);
 
 	if (hinfo->mctx == NULL) {
 		return;

@@ -112,7 +112,7 @@ fromstruct_in_nimloc(ARGS_FROMSTRUCT) {
 
 	REQUIRE(type == dns_rdatatype_nimloc);
 	REQUIRE(rdclass == dns_rdataclass_in);
-	REQUIRE(nimloc != NULL);
+	REQUIRE(nimloc != NULL && sizeof(*nimloc) == size);
 	REQUIRE(nimloc->common.rdtype == type);
 	REQUIRE(nimloc->common.rdclass == rdclass);
 	REQUIRE(nimloc->nimloc != NULL || nimloc->nimloc_len == 0);
@@ -130,7 +130,7 @@ tostruct_in_nimloc(ARGS_TOSTRUCT) {
 
 	REQUIRE(rdata->type == dns_rdatatype_nimloc);
 	REQUIRE(rdata->rdclass == dns_rdataclass_in);
-	REQUIRE(nimloc != NULL);
+	REQUIRE(nimloc != NULL && sizeof(*nimloc) == size);
 	REQUIRE(rdata->length != 0);
 
 	nimloc->common.rdclass = rdata->rdclass;
@@ -148,7 +148,7 @@ static void
 freestruct_in_nimloc(ARGS_FREESTRUCT) {
 	dns_rdata_in_nimloc_t *nimloc = source;
 
-	REQUIRE(nimloc != NULL);
+	REQUIRE(nimloc != NULL && sizeof(*nimloc) == size);
 	REQUIRE(nimloc->common.rdclass == dns_rdataclass_in);
 	REQUIRE(nimloc->common.rdtype == dns_rdatatype_nimloc);
 
