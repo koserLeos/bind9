@@ -240,8 +240,8 @@ struct dns_adbentry {
 	isc_refcount_t references;
 	dns_adbnamehooklist_t nhs;
 
-	unsigned int flags;
-	unsigned int srtt;
+	atomic_uint flags;
+	atomic_uint srtt;
 	unsigned int completed;
 	unsigned int timeouts;
 	unsigned char plain;
@@ -259,8 +259,8 @@ struct dns_adbentry {
 	unsigned char *cookie;
 	uint16_t cookielen;
 
-	isc_stdtime_t expires;
-	isc_stdtime_t lastage;
+	_Atomic(isc_stdtime_t) expires;
+	_Atomic(isc_stdtime_t) lastage;
 	/*%<
 	 * A nonzero 'expires' field indicates that the entry should
 	 * persist until that time.  This allows entries found
@@ -418,7 +418,7 @@ enum {
 enum {
 	ENTRY_IS_DEAD = 1 << 31,
 };
-#define ENTRY_DEAD(e) (((e)->flags & ENTRY_IS_DEAD) != 0)
+#define ENTRY_DEAD(e) ((atomic_load(&(e)->flags) & ENTRY_IS_DEAD) != 0)
 
 /*
  * To the name, address classes are all that really exist.  If it has a
@@ -1281,8 +1281,8 @@ new_adbaddrinfo(dns_adb_t *adb, dns_adbentry_t *entry, in_port_t port) {
 
 	ai = isc_mem_get(adb->mctx, sizeof(*ai));
 	*ai = (dns_adbaddrinfo_t){
-		.srtt = entry->srtt,
-		.flags = entry->flags,
+		.srtt = atomic_load(&entry->srtt),
+		.flags = atomic_load(&entry->flags),
 		.publink = ISC_LINK_INITIALIZER,
 		.sockaddr = entry->sockaddr,
 		.entry = dns_adbentry_ref(entry),
@@ -1532,48 +1532,6 @@ get_attached_and_locked_entry(dns_adb_t *adb, isc_stdtime_t now,
 	return (adbentry);
 }
 
-/*
- * The entry must be locked.
- */
-static bool
-entry_is_lame(dns_adb_t *adb, dns_adbentry_t *entry, const dns_name_t *qname,
-	      dns_rdatatype_t qtype, isc_stdtime_t now) {
-	dns_adblameinfo_t *li = NULL, *next_li = NULL;
-	bool is_bad = false;
-
-	li = ISC_LIST_HEAD(entry->lameinfo);
-	if (li == NULL) {
-		return (false);
-	}
-	while (li != NULL) {
-		next_li = ISC_LIST_NEXT(li, plink);
-
-		/*
-		 * Has the entry expired?
-		 */
-		if (li->lame_timer < now) {
-			ISC_LIST_UNLINK(entry->lameinfo, li, plink);
-			free_adblameinfo(adb, &li);
-		}
-
-		/*
-		 * Order tests from least to most expensive.
-		 *
-		 * We do not break out of the main loop here as
-		 * we use the loop for house keeping.
-		 */
-		if (li != NULL && !is_bad && li->qtype == qtype &&
-		    dns_name_equal(qname, &li->qname))
-		{
-			is_bad = true;
-		}
-
-		li = next_li;
-	}
-
-	return (is_bad);
-}
-
 static void
 log_quota(dns_adbentry_t *entry, const char *fmt, ...) {
 	va_list ap;
@@ -1597,8 +1555,9 @@ log_quota(dns_adbentry_t *entry, const char *fmt, ...) {
 
 static void
 copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find,
-		    const dns_name_t *qname, dns_rdatatype_t qtype,
-		    dns_adbname_t *name, isc_stdtime_t now) {
+		    const dns_name_t *qname ISC_ATTR_UNUSED,
+		    dns_rdatatype_t qtype ISC_ATTR_UNUSED, dns_adbname_t *name,
+		    isc_stdtime_t now ISC_ATTR_UNUSED) {
 	dns_adbnamehook_t *namehook = NULL;
 	dns_adbentry_t *entry = NULL;
 
@@ -1607,18 +1566,10 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find,
 		while (namehook != NULL) {
 			dns_adbaddrinfo_t *addrinfo = NULL;
 			entry = namehook->entry;
-			LOCK(&entry->lock);
 
 			if (adbentry_overquota(entry)) {
 				find->options |= (DNS_ADBFIND_LAMEPRUNED |
 						  DNS_ADBFIND_OVERQUOTA);
-				goto nextv4;
-			}
-
-			if (!FIND_RETURNLAME(find) &&
-			    entry_is_lame(adb, entry, qname, qtype, now))
-			{
-				find->options |= DNS_ADBFIND_LAMEPRUNED;
 				goto nextv4;
 			}
 
@@ -1629,7 +1580,6 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find,
 			 */
 			ISC_LIST_APPEND(find->list, addrinfo, publink);
 		nextv4:
-			UNLOCK(&entry->lock);
 			namehook = ISC_LIST_NEXT(namehook, name_link);
 		}
 	}
@@ -1639,7 +1589,6 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find,
 		while (namehook != NULL) {
 			dns_adbaddrinfo_t *addrinfo = NULL;
 			entry = namehook->entry;
-			LOCK(&entry->lock);
 
 			if (adbentry_overquota(entry)) {
 				find->options |= (DNS_ADBFIND_LAMEPRUNED |
@@ -1647,12 +1596,6 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find,
 				goto nextv6;
 			}
 
-			if (!FIND_RETURNLAME(find) &&
-			    entry_is_lame(adb, entry, qname, qtype, now))
-			{
-				find->options |= DNS_ADBFIND_LAMEPRUNED;
-				goto nextv6;
-			}
 			addrinfo = new_adbaddrinfo(adb, entry, find->port);
 
 			/*
@@ -1660,7 +1603,6 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find,
 			 */
 			ISC_LIST_APPEND(find->list, addrinfo, publink);
 		nextv6:
-			UNLOCK(&entry->lock);
 			namehook = ISC_LIST_NEXT(namehook, name_link);
 		}
 	}
@@ -1702,7 +1644,7 @@ expire_entry(dns_adbentry_t *adbentry) {
 	dns_adb_t *adb = adbentry->adb;
 
 	if (!ENTRY_DEAD(adbentry)) {
-		adbentry->flags |= ENTRY_IS_DEAD;
+		(void)atomic_fetch_or(&adbentry->flags, ENTRY_IS_DEAD);
 
 		result = isc_hashmap_delete(
 			adb->entries,
@@ -2585,8 +2527,8 @@ dump_entry(FILE *f, dns_adb_t *adb, dns_adbentry_t *entry, bool debug,
 	fprintf(f,
 		";\t%s [srtt %u] [flags %08x] [edns %u/%u] "
 		"[plain %u/%u]",
-		addrbuf, entry->srtt, entry->flags, entry->edns, entry->ednsto,
-		entry->plain, entry->plainto);
+		addrbuf, atomic_load(&entry->srtt), atomic_load(&entry->flags),
+		entry->edns, entry->ednsto, entry->plain, entry->plainto);
 	if (entry->udpsize != 0U) {
 		fprintf(f, " [udpsize %u]", entry->udpsize);
 	}
@@ -3208,16 +3150,14 @@ dns_adb_adjustsrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr, unsigned int rtt,
 	REQUIRE(DNS_ADBADDRINFO_VALID(addr));
 	REQUIRE(factor <= 10);
 
-	isc_stdtime_t now = 0;
 	dns_adbentry_t *entry = addr->entry;
-	LOCK(&entry->lock);
 
-	if (entry->expires == 0 || factor == DNS_ADB_RTTADJAGE) {
+	isc_stdtime_t now = 0;
+	if (atomic_load(&entry->expires) == 0 || factor == DNS_ADB_RTTADJAGE) {
 		now = isc_stdtime_now();
 	}
-	adjustsrtt(addr, rtt, factor, now);
 
-	UNLOCK(&entry->lock);
+	adjustsrtt(addr, rtt, factor, now);
 }
 
 void
@@ -3225,40 +3165,31 @@ dns_adb_agesrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr, isc_stdtime_t now) {
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(DNS_ADBADDRINFO_VALID(addr));
 
-	dns_adbentry_t *entry = addr->entry;
-	LOCK(&entry->lock);
-
 	adjustsrtt(addr, 0, DNS_ADB_RTTADJAGE, now);
-
-	UNLOCK(&entry->lock);
 }
 
 static void
 adjustsrtt(dns_adbaddrinfo_t *addr, unsigned int rtt, unsigned int factor,
 	   isc_stdtime_t now) {
-	uint64_t new_srtt;
+	unsigned int new_srtt;
 
 	if (factor == DNS_ADB_RTTADJAGE) {
 		if (addr->entry->lastage != now) {
-			new_srtt = addr->entry->srtt;
-			new_srtt <<= 9;
-			new_srtt -= addr->entry->srtt;
-			new_srtt >>= 9;
-			addr->entry->lastage = now;
-		} else {
-			new_srtt = addr->entry->srtt;
+			new_srtt = atomic_load(&addr->entry->srtt) * 98 / 100;
+			atomic_store(&addr->entry->srtt, new_srtt);
+			addr->srtt = new_srtt;
+			atomic_store(&addr->entry->lastage, now);
 		}
 	} else {
 		new_srtt = ((uint64_t)addr->entry->srtt / 10 * factor) +
 			   ((uint64_t)rtt / 10 * (10 - factor));
+		atomic_store(&addr->entry->srtt, new_srtt);
+		addr->srtt = new_srtt;
 	}
 
-	addr->entry->srtt = (unsigned int)new_srtt;
-	addr->srtt = (unsigned int)new_srtt;
-
-	if (addr->entry->expires == 0) {
-		addr->entry->expires = now + ADB_ENTRY_WINDOW;
-	}
+	(void)atomic_compare_exchange_strong(&addr->entry->expires,
+					     &(isc_stdtime_t){ 0 },
+					     now + ADB_ENTRY_WINDOW);
 }
 
 void
@@ -3270,12 +3201,16 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr, unsigned int bits,
 	isc_stdtime_t now;
 	dns_adbentry_t *entry = addr->entry;
 
-	LOCK(&entry->lock);
+	unsigned int flags = atomic_load(&entry->flags);
+	while (!atomic_compare_exchange_strong(&entry->flags, &flags,
+					       (flags & ~mask) | (bits & mask)))
+	{
+		/* repeat */
+	}
 
-	entry->flags = (entry->flags & ~mask) | (bits & mask);
-	if (entry->expires == 0) {
+	if (atomic_load(&entry->expires) == 0) {
 		now = isc_stdtime_now();
-		entry->expires = now + ADB_ENTRY_WINDOW;
+		atomic_store(&entry->expires, now + ADB_ENTRY_WINDOW);
 	}
 
 	/*
@@ -3283,8 +3218,6 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr, unsigned int bits,
 	 * the most recent values from addr->entry->flags.
 	 */
 	addr->flags = (addr->flags & ~mask) | (bits & mask);
-
-	UNLOCK(&entry->lock);
 }
 
 /*
@@ -3542,11 +3475,12 @@ dns_adb_findaddrinfo(dns_adb_t *adb, const isc_sockaddr_t *sa,
 	entry = get_attached_and_locked_entry(adb, now, sa);
 	INSIST(entry != NULL);
 
+	UNLOCK(&entry->lock);
+
 	port = isc_sockaddr_getport(sa);
 	addr = new_adbaddrinfo(adb, entry, port);
 	*addrp = addr;
 
-	UNLOCK(&entry->lock);
 	dns_adbentry_detach(&entry);
 
 	return (result);
