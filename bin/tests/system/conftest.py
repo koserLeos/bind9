@@ -539,12 +539,82 @@ def run_tests_sh(system_test_dir, shell):
     return run_tests
 
 
+def check_unexpected_files(test_dir, orig_dir, mlogger):
+    """
+    Verify if any unexpected file were created by the test(s).
+
+    This check uses the .gitignore mechanism implemented by git. Expected files
+    should be ignored by either bin/tests/system/.gitignore or a test-specific
+    .gitignore in the system test directory.
+    """
+    try:
+        import pygit2
+    except ImportError:
+        mlogger.debug("pygit2 is missing: skipping unexpected file check")
+        return True
+
+    system_test_name = orig_dir.name
+    system_tests_root_dir = orig_dir.parent
+    git_root_dir = system_tests_root_dir.parent.parent.parent
+    try:
+        repo = pygit2.Repository(git_root_dir)
+    except pygit2.GitError as exc:  # Expected for out-of-tree builds
+        mlogger.warning(f"skipping unexpected file check: {exc}")
+        return True
+
+    # The test's directory is already .gitignored in its entirety by the /*_*
+    # rule. To work around that and still be able to utilize the .gitignore
+    # mechanism, create another short-lived temporary directory (check_dir)
+    # specifically to check for unexpected files.
+    check_dir = system_tests_root_dir / test_dir.name.replace("_", "")
+    os.mkdir(check_dir)
+
+    unexpected_files = []
+    try:
+        try:  # Copy over the test-specific .gitignore file.
+            shutil.copy(orig_dir / ".gitignore", check_dir)
+        except FileNotFoundError:
+            pass
+
+        # Re-create the file structure of untracked files in check_dir.
+        for root, _, files in os.walk(test_dir):
+            current_dir_path = Path(root).relative_to(test_dir)
+            check_dir_path = check_dir / current_dir_path
+            check_dir_path.mkdir(exist_ok=True)
+            for file in files:
+                current_file_path = current_dir_path / file
+                if (
+                    f"{SYSTEM_TEST_DIR_GIT_PATH}/{system_test_name}/{current_file_path}"
+                    in repo.index
+                ):
+                    # This file is already tracked in the original git directory, skip it.
+                    continue
+                check_dir_file_path = check_dir / current_file_path
+                check_dir_file_path.touch()  # Create an empty file at destination.
+
+                # Utilize pygit2 to check if the file created by the test is ignored or not.
+                status = repo.status_file(check_dir_file_path.relative_to(git_root_dir))
+                if status != pygit2.GIT_STATUS_IGNORED:
+                    unexpected_files.append(current_file_path)
+    finally:
+        shutil.rmtree(check_dir)  # Remove the directory for checking unexpected files.
+
+    if unexpected_files:
+        file_list = "\n".join(f"  {file}" for file in unexpected_files)
+        mlogger.error(
+            f"found unexpected files (add them to {system_test_name}/.gitignore if expected): \n"
+            + file_list
+        )
+        pytest.fail("test created unexpected files")
+
+
 @pytest.fixture(scope="module", autouse=True)
 def system_test(  # pylint: disable=too-many-arguments,too-many-statements
     request,
     env: Dict[str, str],
     mlogger,
     system_test_dir,
+    system_test_name,
     shell,
     perl,
 ):
@@ -620,6 +690,8 @@ def system_test(  # pylint: disable=too-many-arguments,too-many-statements
     mlogger.info(f"test started: {request.node.name}")
     port = int(env["PORT"])
     mlogger.info("using port range: <%d, %d>", port, port + PORTS_PER_TEST - 1)
+    system_test_root = Path(f"{env['TOP_BUILDDIR']}/{SYSTEM_TEST_DIR_GIT_PATH}")
+    orig_dir = system_test_root / system_test_name
 
     if not hasattr(request.node, "stash"):  # compatibility with pytest<7.0.0
         request.node.stash = {}  # use regular dict instead of pytest.Stash
@@ -643,4 +715,5 @@ def system_test(  # pylint: disable=too-many-arguments,too-many-statements
         mlogger.debug("test(s) finished")
         stop_servers()
         get_core_dumps()
+        check_unexpected_files(system_test_dir, orig_dir, mlogger)
         request.node.stash[FIXTURE_OK] = True
