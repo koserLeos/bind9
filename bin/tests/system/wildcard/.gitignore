@@ -1,0 +1,10 @@
+/ns1/K*
+/ns1/*.db
+/ns1/*.signed
+/ns1/dsset-*
+/ns1/keyset-*
+/ns1/trusted.conf
+/ns1/private.nsec.conf
+/ns1/private.nsec3.conf
+/ns1/signer.err
+/ns*/managed-keys.bind*

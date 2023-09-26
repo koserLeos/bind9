@@ -1,0 +1,5 @@
+/journalprint.out.*
+/tmp.jnl
+/ns*/*.db
+/ns*/*.jnl
+/ns*/managed-keys.bind*

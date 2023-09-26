@@ -1,2 +1,8 @@
-/ns1/named.conf
-/ns2/named.conf
+/*-supported.file
+/ns*/dsset-*
+/ns*/K*
+/ns*/managed-keys.bind*
+/ns*/root.db
+/ns*/*.signed
+/ns*/signer.err
+/ns*/trusted.conf

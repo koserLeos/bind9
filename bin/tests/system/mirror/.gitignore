@@ -1,0 +1,11 @@
+/ns*/*.db
+/ns*/db-*
+/ns*/_default.nzf
+/ns*/dsset-*
+/ns*/jn-*
+/ns*/*.jnl
+/ns*/K*
+/ns*/managed-keys.bind*
+/ns*/*.mirror
+/ns*/*.nzd*
+/ns*/*.signed

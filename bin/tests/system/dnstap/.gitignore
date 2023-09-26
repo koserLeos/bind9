@@ -1,0 +1,11 @@
+/dnstap.*
+/fstrm_capture.out.*
+/*/named.stats
+/ns2/dnstap.out.*
+/ns2/example.db
+/ns2/example.db.jnl
+/ns3/dnstap.out.*
+/ns*/dnstap.out
+/ns*/dnstap.out.save
+/ns*/managed-keys.bind*
+/ydump.out

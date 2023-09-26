@@ -1,3 +1,12 @@
-named.conf
 named.memstats
-named.run
+/ns1/dsset-*
+/ns1/K*
+/ns1/*.signed
+/ns1/signer.err
+/ns4/dsset-*
+/ns4/K*
+/ns4/*.signed
+/ns4/signer.err
+/ns*/keygen.out
+/ns*/managed-keys.bind*
+/ns*/trusted.conf

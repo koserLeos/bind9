@@ -1,0 +1,4 @@
+/ns2/zone0*.db
+/ns2/zone0*.jnl
+/ns*/managed-keys.bind*
+/ns*/zone*.bk

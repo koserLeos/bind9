@@ -1,0 +1,10 @@
+/ns3/example.db
+/ns3/undelegated.db
+/ns4/sub.example.db
+/ns*/dsset-*
+/ns*/K*
+/ns*/managed-keys.bind*
+/ns*/named_dump.db
+/ns*/*.signed
+/ns*/trusted.conf
+/tmp

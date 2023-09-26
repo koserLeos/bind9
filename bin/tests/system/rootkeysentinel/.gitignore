@@ -1,0 +1,9 @@
+/ns1/K.*
+/ns1/root.db
+/ns1/root.db.signed
+/ns2/example.db
+/ns2/example.db.signed
+/ns2/Kexample.*
+/ns*/dsset-*
+/ns*/managed-keys.bind*
+/ns*/trusted.conf

@@ -1,0 +1,4 @@
+check.out
+/ns3/Kexample.*
+/ns*/*.bk
+/ns*/*.bk.*

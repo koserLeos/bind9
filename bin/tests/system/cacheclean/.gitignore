@@ -1,0 +1,3 @@
+/sed.out*
+/ns2/named_dump.db.*
+/ns2/managed-keys.bind*

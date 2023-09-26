@@ -1,6 +1,8 @@
 verify.out.*
-zones/*.good
-zones/*.bad
-zones/K*
-zones/dsset-*
-zones/s.out*
+/zones/*.bad
+/zones/dsset-*
+/zones/*.good
+/zones/K*
+/zones/*.out*
+/zones/*.tmp
+/zones/updated*

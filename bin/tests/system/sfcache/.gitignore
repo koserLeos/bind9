@@ -1,0 +1,10 @@
+/ns*/K*.key
+/ns*/K*.private
+/ns*/*.signed
+/ns*/*.db
+/ns*/dsset-*
+/ns*/managed.conf
+/ns*/managed-keys.bind*
+/ns*/trusted.conf
+/sfcache.*
+/ns5/named_dump*

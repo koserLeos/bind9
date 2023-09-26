@@ -1,1 +1,11 @@
 bigkey
+/K*
+/ns1/root.db
+/ns2/signer.err
+/ns*/dsset-*.
+/ns*/dsset-example
+/ns*/K*
+/ns*/managed-keys.bind*
+/ns*/*.signed
+/ns*/tmp*
+/ns*/trusted.conf

@@ -1,0 +1,10 @@
+/*.out
+/ns*/*.db
+/ns*/*.db.signed
+/ns*/K*.key
+/ns*/K*.private
+/ns*/K*.state
+/ns*/*.jnl
+/ns*/dsset-*
+/ns*/managed-keys.bind*
+/ns*/signer.err

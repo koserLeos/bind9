@@ -1,0 +1,17 @@
+bad-kasp-keydir1.conf
+bad-kasp-keydir2.conf
+bad-kasp-keydir3.conf
+bad-kasp-keydir4.conf
+bad-kasp-keydir5.conf
+bad-tsig.conf
+checkconf.out*
+diff.out*
+good-kasp.conf.in
+good-server-christmas-tree.conf
+good.conf
+good.conf.raw
+good.conf.out
+badzero.conf
+*.out
+keys
+test.keydir

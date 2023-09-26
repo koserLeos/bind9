@@ -1,0 +1,5 @@
+kill*.out
+/ns2/named-alt*.conf
+/ns2/nope
+/ns2/tmp.*
+/ns*/named*.run

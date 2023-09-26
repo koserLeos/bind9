@@ -1,0 +1,5 @@
+test.*
+good1.db.raw
+named-compilezone
+zones/bad-tsig.db
+zones/zone1_*.txt

@@ -1,0 +1,14 @@
+/*/anchor.*
+/anchor.*
+/delv.out.test*
+/host.out.test*
+/ns1/root.db
+/ns2/example.db
+/ns2/example.tld.db
+/ns*/dsset-*
+/ns*/K*
+/ns*/keydata
+/ns*/keyid
+/nslookup.out.test*
+/nsupdate.out.test*
+/yamlget.out.*

@@ -1,2 +1,9 @@
-flood
-rrl
+broken.conf
+broken.out
+*mdig.out*
+/ns3/bl*.db
+/ns*/*.jnl
+/ns*/log-*
+/ns*/managed-keys.bind*
+/ns*/named.stats
+/ns*/session.key

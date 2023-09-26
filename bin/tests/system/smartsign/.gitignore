@@ -1,0 +1,6 @@
+/dnskey.sigs
+/dsset-*
+/dsset.out
+/K*
+/other.sigs
+/*.signed

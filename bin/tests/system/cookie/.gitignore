@@ -1,0 +1,3 @@
+/named.run.*
+/ns1/named_dump.db*
+/ns*/managed-keys.bind*

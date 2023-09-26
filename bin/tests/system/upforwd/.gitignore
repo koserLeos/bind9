@@ -1,0 +1,15 @@
+/dnstap.out*
+/dnstapread.out*
+/keyname
+/keyname.err
+/Ksig0.example2.*
+/ns1/example2.db
+/ns1/example.db
+/ns1/*.jnl
+/ns2/*.bk
+/ns2/*.jnl
+/ns3/*.bk
+/ns3/dnstap.conf
+/ns3/dnstap.out*
+/ns3/*.jnl
+/ns3/noprimary1.db

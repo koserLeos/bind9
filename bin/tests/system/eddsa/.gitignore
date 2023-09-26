@@ -1,0 +1,9 @@
+/ns*/dsset-*
+/ns*/example.com.db
+/ns*/K*
+/ns*/managed-keys.bind*
+/ns*/root.db
+/ns*/*.signed
+/ns*/signer.err
+/ns*/trusted.conf
+/*-supported.file

@@ -1,0 +1,10 @@
+/curl.out.*
+/named.stats.*
+/ns3/example.bk
+/ns3/internal.bk
+/ns*/managed-keys.bind*
+/ns*/named.stats
+/ns*/named.stats.*
+/ns*/named.stats-stage*
+/stats*out
+/xsltproc.out.*
