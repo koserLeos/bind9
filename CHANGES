@@ -1,3 +1,7 @@
+6262.	[func]		Debug messages logging network traffic now include
+			information about both sides of each communication
+			channel rather than just one of them. [GL #4345]
+
 6261.	[func]		Enable extracting the exact address/port that a local
 			wildcard/TCP socket is bound to, improving the accuracy
 			of dnstap logging. Since this requires issuing an extra
