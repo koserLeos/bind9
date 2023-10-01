@@ -19,10 +19,11 @@
 
 #include <dns/types.h>
 
-#define DNS_TYPEPAIR_TYPE(type)	  ((dns_rdatatype_t)((type) & 0xFFFF))
+#define DNS_TYPEPAIR_TYPE(type)	  ((dns_rdatatype_t)((type)&0xFFFF))
 #define DNS_TYPEPAIR_COVERS(type) ((dns_rdatatype_t)((type) >> 16))
 #define DNS_TYPEPAIR_VALUE(base, ext) \
 	((dns_typepair_t)(((uint32_t)ext) << 16) | (((uint32_t)base) & 0xffff))
+#define DNS_SIGTYPE(type) DNS_TYPEPAIR_VALUE(dns_rdatatype_rrsig, (type))
 
 ISC_LANG_BEGINDECLS
 
