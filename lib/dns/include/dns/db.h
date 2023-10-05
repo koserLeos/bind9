@@ -1074,7 +1074,7 @@ isc_result_t
 dns_db_createiterator(dns_db_t *db, unsigned int options,
 		      dns_dbiterator_t **iteratorp);
 /*%<
- * Create an iterator for version 'version' of 'db'.
+ * Create an iterator for 'db'.
  *
  * Notes:
  *

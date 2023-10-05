@@ -68,7 +68,6 @@ struct dns_rbtdb_version {
 	isc_refcount_t references;
 	/* Locked by database lock. */
 	bool writer;
-	bool commit_ok;
 	rbtdb_changedlist_t changed_list;
 	dns_slabheaderlist_t resigned_list;
 	ISC_LINK(dns_rbtdb_version_t) link;
@@ -118,8 +117,6 @@ struct dns_rbtdb {
 	dns_rbtdb_version_t *future_version;
 	rbtdb_versionlist_t open_versions;
 	isc_loop_t *loop;
-	dns_dbnode_t *soanode;
-	dns_dbnode_t *nsnode;
 
 	/*
 	 * The time after a failed lookup, where stale answers from cache

@@ -593,15 +593,6 @@ dns__rbtdb_destroy(dns_db_t *arg) {
 	unsigned int i;
 	unsigned int inactive = 0;
 
-	/* XXX check for open versions here */
-
-	if (rbtdb->soanode != NULL) {
-		dns_db_detachnode((dns_db_t *)rbtdb, &rbtdb->soanode);
-	}
-	if (rbtdb->nsnode != NULL) {
-		dns_db_detachnode((dns_db_t *)rbtdb, &rbtdb->nsnode);
-	}
-
 	/*
 	 * The current version's glue table needs to be freed early
 	 * so the nodes are dereferenced before we check the active
@@ -697,7 +688,6 @@ dns__rbtdb_newversion(dns_db_t *db, dns_dbversion_t **versionp) {
 	version = allocate_version(rbtdb->common.mctx, rbtdb->next_serial, 1,
 				   true);
 	version->rbtdb = rbtdb;
-	version->commit_ok = true;
 	version->secure = rbtdb->current_version->secure;
 	version->havensec3 = rbtdb->current_version->havensec3;
 	if (version->havensec3) {
@@ -748,6 +738,8 @@ add_changed(dns_slabheader_t *header,
 	rbtdb_changed_t *changed = NULL;
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)header->db;
 
+	REQUIRE(version->writer);
+
 	/*
 	 * Caller must be holding the node lock if its reference must be
 	 * protected by the lock.
@@ -756,26 +748,17 @@ add_changed(dns_slabheader_t *header,
 	changed = isc_mem_get(rbtdb->common.mctx, sizeof(*changed));
 
 	RWLOCK(&rbtdb->lock, isc_rwlocktype_write);
-
-	REQUIRE(version->writer);
-
-	if (changed != NULL) {
-		dns_rbtnode_t *node = (dns_rbtnode_t *)header->node;
-		uint_fast32_t refs = isc_refcount_increment(&node->references);
+	dns_rbtnode_t *node = (dns_rbtnode_t *)header->node;
+	uint_fast32_t refs = isc_refcount_increment(&node->references);
 #if DNS_DB_NODETRACE
-		fprintf(stderr,
-			"incr:node:%s:%s:%u:%p->references = %" PRIuFAST32 "\n",
-			func, file, line, node, refs + 1);
+	fprintf(stderr, "incr:node:%s:%s:%u:%p->references = %" PRIuFAST32 "\n",
+		func, file, line, node, refs + 1);
 #else
-		UNUSED(refs);
+	UNUSED(refs);
 #endif
-		changed->node = node;
-		changed->dirty = false;
-		ISC_LIST_INITANDAPPEND(version->changed_list, changed, link);
-	} else {
-		version->commit_ok = false;
-	}
-
+	changed->node = node;
+	changed->dirty = false;
+	ISC_LIST_INITANDAPPEND(version->changed_list, changed, link);
 	RWUNLOCK(&rbtdb->lock, isc_rwlocktype_write);
 
 	return (changed);
@@ -1779,7 +1762,6 @@ dns__rbtdb_closeversion(dns_db_t *db, dns_dbversion_t **versionp,
 			unsigned int cur_ref;
 			dns_rbtdb_version_t *cur_version = NULL;
 
-			INSIST(version->commit_ok);
 			INSIST(version == rbtdb->future_version);
 			/*
 			 * The current version is going to be replaced.
@@ -2515,10 +2497,6 @@ dns__rbtdb_add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode,
 		 * simplifies the code.
 		 */
 		changed = add_changed(newheader, rbtversion DNS__DB_FLARG_PASS);
-		if (changed == NULL) {
-			dns_slabheader_destroy(&newheader);
-			return (ISC_R_NOMEMORY);
-		}
 	}
 
 	newheader_nx = NONEXISTENT(newheader) ? true : false;
@@ -3417,12 +3395,6 @@ dns__rbtdb_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 	NODE_WRLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
 
 	changed = add_changed(newheader, rbtversion DNS__DB_FLARG_PASS);
-	if (changed == NULL) {
-		dns_slabheader_destroy(&newheader);
-		NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
-			    &nlocktype);
-		return (ISC_R_NOMEMORY);
-	}
 
 	for (topheader = rbtnode->data; topheader != NULL;
 	     topheader = topheader->next)

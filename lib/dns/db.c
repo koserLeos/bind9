@@ -602,10 +602,6 @@ dns_db_transfernode(dns_db_t *db, dns_dbnode_t **sourcep,
 isc_result_t
 dns_db_createiterator(dns_db_t *db, unsigned int flags,
 		      dns_dbiterator_t **iteratorp) {
-	/*
-	 * Create an iterator for version 'version' of 'db'.
-	 */
-
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(iteratorp != NULL && *iteratorp == NULL);
 
