@@ -36,6 +36,7 @@
 
 #include <isc/result.h>
 
+#include <dns/db.h>
 #include <dns/fixedname.h>
 #include <dns/log.h>
 #include <dns/rbt.h>
@@ -587,8 +588,9 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 				 * current node.
 				 */
 				new_current->is_root = current->is_root;
-				if (current->nsec == DNS_RBT_NSEC_HAS_NSEC) {
-					new_current->nsec = DNS_RBT_NSEC_NORMAL;
+				new_current->nsec = current->nsec;
+				if (current->nsec == DNS_DB_NSEC_HAS_NSEC) {
+					new_current->nsec = DNS_DB_NSEC_NORMAL;
 				} else {
 					new_current->nsec = current->nsec;
 				}
@@ -1508,7 +1510,6 @@ create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	nodelen = sizeof(dns_rbtnode_t) + region.length + labels + 1;
 	node = isc_mem_get(mctx, nodelen);
 	*node = (dns_rbtnode_t){
-		.nsec = DNS_RBT_NSEC_NORMAL,
 		.color = BLACK,
 	};
 
