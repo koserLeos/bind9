@@ -178,8 +178,8 @@ dns__rbtnode_getdistance(dns_rbtnode_t *node) {
 /*
  * Forward declarations.
  */
-static isc_result_t
-create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep);
+static dns_rbtnode_t *
+create_node(isc_mem_t *mctx, const dns_name_t *name);
 
 static void
 hashtable_new(dns_rbt_t *rbt, uint8_t index, uint8_t bits);
@@ -284,13 +284,8 @@ dns_rbt_create(isc_mem_t *mctx, dns_rbtdeleter_t deleter, void *deleter_arg,
 /*
  * Deallocate a red/black tree of trees.
  */
-void
-dns_rbt_destroy(dns_rbt_t **rbtp) {
-	RUNTIME_CHECK(dns_rbt_destroy2(rbtp, 0) == ISC_R_SUCCESS);
-}
-
 isc_result_t
-dns_rbt_destroy2(dns_rbt_t **rbtp, unsigned int quantum) {
+dns_rbt_destroy(dns_rbt_t **rbtp, unsigned int quantum) {
 	dns_rbt_t *rbt;
 
 	REQUIRE(rbtp != NULL && VALID_RBT(*rbtp));
@@ -452,18 +447,14 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	dns_name_clone(name, add_name);
 
 	if (rbt->root == NULL) {
-		result = create_node(rbt->mctx, add_name, &new_current);
-		if (result == ISC_R_SUCCESS) {
-			rbt->nodecount++;
-			new_current->is_root = 1;
-
-			new_current->uppernode = NULL;
-
-			rbt->root = new_current;
-			*nodep = new_current;
-			hash_node(rbt, new_current, name);
-		}
-		return (result);
+		new_current = create_node(rbt->mctx, add_name);
+		rbt->nodecount++;
+		new_current->is_root = 1;
+		new_current->uppernode = NULL;
+		rbt->root = new_current;
+		*nodep = new_current;
+		hash_node(rbt, new_current, name);
+		return (ISC_R_SUCCESS);
 	}
 
 	level_count = 0;
@@ -576,12 +567,7 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 				 */
 				dns_name_split(&current_name, common_labels,
 					       prefix, suffix);
-				result = create_node(rbt->mctx, suffix,
-						     &new_current);
-
-				if (result != ISC_R_SUCCESS) {
-					break;
-				}
+				new_current = create_node(rbt->mctx, suffix);
 
 				/*
 				 * Reproduce the tree attributes of the
@@ -668,18 +654,14 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 					 * Its data pointer is already NULL
 					 * from create_node()), so there's
 					 * nothing more to do to it.
-					 */
-
-					/*
+					 *
 					 * The not-in-common parts of the new
 					 * name will be inserted into the new
-					 * level following this loop (unless
-					 * result != ISC_R_SUCCESS, which
-					 * is tested after the loop ends).
+					 * level following this loop.
 					 */
 					dns_name_split(add_name, common_labels,
 						       add_name, NULL);
-
+					result = ISC_R_SUCCESS;
 					break;
 				}
 			}
@@ -687,7 +669,7 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 	} while (child != NULL);
 
 	if (result == ISC_R_SUCCESS) {
-		result = create_node(rbt->mctx, add_name, &new_current);
+		new_current = create_node(rbt->mctx, add_name);
 	}
 
 	if (result == ISC_R_SUCCESS) {
@@ -701,37 +683,6 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep) {
 		rbt->nodecount++;
 		*nodep = new_current;
 		hash_node(rbt, new_current, name);
-	}
-
-	return (result);
-}
-
-/*
- * Add a name to the tree of trees, associating it with some data.
- */
-isc_result_t
-dns_rbt_addname(dns_rbt_t *rbt, const dns_name_t *name, void *data) {
-	isc_result_t result;
-	dns_rbtnode_t *node;
-
-	REQUIRE(VALID_RBT(rbt));
-	REQUIRE(dns_name_isabsolute(name));
-
-	node = NULL;
-
-	result = dns_rbt_addnode(rbt, name, &node);
-
-	/*
-	 * dns_rbt_addnode will report the node exists even when
-	 * it does not have data associated with it, but the
-	 * dns_rbt_*name functions all behave depending on whether
-	 * there is data associated with a node.
-	 */
-	if (result == ISC_R_SUCCESS ||
-	    (result == ISC_R_EXISTS && node->data == NULL))
-	{
-		node->data = data;
-		result = ISC_R_SUCCESS;
 	}
 
 	return (result);
@@ -1269,72 +1220,6 @@ dns__rbt_findnode(dns_rbt_t *rbt, const dns_name_t *name, dns_name_t *foundname,
 }
 
 /*
- * Get the data pointer associated with 'name'.
- */
-isc_result_t
-dns__rbt_findname(dns_rbt_t *rbt, const dns_name_t *name, unsigned int options,
-		  dns_name_t *foundname, void **data DNS__DB_FLARG) {
-	dns_rbtnode_t *node = NULL;
-	isc_result_t result;
-
-	REQUIRE(data != NULL && *data == NULL);
-
-	result = dns__rbt_findnode(rbt, name, foundname, &node, NULL, options,
-				   NULL, NULL DNS__DB_FLARG_PASS);
-
-	if (node != NULL && WANTEMPTYDATA_OR_DATA(options, node)) {
-		*data = node->data;
-	} else {
-		result = ISC_R_NOTFOUND;
-	}
-
-	return (result);
-}
-
-/*
- * Delete a name from the tree of trees.
- */
-isc_result_t
-dns__rbt_deletename(dns_rbt_t *rbt, const dns_name_t *name,
-		    bool recurse DNS__DB_FLARG) {
-	dns_rbtnode_t *node = NULL;
-	isc_result_t result;
-
-	REQUIRE(VALID_RBT(rbt));
-	REQUIRE(dns_name_isabsolute(name));
-
-	/*
-	 * First, find the node.
-	 *
-	 * When searching, the name might not have an exact match:
-	 * consider a.b.a.com, b.b.a.com and c.b.a.com as the only
-	 * elements of a tree, which would make layer 1 a single
-	 * node tree of "b.a.com" and layer 2 a three node tree of
-	 * a, b, and c.  Deleting a.com would find only a partial depth
-	 * match in the first layer.  Should it be a requirement that
-	 * that the name to be deleted have data?  For now, it is.
-	 *
-	 * ->dirty, ->locknum and ->references are ignored; they are
-	 * solely the province of rbtdb.c.
-	 */
-	result = dns__rbt_findnode(rbt, name, NULL, &node, NULL,
-				   DNS_RBTFIND_NOOPTIONS, NULL,
-				   NULL DNS__DB_FLARG_PASS);
-
-	if (result == ISC_R_SUCCESS) {
-		if (node->data != NULL) {
-			result = dns_rbt_deletenode(rbt, node, recurse);
-		} else {
-			result = ISC_R_NOTFOUND;
-		}
-	} else if (result == DNS_R_PARTIALMATCH) {
-		result = ISC_R_NOTFOUND;
-	}
-
-	return (result);
-}
-
-/*
  * Remove a node from the tree of trees.
  *
  * NOTE WELL: deletion is *not* symmetric with addition; that is, reversing
@@ -1491,9 +1376,9 @@ dns_rbt_formatnodename(dns_rbtnode_t *node, char *printname,
 	return (printname);
 }
 
-static isc_result_t
-create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
-	dns_rbtnode_t *node;
+static dns_rbtnode_t *
+create_node(isc_mem_t *mctx, const dns_name_t *name) {
+	dns_rbtnode_t *node = NULL;
 	isc_region_t region;
 	unsigned int labels;
 	size_t nodelen;
@@ -1541,9 +1426,7 @@ create_node(isc_mem_t *mctx, const dns_name_t *name, dns_rbtnode_t **nodep) {
 #if DNS_RBT_USEMAGIC
 	node->magic = DNS_RBTNODE_MAGIC;
 #endif /* if DNS_RBT_USEMAGIC */
-	*nodep = node;
-
-	return (ISC_R_SUCCESS);
+	return (node);
 }
 
 /*
@@ -2712,119 +2595,6 @@ dns_rbtnodechain_prev(dns_rbtnodechain_t *chain, dns_name_t *name,
 			result = dns_rbtnodechain_current(chain, name, NULL,
 							  NULL);
 		}
-	} else {
-		result = ISC_R_NOMORE;
-	}
-
-	return (result);
-}
-
-isc_result_t
-dns_rbtnodechain_down(dns_rbtnodechain_t *chain, dns_name_t *name,
-		      dns_name_t *origin) {
-	dns_rbtnode_t *current, *successor;
-	isc_result_t result = ISC_R_SUCCESS;
-	bool new_origin = false;
-
-	REQUIRE(VALID_CHAIN(chain) && chain->end != NULL);
-
-	successor = NULL;
-
-	current = chain->end;
-
-	if (current->down != NULL) {
-		/*
-		 * Don't declare an origin change when the new origin is
-		 * "." at the second level tree, because "." is already
-		 * declared as the origin for the top level tree.
-		 */
-		if (chain->level_count > 0 || current->offsetlen > 1) {
-			new_origin = true;
-		}
-
-		ADD_LEVEL(chain, current);
-		current = current->down;
-
-		while (current->left != NULL) {
-			current = current->left;
-		}
-
-		successor = current;
-	}
-
-	if (successor != NULL) {
-		chain->end = successor;
-
-		/*
-		 * It is not necessary to use dns_rbtnodechain_current
-		 * like the other functions because this function will
-		 * never find a node in the topmost level.  This is
-		 * because the root level will never be more than one
-		 * name, and everything in the megatree is a successor
-		 * to that node, down at the second level or below.
-		 */
-
-		if (name != NULL) {
-			node_name(chain->end, name);
-		}
-
-		if (new_origin) {
-			if (origin != NULL) {
-				result = chain_name(chain, origin, false);
-			}
-
-			if (result == ISC_R_SUCCESS) {
-				result = DNS_R_NEWORIGIN;
-			}
-		} else {
-			result = ISC_R_SUCCESS;
-		}
-	} else {
-		result = ISC_R_NOMORE;
-	}
-
-	return (result);
-}
-
-isc_result_t
-dns_rbtnodechain_nextflat(dns_rbtnodechain_t *chain, dns_name_t *name) {
-	dns_rbtnode_t *current, *previous, *successor;
-	isc_result_t result = ISC_R_SUCCESS;
-
-	REQUIRE(VALID_CHAIN(chain) && chain->end != NULL);
-
-	successor = NULL;
-
-	current = chain->end;
-
-	if (current->right == NULL) {
-		while (!current->is_root) {
-			previous = current;
-			current = current->parent;
-
-			if (current->left == previous) {
-				successor = current;
-				break;
-			}
-		}
-	} else {
-		current = current->right;
-
-		while (current->left != NULL) {
-			current = current->left;
-		}
-
-		successor = current;
-	}
-
-	if (successor != NULL) {
-		chain->end = successor;
-
-		if (name != NULL) {
-			node_name(chain->end, name);
-		}
-
-		result = ISC_R_SUCCESS;
 	} else {
 		result = ISC_R_NOMORE;
 	}
