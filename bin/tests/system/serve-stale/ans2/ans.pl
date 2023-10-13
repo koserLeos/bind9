@@ -35,6 +35,10 @@ my $send_response = 1;
 # delayed. Other lookups will not be delayed.
 my $slow_response = 0;
 
+# Current filtering setting for the "selective." domain.  See the
+# comments in reply_handler_selective() for more information.
+my $selective_filtering = "block-queries-for-a";
+
 my $localaddr = "10.53.0.2";
 
 my $localport = int($ENV{'PORT'});
@@ -61,12 +65,75 @@ my $TARGET = "target.example 9 IN A $localaddr";
 my $SHORTCNAME = "shortttl.cname.example 1 IN CNAME longttl.target.example";
 my $LONGTARGET = "longttl.target.example 600 IN A $localaddr";
 
+# This subroutine handles all requests for the "selective." domain.
+sub reply_handler_selective {
+    my ($qname, $qclass, $qtype, $nsid_requested) = @_;
+    my ($rcode, @ans, @auth, @add);
+
+    if ($qname =~ /\.CONTROL\.selective$/) {
+        # These special QNAMEs control selective filtering behavior.
+        if ($qname eq "block-queries-for-a.CONTROL.selective") {
+                $selective_filtering = "block-queries-for-a";
+                print "  Blocking only queries for a.selective. that include an NSID request\n";
+        } elsif ($qname eq "block-queries-for-cname-and-a.CONTROL.selective") {
+                $selective_filtering = "block-queries-for-cname-and-a";
+                print "  Blocking queries for cname.selective. and a.selective. that include an NSID request\n";
+        }
+        $rcode = "NOERROR";
+        push @ans, new Net::DNS::RR("$qname 300 IN $qtype $localaddr");
+    } elsif ($qname eq "ns.selective") {
+        # Handling this QNAME makes ADB happy.
+        $rcode = "NOERROR";
+        if ($qtype eq "A") {
+            push @ans, new Net::DNS::RR("$qname 300 IN A $localaddr");
+        } else {
+            push @auth, new Net::DNS::RR("selective 300 IN SOA . . 0 0 0 0 300");
+        }
+    } elsif ($qname eq "cname.selective") {
+        if ($nsid_requested && $selective_filtering eq "block-queries-for-cname-and-a") {
+            # This answer may or may not be returned to the resolver of
+            # the filtered view (which requests NSID), depending on the
+            # current selective filtering setting.
+            return;
+        } else {
+            # Delay the response by a little bit.  This increases the
+            # odds of triggering the desired order of events.
+            select(undef, undef, undef, 0.1);
+            $rcode = "NOERROR";
+            push @ans, new Net::DNS::RR("$qname 5 IN CNAME a.selective");
+        }
+    } elsif ($qname eq "a.selective") {
+        if ($nsid_requested) {
+            # This answer is never returned to the resolver of the
+            # filtered view (which requests NSID), irrespective of the
+            # current selective filtering setting.
+            return;
+        } else {
+            $rcode = "NOERROR";
+            if ($qtype eq "A") {
+                push @ans, new Net::DNS::RR("$qname 10 IN A $localaddr");
+            } else {
+                push @auth, new Net::DNS::RR("selective 300 IN SOA . . 0 0 0 0 300");
+            }
+        }
+    } else {
+            $rcode = "NXDOMAIN";
+            push @auth, new Net::DNS::RR("selective 300 IN SOA . . 0 0 0 0 300");
+    }
+
+    return ($rcode, \@ans, \@auth, \@add, { aa => 1 });
+}
+
 sub reply_handler {
-    my ($qname, $qclass, $qtype) = @_;
+    my ($qname, $qclass, $qtype, $nsid_requested) = @_;
     my ($rcode, @ans, @auth, @add);
 
     print ("request: $qname/$qtype\n");
     STDOUT->flush();
+
+    if ($qname =~ /\.selective$/) {
+        return (reply_handler_selective(@_));
+    }
 
     # Control whether we send a response or not.
     # We always respond to control commands.
@@ -259,8 +326,9 @@ for (;;) {
 		my $qclass = $questions[0]->qclass;
 		my $qtype = $questions[0]->qtype;
 		my $id = $request->header->id;
+		my $nsid = $request->edns->option("NSID");
 
-		my ($rcode, $ans, $auth, $add, $headermask) = reply_handler($qname, $qclass, $qtype);
+		my ($rcode, $ans, $auth, $add, $headermask) = reply_handler($qname, $qclass, $qtype, defined($nsid));
 
 		if (!defined($rcode)) {
 			print "  Silently ignoring query\n";
@@ -276,6 +344,14 @@ for (;;) {
 		$reply->push("answer",     @$ans)  if $ans;
 		$reply->push("authority",  @$auth) if $auth;
 		$reply->push("additional", @$add)  if $add;
+
+		# If NSID was requested, ensure that the response
+		# contains an EDNS record, otherwise named will disable
+		# EDNS for this server and the NSID-based answer
+		# filtering trick will be foiled.
+		if (defined($nsid)) {
+			$reply->edns->option("NSID" => {"OPTION-DATA" => "ans2"});
+		}
 
 		my $num_chars = $udpsock->send($reply->data);
 		print "  Sent $num_chars bytes via UDP\n";
