@@ -2629,6 +2629,69 @@ grep "2001:aaaa" dig.out.2.test$n > /dev/null || ret=1
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=$((status+ret))
 
+########################################################################
+# The following test attempts to trigger a very specific sequence of
+# events that may lead to a crash and is described in GL #4287.  Due to
+# its reliance on precise timing, the test is prone to races and
+# therefore should not be expected to be 100% reliable.
+########################################################################
+n=$((n+1))
+echo_i "check serve-stale behavior in a shared cache setup ($n)"
+ret=0
+# ns6 has two views configured; clients are matched to them by their IP
+# address.  Both views are attached to a shared cache.  ans2, to which
+# the "selective." domain is delegated to, answers all queries from the
+# unfiltered view, but only some queries from the filtered view.  See
+# ns6/named.conf.in and ans2/ans.pl for how this is achieved.
+filtered_view="-b 10.53.0.10"
+unfiltered_view="-b 10.53.0.11"
+# Prime the cache using the unfiltered view.
+$DIG -p ${PORT} ${unfiltered_view} @10.53.0.6 cname.selective. A > dig.out.test$n.1 || ret=1
+# Sanity check: ensure the filtered view can access data from the shared
+# cache (it would not be able to resolve the following query itself).
+$DIG -p ${PORT} ${filtered_view} @10.53.0.6 cname.selective. A > dig.out.test$n.2 || ret=1
+grep -q "^a\.selective.*10\.53\.0\.2$" dig.out.test$n.2 || ret=1
+# Ensure the filtered view will not be able to get any answers for a
+# while.
+$DIG -p ${PORT} @10.53.0.2 block-queries-for-cname-and-a.CONTROL.selective. A +time=5 +tries=1 > dig.out.test$n.3 || ret=1
+# Wait until cname.selective/CNAME expires from the shared cache.
+sleep 7
+# Issue two simultaneous queries, one per each view.  The desired
+# outcome here is that the unfiltered view will resolve the query in
+# less than "stale-answer-client-timeout" configured for the filtered
+# view, but not before the filtered view sends its own recursive query.
+# To increase the odds of that happening, the filtered view is queried
+# first and the responses for cname.selective/A queries are sent with a
+# delay of 100 ms by ans2, but remember that THIS STEP IS PRONE TO RACES
+# and yet it is critical for triggering the desired sequence of events!
+# (The filtered view is expected to use the still-active a.selective/A
+# record from the cache for answering this query.)
+nextpart ns6/named.run > /dev/null
+$DIG -p ${PORT} ${filtered_view} @10.53.0.6 cname.selective. A > dig.out.test$n.4 &
+DIG_PID1=$!
+$DIG -p ${PORT} ${unfiltered_view} @10.53.0.6 cname.selective. A > dig.out.test$n.5 &
+DIG_PID2=$!
+# Wait at least three more seconds, so that a.selective/A expires from
+# the shared cache.
+sleep 3
+# Ensure the filtered view will be able to resolve cname.selective/A
+# again, but not a.selective/A.
+$DIG -p ${PORT} @10.53.0.2 block-queries-for-a.CONTROL.selective. A +time=5 +tries=1 > dig.out.test$n.6 || ret=1
+# Wait until the filtered view resolves cname.selective/A and
+# "stale-answer-client-timeout" for a.selective/A fires.  Watch for a
+# line logged in the non-crashing case to minimize test delay; whether
+# ns6 crashed or not will be checked directly in the next step.
+wait_for_log 7 "(cname.selective): view filtered: request failed: operation canceled" ns6/named.run || ret=1
+# The queries above attempt to trigger a sequence of events that will
+# crash the server.  Query the unfiltered view to ensure the server is
+# still alive.
+$DIG -p ${PORT} ${unfiltered_view} @10.53.0.6 cname.selective. A +time=5 +tries=1 > dig.out.test$n.7 || ret=1
+grep -q "^a\.selective.*10\.53\.0\.2$" dig.out.test$n.7 || ret=1
+# Clean up background processes.
+wait ${DIG_PID1} ${DIG_PID2}
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status+ret))
+
 ###########################################################
 # Test serve-stale's interaction with prefetch processing #
 ###########################################################
