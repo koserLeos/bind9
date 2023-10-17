@@ -24,6 +24,10 @@ New Features
   the maximum number of simultaneous recursive clients BIND has handled
   while running. :gl:`#4668`
 
+- Check that zones with AAAA records are served by IPv6 servers.
+  This is an often accidental error when configuring IPv6 services.
+  :gl:`#4370`
+
 Removed Features
 ~~~~~~~~~~~~~~~~
 
