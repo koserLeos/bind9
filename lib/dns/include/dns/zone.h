@@ -2165,6 +2165,17 @@ dns_zone_setcheckns(dns_zone_t *zone, dns_checknsfunc_t checkns);
  */
 
 void
+dns_zone_setcheckaaaa(dns_zone_t *zone, dns_checkaaaafunc_t checkaaaa);
+/*%<
+ *	Set the post load integrity callback function 'checkaaaa'.
+ *	'checkaaaa' will be called if the NS TARGET is not within the zone
+ *	and there are AAAA records in the the zone.
+ *
+ * Require:
+ *	'zone' to be a valid zone.
+ */
+
+void
 dns_zone_setnotifydelay(dns_zone_t *zone, uint32_t delay);
 /*%<
  * Set the minimum delay between sets of notify messages.
