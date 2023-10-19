@@ -1477,9 +1477,6 @@ isc_nmhandle_localaddr(isc_nmhandle_t *handle) {
 
 #ifdef ISC_SOCKET_DETAILS
 	switch (handle->sock->type) {
-	case isc_nm_streamdnssocket:
-		addr = handle->sock->iface;
-		break;
 	case isc_nm_tcpsocket:
 		uv_tcp_getsockname(&handle->sock->uv_handle.tcp,
 				   (struct sockaddr *)&addr.type.ss,
@@ -1493,7 +1490,12 @@ isc_nmhandle_localaddr(isc_nmhandle_t *handle) {
 		break;
 
 	default:
-		addr = handle->local;
+		if (handle->sock->outerhandle) {
+			addr = isc_nmhandle_localaddr(
+				handle->sock->outerhandle);
+		} else {
+			addr = handle->local;
+		}
 		break;
 	}
 #else  /* ISC_SOCKET_DETAILS */
