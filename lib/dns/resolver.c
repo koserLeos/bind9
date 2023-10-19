@@ -2364,8 +2364,8 @@ resquery_send(resquery_t *query) {
 	dns_ednsopt_t ednsopts[DNS_EDNSOPTIONS];
 	unsigned int ednsopt = 0;
 	uint16_t hint = 0, udpsize = 0; /* No EDNS */
-#ifdef HAVE_DNSTAP
 	isc_sockaddr_t localaddr, *la = NULL;
+#ifdef HAVE_DNSTAP
 	unsigned char zone[DNS_NAME_MAXWIRE];
 	dns_dtmsgtype_t dtmsgtype;
 	isc_region_t zr;
@@ -2732,10 +2732,15 @@ resquery_send(resquery_t *query) {
 	/*
 	 * Log the outgoing packet.
 	 */
-	dns_message_logfmtpacket(
-		fctx->qmessage, "sending packet to", &query->addrinfo->sockaddr,
-		DNS_LOGCATEGORY_RESOLVER, DNS_LOGMODULE_PACKETS,
-		&dns_master_style_comment, ISC_LOG_DEBUG(11), fctx->mctx);
+	result = dns_dispentry_getlocaladdress(query->dispentry, &localaddr);
+	if (result == ISC_R_SUCCESS) {
+		la = &localaddr;
+	}
+
+	dns_message_logpacketfromto(
+		fctx->qmessage, "sending packet:", la,
+		&query->addrinfo->sockaddr, DNS_LOGCATEGORY_RESOLVER,
+		DNS_LOGMODULE_PACKETS, ISC_LOG_DEBUG(11), fctx->mctx);
 
 	/*
 	 * We're now done with the query message.
@@ -2758,11 +2763,6 @@ resquery_send(resquery_t *query) {
 		dtmsgtype = DNS_DTTYPE_FQ;
 	} else {
 		dtmsgtype = DNS_DTTYPE_RQ;
-	}
-
-	result = dns_dispentry_getlocaladdress(query->dispentry, &localaddr);
-	if (result == ISC_R_SUCCESS) {
-		la = &localaddr;
 	}
 
 	dns_dt_send(fctx->res->view, dtmsgtype, la, &query->addrinfo->sockaddr,
@@ -8086,7 +8086,7 @@ rctx_edns(respctx_t *rctx) {
 	     query->rmessage->rcode == dns_rcode_yxdomain) &&
 	    bad_edns(fctx, &query->addrinfo->sockaddr))
 	{
-		dns_message_logpacket(
+		dns_message_logpacketfrom(
 			query->rmessage, "received packet (bad edns) from",
 			&query->addrinfo->sockaddr, DNS_LOGCATEGORY_RESOLVER,
 			DNS_LOGMODULE_RESOLVER, ISC_LOG_DEBUG(3), fctx->mctx);
@@ -8112,7 +8112,7 @@ rctx_edns(respctx_t *rctx) {
 		 * this should be safe to do for any rcode we limit it
 		 * to NOERROR and NXDOMAIN.
 		 */
-		dns_message_logpacket(
+		dns_message_logpacketfrom(
 			query->rmessage, "received packet (no opt) from",
 			&query->addrinfo->sockaddr, DNS_LOGCATEGORY_RESOLVER,
 			DNS_LOGMODULE_RESOLVER, ISC_LOG_DEBUG(3), fctx->mctx);
@@ -9642,9 +9642,9 @@ detach:
 static void
 rctx_logpacket(respctx_t *rctx) {
 	fetchctx_t *fctx = rctx->fctx;
-#ifdef HAVE_DNSTAP
 	isc_result_t result;
 	isc_sockaddr_t localaddr, *la = NULL;
+#ifdef HAVE_DNSTAP
 	unsigned char zone[DNS_NAME_MAXWIRE];
 	dns_dtmsgtype_t dtmsgtype;
 	dns_compress_t cctx;
@@ -9652,10 +9652,16 @@ rctx_logpacket(respctx_t *rctx) {
 	isc_buffer_t zb;
 #endif /* HAVE_DNSTAP */
 
-	dns_message_logfmtpacket(
-		rctx->query->rmessage, "received packet from",
-		&rctx->query->addrinfo->sockaddr, DNS_LOGCATEGORY_RESOLVER,
-		DNS_LOGMODULE_PACKETS, &dns_master_style_comment,
+	result = dns_dispentry_getlocaladdress(rctx->query->dispentry,
+					       &localaddr);
+	if (result == ISC_R_SUCCESS) {
+		la = &localaddr;
+	}
+
+	dns_message_logpacketfromto(
+		rctx->query->rmessage,
+		"received packet:", &rctx->query->addrinfo->sockaddr, la,
+		DNS_LOGCATEGORY_RESOLVER, DNS_LOGMODULE_PACKETS,
 		ISC_LOG_DEBUG(10), fctx->mctx);
 
 #ifdef HAVE_DNSTAP
@@ -9676,12 +9682,6 @@ rctx_logpacket(respctx_t *rctx) {
 		dtmsgtype = DNS_DTTYPE_FR;
 	} else {
 		dtmsgtype = DNS_DTTYPE_RR;
-	}
-
-	result = dns_dispentry_getlocaladdress(rctx->query->dispentry,
-					       &localaddr);
-	if (result == ISC_R_SUCCESS) {
-		la = &localaddr;
 	}
 
 	dns_dt_send(fctx->res->view, dtmsgtype, la,
