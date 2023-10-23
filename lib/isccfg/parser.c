@@ -73,24 +73,22 @@
 #define CAT CFG_LOGCATEGORY_CONFIG
 #define MOD CFG_LOGMODULE_PARSER
 
-#define MAP_SYM 1 /* Unique type for isc_symtab */
-
 #define TOKEN_STRING(pctx) (pctx->token.value.as_textregion.base)
 
 /* Check a return value. */
-#define CHECK(op)                            \
-	do {                                 \
-		result = (op);               \
-		if (result != ISC_R_SUCCESS) \
-			goto cleanup;        \
-	} while (0)
+#define CHECK(op)                              \
+	{                                      \
+		result = (op);                 \
+		if (result != ISC_R_SUCCESS) { \
+			goto cleanup;          \
+		}                              \
+	}
 
 /* Clean up a configuration object if non-NULL. */
-#define CLEANUP_OBJ(obj)                               \
-	do {                                           \
-		if ((obj) != NULL)                     \
-			cfg_obj_destroy(pctx, &(obj)); \
-	} while (0)
+#define CLEANUP_OBJ(obj)                       \
+	if ((obj) != NULL) {                   \
+		cfg_obj_destroy(pctx, &(obj)); \
+	}
 
 /*
  * Forward declarations of static functions.
@@ -2226,7 +2224,6 @@ cfg_parse_mapbody(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	cfg_obj_t *eltobj = NULL;
 	cfg_obj_t *includename = NULL;
 	isc_symvalue_t symval;
-	cfg_list_t *list = NULL;
 
 	REQUIRE(pctx != NULL);
 	REQUIRE(type != NULL);
@@ -2371,32 +2368,19 @@ cfg_parse_mapbody(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 		}
 
 		/* See if the clause already has a value; if not create one. */
-		result = isc_symtab_lookup(obj->value.map.symtab, clause->name,
-					   0, &symval);
-
 		if ((clause->flags & CFG_CLAUSEFLAG_MULTI) != 0) {
 			/* Multivalued clause */
 			cfg_obj_t *listobj = NULL;
-			if (result == ISC_R_NOTFOUND) {
-				CHECK(cfg_create_list(pctx,
-						      &cfg_type_implicitlist,
-						      &listobj));
-				symval.as_pointer = listobj;
-				result = isc_symtab_define(
-					obj->value.map.symtab, clause->name, 1,
-					symval, isc_symexists_reject);
-				if (result != ISC_R_SUCCESS) {
-					cfg_parser_error(pctx, CFG_LOG_NEAR,
-							 "isc_symtab_define(%s)"
-							 " "
-							 "failed",
-							 clause->name);
-					isc_mem_put(pctx->mctx, list,
-						    sizeof(cfg_list_t));
-					goto cleanup;
-				}
-			} else {
-				INSIST(result == ISC_R_SUCCESS);
+
+			CHECK(cfg_create_list(pctx, &cfg_type_implicitlist,
+					      &listobj));
+			symval.as_pointer = listobj;
+			result = isc_symtab_define(
+				obj->value.map.symtab, clause->name, 1, symval,
+				isc_symexists_reject, &symval);
+
+			if (result == ISC_R_EXISTS) {
+				CLEANUP_OBJ(listobj);
 				listobj = symval.as_pointer;
 			}
 
@@ -2407,25 +2391,13 @@ cfg_parse_mapbody(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 			ISC_LIST_APPEND(listobj->value.list, elt, link);
 		} else {
 			/* Single-valued clause */
-			if (result == ISC_R_NOTFOUND) {
-				bool callback = ((clause->flags &
-						  CFG_CLAUSEFLAG_CALLBACK) !=
-						 0);
-				CHECK(parse_symtab_elt(
-					pctx, clause->name, clause->type,
-					obj->value.map.symtab, callback));
-				CHECK(parse_semicolon(pctx));
-			} else if (result == ISC_R_SUCCESS) {
-				cfg_parser_error(pctx, CFG_LOG_NEAR,
-						 "'%s' redefined",
-						 clause->name);
-				result = ISC_R_EXISTS;
-				goto cleanup;
-			} else {
-				cfg_parser_error(pctx, CFG_LOG_NEAR,
-						 "isc_symtab_define() failed");
-				goto cleanup;
-			}
+			bool callback = ((clause->flags &
+					  CFG_CLAUSEFLAG_CALLBACK) != 0);
+
+			CHECK(parse_symtab_elt(pctx, clause->name, clause->type,
+					       obj->value.map.symtab,
+					       callback));
+			CHECK(parse_semicolon(pctx));
 		}
 	}
 
@@ -2447,18 +2419,31 @@ parse_symtab_elt(cfg_parser_t *pctx, const char *name, cfg_type_t *elttype,
 	cfg_obj_t *obj = NULL;
 	isc_symvalue_t symval;
 
-	CHECK(cfg_parse_obj(pctx, elttype, &obj));
-
-	if (callback && pctx->callback != NULL) {
-		CHECK(pctx->callback(name, obj, pctx->callbackarg));
+	result = cfg_parse_obj(pctx, elttype, &obj);
+	if (result != ISC_R_SUCCESS) {
+		return (result);
 	}
 
 	symval.as_pointer = obj;
-	CHECK(isc_symtab_define(symtab, name, 1, symval, isc_symexists_reject));
-	return (ISC_R_SUCCESS);
 
-cleanup:
-	CLEANUP_OBJ(obj);
+	result = isc_symtab_define(symtab, name, 1, symval,
+				   isc_symexists_reject, &symval);
+
+	if (result == ISC_R_EXISTS) {
+		cfg_parser_error(pctx, CFG_LOG_NEAR, "'%s' redefined", name);
+		CLEANUP_OBJ(obj);
+		return (result);
+	}
+
+	if (callback && pctx->callback != NULL) {
+		result = pctx->callback(name, obj, pctx->callbackarg);
+	}
+
+	if (result != ISC_R_SUCCESS) {
+		RUNTIME_CHECK(isc_symtab_undefine(symtab, name, 1) ==
+			      ISC_R_SUCCESS);
+	}
+
 	return (result);
 }
 
@@ -2569,7 +2554,7 @@ cfg_print_mapbody(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 		for (clause = *clauseset; clause->name != NULL; clause++) {
 			isc_result_t result;
 			result = isc_symtab_lookup(obj->value.map.symtab,
-						   clause->name, 0, &symval);
+						   clause->name, 1, &symval);
 			if (result == ISC_R_SUCCESS) {
 				cfg_obj_t *symobj = symval.as_pointer;
 				if (symobj->type == &cfg_type_implicitlist) {
@@ -2737,7 +2722,7 @@ cfg_map_get(const cfg_obj_t *mapobj, const char *name, const cfg_obj_t **obj) {
 
 	map = &mapobj->value.map;
 
-	result = isc_symtab_lookup(map->symtab, name, MAP_SYM, &val);
+	result = isc_symtab_lookup(map->symtab, name, 1, &val);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}
@@ -3771,8 +3756,8 @@ create_map(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 	cfg_obj_t *obj = NULL;
 
 	CHECK(cfg_create_obj(pctx, type, &obj));
-	CHECK(isc_symtab_create(pctx->mctx, 5, /* XXX */
-				map_symtabitem_destroy, pctx, false, &symtab));
+	isc_symtab_create(pctx->mctx, map_symtabitem_destroy, pctx, false,
+			  &symtab);
 	obj->value.map.symtab = symtab;
 	obj->value.map.id = NULL;
 
@@ -3896,7 +3881,7 @@ breakout:
 		return (ISC_R_FAILURE);
 	}
 
-	result = isc_symtab_lookup(map->symtab, clausename, 0, &symval);
+	result = isc_symtab_lookup(map->symtab, clausename, 1, &symval);
 	if (result == ISC_R_NOTFOUND) {
 		if ((clause->flags & CFG_CLAUSEFLAG_MULTI) != 0) {
 			CHECK(cfg_create_list(pctx, &cfg_type_implicitlist,
@@ -3909,8 +3894,9 @@ breakout:
 			symval.as_pointer = obj;
 		}
 
-		CHECK(isc_symtab_define(map->symtab, clausename, 1, symval,
-					isc_symexists_reject));
+		result = isc_symtab_define(map->symtab, clausename, 1, symval,
+					   isc_symexists_reject, NULL);
+		INSIST(result == ISC_R_SUCCESS);
 	} else {
 		cfg_obj_t *destobj2 = symval.as_pointer;
 
