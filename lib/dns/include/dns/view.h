@@ -290,12 +290,8 @@ dns_view_create(isc_mem_t *mctx, dns_dispatchmgr_t *dispmgr,
 
 #if DNS_VIEW_TRACE
 #define dns_view_ref(ptr) dns_view__ref(ptr, __func__, __FILE__, __LINE__)
-#define dns_view_ref_unless_zero(ptr) \
-	dns_view__ref(ptr, __func__, __FILE__, __LINE__)
 #define dns_view_unref(ptr) dns_view__unref(ptr, __func__, __FILE__, __LINE__)
 #define dns_view_attach(ptr, ptrp) \
-	dns_view__attach(ptr, ptrp, __func__, __FILE__, __LINE__)
-#define dns_view_attach_unless_zero(ptr, ptrp) \
 	dns_view__attach(ptr, ptrp, __func__, __FILE__, __LINE__)
 #define dns_view_detach(ptrp) \
 	dns_view__detach(ptrp, __func__, __FILE__, __LINE__)
