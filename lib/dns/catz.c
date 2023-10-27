@@ -814,7 +814,7 @@ dns_catz_catzs_set_view(dns_catz_zones_t *catzs, dns_view_t *view) {
 	/* Either it's a new one or it's being reconfigured. */
 	REQUIRE(pview == NULL || !strcmp(pview->name, view->name));
 
-	dns_view_detach(&pview);
+	dns_view_weakdetach(&pview);
 }
 
 dns_catz_zone_t *

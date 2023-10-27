@@ -256,19 +256,16 @@ destroy(dns_view_t *view) {
 		dns_tsigkeyring_detach(&view->statickeys);
 	}
 
-	/* These must have been detached in dns_view_detach() */
+	/* These must have been detached in dns_view__shutdown() */
 	INSIST(view->adb == NULL);
 	INSIST(view->resolver == NULL);
 	INSIST(view->requestmgr == NULL);
+	INSIST(view->catzs == NULL);
 
 	dns_rrl_view_destroy(view);
 	if (view->rpzs != NULL) {
 		dns_rpz_zones_shutdown(view->rpzs);
 		dns_rpz_zones_detach(&view->rpzs);
-	}
-	if (view->catzs != NULL) {
-		dns_catz_zones_shutdown(view->catzs);
-		dns_catz_zones_detach(&view->catzs);
 	}
 	for (dlzdb = ISC_LIST_HEAD(view->dlz_searched); dlzdb != NULL;
 	     dlzdb = ISC_LIST_HEAD(view->dlz_searched))
@@ -721,10 +718,13 @@ dns_view_freeze(dns_view_t *view) {
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
 
-	if (view->resolver != NULL) {
+	rcu_read_lock();
+	dns_resolver_t *resolver = rcu_dereference(view->resolver);
+	if (resolver != NULL) {
 		INSIST(view->cachedb != NULL);
-		dns_resolver_freeze(view->resolver);
+		dns_resolver_freeze(resolver);
 	}
+	rcu_read_unlock();
 	view->frozen = true;
 }
 
