@@ -25,6 +25,7 @@
 #include <isc/mem.h>
 #include <isc/parseint.h>
 #include <isc/result.h>
+#include <isc/urcu.h>
 #include <isc/util.h>
 #include <isc/work.h>
 
@@ -142,6 +143,7 @@ struct dns_catz_zones {
 	isc_loopmgr_t *loopmgr;
 	dns_view_t *view;
 	atomic_bool shuttingdown;
+	struct rcu_head rcu_head;
 };
 
 void
@@ -895,6 +897,7 @@ dns_catz_zone_add(dns_catz_zones_t *catzs, const dns_name_t *name,
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_MASTER,
 		      ISC_LOG_DEBUG(3), "catz: dns_catz_zone_add %s", zname);
 
+	rcu_read_lock();
 	LOCK(&catzs->lock);
 
 	/*
@@ -924,6 +927,7 @@ dns_catz_zone_add(dns_catz_zones_t *catzs, const dns_name_t *name,
 	}
 
 	UNLOCK(&catzs->lock);
+	rcu_read_unlock();
 
 	*catzp = catz;
 
@@ -1038,23 +1042,28 @@ dns__catz_zone_destroy(dns_catz_zone_t *catz) {
 static void
 dns__catz_zones_destroy(dns_catz_zones_t *catzs) {
 	REQUIRE(atomic_load(&catzs->shuttingdown));
-	REQUIRE(catzs->zones == NULL);
 
 	catzs->magic = 0;
+
+	isc_ht_destroy(&catzs->zones);
 	isc_mutex_destroy(&catzs->lock);
 
 	isc_mem_putanddetach(&catzs->mctx, catzs, sizeof(*catzs));
 }
 
-void
-dns_catz_zones_shutdown(dns_catz_zones_t *catzs) {
-	REQUIRE(DNS_CATZ_ZONES_VALID(catzs));
+#if CATZ_DETACH_ON_MAIN_LOOP
+static void
+dns__catz_zones_detach(void *arg) {
+	dns_catz_zones_t *catzs = arg;
 
-	if (!atomic_compare_exchange_strong(&catzs->shuttingdown,
-					    &(bool){ false }, true))
-	{
-		return;
-	}
+	dns_catz_zones_detach(&catzs);
+}
+#endif
+
+static void
+dns__catz_zones_shutdown_rcu(struct rcu_head *rcu_head) {
+	dns_catz_zones_t *catzs = caa_container_of(rcu_head, dns_catz_zones_t,
+						   rcu_head);
 
 	LOCK(&catzs->lock);
 	if (catzs->zones != NULL) {
@@ -1071,9 +1080,30 @@ dns_catz_zones_shutdown(dns_catz_zones_t *catzs) {
 		INSIST(result == ISC_R_NOMORE);
 		isc_ht_iter_destroy(&iter);
 		INSIST(isc_ht_count(catzs->zones) == 0);
-		isc_ht_destroy(&catzs->zones);
 	}
 	UNLOCK(&catzs->lock);
+
+#if CATZ_DETACH_ON_MAIN_LOOP
+	/* We need to detach the catzs on the main loop */
+	isc_async_run(isc_loop_main(catzs->loopmgr), dns__catz_zones_detach,
+		      catzs);
+#else
+	dns_catz_zones_detach(&catzs);
+#endif
+}
+
+void
+dns_catz_zones_shutdown(dns_catz_zones_t *catzs) {
+	REQUIRE(DNS_CATZ_ZONES_VALID(catzs));
+
+	if (!atomic_compare_exchange_strong(&catzs->shuttingdown,
+					    &(bool){ false }, true))
+	{
+		return;
+	}
+
+	dns_catz_zones_ref(catzs);
+	call_rcu(&catzs->rcu_head, dns__catz_zones_shutdown_rcu);
 }
 
 #ifdef DNS_CATZ_TRACE
@@ -2068,7 +2098,9 @@ dns__catz_timer_cb(void *arg) {
 
 	REQUIRE(DNS_CATZ_ZONE_VALID(catz));
 
+	rcu_read_lock();
 	if (atomic_load(&catz->catzs->shuttingdown)) {
+		rcu_read_unlock();
 		return;
 	}
 
@@ -2113,6 +2145,8 @@ exit:
 	catz->lastupdated = isc_time_now();
 
 	UNLOCK(&catz->catzs->lock);
+
+	rcu_read_unlock();
 }
 
 isc_result_t
@@ -2126,7 +2160,9 @@ dns_catz_dbupdate_callback(dns_db_t *db, void *fn_arg) {
 	REQUIRE(DNS_CATZ_ZONES_VALID(fn_arg));
 	catzs = (dns_catz_zones_t *)fn_arg;
 
+	rcu_read_lock();
 	if (atomic_load(&catzs->shuttingdown)) {
+		rcu_read_unlock();
 		return (ISC_R_SHUTTINGDOWN);
 	}
 
@@ -2180,6 +2216,7 @@ dns_catz_dbupdate_callback(dns_db_t *db, void *fn_arg) {
 
 cleanup:
 	UNLOCK(&catzs->lock);
+	rcu_read_unlock();
 
 	return (result);
 }
@@ -2240,6 +2277,7 @@ dns__catz_update_cb(void *data) {
 	updb = catz->updb;
 	catzs = catz->catzs;
 
+	rcu_read_lock();
 	if (atomic_load(&catzs->shuttingdown)) {
 		result = ISC_R_SHUTTINGDOWN;
 		goto exit;
@@ -2503,6 +2541,7 @@ dns__catz_update_cb(void *data) {
 				     oldcatz->catzs);
 
 exit:
+	rcu_read_unlock();
 	catz->updateresult = result;
 }
 
@@ -2513,6 +2552,7 @@ dns__catz_done_cb(void *data) {
 
 	REQUIRE(DNS_CATZ_ZONE_VALID(catz));
 
+	rcu_read_lock();
 	LOCK(&catz->catzs->lock);
 	catz->updaterunning = false;
 
@@ -2527,6 +2567,7 @@ dns__catz_done_cb(void *data) {
 	dns_db_detach(&catz->updb);
 
 	UNLOCK(&catz->catzs->lock);
+	rcu_read_unlock();
 
 	isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL, DNS_LOGMODULE_MASTER,
 		      ISC_LOG_INFO, "catz: %s: reload done: %s", dname,
