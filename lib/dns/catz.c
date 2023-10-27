@@ -807,10 +807,14 @@ void
 dns_catz_catzs_set_view(dns_catz_zones_t *catzs, dns_view_t *view) {
 	REQUIRE(DNS_CATZ_ZONES_VALID(catzs));
 	REQUIRE(DNS_VIEW_VALID(view));
-	/* Either it's a new one or it's being reconfigured. */
-	REQUIRE(catzs->view == NULL || !strcmp(catzs->view->name, view->name));
 
-	catzs->view = view;
+	dns_view_t *pview = rcu_xchg_pointer(&catzs->view,
+					     dns_view_weakref(view));
+
+	/* Either it's a new one or it's being reconfigured. */
+	REQUIRE(pview == NULL || !strcmp(pview->name, view->name));
+
+	dns_view_detach(&pview);
 }
 
 dns_catz_zone_t *
@@ -1051,14 +1055,13 @@ dns__catz_zones_destroy(dns_catz_zones_t *catzs) {
 	isc_mem_putanddetach(&catzs->mctx, catzs, sizeof(*catzs));
 }
 
-#if CATZ_DETACH_ON_MAIN_LOOP
 static void
 dns__catz_zones_detach(void *arg) {
 	dns_catz_zones_t *catzs = arg;
 
+	dns_view_weakdetach(&catzs->view);
 	dns_catz_zones_detach(&catzs);
 }
-#endif
 
 static void
 dns__catz_zones_shutdown_rcu(struct rcu_head *rcu_head) {
@@ -1083,13 +1086,9 @@ dns__catz_zones_shutdown_rcu(struct rcu_head *rcu_head) {
 	}
 	UNLOCK(&catzs->lock);
 
-#if CATZ_DETACH_ON_MAIN_LOOP
-	/* We need to detach the catzs on the main loop */
+	/* We need to detach the catzs->view on the main loop */
 	isc_async_run(isc_loop_main(catzs->loopmgr), dns__catz_zones_detach,
 		      catzs);
-#else
-	dns_catz_zones_detach(&catzs);
-#endif
 }
 
 void

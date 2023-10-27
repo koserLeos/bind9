@@ -304,6 +304,8 @@ ISC_REFCOUNT_TRACE_DECL(dns_view);
 ISC_REFCOUNT_DECL(dns_view);
 #endif
 
+dns_view_t *
+dns_view_weakref(dns_view_t *source);
 void
 dns_view_weakattach(dns_view_t *source, dns_view_t **targetp);
 /*%<

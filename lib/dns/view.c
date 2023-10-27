@@ -540,14 +540,21 @@ dns_view_dialup(dns_view_t *view) {
 	rcu_read_unlock();
 }
 
+dns_view_t *
+dns_view_weakref(dns_view_t *source) {
+	REQUIRE(DNS_VIEW_VALID(source));
+
+	isc_refcount_increment(&source->weakrefs);
+
+	return (source);
+}
+
 void
 dns_view_weakattach(dns_view_t *source, dns_view_t **targetp) {
 	REQUIRE(DNS_VIEW_VALID(source));
 	REQUIRE(targetp != NULL && *targetp == NULL);
 
-	isc_refcount_increment(&source->weakrefs);
-
-	*targetp = source;
+	*targetp = dns_view_weakref(source);
 }
 
 void
