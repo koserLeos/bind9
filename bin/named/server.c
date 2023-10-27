@@ -2848,7 +2848,7 @@ cleanup:
 	}
 	dns_catz_entry_detach(cz->origin, &cz->entry);
 	dns_catz_zone_detach(&cz->origin);
-	dns_view_detach(&cz->view);
+	dns_view_weakdetach(&cz->view);
 	isc_mem_putanddetach(&cz->mctx, cz, sizeof(*cz));
 }
 
@@ -2922,7 +2922,7 @@ cleanup:
 	}
 	dns_catz_entry_detach(cz->origin, &cz->entry);
 	dns_catz_zone_detach(&cz->origin);
-	dns_view_detach(&cz->view);
+	dns_view_weakdetach(&cz->view);
 	isc_mem_putanddetach(&cz->mctx, cz, sizeof(*cz));
 }
 
@@ -2945,15 +2945,11 @@ catz_run(dns_catz_entry_t *entry, dns_catz_zone_t *origin, dns_view_t *view,
 		UNREACHABLE();
 	}
 
-	if (dns_view_ref_unless_zero(view) == NULL) {
-		return (ISC_R_SHUTTINGDOWN);
-	}
-
 	cz = isc_mem_get(view->mctx, sizeof(*cz));
 	*cz = (catz_chgzone_t){
 		.cbd = (catz_cb_data_t *)udata,
 		.mod = (type == CATZ_MODZONE),
-		.view = view,
+		.view = dns_view_weakref(view),
 	};
 	isc_mem_attach(view->mctx, &cz->mctx);
 
