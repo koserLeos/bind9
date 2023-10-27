@@ -413,124 +413,111 @@ destroy(dns_view_t *view) {
 	isc_mem_putanddetach(&view->mctx, view, sizeof(*view));
 }
 
-void
-dns_view_attach(dns_view_t *source, dns_view_t **targetp) {
-	REQUIRE(DNS_VIEW_VALID(source));
-	REQUIRE(targetp != NULL && *targetp == NULL);
+static void
+dns_view__shutdown(dns_view_t *view) {
+	dns_zone_t *mkzone = NULL, *rdzone = NULL;
+	dns_zt_t *zonetable = NULL;
+	dns_resolver_t *resolver = NULL;
+	dns_adb_t *adb = NULL;
+	dns_requestmgr_t *requestmgr = NULL;
+	dns_dispatchmgr_t *dispatchmgr = NULL;
 
-	isc_refcount_increment(&source->references);
+	isc_refcount_destroy(&view->references);
 
-	*targetp = source;
-}
-
-void
-dns_view_detach(dns_view_t **viewp) {
-	dns_view_t *view = NULL;
-
-	REQUIRE(viewp != NULL && DNS_VIEW_VALID(*viewp));
-
-	view = *viewp;
-	*viewp = NULL;
-
-	if (isc_refcount_decrement(&view->references) == 1) {
-		dns_zone_t *mkzone = NULL, *rdzone = NULL;
-		dns_zt_t *zonetable = NULL;
-		dns_resolver_t *resolver = NULL;
-		dns_adb_t *adb = NULL;
-		dns_requestmgr_t *requestmgr = NULL;
-		dns_dispatchmgr_t *dispatchmgr = NULL;
-
-		isc_refcount_destroy(&view->references);
-
-		/* Shutdown the attached objects first */
-		if (view->resolver != NULL) {
-			dns_resolver_shutdown(view->resolver);
-		}
-
-		rcu_read_lock();
-		adb = rcu_dereference(view->adb);
-		if (adb != NULL) {
-			dns_adb_shutdown(adb);
-		}
-		rcu_read_unlock();
-
-		if (view->requestmgr != NULL) {
-			dns_requestmgr_shutdown(view->requestmgr);
-		}
-
-		/* Swap the pointers under the lock */
-		LOCK(&view->lock);
-
-		if (view->resolver != NULL) {
-			resolver = view->resolver;
-			view->resolver = NULL;
-		}
-
-		rcu_read_lock();
-		zonetable = rcu_xchg_pointer(&view->zonetable, NULL);
-		if (zonetable != NULL) {
-			if (view->flush) {
-				dns_zt_flush(zonetable);
-			}
-		}
-		adb = rcu_xchg_pointer(&view->adb, NULL);
-		dispatchmgr = rcu_xchg_pointer(&view->dispatchmgr, NULL);
-		rcu_read_unlock();
-
-		if (view->requestmgr != NULL) {
-			requestmgr = view->requestmgr;
-			view->requestmgr = NULL;
-		}
-		if (view->managed_keys != NULL) {
-			mkzone = view->managed_keys;
-			view->managed_keys = NULL;
-			if (view->flush) {
-				dns_zone_flush(mkzone);
-			}
-		}
-		if (view->redirect != NULL) {
-			rdzone = view->redirect;
-			view->redirect = NULL;
-			if (view->flush) {
-				dns_zone_flush(rdzone);
-			}
-		}
-		if (view->catzs != NULL) {
-			dns_catz_zones_shutdown(view->catzs);
-			dns_catz_zones_detach(&view->catzs);
-		}
-		if (view->ntatable_priv != NULL) {
-			dns_ntatable_shutdown(view->ntatable_priv);
-		}
-		UNLOCK(&view->lock);
-
-		/* Detach outside view lock */
-		if (resolver != NULL) {
-			dns_resolver_detach(&resolver);
-		}
-		synchronize_rcu();
-		if (dispatchmgr != NULL) {
-			dns_dispatchmgr_detach(&dispatchmgr);
-		}
-		if (adb != NULL) {
-			dns_adb_detach(&adb);
-		}
-		if (zonetable != NULL) {
-			dns_zt_detach(&zonetable);
-		}
-		if (requestmgr != NULL) {
-			dns_requestmgr_detach(&requestmgr);
-		}
-		if (mkzone != NULL) {
-			dns_zone_detach(&mkzone);
-		}
-		if (rdzone != NULL) {
-			dns_zone_detach(&rdzone);
-		}
-
-		dns_view_weakdetach(&view);
+	/* Shutdown the attached objects first */
+	if (view->resolver != NULL) {
+		dns_resolver_shutdown(view->resolver);
 	}
+
+	rcu_read_lock();
+	adb = rcu_dereference(view->adb);
+	if (adb != NULL) {
+		dns_adb_shutdown(adb);
+	}
+	rcu_read_unlock();
+
+	if (view->requestmgr != NULL) {
+		dns_requestmgr_shutdown(view->requestmgr);
+	}
+
+	/* Swap the pointers under the lock */
+	LOCK(&view->lock);
+
+	if (view->resolver != NULL) {
+		resolver = view->resolver;
+		view->resolver = NULL;
+	}
+
+	rcu_read_lock();
+	zonetable = rcu_xchg_pointer(&view->zonetable, NULL);
+	if (zonetable != NULL) {
+		if (view->flush) {
+			dns_zt_flush(zonetable);
+		}
+	}
+	adb = rcu_xchg_pointer(&view->adb, NULL);
+	dispatchmgr = rcu_xchg_pointer(&view->dispatchmgr, NULL);
+	rcu_read_unlock();
+
+	if (view->requestmgr != NULL) {
+		requestmgr = view->requestmgr;
+		view->requestmgr = NULL;
+	}
+	if (view->managed_keys != NULL) {
+		mkzone = view->managed_keys;
+		view->managed_keys = NULL;
+		if (view->flush) {
+			dns_zone_flush(mkzone);
+		}
+	}
+	if (view->redirect != NULL) {
+		rdzone = view->redirect;
+		view->redirect = NULL;
+		if (view->flush) {
+			dns_zone_flush(rdzone);
+		}
+	}
+	if (view->catzs != NULL) {
+		dns_catz_zones_shutdown(view->catzs);
+		dns_catz_zones_detach(&view->catzs);
+	}
+	if (view->ntatable_priv != NULL) {
+		dns_ntatable_shutdown(view->ntatable_priv);
+	}
+	UNLOCK(&view->lock);
+
+	/* Detach outside view lock */
+	if (resolver != NULL) {
+		dns_resolver_detach(&resolver);
+	}
+	synchronize_rcu();
+	if (dispatchmgr != NULL) {
+		dns_dispatchmgr_detach(&dispatchmgr);
+	}
+	if (adb != NULL) {
+		dns_adb_detach(&adb);
+	}
+	if (zonetable != NULL) {
+		dns_zt_detach(&zonetable);
+	}
+	if (requestmgr != NULL) {
+		dns_requestmgr_detach(&requestmgr);
+	}
+	if (mkzone != NULL) {
+		dns_zone_detach(&mkzone);
+	}
+	if (rdzone != NULL) {
+		dns_zone_detach(&rdzone);
+	}
+
+	dns_view_weakdetach(&view);
 }
+
+#if DNS_VIEW_TRACE
+ISC_REFCOUNT_TRACE_IMPL(dns_view, dns_view__shutdown);
+#else
+ISC_REFCOUNT_IMPL(dns_view, dns_view__shutdown);
+#endif
 
 static isc_result_t
 dialup(dns_zone_t *zone, void *dummy) {

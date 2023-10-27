@@ -2945,16 +2945,20 @@ catz_run(dns_catz_entry_t *entry, dns_catz_zone_t *origin, dns_view_t *view,
 		UNREACHABLE();
 	}
 
+	if (dns_view_ref_unless_zero(view) == NULL) {
+		return (ISC_R_SHUTTINGDOWN);
+	}
+
 	cz = isc_mem_get(view->mctx, sizeof(*cz));
 	*cz = (catz_chgzone_t){
 		.cbd = (catz_cb_data_t *)udata,
 		.mod = (type == CATZ_MODZONE),
+		.view = view,
 	};
 	isc_mem_attach(view->mctx, &cz->mctx);
 
 	dns_catz_entry_attach(entry, &cz->entry);
 	dns_catz_zone_attach(origin, &cz->origin);
-	dns_view_attach(view, &cz->view);
 
 	isc_async_run(named_g_mainloop, action, cz);
 
