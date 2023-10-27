@@ -1,3 +1,10 @@
+6378.	[func]		Enable extracting the exact address/port that a local
+			wildcard/TCP socket is bound to, improving the accuracy
+			of dnstap logging. Since this requires issuing an extra
+			system call on some hot paths, this new feature is only
+			enabled when the ISC_SOCKET_DETAILS preprocessor macro
+			is set at compile time. [GL #4344]
+
 6377.	[func]		Introduce 'dnssec-ksr', a DNSSEC tool to create
 			Key Signing Requests (KSRs) and Signed Key Responses
 			(SKRs). [GL #1128]
