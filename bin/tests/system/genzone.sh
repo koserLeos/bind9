@@ -382,7 +382,17 @@ zonemd02		ZONEMD	2019020700 1 2 (
                                 2E0CC4827E7A3204F166B47E5613FD27
 				)
 
-; type 64 -- 98 (unassigned)
+; type 64
+
+svcb0			SVCB	0 example.net.
+svcb1			SVCB	1 . port=60
+
+; type 65
+
+https0			HTTPS	0 example.net.
+https1			HTTPS	1 . port=60
+
+; type 66 -- 98 (unassigned)
 
 ; type 99
 spf01			SPF	"v=spf1 -all"
@@ -493,12 +503,6 @@ dlv			DLV	30795 1 1 (
 ; type 32770 -- 65279 (unassigned)
 
 ; type 65280-65534 (private use)
-
-https0			HTTPS	0 example.net.
-https1			HTTPS	1 . port=60
-
-svcb0			SVCB	0 example.net.
-svcb1			SVCB	1 . port=60
 
 ; keydata (internal type used for managed keys)
 keydata			TYPE65533	\# 0
