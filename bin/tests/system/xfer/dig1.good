@@ -110,6 +110,9 @@ ninfo12.example.	3600	IN	NINFO	"\"foo\""
 ninfo13.example.	3600	IN	NINFO	"foo;"
 ninfo14.example.	3600	IN	NINFO	"foo;"
 ninfo15.example.	3600	IN	NINFO	"bar\\;"
+notify.example.		3600	IN	NOTIFY	DNSKEY 1 5900 ctrl.multi-signer.example.
+notify.example.		3600	IN	NOTIFY	CDS 1 59 scanner.parent.
+notify.example.		3600	IN	NOTIFY	CSYNC 1 59 scanner.parent.
 ns2.example.		3600	IN	A	10.53.0.2
 ns3.example.		3600	IN	A	10.53.0.3
 nsap-ptr01.example.	3600	IN	NSAP-PTR .

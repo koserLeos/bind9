@@ -504,6 +504,10 @@ dlv			DLV	30795 1 1 (
 
 ; type 65280-65534 (private use)
 
+notify		         NOTIFY		CDS	1 59 scanner.parent.
+notify		         NOTIFY		CSYNC	1 59 scanner.parent.
+notify		         NOTIFY		DSNSKEY	1 5900 ctrl.multi-signer.example.
+
 ; keydata (internal type used for managed keys)
 keydata			TYPE65533	\# 0
 keydata			TYPE65533	\# 6 010203040506
