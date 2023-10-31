@@ -4411,6 +4411,38 @@ Tuning
    seconds longer than the trigger TTL; if not, :iscman:`named`
    silently adjusts it upward. The default eligibility TTL is ``9``.
 
+.. namedconf:statement:: umbrella-virtual-appliance
+   :tags: server, query
+   :short: Sets the Virtual Appliance ID to send Cisco Umbrella servers
+
+   If Umbrella is enabled at compile time, this option sets the Virtual
+   Appliance ID to be sent by ``named`` when forwarding a query to a Cisco
+   Umbrella server. This can cause leakage of private information, and
+   therefore should only be set by Cisco Umbrella customers; see
+   :ref:`umbrella` for details.  This field is represented as an integer.
+
+.. namedconf:statement:: umbrella-organization
+   :tags: server, query
+   :short: Sets the Organization ID to send Cisco Umbrella servers
+
+   If Umbrella is enabled at compile time, this option sets the
+   Organization ID to be sent by ``named`` when forwarding a query to a
+   Cisco Umbrella server. This can cause leakage of private information,
+   and therefore should only be set by Cisco Umbrella customers; see
+   :ref:`umbrella` for details.  This field is represented as an integer.
+
+.. namedconf:statement:: umbrella-device
+   :tags: server, query
+   :short: Sets the Device ID to send Cisco Umbrella servers
+
+   If Umbrella is enabled at compile time, this option sets the Device ID
+   to be sent by ``named`` when forwarding a query to a Cisco Umbrella
+   server.  This can cause leakage of private information, and therefore
+   should only be set by Cisco Umbrella customers; see :ref:`umbrella` for
+   details.  This field is represented as a hexadecimal value 2 to 16
+   digits in length, representing 1 to 8 bytes. There must be an even
+   number of digits.
+
 .. namedconf:statement:: v6-bias
    :tags: server, query
    :short: Indicates the number of milliseconds of preference to give to IPv6 name servers.
@@ -5646,6 +5678,38 @@ Recursive ECS Options
   cached with ECS, regardless of whether CNAME is included
   in ``ecs-types``.
 
+.. _umbrella:
+
+Cisco Umbrella Support
+^^^^^^^^^^^^^^^^^^^^^^
+
+In this release of BIND, ``named`` supports forwarding of queries to Cisco
+Umbrella servers, if compiled with ``configure --enable-umbrella``. Cisco
+Umbrella identifies customer queries via a custom "Protoss" EDNS option
+that is included with each query.
+
+Protoss options may include any combination of three identification codes:
+a Virtual Appliance ID, an Organization ID, or a Device ID. These are
+configured in ``named.conf`` by setting the ``umbrella-virtual-appliance``,
+``umbrella-organization``, and ``umbrella-device`` options. If any of these
+options is set, then when ``named`` is forwarding a message to Cisco
+Umbrella server, it can include a Protoss option in the query.
+
+Cisco Umbrella server addresses must be explicitly configured in a
+``server`` statement with the ``send-umbrella`` option set to ``yes``.
+Protoss options will not be sent to any server that has not been explicitly
+configured to receive them.
+
+Responses from Cisco Umbrella servers are specifically tailored to the
+client, and are therefore not cached by ``named``, so that other clients
+can get other answers. The TTLs of these responses are automatically
+lowered to zero.
+
+Note that, in order to identify the client, the Protoss option includes a
+copy of the client's IP address. This has serious implications for client
+privacy. The Protoss option must be configured cautiously and only by Cisco
+Umbrella customers.
+
 ``server`` Block Grammar
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. namedconf:statement:: server
@@ -5665,7 +5729,6 @@ file or inside a :any:`view` statement. If a :any:`view` statement contains
 one or more :namedconf:ref:`server` statements, only those apply to the view and any
 top-level ones are ignored. If a view contains no :namedconf:ref:`server` statements,
 any top-level :namedconf:ref:`server` statements are used as defaults.
-
 
 .. namedconf:statement:: bogus
    :tags: server
@@ -5729,6 +5792,17 @@ any top-level :namedconf:ref:`server` statements are used as defaults.
    logged warning. Note: this option is not currently compatible with no
    TSIG or SIG(0), as the EDNS OPT record containing the padding would have
    to be added to the packet after it had already been signed.
+
+.. namedconf:statement:: send-umbrella
+   :tags: server
+   :short: Enable use of the Cisco Umbrella feature
+
+   The :any:`send-umbrella` ooption determines whether to treat a
+   server as a Cisco Umbrella server.  If set to ``yes``, and if Cisco
+   Umbrella has been enabled and compile time and configured via the
+   ``umbrella-virtual-appliance``, ``umbrella-organization``, or
+   ``umbrella-device`` options, then ``named`` will send an EDNS Protoss
+   option when forwarding queries to the server.
 
 .. namedconf:statement:: tcp-only
    :tags: server
