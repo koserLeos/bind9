@@ -18,7 +18,7 @@
 #include <isc/urcu.h>
 
 #include <dns/nsec3.h>
-#include <dns/rbt.h>
+#include <dns/qp.h>
 #include <dns/types.h>
 
 /*%
@@ -29,7 +29,7 @@
 #define VALID_RBTDB(rbtdb) \
 	((rbtdb) != NULL && (rbtdb)->common.impmagic == RBTDB_MAGIC)
 
-#define RBTDB_HEADERNODE(h) ((dns_rbtnode_t *)((h)->node))
+#define RBTDB_HEADERNODE(h) ((dns_qpdata_t *)((h)->node))
 
 /*
  * Allow clients with a virtual time of up to 5 minutes in the past to see
@@ -49,7 +49,7 @@
 ISC_LANG_BEGINDECLS
 
 typedef struct rbtdb_changed {
-	dns_rbtnode_t *node;
+	dns_qpdata_t *node;
 	bool dirty;
 	ISC_LINK(struct rbtdb_changed) link;
 } rbtdb_changed_t;
@@ -92,6 +92,35 @@ struct dns_rbtdb_version {
 
 typedef ISC_LIST(dns_rbtdb_version_t) rbtdb_versionlist_t;
 
+struct dns_qpdata {
+	dns_fixedname_t fn;
+	dns_name_t *name;
+	isc_mem_t *mctx;
+	isc_refcount_t references;
+	void *data;
+	uint16_t locknum;
+	/* XXX: most of these bitfields aren't needed anymore */
+	unsigned int		   : 0; /* start of bitfields */
+	uint8_t dirty		   : 1;
+	uint8_t wild		   : 1;
+	unsigned int is_root	   : 1; /*%< range is 0..1 */
+	unsigned int color	   : 1; /*%< range is 0..1 */
+	unsigned int find_callback : 1; /*%< range is 0..1 */
+	bool absolute		   : 1; /*%< node with absolute DNS name */
+	unsigned int nsec	   : 2; /*%< range is 0..3 */
+	unsigned int namelen	   : 8; /*%< range is 1..255 */
+	unsigned int offsetlen	   : 8; /*%< range is 1..128 */
+	unsigned int oldnamelen	   : 8; /*%< range is 1..255 */
+	unsigned int		   : 0; /* end of bitfields */
+
+	/*%
+	 * Used for LRU cache.  This linked list is used to mark nodes which
+	 * have no data any longer, but we cannot unlink at that exact moment
+	 * because we did not or could not obtain a write lock on the tree.
+	 */
+	ISC_LINK(dns_qpdata_t) deadlink;
+};
+
 struct dns_rbtdb {
 	/* Unlocked. */
 	dns_db_t common;
@@ -102,8 +131,8 @@ struct dns_rbtdb {
 	/* Locks for individual tree nodes */
 	unsigned int node_lock_count;
 	db_nodelock_t *node_locks;
-	dns_rbtnode_t *origin_node;
-	dns_rbtnode_t *nsec3_origin_node;
+	dns_qpdata_t *origin;
+	dns_qpdata_t *nsec3_origin;
 	dns_stats_t *rrsetstats;     /* cache DB only */
 	isc_stats_t *cachestats;     /* cache DB only */
 	isc_stats_t *gluecachestats; /* zone DB only */
@@ -136,7 +165,7 @@ struct dns_rbtdb {
 	 * Temporary storage for stale cache nodes and dynamically deleted
 	 * nodes that await being cleaned up.
 	 */
-	dns_rbtnodelist_t *deadnodes;
+	dns_qpdatalist_t *deadnodes;
 
 	/*
 	 * Heaps.  These are used for TTL based expiry in a cache,
@@ -149,9 +178,9 @@ struct dns_rbtdb {
 	isc_heapcompare_t sooner;
 
 	/* Locked by tree_lock. */
-	dns_rbt_t *tree;
-	dns_rbt_t *nsec;
-	dns_rbt_t *nsec3;
+	dns_qp_t *tree;
+	dns_qp_t *nsec;
+	dns_qp_t *nsec3;
 
 	/* Unlocked */
 	unsigned int quantum;
@@ -169,7 +198,7 @@ typedef struct {
 	bool copy_name;
 	bool need_cleanup;
 	bool wild;
-	dns_rbtnode_t *zonecut;
+	dns_qpdata_t *zonecut;
 	dns_slabheader_t *zonecut_header;
 	dns_slabheader_t *zonecut_sigheader;
 	dns_fixedname_t zonecut_name;
@@ -228,7 +257,7 @@ isc_result_t
 dns__rbtdb_findnode(dns_db_t *db, const dns_name_t *name, bool create,
 		    dns_dbnode_t **nodep DNS__DB_FLARG);
 isc_result_t
-dns__rbtdb_findnodeintree(dns_rbtdb_t *rbtdb, dns_rbt_t *tree,
+dns__rbtdb_findnodeintree(dns_rbtdb_t *rbtdb, dns_qp_t *tree,
 			  const dns_name_t *name, bool create,
 			  dns_dbnode_t **nodep DNS__DB_FLARG);
 /*%<
@@ -327,7 +356,7 @@ dns__rbtdb_unlocknode(dns_db_t *db, dns_dbnode_t *node, isc_rwlocktype_t type);
  * rbt-cachedb.c:
  */
 void
-dns__rbtdb_bindrdataset(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
+dns__rbtdb_bindrdataset(dns_rbtdb_t *rbtdb, dns_qpdata_t *node,
 			dns_slabheader_t *header, isc_stdtime_t now,
 			isc_rwlocktype_t locktype,
 			dns_rdataset_t *rdataset DNS__DB_FLARG);
@@ -339,7 +368,7 @@ void
 dns__rbtdb_freeglue(dns_glue_t *glue_list);
 
 void
-dns__rbtdb_newref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
+dns__rbtdb_newref(dns_rbtdb_t *rbtdb, dns_qpdata_t *node,
 		  isc_rwlocktype_t locktype DNS__DB_FLARG);
 /*%<
  * Increment the reference counter to a node in an RBT database.
@@ -350,10 +379,9 @@ dns__rbtdb_newref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
  */
 
 bool
-dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
-		  uint32_t least_serial, isc_rwlocktype_t *nlocktypep,
-		  isc_rwlocktype_t *tlocktypep, bool tryupgrade,
-		  bool pruning DNS__DB_FLARG);
+dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_qpdata_t *node, uint32_t least_serial,
+		  isc_rwlocktype_t *nlocktypep, isc_rwlocktype_t *tlocktypep,
+		  bool tryupgrade, bool pruning DNS__DB_FLARG);
 /*%<
  * Decrement the reference counter to a node in an RBT database.
  * 'nlocktypep' and 'tlocktypep' are pointers to the current status
@@ -364,7 +392,7 @@ dns__rbtdb_decref(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
  */
 
 isc_result_t
-dns__rbtdb_add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode,
+dns__rbtdb_add(dns_rbtdb_t *rbtdb, dns_qpdata_t *node,
 	       const dns_name_t *nodename, dns_rbtdb_version_t *rbtversion,
 	       dns_slabheader_t *newheader, unsigned int options, bool loading,
 	       dns_rdataset_t *addedrdataset, isc_stdtime_t now DNS__DB_FLARG);
@@ -401,18 +429,18 @@ dns__rbtdb_setttl(dns_slabheader_t *header, dns_ttl_t newttl);
  * Functions specific to zone databases that are also called from rbtdb.c.
  */
 void
-dns__zonerbt_resigninsert(dns_rbtdb_t *rbtdb, int idx,
-			  dns_slabheader_t *newheader);
+dns__zoneqp_resigninsert(dns_rbtdb_t *rbtdb, int idx,
+			 dns_slabheader_t *newheader);
 void
-dns__zonerbt_resigndelete(dns_rbtdb_t *rbtdb, dns_rbtdb_version_t *version,
-			  dns_slabheader_t *header DNS__DB_FLARG);
+dns__zoneqp_resigndelete(dns_rbtdb_t *rbtdb, dns_rbtdb_version_t *version,
+			 dns_slabheader_t *header DNS__DB_FLARG);
 /*%<
  * Insert/delete a node from the zone database's resigning heap.
  */
 
 isc_result_t
-dns__zonerbt_wildcardmagic(dns_rbtdb_t *rbtdb, const dns_name_t *name,
-			   bool lock);
+dns__zoneqp_wildcardmagic(dns_rbtdb_t *rbtdb, const dns_name_t *name,
+			  bool lock);
 /*%<
  * Add the necessary magic for the wildcard name 'name'
  * to be found in 'rbtdb'.
@@ -429,8 +457,7 @@ dns__zonerbt_wildcardmagic(dns_rbtdb_t *rbtdb, const dns_name_t *name,
  * The tree must be write-locked.
  */
 isc_result_t
-dns__zonerbt_addwildcards(dns_rbtdb_t *rbtdb, const dns_name_t *name,
-			  bool lock);
+dns__zoneqp_addwildcards(dns_rbtdb_t *rbtdb, const dns_name_t *name, bool lock);
 /*%<
  * If 'name' is or contains a wildcard name, create a node for it in the
  * database. The tree must be write-locked.
@@ -440,12 +467,25 @@ dns__zonerbt_addwildcards(dns_rbtdb_t *rbtdb, const dns_name_t *name,
  * Cache-specific functions that are called from rbtdb.c
  */
 void
-dns__cacherbt_expireheader(dns_slabheader_t *header,
-			   isc_rwlocktype_t *tlocktypep,
-			   dns_expire_t reason DNS__DB_FLARG);
+dns__cacheqp_expireheader(dns_slabheader_t *header,
+			  isc_rwlocktype_t *tlocktypep,
+			  dns_expire_t reason DNS__DB_FLARG);
 void
-dns__cacherbt_overmem(dns_rbtdb_t *rbtdb, dns_slabheader_t *newheader,
-		      unsigned int locknum_start,
-		      isc_rwlocktype_t *tlocktypep DNS__DB_FLARG);
+dns__cacheqp_overmem(dns_rbtdb_t *rbtdb, dns_slabheader_t *newheader,
+		     unsigned int locknum_start,
+		     isc_rwlocktype_t *tlocktypep DNS__DB_FLARG);
+
+#ifdef DNS_DB_NODETRACE
+#define dns_qpdata_ref(ptr) dns_qpdata__ref(ptr, __func__, __FILE__, __LINE__)
+#define dns_qpdata_unref(ptr) \
+	dns_qpdata__unref(ptr, __func__, __FILE__, __LINE__)
+#define dns_qpdata_attach(ptr, ptrp) \
+	dns_qpdata__attach(ptr, ptrp, __func__, __FILE__, __LINE__)
+#define dns_qpdata_detach(ptrp) \
+	dns_qpdata__detach(ptrp, __func__, __FILE__, __LINE__)
+ISC_REFCOUNT_TRACE_DECL(dns_qpdata);
+#else
+ISC_REFCOUNT_DECL(dns_qpdata);
+#endif
 
 ISC_LANG_ENDDECLS

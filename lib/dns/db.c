@@ -76,13 +76,14 @@ static void
 initialize(void) {
 	isc_rwlock_init(&implock);
 
-	rbtimp.name = "rbt";
-	rbtimp.create = dns__rbtdb_create;
-	rbtimp.mctx = NULL;
-	rbtimp.driverarg = NULL;
-	ISC_LINK_INIT(&rbtimp, link);
-
 	ISC_LIST_INIT(implementations);
+
+	rbtimp = (dns_dbimplementation_t){
+		.name = "rbt",
+		.create = dns__rbtdb_create,
+		.link = ISC_LINK_INITIALIZER,
+	};
+
 	ISC_LIST_APPEND(implementations, &rbtimp, link);
 }
 
