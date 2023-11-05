@@ -103,6 +103,9 @@
 #define CHECKDS_MAGIC		   ISC_MAGIC('C', 'h', 'D', 'S')
 #define DNS_CHECKDS_VALID(checkds) ISC_MAGIC_VALID(checkds, CHECKDS_MAGIC)
 
+#define NOTIFYCDS_MAGIC		  ISC_MAGIC('N', 'C', 'D', 'S')
+#define DNS_NOTIFYCDS_VALID(ncds) ISC_MAGIC_VALID(ncds, NOTIFYCDS_MAGIC)
+
 #define STUB_MAGIC	     ISC_MAGIC('S', 't', 'u', 'b')
 #define DNS_STUB_VALID(stub) ISC_MAGIC_VALID(stub, STUB_MAGIC)
 
@@ -126,7 +129,7 @@
  */
 #define RANGE(a, min, max) (((a) < (min)) ? (min) : ((a) < (max) ? (a) : (max)))
 
-#define NSEC3REMOVE(x) (((x) & DNS_NSEC3FLAG_REMOVE) != 0)
+#define NSEC3REMOVE(x) (((x)&DNS_NSEC3FLAG_REMOVE) != 0)
 
 /*%
  * Key flags
@@ -166,6 +169,7 @@
 #endif			   /* ifndef DNS_DUMP_DELAY */
 
 typedef struct dns_notify dns_notify_t;
+typedef struct dns_notifycds dns_notifycds_t;
 typedef struct dns_checkds dns_checkds_t;
 typedef struct dns_stub dns_stub_t;
 typedef struct dns_load dns_load_t;
@@ -176,6 +180,7 @@ typedef struct dns_signing dns_signing_t;
 typedef ISC_LIST(dns_signing_t) dns_signinglist_t;
 typedef struct dns_nsec3chain dns_nsec3chain_t;
 typedef ISC_LIST(dns_nsec3chain_t) dns_nsec3chainlist_t;
+typedef struct dns_notifyfetch dns_notifyfetch_t;
 typedef struct dns_nsfetch dns_nsfetch_t;
 typedef struct dns_keyfetch dns_keyfetch_t;
 typedef struct dns_asyncload dns_asyncload_t;
@@ -319,7 +324,12 @@ struct dns_zone {
 	uint32_t nsfetchcount;
 	uint32_t parent_nscount;
 
-	dns_remote_t notify;
+	dns_remote_t notifysoa;
+	dns_remote_t notifycds;
+	dns_notifycdstype_t notifycdstype;
+	uint32_t notifyfetchcount;
+	uint32_t parent_notifycount;
+
 	dns_notifytype_t notifytype;
 	isc_sockaddr_t notifyfrom;
 	isc_sockaddr_t notifysrc4;
@@ -343,6 +353,7 @@ struct dns_zone {
 	bool zero_no_soa_ttl;
 	dns_severity_t check_names;
 	ISC_LIST(dns_notify_t) notifies;
+	ISC_LIST(dns_notifycds_t) cds_notifies;
 	ISC_LIST(dns_checkds_t) checkds_requests;
 	dns_request_t *request;
 	dns_loadctx_t *loadctx;
@@ -668,6 +679,26 @@ struct dns_checkds {
 };
 
 /*%
+ * Hold notifycds state.
+ */
+struct dns_notifycds {
+	unsigned int magic;
+	dns_notify_flags_t flags;
+	isc_mem_t *mctx;
+	dns_zone_t *zone;
+	dns_adbfind_t *find;
+	dns_request_t *request;
+	dns_name_t ns;
+	uint32_t port;
+	isc_sockaddr_t src;
+	isc_sockaddr_t dst;
+	dns_tsigkey_t *key;
+	dns_transport_t *transport;
+	ISC_LINK(dns_notifycds_t) link;
+	isc_rlevent_t *rlevent;
+};
+
+/*%
  *	dns_stub holds state while performing a 'stub' transfer.
  *	'db' is the zone's 'db' or a new one if this is the initial
  *	transfer.
@@ -777,6 +808,16 @@ struct dns_nsfetch {
 	dns_name_t pname;
 	dns_rdataset_t nsrrset;
 	dns_rdataset_t nssigset;
+	dns_zone_t *zone;
+	dns_fetch_t *fetch;
+};
+
+struct dns_notifyfetch {
+	isc_mem_t *mctx;
+	dns_fixedname_t name;
+	dns_name_t pname;
+	dns_rdataset_t notifyrrset;
+	dns_rdataset_t notifysigset;
 	dns_zone_t *zone;
 	dns_fetch_t *fetch;
 };
@@ -1104,6 +1145,7 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx, unsigned int tid) {
 		.maxretry = DNS_ZONE_MAXRETRY,
 		.minretry = DNS_ZONE_MINRETRY,
 		.checkdstype = dns_checkdstype_yes,
+		.notifycdstype = dns_notifycdstype_yes,
 		.notifytype = dns_notifytype_yes,
 		.zero_no_soa_ttl = true,
 		.check_names = dns_severity_ignore,
@@ -1155,7 +1197,8 @@ dns_zone_create(dns_zone_t **zonep, isc_mem_t *mctx, unsigned int tid) {
 
 	zone->primaries = r;
 	zone->parentals = r;
-	zone->notify = r;
+	zone->notifysoa = r;
+	zone->notifycds = r;
 	zone->defaultkasp = NULL;
 
 	isc_stats_create(mctx, &zone->gluecachestats,
@@ -1421,6 +1464,15 @@ dns_zone_setnotifytype(dns_zone_t *zone, dns_notifytype_t notifytype) {
 
 	LOCK_ZONE(zone);
 	zone->notifytype = notifytype;
+	UNLOCK_ZONE(zone);
+}
+
+void
+dns_zone_setnotifycdstype(dns_zone_t *zone, dns_notifycdstype_t notifycdstype) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	LOCK_ZONE(zone);
+	zone->notifycdstype = notifycdstype;
 	UNLOCK_ZONE(zone);
 }
 
@@ -5897,11 +5949,11 @@ dns_zone_setalsonotify(dns_zone_t *zone, isc_sockaddr_t *addresses,
 	remote.tlsnames = tlsnames;
 	remote.addrcnt = count;
 
-	if (dns_remote_equal(&zone->notify, &remote)) {
+	if (dns_remote_equal(&zone->notifysoa, &remote)) {
 		goto unlock;
 	}
 
-	dns_remote_clear(&zone->notify);
+	dns_remote_clear(&zone->notifysoa);
 
 	/*
 	 * If count == 0, don't allocate any space for servers to notify.
@@ -5913,7 +5965,7 @@ dns_zone_setalsonotify(dns_zone_t *zone, isc_sockaddr_t *addresses,
 	/*
 	 * Now set up the notify address and key lists.
 	 */
-	dns_remote_init(&zone->notify, count, addresses, sources, keynames,
+	dns_remote_init(&zone->notifysoa, count, addresses, sources, keynames,
 			tlsnames, true, zone->mctx);
 
 unlock:
@@ -12437,20 +12489,22 @@ zone_notify(dns_zone_t *zone, isc_time_t *now) {
 	 */
 	LOCK_ZONE(zone);
 
-	dns_remote_reset(&zone->notify, false);
-	while (!dns_remote_done(&zone->notify)) {
+	dns_remote_reset(&zone->notifysoa, false);
+	while (!dns_remote_done(&zone->notifysoa)) {
 		dns_tsigkey_t *key = NULL;
 		dns_transport_t *transport = NULL;
 		dns_notify_t *notify = NULL;
 		dns_view_t *view = dns_zone_getview(zone);
 
-		if (dns_remote_keyname(&zone->notify) != NULL) {
-			dns_name_t *keyname = dns_remote_keyname(&zone->notify);
+		if (dns_remote_keyname(&zone->notifysoa) != NULL) {
+			dns_name_t *keyname =
+				dns_remote_keyname(&zone->notifysoa);
 			(void)dns_view_gettsig(view, keyname, &key);
 		}
 
-		if (dns_remote_tlsname(&zone->notify) != NULL) {
-			dns_name_t *tlsname = dns_remote_tlsname(&zone->notify);
+		if (dns_remote_tlsname(&zone->notifysoa) != NULL) {
+			dns_name_t *tlsname =
+				dns_remote_tlsname(&zone->notifysoa);
 			(void)dns_view_gettransport(view, DNS_TRANSPORT_TLS,
 						    tlsname, &transport);
 
@@ -12461,8 +12515,8 @@ zone_notify(dns_zone_t *zone, isc_time_t *now) {
 
 		/* TODO: glue the transport to the notify */
 
-		dst = dns_remote_curraddr(&zone->notify);
-		src = dns_remote_sourceaddr(&zone->notify);
+		dst = dns_remote_curraddr(&zone->notifysoa);
+		src = dns_remote_sourceaddr(&zone->notifysoa);
 		INSIST(isc_sockaddr_pf(&src) == isc_sockaddr_pf(&dst));
 
 		if (notify_isqueued(zone, flags, NULL, &dst, key, transport)) {
@@ -12514,7 +12568,7 @@ zone_notify(dns_zone_t *zone, isc_time_t *now) {
 			loggednotify = true;
 		}
 	next:
-		dns_remote_next(&zone->notify, false);
+		dns_remote_next(&zone->notifysoa, false);
 	}
 	UNLOCK_ZONE(zone);
 
@@ -21217,6 +21271,875 @@ zone_checkds(dns_zone_t *zone) {
 }
 
 static void
+notifycds_find_address(dns_notifycds_t *notifycds);
+static void
+notifycds_send_toaddr(void *arg);
+static void
+notifycds_send_tons(dns_notifycds_t *notifycds);
+static bool
+notifycds_isqueued(dns_zone_t *zone, dns_name_t *name, isc_sockaddr_t *addr,
+		   dns_tsigkey_t *key, dns_transport_t *transport);
+static isc_result_t
+notifycds_create(isc_mem_t *mctx, unsigned int flags,
+		 dns_notifycds_t **notifycdsp);
+static void
+notifycds_createmessage(dns_zone_t *zone, dns_message_t **messagep);
+static void
+notifycds_done(void *arg);
+static void
+notifyfetch_levelup(dns_notifyfetch_t *notifyfetch);
+
+static void
+notifycds_destroy(dns_notifycds_t *notifycds, bool locked) {
+	REQUIRE(DNS_NOTIFYCDS_VALID(notifycds));
+
+	dns_zone_log(notifycds->zone, ISC_LOG_DEBUG(3),
+		     "notifycds: destroy NOTIFY CDS");
+
+	if (notifycds->zone != NULL) {
+		if (!locked) {
+			LOCK_ZONE(notifycds->zone);
+		}
+		REQUIRE(LOCKED_ZONE(notifycds->zone));
+		if (ISC_LINK_LINKED(notifycds, link)) {
+			ISC_LIST_UNLINK(notifycds->zone->cds_notifies,
+					notifycds, link);
+		}
+		if (!locked) {
+			UNLOCK_ZONE(notifycds->zone);
+		}
+		if (locked) {
+			zone_idetach(&notifycds->zone);
+		} else {
+			dns_zone_idetach(&notifycds->zone);
+		}
+	}
+	if (notifycds->find != NULL) {
+		dns_adb_destroyfind(&notifycds->find);
+	}
+	if (notifycds->request != NULL) {
+		dns_request_destroy(&notifycds->request);
+	}
+	if (dns_name_dynamic(&notifycds->ns)) {
+		dns_name_free(&notifycds->ns, notifycds->mctx);
+	}
+	if (notifycds->key != NULL) {
+		dns_tsigkey_detach(&notifycds->key);
+	}
+	if (notifycds->transport != NULL) {
+		dns_transport_detach(&notifycds->transport);
+	}
+	INSIST(notifycds->rlevent == NULL);
+	isc_mem_putanddetach(&notifycds->mctx, notifycds, sizeof(*notifycds));
+}
+
+/*
+ * XXXAG should check for DNS_ZONEFLG_EXITING
+ */
+static void
+process_notifycds_adb_event(void *arg) {
+	dns_adbfind_t *find = (dns_adbfind_t *)arg;
+	dns_notifycds_t *notifycds = (dns_notifycds_t *)find->cbarg;
+	dns_adbstatus_t astat = find->status;
+
+	REQUIRE(DNS_NOTIFYCDS_VALID(notifycds));
+	REQUIRE(find == notifycds->find);
+
+	switch (astat) {
+	case DNS_ADB_MOREADDRESSES:
+		dns_adb_destroyfind(&notifycds->find);
+		notifycds_find_address(notifycds);
+		return;
+
+	case DNS_ADB_NOMOREADDRESSES:
+		LOCK_ZONE(notifycds->zone);
+		notifycds_send_tons(notifycds);
+		UNLOCK_ZONE(notifycds->zone);
+		break;
+
+	default:
+		break;
+	}
+
+	notifycds_destroy(notifycds, false);
+}
+
+static isc_result_t
+notifycds_send_queue(dns_notifycds_t *notifycds) {
+	return (isc_ratelimiter_enqueue(
+		notifycds->zone->zmgr->notifyrl, notifycds->zone->loop,
+		notifycds_send_toaddr, notifycds, &notifycds->rlevent));
+}
+
+static void
+notifycds_send_toaddr(void *arg) {
+	dns_notifycds_t *notifycds = (dns_notifycds_t *)arg;
+	isc_result_t result;
+	dns_message_t *message = NULL;
+	isc_netaddr_t dstip;
+	dns_tsigkey_t *key = NULL;
+	char addrbuf[ISC_SOCKADDR_FORMATSIZE];
+	isc_sockaddr_t src;
+	unsigned int options, timeout;
+	bool have_notifycdssource = false;
+	bool canceled = notifycds->rlevent->canceled;
+
+	REQUIRE(DNS_NOTIFYCDS_VALID(notifycds));
+
+	isc_rlevent_free(&notifycds->rlevent);
+
+	LOCK_ZONE(notifycds->zone);
+
+	if (DNS_ZONE_FLAG(notifycds->zone, DNS_ZONEFLG_LOADED) == 0 ||
+	    canceled || DNS_ZONE_FLAG(notifycds->zone, DNS_ZONEFLG_EXITING) ||
+	    notifycds->zone->view->requestmgr == NULL ||
+	    notifycds->zone->db == NULL)
+	{
+		result = ISC_R_CANCELED;
+		goto cleanup;
+	}
+
+	/*
+	 * The raw IPv4 address should also exist.  Don't send to the
+	 * mapped form.
+	 */
+	if (isc_sockaddr_pf(&notifycds->dst) == PF_INET6 &&
+	    IN6_IS_ADDR_V4MAPPED(&notifycds->dst.type.sin6.sin6_addr))
+	{
+		isc_sockaddr_format(&notifycds->dst, addrbuf, sizeof(addrbuf));
+		dns_zone_log(notifycds->zone, ISC_LOG_DEBUG(3),
+			     "notifycds: ignoring IPv6 mapped IPV4 address: %s",
+			     addrbuf);
+		result = ISC_R_CANCELED;
+		goto cleanup;
+	}
+
+	notifycds_createmessage(notifycds->zone, &message);
+
+	isc_sockaddr_format(&notifycds->dst, addrbuf, sizeof(addrbuf));
+	if (notifycds->key != NULL) {
+		/* Transfer ownership of key */
+		key = notifycds->key;
+		notifycds->key = NULL;
+	} else {
+		isc_netaddr_fromsockaddr(&dstip, &notifycds->dst);
+		result = dns_view_getpeertsig(notifycds->zone->view, &dstip,
+					      &key);
+		if (result != ISC_R_SUCCESS && result != ISC_R_NOTFOUND) {
+			dns_zone_log(notifycds->zone, ISC_LOG_ERROR,
+				     "notifycds: DS query to %s not sent. "
+				     "Peer TSIG key lookup failure.",
+				     addrbuf);
+			goto cleanup_message;
+		}
+	}
+
+	if (key != NULL) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+
+		dns_name_format(key->name, namebuf, sizeof(namebuf));
+		dns_zone_log(notifycds->zone, ISC_LOG_DEBUG(3),
+			     "notifycds: sending DS query to %s : TSIG (%s)",
+			     addrbuf, namebuf);
+	} else {
+		dns_zone_log(notifycds->zone, ISC_LOG_DEBUG(3),
+			     "notifycds: sending DS query to %s", addrbuf);
+	}
+	options = 0;
+	if (notifycds->zone->view->peers != NULL) {
+		dns_peer_t *peer = NULL;
+		bool usetcp = false;
+		result = dns_peerlist_peerbyaddr(notifycds->zone->view->peers,
+						 &dstip, &peer);
+		if (result == ISC_R_SUCCESS) {
+			result = dns_peer_getquerysource(peer, &src);
+			if (result == ISC_R_SUCCESS) {
+				have_notifycdssource = true;
+			}
+			result = dns_peer_getforcetcp(peer, &usetcp);
+			if (result == ISC_R_SUCCESS && usetcp) {
+				options |= DNS_FETCHOPT_TCP;
+			}
+		}
+	}
+	switch (isc_sockaddr_pf(&notifycds->dst)) {
+	case PF_INET:
+		if (!have_notifycdssource) {
+			isc_sockaddr_t any;
+			isc_sockaddr_any(&any);
+
+			src = notifycds->src;
+			if (isc_sockaddr_equal(&src, &any)) {
+				src = notifycds->zone->parentalsrc4;
+			}
+		}
+		break;
+	case PF_INET6:
+		if (!have_notifycdssource) {
+			isc_sockaddr_t any;
+			isc_sockaddr_any6(&any);
+
+			src = notifycds->src;
+			if (isc_sockaddr_equal(&src, &any)) {
+				src = notifycds->zone->parentalsrc6;
+			}
+		}
+		break;
+	default:
+		result = ISC_R_NOTIMPLEMENTED;
+		goto cleanup_key;
+	}
+
+	dns_zone_log(notifycds->zone, ISC_LOG_DEBUG(3),
+		     "notifycds: create request for DS query to %s", addrbuf);
+
+	timeout = 5;
+	options |= DNS_REQUESTOPT_TCP;
+	result = dns_request_create(notifycds->zone->view->requestmgr, message,
+				    &src, &notifycds->dst, NULL, NULL, options,
+				    key, timeout * 3 + 1, timeout, 2,
+				    notifycds->zone->loop, notifycds_done,
+				    notifycds, &notifycds->request);
+	if (result != ISC_R_SUCCESS) {
+		dns_zone_log(notifycds->zone, ISC_LOG_DEBUG(3),
+			     "notifycds: dns_request_create() to %s failed: %s",
+			     addrbuf, isc_result_totext(result));
+	}
+
+cleanup_key:
+	if (key != NULL) {
+		dns_tsigkey_detach(&key);
+	}
+cleanup_message:
+	dns_message_detach(&message);
+cleanup:
+	UNLOCK_ZONE(notifycds->zone);
+	if (result != ISC_R_SUCCESS) {
+		notifycds_destroy(notifycds, false);
+	}
+}
+
+static void
+notifycds_send_tons(dns_notifycds_t *notifycds) {
+	dns_adbaddrinfo_t *ai;
+	isc_sockaddr_t dst;
+	isc_result_t result;
+	dns_notifycds_t *newnotifycds = NULL;
+	dns_zone_t *zone = NULL;
+
+	/*
+	 * Zone lock held by caller.
+	 */
+	REQUIRE(DNS_NOTIFYCDS_VALID(notifycds));
+	REQUIRE(LOCKED_ZONE(notifycds->zone));
+
+	zone = notifycds->zone;
+
+	if (DNS_ZONE_FLAG(notifycds->zone, DNS_ZONEFLG_EXITING)) {
+		return;
+	}
+
+	for (ai = ISC_LIST_HEAD(notifycds->find->list); ai != NULL;
+	     ai = ISC_LIST_NEXT(ai, publink))
+	{
+		dst = ai->sockaddr;
+		if (notifycds_isqueued(zone, NULL, &dst, NULL, NULL)) {
+			continue;
+		}
+
+		newnotifycds = NULL;
+		result = notifycds_create(notifycds->mctx, 0, &newnotifycds);
+		if (result != ISC_R_SUCCESS) {
+			goto cleanup;
+		}
+		zone_iattach(zone, &newnotifycds->zone);
+		ISC_LIST_APPEND(newnotifycds->zone->cds_notifies, newnotifycds,
+				link);
+		newnotifycds->dst = dst;
+		dns_name_dup(&notifycds->ns, notifycds->mctx,
+			     &newnotifycds->ns);
+		switch (isc_sockaddr_pf(&newnotifycds->dst)) {
+		case PF_INET:
+			isc_sockaddr_any(&newnotifycds->src);
+			break;
+		case PF_INET6:
+			isc_sockaddr_any6(&newnotifycds->src);
+			break;
+		default:
+			UNREACHABLE();
+		}
+		/*
+		 * XXXWMM: Should we attach key and transport here?
+		 * Probably not, because we expect the name servers to be
+		 * publicly available on the default transport protocol.
+		 */
+
+		result = isc_ratelimiter_enqueue(
+			newnotifycds->zone->zmgr->notifyrl,
+			newnotifycds->zone->loop, notifycds_send_toaddr,
+			newnotifycds, &newnotifycds->rlevent);
+		if (result != ISC_R_SUCCESS) {
+			goto cleanup;
+		}
+		newnotifycds = NULL;
+	}
+
+cleanup:
+	if (newnotifycds != NULL) {
+		notifycds_destroy(newnotifycds, true);
+	}
+}
+
+static void
+notifycds_find_address(dns_notifycds_t *notifycds) {
+	isc_result_t result;
+	unsigned int options;
+	dns_adb_t *adb = NULL;
+
+	REQUIRE(DNS_NOTIFYCDS_VALID(notifycds));
+	options = DNS_ADBFIND_WANTEVENT | DNS_ADBFIND_INET | DNS_ADBFIND_INET6;
+
+	dns_view_getadb(notifycds->zone->view, &adb);
+	if (adb == NULL) {
+		goto destroy;
+	}
+
+	result = dns_adb_createfind(
+		adb, notifycds->zone->loop, process_notifycds_adb_event,
+		notifycds, &notifycds->ns, dns_rootname, 0, options, 0, NULL,
+		notifycds->port, 0, NULL, &notifycds->find);
+	dns_adb_detach(&adb);
+
+	/* Something failed? */
+	if (result != ISC_R_SUCCESS) {
+		goto destroy;
+	}
+
+	/* More addresses pending? */
+	if ((notifycds->find->options & DNS_ADBFIND_WANTEVENT) != 0) {
+		return;
+	}
+
+	/* We have as many addresses as we can get. */
+	LOCK_ZONE(notifycds->zone);
+	notifycds_send_tons(notifycds);
+	UNLOCK_ZONE(notifycds->zone);
+
+destroy:
+	notifycds_destroy(notifycds, false);
+}
+
+static bool
+notifycds_isqueued(dns_zone_t *zone, dns_name_t *name, isc_sockaddr_t *addr,
+		   dns_tsigkey_t *key, dns_transport_t *transport) {
+	dns_notifycds_t *notifycds;
+
+	for (notifycds = ISC_LIST_HEAD(zone->cds_notifies); notifycds != NULL;
+	     notifycds = ISC_LIST_NEXT(notifycds, link))
+	{
+		if (notifycds->request != NULL) {
+			continue;
+		}
+		if (name != NULL && dns_name_equal(name, &notifycds->ns)) {
+			return (true);
+		}
+		if (addr != NULL && isc_sockaddr_equal(addr, &notifycds->dst) &&
+		    notifycds->key == key && notifycds->transport == transport)
+		{
+			return (true);
+		}
+	}
+	return (false);
+}
+
+static isc_result_t
+notifycds_create(isc_mem_t *mctx, unsigned int flags,
+		 dns_notifycds_t **notifycdsp) {
+	dns_notifycds_t *notifycds;
+
+	REQUIRE(notifycdsp != NULL && *notifycdsp == NULL);
+
+	notifycds = isc_mem_get(mctx, sizeof(*notifycds));
+	*notifycds = (dns_notifycds_t){
+		.flags = flags,
+	};
+
+	isc_mem_attach(mctx, &notifycds->mctx);
+	isc_sockaddr_any(&notifycds->dst);
+	dns_name_init(&notifycds->ns, NULL);
+	ISC_LINK_INIT(notifycds, link);
+	notifycds->magic = NOTIFYCDS_MAGIC;
+	*notifycdsp = notifycds;
+	return (ISC_R_SUCCESS);
+}
+
+static void
+notifycds_createmessage(dns_zone_t *zone, dns_message_t **messagep) {
+	dns_message_t *message = NULL;
+
+	dns_name_t *tempname = NULL;
+	dns_rdataset_t *temprdataset = NULL;
+
+	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(messagep != NULL && *messagep == NULL);
+
+	dns_message_create(zone->mctx, NULL, NULL, DNS_MESSAGE_INTENTRENDER,
+			   &message);
+
+	message->opcode = dns_opcode_notify;
+	message->flags |= DNS_MESSAGEFLAG_AA;
+	message->rdclass = zone->rdclass;
+
+	dns_message_gettempname(message, &tempname);
+
+	dns_message_gettemprdataset(message, &temprdataset);
+
+	dns_name_clone(&zone->origin, tempname);
+	dns_rdataset_makequestion(temprdataset, zone->rdclass,
+				  dns_rdatatype_cds);
+	ISC_LIST_APPEND(tempname->list, temprdataset, link);
+	dns_message_addname(message, tempname, DNS_SECTION_QUESTION);
+	tempname = NULL;
+	temprdataset = NULL;
+
+	*messagep = message;
+	return;
+}
+
+static void
+notifycds_done(void *arg) {
+	dns_request_t *request = (dns_request_t *)arg;
+	dns_notifycds_t *notifycds = dns_request_getarg(request);
+	char addrbuf[ISC_SOCKADDR_FORMATSIZE];
+	char rcode[128];
+	dns_zone_t *zone = NULL;
+	dns_message_t *message = NULL;
+	isc_buffer_t buf;
+	isc_result_t result;
+
+	REQUIRE(DNS_NOTIFYCDS_VALID(notifycds));
+
+	zone = notifycds->zone;
+
+	isc_buffer_init(&buf, rcode, sizeof(rcode));
+	isc_sockaddr_format(&notifycds->dst, addrbuf, sizeof(addrbuf));
+
+	dns_zone_log(zone, ISC_LOG_DEBUG(1),
+		     "notifycds: NOTIFY CDS to %s: done", addrbuf);
+
+	dns_message_create(notifycds->zone->mctx, NULL, NULL,
+			   DNS_MESSAGE_INTENTPARSE, &message);
+
+	result = dns_request_getresult(request);
+	if (result != ISC_R_SUCCESS) {
+		goto fail;
+	}
+
+	result = dns_request_getresponse(request, message,
+					 DNS_MESSAGEPARSE_PRESERVEORDER);
+	if (result != ISC_R_SUCCESS) {
+		goto fail;
+	}
+
+	result = dns_rcode_totext(message->rcode, &buf);
+	if (result == ISC_R_SUCCESS) {
+		notify_log(notifycds->zone, ISC_LOG_DEBUG(3),
+			   "notify cds response from %s: %.*s", addrbuf,
+			   (int)buf.used, rcode);
+	}
+
+fail:
+	dns_message_detach(&message);
+
+	if (result == ISC_R_SUCCESS) {
+		notify_log(notifycds->zone, ISC_LOG_DEBUG(1),
+			   "notify cds to %s successful", addrbuf);
+	} else if (result == ISC_R_SHUTTINGDOWN || result == ISC_R_CANCELED) {
+		/* just destroy the notify */
+	} else if ((notifycds->flags & DNS_NOTIFY_TCP) == 0) {
+		notify_log(notifycds->zone, ISC_LOG_NOTICE,
+			   "notify cds to %s failed: %s: retrying over TCP",
+			   addrbuf, isc_result_totext(result));
+		notifycds->flags |= DNS_NOTIFY_TCP;
+		dns_request_destroy(&notifycds->request);
+		notifycds_send_queue(notifycds);
+		return;
+	} else if (result == ISC_R_TIMEDOUT) {
+		notify_log(notifycds->zone, ISC_LOG_WARNING,
+			   "notify cds to %s failed: %s: retries exceeded",
+			   addrbuf, isc_result_totext(result));
+	} else {
+		notify_log(notifycds->zone, ISC_LOG_WARNING,
+			   "notify cds to %s failed: %s", addrbuf,
+			   isc_result_totext(result));
+	}
+
+	notifycds_destroy(notifycds, false);
+}
+
+/*
+ * A NOTIFY RRset has been fetched from the parent of a zone who needs to be
+ * notified of the new CDS/CDNSKEY RRset; scan the RRset and start sending
+ * NOTIFY queries to them.
+ */
+static void
+notifyfetch_done(void *arg) {
+	dns_fetchresponse_t *resp = (dns_fetchresponse_t *)arg;
+	isc_result_t result, eresult;
+	dns_notifycds_t *notifycds = NULL;
+	dns_notifyfetch_t *notifyfetch = NULL;
+	dns_zone_t *zone = NULL;
+	isc_mem_t *mctx = NULL;
+	dns_name_t *zname = NULL;
+	dns_name_t *pname = NULL;
+	char pnamebuf[DNS_NAME_FORMATSIZE];
+	bool free_needed, levelup = false;
+	dns_rdataset_t *notifyrrset = NULL;
+	dns_rdataset_t *notifysigset = NULL;
+
+	INSIST(resp != NULL && resp->type == FETCHDONE);
+
+	notifyfetch = resp->arg;
+
+	INSIST(notifyfetch != NULL);
+
+	zone = notifyfetch->zone;
+	mctx = notifyfetch->mctx;
+	zname = dns_fixedname_name(&notifyfetch->name);
+	pname = &notifyfetch->pname;
+	notifyrrset = &notifyfetch->notifyrrset;
+	notifysigset = &notifyfetch->notifysigset;
+	eresult = resp->result;
+
+	/* Free resources which are not of interest */
+	if (resp->node != NULL) {
+		dns_db_detachnode(resp->db, &resp->node);
+	}
+	if (resp->db != NULL) {
+		dns_db_detach(&resp->db);
+	}
+	dns_resolver_destroyfetch(&notifyfetch->fetch);
+
+	LOCK_ZONE(zone);
+	if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_EXITING) || zone->view == NULL) {
+		goto cleanup;
+	}
+
+	zone->notifyfetchcount--;
+
+	dns_name_format(pname, pnamebuf, sizeof(pnamebuf));
+	dnssec_log(zone, ISC_LOG_DEBUG(3),
+		   "notifycds: Returned from '%s' NOTIFY fetch in "
+		   "notifyfetch_done(): %s",
+		   pnamebuf, isc_result_totext(eresult));
+
+	if (eresult == DNS_R_NCACHENXRRSET || eresult == DNS_R_NXRRSET) {
+		dnssec_log(
+			zone, ISC_LOG_DEBUG(3),
+			"notifycds: NODATA response for NOTIFY '%s', level up",
+			pnamebuf);
+		levelup = true;
+		goto cleanup;
+
+	} else if (eresult != ISC_R_SUCCESS) {
+		dnssec_log(zone, ISC_LOG_WARNING,
+			   "notifycds: Unable to fetch NOTIFY set '%s': %s",
+			   pnamebuf, isc_result_totext(eresult));
+		result = eresult;
+		goto done;
+	}
+
+	/* No NOTIFY records found */
+	if (!dns_rdataset_isassociated(notifyrrset)) {
+		dnssec_log(zone, ISC_LOG_WARNING,
+			   "notifycds: No NOTIFY records found for '%s'",
+			   pnamebuf);
+		result = ISC_R_NOTFOUND;
+		goto done;
+	}
+
+	/* No RRSIGs found */
+	if (!dns_rdataset_isassociated(notifysigset)) {
+		dnssec_log(zone, ISC_LOG_WARNING,
+			   "notifycds: No NOTIFY RRSIGs found for '%s'",
+			   pnamebuf);
+		result = DNS_R_MUSTBESECURE;
+		goto done;
+	}
+
+	/* Check trust level */
+	if (notifyrrset->trust < dns_trust_secure) {
+		dnssec_log(zone, ISC_LOG_WARNING,
+			   "notifycds: Invalid NOTIFY RRset for '%s' trust "
+			   "level %u",
+			   pnamebuf, notifyrrset->trust);
+		result = DNS_R_MUSTBESECURE;
+		goto done;
+	}
+
+	/* Record the number of NOTIFY records we found. */
+	zone->parent_notifycount = dns_rdataset_count(notifyrrset);
+
+	UNLOCK_ZONE(zone);
+
+	/* Look up the addresses for the found servers. */
+	for (result = dns_rdataset_first(notifyrrset); result == ISC_R_SUCCESS;
+	     result = dns_rdataset_next(notifyrrset))
+	{
+		dns_rdata_t rdata = DNS_RDATA_INIT;
+		dns_rdata_in_notify_t notify;
+		bool isqueued;
+
+		dns_rdataset_current(notifyrrset, &rdata);
+		result = dns_rdata_tostruct(&rdata, &notify, NULL);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
+
+		dns_rdata_reset(&rdata);
+		if (notify.scheme != 1) {
+			dns_zone_log(zone, ISC_LOG_WARNING,
+				     "notifycds: unsupported NOTIFY scheme %u, "
+				     "ignoring",
+				     notify.scheme);
+			LOCK_ZONE(zone);
+			zone->parent_notifycount--;
+			UNLOCK_ZONE(zone);
+			continue;
+		}
+
+		if (notify.rrtype != dns_rdatatype_cds) {
+			char typestr[DNS_RDATATYPE_FORMATSIZE];
+			isc_buffer_t typebuf;
+			isc_buffer_init(&typebuf, typestr, sizeof(typestr));
+			result = dns_rdatatype_totext(notify.rrtype, &typebuf);
+			dns_zone_log(zone, ISC_LOG_WARNING,
+				     "notifycds: NOTIFY RRtype %s, ignoring",
+				     result == ISC_R_SUCCESS ? typestr : "?");
+			LOCK_ZONE(zone);
+			zone->parent_notifycount--;
+			UNLOCK_ZONE(zone);
+			continue;
+		}
+
+		LOCK_ZONE(zone);
+		isqueued = notifycds_isqueued(zone, &notify.target, NULL, NULL,
+					      NULL);
+		UNLOCK_ZONE(zone);
+		if (isqueued) {
+			continue;
+		}
+		result = notifycds_create(zone->mctx, 0, &notifycds);
+		if (result != ISC_R_SUCCESS) {
+			dns_zone_log(zone, ISC_LOG_DEBUG(3),
+				     "notifycds: notifycds_create() failed: %s",
+				     isc_result_totext(result));
+			break;
+		}
+
+		if (isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(3))) {
+			char notifynamebuf[DNS_NAME_FORMATSIZE];
+			dns_name_format(&notify.target, notifynamebuf,
+					sizeof(notifynamebuf));
+			dns_zone_log(zone, ISC_LOG_DEBUG(3),
+				     "notifycds: send NOTIFY CDS query to %s",
+				     notifynamebuf);
+		}
+
+		LOCK_ZONE(zone);
+		zone_iattach(zone, &notifycds->zone);
+		dns_name_dup(&notify.target, zone->mctx, &notifycds->ns);
+		notifycds->port = notify.port;
+		ISC_LIST_APPEND(zone->cds_notifies, notifycds, link);
+		UNLOCK_ZONE(zone);
+
+		notifycds_find_address(notifycds);
+	}
+	if (result == ISC_R_NOMORE) {
+		result = ISC_R_SUCCESS;
+	}
+
+	LOCK_ZONE(zone);
+
+done:
+	if (result != ISC_R_SUCCESS) {
+		dnssec_log(zone, ISC_LOG_ERROR,
+			   "notifycds: error during parental-agents "
+			   "processing: %s",
+			   isc_result_totext(result));
+	}
+
+cleanup:
+	isc_refcount_decrement(&zone->irefs);
+
+	if (dns_rdataset_isassociated(notifyrrset)) {
+		dns_rdataset_disassociate(notifyrrset);
+	}
+	if (dns_rdataset_isassociated(notifysigset)) {
+		dns_rdataset_disassociate(notifysigset);
+	}
+	isc_mem_putanddetach(&resp->mctx, resp, sizeof(*resp));
+
+	if (levelup) {
+		UNLOCK_ZONE(zone);
+		notifyfetch_levelup(notifyfetch);
+		return;
+	}
+
+	dns_name_free(zname, mctx);
+	isc_mem_putanddetach(&notifyfetch->mctx, notifyfetch,
+			     sizeof(dns_nsfetch_t));
+
+	free_needed = exit_check(zone);
+	UNLOCK_ZONE(zone);
+
+	if (free_needed) {
+		zone_free(zone);
+	}
+}
+
+static void
+do_notifyfetch(void *arg) {
+	dns_notifyfetch_t *notifyfetch = (dns_notifyfetch_t *)arg;
+	isc_result_t result;
+	unsigned int nlabels = 1;
+	dns_resolver_t *resolver = NULL;
+	dns_zone_t *zone = notifyfetch->zone;
+	unsigned int options = DNS_FETCHOPT_UNSHARED | DNS_FETCHOPT_NOCACHED;
+
+	if (DNS_ZONE_FLAG(zone, DNS_ZONEFLG_EXITING)) {
+		return;
+	}
+
+	result = dns_view_getresolver(zone->view, &resolver);
+	if (result != ISC_R_SUCCESS) {
+		return;
+	}
+
+	if (isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(3))) {
+		char namebuf[DNS_NAME_FORMATSIZE];
+		dns_name_format(&notifyfetch->pname, namebuf, sizeof(namebuf));
+		dnssec_log(zone, ISC_LOG_WARNING,
+			   "Create fetch for '%s' NOTIFY request", namebuf);
+	}
+
+	/* Derive parent domain. XXXWMM: Check for root domain */
+	dns_name_split(&notifyfetch->pname,
+		       dns_name_countlabels(&notifyfetch->pname) - nlabels,
+		       NULL, &notifyfetch->pname);
+
+	/*
+	 * Use of DNS_FETCHOPT_NOCACHED is essential here.  If it is not
+	 * set and the cache still holds a non-expired, validated version
+	 * of the RRset being queried for by the time the response is
+	 * received, the cached RRset will be passed to notifyfetch_done()
+	 * instead of the one received in the response as the latter will
+	 * have a lower trust level due to not being validated until
+	 * notifyfetch_done() is called.
+	 */
+	result = dns_resolver_createfetch(
+		resolver, &notifyfetch->pname, dns_rdatatype_notify, NULL, NULL,
+		NULL, NULL, 0, options, 0, NULL, zone->loop, notifyfetch_done,
+		notifyfetch, &notifyfetch->notifyrrset,
+		&notifyfetch->notifysigset, &notifyfetch->fetch);
+
+	dns_resolver_detach(&resolver);
+
+	if (result != ISC_R_SUCCESS) {
+		dns_name_t *zname = dns_fixedname_name(&notifyfetch->name);
+		bool free_needed;
+		char namebuf[DNS_NAME_FORMATSIZE];
+		dns_name_format(&notifyfetch->pname, namebuf, sizeof(namebuf));
+		dnssec_log(zone, ISC_LOG_WARNING,
+			   "Failed to create fetch for '%s' NOTIFY request",
+			   namebuf);
+		LOCK_ZONE(zone);
+		zone->notifyfetchcount--;
+		isc_refcount_decrement(&zone->irefs);
+
+		dns_name_free(zname, zone->mctx);
+		isc_mem_putanddetach(&notifyfetch->mctx, notifyfetch,
+				     sizeof(*notifyfetch));
+
+		free_needed = exit_check(zone);
+		UNLOCK_ZONE(zone);
+		if (free_needed) {
+			zone_free(zone);
+		}
+	}
+}
+
+/*
+ * Retry a NOTIFY RRset lookup, one level up. In other words, this function
+ * should be called on an dns_notifyfetch structure where the response yielded
+ * in a NODATA response. This must be because there is an empty non-terminal
+ * inbetween the child and parent zone.
+ */
+static void
+notifyfetch_levelup(dns_notifyfetch_t *notifyfetch) {
+	dns_zone_t *zone = notifyfetch->zone;
+
+#ifdef ENABLE_AFL
+	if (!dns_fuzzing_resolver) {
+#endif /* ifdef ENABLE_AFL */
+		LOCK_ZONE(zone);
+		zone->notifyfetchcount++;
+		isc_refcount_increment0(&zone->irefs);
+
+		dns_rdataset_init(&notifyfetch->notifyrrset);
+		dns_rdataset_init(&notifyfetch->notifysigset);
+		if (isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(3))) {
+			dnssec_log(zone, ISC_LOG_DEBUG(3),
+				   "Creating parent NOTIFY fetch in "
+				   "notifyfetch_levelup()");
+		}
+		isc_async_run(zone->loop, do_notifyfetch, notifyfetch);
+		UNLOCK_ZONE(zone);
+#ifdef ENABLE_AFL
+	}
+#endif /* ifdef ENABLE_AFL */
+}
+
+static void
+zone_notifycds(dns_zone_t *zone) {
+	dns_notifycdstype_t notifycdstype = zone->notifycdstype;
+
+	if (notifycdstype == dns_notifycdstype_no) {
+		return;
+	}
+
+	INSIST(notifycdstype == dns_notifycdstype_yes);
+
+#ifdef ENABLE_AFL
+	if (!dns_fuzzing_resolver) {
+#endif /* ifdef ENABLE_AFL */
+		dns_notifyfetch_t *notifyfetch;
+		dns_name_t *name = NULL;
+
+		notifyfetch = isc_mem_get(zone->mctx,
+					  sizeof(dns_notifyfetch_t));
+		*notifyfetch = (dns_notifyfetch_t){ .zone = zone };
+		isc_mem_attach(zone->mctx, &notifyfetch->mctx);
+		LOCK_ZONE(zone);
+		zone->notifyfetchcount++;
+		isc_refcount_increment0(&zone->irefs);
+		name = dns_fixedname_initname(&notifyfetch->name);
+		dns_name_init(&notifyfetch->pname, NULL);
+		dns_name_clone(&zone->origin, &notifyfetch->pname);
+		dns_name_dup(&zone->origin, zone->mctx, name);
+		dns_rdataset_init(&notifyfetch->notifyrrset);
+		dns_rdataset_init(&notifyfetch->notifysigset);
+		if (isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(3))) {
+			dnssec_log(zone, ISC_LOG_DEBUG(3),
+				   "Creating parent NOTIFY fetch in "
+				   "zone_notifycds()");
+		}
+		isc_async_run(zone->loop, do_notifyfetch, notifyfetch);
+		UNLOCK_ZONE(zone);
+#ifdef ENABLE_AFL
+	}
+#endif /* ifdef ENABLE_AFL */
+}
+
+static void
 zone_rekey(dns_zone_t *zone) {
 	isc_result_t result;
 	dns_db_t *db = NULL;
@@ -21377,6 +22300,7 @@ zone_rekey(dns_zone_t *zone) {
 		bool cdnskeydel = false;
 		bool cdnskeypub = true;
 		bool sane_diff, sane_dnskey;
+		bool notify = false;
 		isc_stdtime_t when;
 
 		/*
@@ -21468,9 +22392,9 @@ zone_rekey(dns_zone_t *zone) {
 		/*
 		 * Update CDS / CDNSKEY records.
 		 */
-		result = dns_dnssec_syncupdate(&dnskeys, &rmkeys, &cdsset,
-					       &cdnskeyset, now, &digests,
-					       cdnskeypub, ttl, &diff, mctx);
+		result = dns_dnssec_syncupdate(
+			&dnskeys, &rmkeys, &cdsset, &cdnskeyset, now, &digests,
+			cdnskeypub, ttl, &diff, &notify, mctx);
 		if (result != ISC_R_SUCCESS) {
 			dnssec_log(zone, ISC_LOG_ERROR,
 				   "zone_rekey:couldn't update CDS/CDNSKEY: %s",
@@ -21515,6 +22439,11 @@ zone_rekey(dns_zone_t *zone) {
 				   "DELETE records: %s",
 				   isc_result_totext(result));
 			goto failure;
+		}
+
+		if (notify) {
+			/* Send NOTIFY(CDS) to parents. */
+			zone_notifycds(zone);
 		}
 
 		/*

@@ -881,6 +881,7 @@ named_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 	const char *kaspname = NULL;
 	const char *dupcheck;
 	dns_checkdstype_t checkdstype = dns_checkdstype_yes;
+	dns_notifycdstype_t notifycdstype = dns_notifycdstype_yes;
 	dns_notifytype_t notifytype = dns_notifytype_yes;
 	uint32_t count;
 	unsigned int dbargc;
@@ -1279,6 +1280,19 @@ named_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		} else {
 			dns_zone_setalsonotify(zone, NULL, NULL, NULL, NULL, 0);
 		}
+
+		obj = NULL;
+		result = named_config_get(maps, "notify-cds", &obj);
+		if (result == ISC_R_SUCCESS) {
+			if (cfg_obj_isboolean(obj)) {
+				if (cfg_obj_asboolean(obj)) {
+					notifycdstype = dns_notifycdstype_yes;
+				} else {
+					notifycdstype = dns_notifycdstype_no;
+				}
+			}
+		}
+		dns_zone_setnotifycdstype(zone, notifycdstype);
 
 		obj = NULL;
 		result = named_config_get(maps, "parental-source", &obj);

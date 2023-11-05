@@ -212,6 +212,11 @@ typedef enum {
 } dns_checkdstype_t;
 
 typedef enum {
+	dns_notifycdstype_no = 0,
+	dns_notifycdstype_yes = 1
+} dns_notifycdstype_t;
+
+typedef enum {
 	dns_notifytype_no = 0,
 	dns_notifytype_yes = 1,
 	dns_notifytype_explicit = 2,

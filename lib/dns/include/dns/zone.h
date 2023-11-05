@@ -1532,6 +1532,12 @@ dns_zone_setnotifytype(dns_zone_t *zone, dns_notifytype_t notifytype);
  */
 
 void
+dns_zone_setnotifycdstype(dns_zone_t *zone, dns_notifycdstype_t notifycdstype);
+/*%<
+ * Sets zone checkds method to "notifycdstype"
+ */
+
+void
 dns_zone_setcheckdstype(dns_zone_t *zone, dns_checkdstype_t checkdstype);
 /*%<
  * Sets zone checkds method to "checkdstype"

@@ -106,7 +106,7 @@ static int nsec_datatype = dns_rdatatype_nsec;
 		     "dns_dbiterator_current()")
 
 #define IS_NSEC3  (nsec_datatype == dns_rdatatype_nsec3)
-#define OPTOUT(x) (((x) & DNS_NSEC3FLAG_OPTOUT) != 0)
+#define OPTOUT(x) (((x)&DNS_NSEC3FLAG_OPTOUT) != 0)
 
 #define REVOKE(x) ((dst_key_flags(x) & DNS_KEYFLAG_REVOKE) != 0)
 
@@ -2797,6 +2797,7 @@ build_final_keylist(void) {
 	dns_kasp_digestlist_t digests;
 	dns_kasp_digest_t *d, *d_next;
 	bool cdnskey = false;
+	bool notify = false;
 
 	ISC_LIST_INIT(rmkeys);
 	ISC_LIST_INIT(matchkeys);
@@ -2868,9 +2869,10 @@ findkeys:
 	/*
 	 * Update keylist with sync records.
 	 */
-
 	dns_dnssec_syncupdate(&keylist, &rmkeys, &cdsset, &cdnskeyset, now,
-			      &digests, cdnskey, keyttl, &diff, mctx);
+			      &digests, cdnskey, keyttl, &diff, &notify, mctx);
+
+	UNUSED(notify);
 
 	dns_name_format(gorigin, name, sizeof(name));
 

@@ -371,7 +371,7 @@ dns_dnssec_syncupdate(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *rmkeys,
 		      dns_rdataset_t *cds, dns_rdataset_t *cdnskey,
 		      isc_stdtime_t now, dns_kasp_digestlist_t *digests,
 		      bool gencdnskey, dns_ttl_t hint_ttl, dns_diff_t *diff,
-		      isc_mem_t *mctx);
+		      bool *notify, isc_mem_t *mctx);
 /*%<
  * Update the CDS and CDNSKEY RRsets, adding and removing keys as needed.
  *
@@ -386,7 +386,8 @@ dns_dnssec_syncupdate(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *rmkeys,
  * 'hint_ttl' is the TTL to use for the CDS and CDNSKEY RRsets if there is no
  * existing RRset.
  *
- * Any changes made also cause a dns_difftuple to be added to 'diff'.
+ * Any changes made also cause a dns_difftuple to be added to 'diff', and
+ * 'notify' to be set to true.
  *
  * Requires:
  *\li	'keys' is not NULL.
