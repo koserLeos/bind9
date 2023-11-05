@@ -83,6 +83,17 @@ check_keytimes
 check_apex
 dnssec_verify
 
+# Check if NOTIFY CDS queries have been sent.
+n=$((n + 1))
+ret=0
+echo_i "check that NOTIFY CDS queries have been sent ($n)"
+# We check by grepping the logs. A better test would be to
+# ensure that the NOTIFY message was actually sent.
+grep "zone model2.multisigner/IN: notifycds: send NOTIFY CDS query to scanner.multisigner" ns3/named.run > /dev/null || ret=1
+grep "zone model2.secondary/IN (signed): notifycds: send NOTIFY CDS query to scanner.secondary" ns3/named.run > /dev/null || ret=1
+test "$ret" -eq 0 || echo_i "failed"
+status=$((status + ret))
+
 #
 # Update DNSKEY RRset.
 #
