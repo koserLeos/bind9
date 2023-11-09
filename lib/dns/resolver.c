@@ -170,13 +170,13 @@
 /*
  * The maximum time we will wait for a single query.
  */
-#define MAX_SINGLE_QUERY_TIMEOUT    9000U
+#define MAX_SINGLE_QUERY_TIMEOUT    900U
 #define MAX_SINGLE_QUERY_TIMEOUT_US (MAX_SINGLE_QUERY_TIMEOUT * US_PER_MS)
 
 /*
  * We need to allow a individual query time to complete / timeout.
  */
-#define MINIMUM_QUERY_TIMEOUT (MAX_SINGLE_QUERY_TIMEOUT + 1000U)
+#define MINIMUM_QUERY_TIMEOUT (MAX_SINGLE_QUERY_TIMEOUT + 100U)
 
 /* The default time in seconds for the whole query to live. */
 #ifndef DEFAULT_QUERY_TIMEOUT
