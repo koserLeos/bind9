@@ -22140,6 +22140,15 @@ zone_notifycds(dns_zone_t *zone) {
 }
 
 static void
+zone_notifycdnskey(dns_zone_t *zone) {
+	if (isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(3))) {
+		dnssec_log(zone, ISC_LOG_DEBUG(3),
+			   "Creating zone NOTIFY fetch in "
+			   "zone_notifycdnskey()");
+	}
+}
+
+static void
 zone_rekey(dns_zone_t *zone) {
 	isc_result_t result;
 	dns_db_t *db = NULL;
@@ -22300,7 +22309,8 @@ zone_rekey(dns_zone_t *zone) {
 		bool cdnskeydel = false;
 		bool cdnskeypub = true;
 		bool sane_diff, sane_dnskey;
-		bool notify = false;
+		bool notifycds = false;
+		bool notifycdnskey = false;
 		isc_stdtime_t when;
 
 		/*
@@ -22376,8 +22386,8 @@ zone_rekey(dns_zone_t *zone) {
 		}
 
 		result = dns_dnssec_updatekeys(&dnskeys, &keys, &rmkeys,
-					       &zone->origin, ttl, &diff, mctx,
-					       dnssec_report);
+					       &zone->origin, ttl, &diff,
+					       &notifycdnskey, mctx, dnssec_report);
 		/*
 		 * Keys couldn't be updated for some reason;
 		 * try again later.
@@ -22394,7 +22404,7 @@ zone_rekey(dns_zone_t *zone) {
 		 */
 		result = dns_dnssec_syncupdate(
 			&dnskeys, &rmkeys, &cdsset, &cdnskeyset, now, &digests,
-			cdnskeypub, ttl, &diff, &notify, mctx);
+			cdnskeypub, ttl, &diff, &notifycds, mctx);
 		if (result != ISC_R_SUCCESS) {
 			dnssec_log(zone, ISC_LOG_ERROR,
 				   "zone_rekey:couldn't update CDS/CDNSKEY: %s",
@@ -22430,6 +22440,10 @@ zone_rekey(dns_zone_t *zone) {
 				cdnskeydel = allow;
 			}
 		}
+		/*
+		 * WMM: Also need to update notifycds if CDS RRset is set
+		 * to DELETE.
+		 */
 		result = dns_dnssec_syncdelete(
 			&cdsset, &cdnskeyset, &zone->origin, zone->rdclass, ttl,
 			&diff, mctx, cdsdel, cdnskeydel);
@@ -22441,9 +22455,14 @@ zone_rekey(dns_zone_t *zone) {
 			goto failure;
 		}
 
-		if (notify) {
+		if (notifycds) {
 			/* Send NOTIFY(CDS) to parents. */
 			zone_notifycds(zone);
+		}
+
+		if (notifycdnskey) {
+			/* Send NOTIFY(CDNSKEY) to peers. */
+			zone_notifycdnskey(zone);
 		}
 
 		/*

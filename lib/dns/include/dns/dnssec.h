@@ -338,7 +338,7 @@ dns_dnssec_keylistfromrdataset(const dns_name_t *origin, const char *directory,
 isc_result_t
 dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
 		      dns_dnsseckeylist_t *removed, const dns_name_t *origin,
-		      dns_ttl_t hint_ttl, dns_diff_t *diff, isc_mem_t *mctx,
+		      dns_ttl_t hint_ttl, dns_diff_t *diff, bool *notify, isc_mem_t *mctx,
 		      void (*report)(const char *, ...)
 			      ISC_FORMAT_PRINTF(1, 2));
 /*%<
@@ -353,6 +353,7 @@ dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
  *   remove it from 'keys', and place a dns_difftuple into 'diff' so
  *   the key can be removed from the DNSKEY set.  if 'removed' is non-NULL,
  *   copy the key into that list; otherwise destroy it.
+ * - The 'notify' parameter stores whether a NOTIFY DNSKEY needs to be sent.
  * - Otherwise, make sure keys has current metadata.
  *
  * 'hint_ttl' is the TTL to use for the DNSKEY RRset if there is no

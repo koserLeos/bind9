@@ -2260,7 +2260,7 @@ failure:
 isc_result_t
 dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
 		      dns_dnsseckeylist_t *removed, const dns_name_t *origin,
-		      dns_ttl_t hint_ttl, dns_diff_t *diff, isc_mem_t *mctx,
+		      dns_ttl_t hint_ttl, dns_diff_t *diff, bool *notify, isc_mem_t *mctx,
 		      void (*report)(const char *, ...)
 			      ISC_FORMAT_PRINTF(1, 2)) {
 	isc_result_t result;
@@ -2366,6 +2366,7 @@ dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
 					keystr1,
 					key1->ksk ? (key1->zsk ? "CSK" : "KSK")
 						  : "ZSK");
+				*notify = true;
 				if (key1->hint_sign || key1->force_sign) {
 					key1->first_sign = true;
 					isc_log_write(
@@ -2406,6 +2407,7 @@ dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
 					keystr2,
 					key2->ksk ? (key2->zsk ? "CSK" : "KSK")
 						  : "ZSK");
+				*notify = true;
 			} else {
 				dns_dnsseckey_destroy(mctx, &key2);
 			}
@@ -2431,6 +2433,7 @@ dns_dnssec_updatekeys(dns_dnsseckeylist_t *keys, dns_dnsseckeylist_t *newkeys,
 					key2->ksk ? (key2->zsk ? "CSK" : "KSK")
 						  : "ZSK",
 					dst_key_id(key1->key));
+				*notify = true;
 			} else {
 				dns_dnsseckey_destroy(mctx, &key2);
 			}
