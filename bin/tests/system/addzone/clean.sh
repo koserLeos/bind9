@@ -39,6 +39,8 @@ rm -f ./ns1/redirect.db
 rm -f ./ns2/redirect.db
 rm -f ./ns2/redirect.bk
 rm -f ./ns3/redirect.db
-rm -f ./ns*/managed-keys.bind* ns*/*.mkeys*
+rm -f ./ns*/managed-keys.bind* ./ns*/*.mkeys*
+rm -f ./ns*/*.jnl
+rm -f ./ns*/K*.key ./ns*/K*.private ./ns*/K*.state
 rm -f ./nzd2nzf.out.*
 rm -f ./wait_for_message.*
