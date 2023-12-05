@@ -2180,7 +2180,7 @@ dns_qp_lookup(dns_qpreadable_t qpr, const dns_name_t *name,
 				 * predecessor.
 				 */
 				prevleaf(iter);
-				n = iter->stack[iter->sp];
+				n = iter->stack[iter->sp--];
 			} else {
 				/*
 				 * every leaf is less than the one we
