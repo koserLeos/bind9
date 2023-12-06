@@ -972,6 +972,9 @@ create_validator(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 	unsigned int vopts = 0;
 	dns_rdataset_t *sig = NULL;
 
+	/* The subvalidator has to run on the same loop as validator */
+	REQUIRE(val->tid == isc_tid());
+
 	if (sigrdataset != NULL && dns_rdataset_isassociated(sigrdataset)) {
 		sig = sigrdataset;
 	}
@@ -2910,6 +2913,7 @@ static void
 validator_start(void *arg) {
 	dns_validator_t *val = (dns_validator_t *)arg;
 	isc_result_t result = ISC_R_FAILURE;
+	REQUIRE(val->tid == isc_tid());
 
 	if (CANCELED(val)) {
 		return;

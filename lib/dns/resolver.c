@@ -5831,6 +5831,8 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_message_t *message,
 
 	FCTXTRACE("cache_name");
 
+	REQUIRE(fctx->tid == isc_tid());
+
 	/*
 	 * The appropriate bucket lock must be held.
 	 */
