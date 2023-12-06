@@ -207,6 +207,8 @@ marksecure(dns_validator_t *val) {
 static void
 validator_done_cb(void *arg) {
 	dns_validator_t *val = arg;
+	REQUIRE(val->tid == isc_tid());
+
 	val->cb(val);
 	dns_validator_detach(&val);
 }
@@ -1428,6 +1430,8 @@ validate_answer(dns_validator_t *val, bool resume) {
 	isc_result_t result, vresult = DNS_R_NOVALIDSIG;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 
+	REQUIRE(val->tid == isc_tid());
+
 	/*
 	 * Caller must be holding the validator lock.
 	 */
@@ -2367,6 +2371,8 @@ validate_ncache(dns_validator_t *val, bool resume) {
 	dns_name_t *name;
 	isc_result_t result;
 
+	REQUIRE(val->tid == isc_tid());
+
 	if (!resume) {
 		result = dns_rdataset_first(val->rdataset);
 	} else {
@@ -2425,6 +2431,8 @@ validate_ncache(dns_validator_t *val, bool resume) {
 static isc_result_t
 validate_nx(dns_validator_t *val, bool resume) {
 	isc_result_t result;
+
+	REQUIRE(val->tid == isc_tid());
 
 	if (resume) {
 		validator_log(val, ISC_LOG_DEBUG(3), "resuming validate_nx");
