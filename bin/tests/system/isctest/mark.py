@@ -47,6 +47,10 @@ def is_dnsrps_available():
     return True
 
 
+not_have_fips = pytest.mark.skipif(
+    feature_test("--have-fips-mode"), reason="FIPS support enabled in the build"
+)
+
 have_libxml2 = pytest.mark.skipif(
     not feature_test("--have-libxml2"), reason="libxml2 support disabled in the build"
 )
