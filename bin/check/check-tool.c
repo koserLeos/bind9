@@ -124,18 +124,14 @@ add(char *key, int value) {
 	}
 
 	if (symtab == NULL) {
-		result = isc_symtab_create(sym_mctx, 100, freekey, sym_mctx,
-					   false, &symtab);
-		if (result != ISC_R_SUCCESS) {
-			return;
-		}
+		isc_symtab_create(sym_mctx, freekey, sym_mctx, false, &symtab);
 	}
 
 	key = isc_mem_strdup(sym_mctx, key);
 
 	symvalue.as_pointer = NULL;
 	result = isc_symtab_define(symtab, key, value, symvalue,
-				   isc_symexists_reject);
+				   isc_symexists_reject, NULL);
 	if (result != ISC_R_SUCCESS) {
 		isc_mem_free(sym_mctx, key);
 	}
