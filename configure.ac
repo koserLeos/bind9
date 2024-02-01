@@ -5507,6 +5507,7 @@ AC_CONFIG_FILES([
 	doc/xsl/isc-docbook-html.xsl
 	doc/xsl/isc-manpage.xsl
 	doc/xsl/isc-notes-html.xsl
+	fuzz/Makefile
 	isc-config.sh
 	lib/Makefile
 	lib/bind9/Makefile
