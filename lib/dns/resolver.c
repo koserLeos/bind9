@@ -8897,7 +8897,7 @@ resquery_response(isc_task_t *task, isc_event_t *event) {
 #ifdef ENABLE_AFL
 	if (dns_fuzzing_resolver && (keep_trying || resend)) {
 		fctx_done(fctx, DNS_R_SERVFAIL, __LINE__);
-		goto cleanup_rmessage;
+		goto detach_rmessage;
 	} else
 #endif
 	if (keep_trying) {
