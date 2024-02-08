@@ -329,6 +329,7 @@ zone "ttl4.example" {
 zone "delay.example" {
 	type primary;
 	file "delay.example.db";
+	zonemd-check no;
 };
 
 zone "nozsk.example" {
