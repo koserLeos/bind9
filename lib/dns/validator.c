@@ -207,6 +207,8 @@ marksecure(dns_validator_t *val) {
 static void
 validator_done_cb(void *arg) {
 	dns_validator_t *val = arg;
+	REQUIRE(val->tid == isc_tid());
+
 	val->cb(val);
 	dns_validator_detach(&val);
 }
@@ -972,6 +974,9 @@ create_validator(dns_validator_t *val, dns_name_t *name, dns_rdatatype_t type,
 	unsigned int vopts = 0;
 	dns_rdataset_t *sig = NULL;
 
+	/* The subvalidator has to run on the same loop as validator */
+	REQUIRE(val->tid == isc_tid());
+
 	if (sigrdataset != NULL && dns_rdataset_isassociated(sigrdataset)) {
 		sig = sigrdataset;
 	}
@@ -1424,6 +1429,8 @@ static isc_result_t
 validate_answer(dns_validator_t *val, bool resume) {
 	isc_result_t result, vresult = DNS_R_NOVALIDSIG;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
+
+	REQUIRE(val->tid == isc_tid());
 
 	/*
 	 * Caller must be holding the validator lock.
@@ -2376,6 +2383,8 @@ validate_ncache(dns_validator_t *val, bool resume) {
 	dns_name_t *name;
 	isc_result_t result;
 
+	REQUIRE(val->tid == isc_tid());
+
 	if (!resume) {
 		result = dns_rdataset_first(val->rdataset);
 	} else {
@@ -2434,6 +2443,8 @@ validate_ncache(dns_validator_t *val, bool resume) {
 static isc_result_t
 validate_nx(dns_validator_t *val, bool resume) {
 	isc_result_t result;
+
+	REQUIRE(val->tid == isc_tid());
 
 	if (resume) {
 		validator_log(val, ISC_LOG_DEBUG(3), "resuming validate_nx");
@@ -2922,6 +2933,7 @@ static void
 validator_start(void *arg) {
 	dns_validator_t *val = (dns_validator_t *)arg;
 	isc_result_t result = ISC_R_FAILURE;
+	REQUIRE(val->tid == isc_tid());
 
 	if (CANCELED(val)) {
 		return;
