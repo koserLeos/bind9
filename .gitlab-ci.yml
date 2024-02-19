@@ -1665,7 +1665,7 @@ shotgun:dot:
     - *setup_interfaces
     - make -j${BUILD_PARALLEL_JOBS:-1} -k all V=1
     - make DESTDIR="${INSTALL_PATH}" install
-    - git clone --depth 1 https://gitlab.isc.org/isc-projects/bind9-qa.git
+    - git clone --depth 1 --branch mnowak/stress-test-with-doh-dot https://gitlab.isc.org/isc-projects/bind9-qa.git
     - cd bind9-qa/stress
     - LD_LIBRARY_PATH="${INSTALL_PATH}/usr/local/lib" BIND_INSTALL_PATH="${INSTALL_PATH}/usr/local" WORKSPACE="${CI_PROJECT_DIR}" bash stress.sh
   needs:
