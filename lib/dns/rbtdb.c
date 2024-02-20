@@ -340,7 +340,7 @@ dns__rbtdb_setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 
 	if (newttl == 0) {
 		INSIST(header->heap_index != 0);
-		isc_heap_delete(heap, header->heap_index);
+		isc_heap_delete(header->heap, header->heap_index);
 		header->heap_index = 0;
 	}
 }
@@ -3173,6 +3173,11 @@ cleanup:
 	return (result);
 }
 
+static void
+expire_ttl_headers(dns_rbtdb_t *rbtdb, unsigned int locknum, size_t purgecount,
+		   isc_rwlocktype_t *tlocktypep,
+		   isc_stdtime_t now DNS__DB_FLARG);
+
 isc_result_t
 dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 		       dns_dbversion_t *version, isc_stdtime_t now,
@@ -3183,7 +3188,6 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 	dns_rbtdb_version_t *rbtversion = version;
 	isc_region_t region;
 	dns_slabheader_t *newheader = NULL;
-	dns_slabheader_t *header = NULL;
 	isc_result_t result;
 	bool delegating;
 	bool newnsec;
@@ -3355,14 +3359,8 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 					   rbtnode->locknum DNS__DB_FLARG_PASS);
 		}
 
-		header = isc_heap_element(rbtdb->heaps[rbtnode->locknum], 1);
-		if (header != NULL && header->ttl + STALE_TTL(header, rbtdb) <
-					      now - RBTDB_VIRTUAL)
-		{
-			dns__cacherbt_expireheader(
-				header, &tlocktype,
-				dns_expire_ttl DNS__DB_FLARG_PASS);
-		}
+		expire_ttl_headers(rbtdb, rbtnode->locknum, 5, &tlocktype,
+				   now DNS__DB_FLARG_PASS);
 
 		/*
 		 * If we've been holding a write lock on the tree just for
@@ -4887,5 +4885,30 @@ dns__rbtdb_deletedata(dns_db_t *db ISC_ATTR_UNUSED,
 		if (header->glue_list) {
 			dns__rbtdb_freeglue(header->glue_list);
 		}
+	}
+}
+
+static void
+expire_ttl_headers(dns_rbtdb_t *rbtdb, unsigned int locknum, size_t purgecount,
+		   isc_rwlocktype_t *tlocktypep,
+		   isc_stdtime_t now DNS__DB_FLARG) {
+	dns_slabheader_t *header = NULL;
+
+	for (size_t i = 0; i < purgecount; i++) {
+		header = isc_heap_element(rbtdb->heaps[locknum], 1);
+		if (header == NULL) {
+			/* No more work; exit cleaning */
+			return;
+		}
+
+		if (header->ttl + STALE_TTL(header, rbtdb) >=
+		    now - RBTDB_VIRTUAL)
+		{
+			/* No more work; exit cleaning */
+			return;
+		}
+
+		dns__cacherbt_expireheader(header, tlocktypep,
+					   dns_expire_ttl DNS__DB_FLARG_PASS);
 	}
 }
