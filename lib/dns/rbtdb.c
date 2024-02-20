@@ -6875,6 +6875,10 @@ rdataset_size(rdatasetheader_t *header) {
 	return (sizeof(*header));
 }
 
+static void
+expire_ttl_headers(dns_rbtdb_t *rbtdb, unsigned int locknum, size_t purgesize,
+		   bool tree_locked, isc_stdtime_t now);
+
 static isc_result_t
 addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	    isc_stdtime_t now, dns_rdataset_t *rdataset, unsigned int options,
@@ -6884,7 +6888,6 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	rbtdb_version_t *rbtversion = version;
 	isc_region_t region;
 	rdatasetheader_t *newheader;
-	rdatasetheader_t *header;
 	isc_result_t result;
 	bool delegating;
 	bool newnsec;
@@ -7058,20 +7061,8 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 			cleanup_nodes(rbtdb, rbtnode->locknum);
 		}
 
-		header = isc_heap_element(rbtdb->heaps[rbtnode->locknum], 1);
-		if (header != NULL) {
-			dns_ttl_t rdh_ttl = header->rdh_ttl;
-
-			/* Only account for stale TTL if cache is not overmem */
-			if (!cache_is_overmem) {
-				rdh_ttl += rbtdb->serve_stale_ttl;
-			}
-
-			if (rdh_ttl < now - RBTDB_VIRTUAL) {
-				expire_header(rbtdb, header, tree_locked,
-					      expire_ttl);
-			}
-		}
+		expire_ttl_headers(rbtdb, rbtnode->locknum, 5, tree_locked,
+				   now);
 
 		/*
 		 * If we've been holding a write lock on the tree just for
@@ -10711,5 +10702,34 @@ expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, bool tree_locked,
 		default:
 			break;
 		}
+	}
+}
+
+static void
+expire_ttl_headers(dns_rbtdb_t *rbtdb, unsigned int locknum, size_t purgesize,
+		   bool tree_locked, isc_stdtime_t now) {
+	rdatasetheader_t *header = NULL;
+	dns_ttl_t rdh_ttl;
+
+	for (size_t i = 0; i < purgesize; i++) {
+		header = isc_heap_element(rbtdb->heaps[locknum], 1);
+		if (header == NULL) {
+			/* No more work; exit cleaning */
+			return;
+		}
+
+		rdh_ttl = header->rdh_ttl;
+
+		/* Only account for stale TTL if cache is not overmem */
+		if (!isc_mem_isovermem(rbtdb->common.mctx)) {
+			rdh_ttl += rbtdb->serve_stale_ttl;
+		}
+
+		if (rdh_ttl >= (now - RBTDB_VIRTUAL)) {
+			/* No more work; exit cleaning */
+			return;
+		}
+
+		expire_header(rbtdb, header, tree_locked, expire_ttl);
 	}
 }
