@@ -75,6 +75,13 @@ Bug Fixes
   the configure ``max-cache-size`` limit was reached.  This has
   been fixed. :gl:`#4596`
 
+- The TTL-based cleaning of the cached DNS records was ineffective
+  cleaning less records from the cache than adding over the time.
+  This could result in a significant backlog of DNS records to be
+  cleaned which could result in memory growth and ultimately triggering
+  overmem LRU-based cleaning that's more aggressive, but also slower.
+  :gl:`#4591`
+
 Known Issues
 ~~~~~~~~~~~~
 
