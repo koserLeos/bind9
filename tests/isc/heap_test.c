@@ -67,12 +67,12 @@ idx(void *p, unsigned int i) {
 ISC_RUN_TEST_IMPL(isc_heap_create) {
 	isc_heap_t *heap = NULL;
 
-	expect_assert_failure(isc_heap_create(mctx, NULL, idx, 0, &heap));
+	expect_assert_failure(isc_heap_create(mctx, NULL, idx, &heap));
 
-	isc_heap_create(mctx, compare, NULL, 0, &heap);
+	isc_heap_create(mctx, compare, NULL, &heap);
 	assert_non_null(heap);
 
-	expect_assert_failure(isc_heap_create(mctx, compare, NULL, 0, &heap));
+	expect_assert_failure(isc_heap_create(mctx, compare, NULL, &heap));
 
 	isc_heap_destroy(&heap);
 	assert_null(heap);
@@ -84,7 +84,7 @@ ISC_RUN_TEST_IMPL(isc_heap_destroy) {
 	expect_assert_failure(isc_heap_destroy(NULL));
 	expect_assert_failure(isc_heap_destroy(&heap));
 
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 	isc_heap_destroy(&heap);
 	assert_null(heap);
@@ -101,7 +101,7 @@ ISC_RUN_TEST_IMPL(isc_heap_insert) {
 	 * heap, so the first insert will not fail, no matter of the contents as
 	 * there's no comparison as we don't have the `index` function set here.
 	 */
-	isc_heap_create(mctx, compare, NULL, 0, &heap);
+	isc_heap_create(mctx, compare, NULL, &heap);
 	assert_non_null(heap);
 
 	isc_heap_insert(heap, NULL);
@@ -114,7 +114,7 @@ ISC_RUN_TEST_IMPL(isc_heap_insert) {
 	 * With the index function set to `idx()`, the `idx()` will get called
 	 * on the NULL pointers and trigger an assertion failure there.
 	 */
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	expect_assert_failure(isc_heap_insert(heap, NULL));
@@ -123,7 +123,7 @@ ISC_RUN_TEST_IMPL(isc_heap_insert) {
 	assert_null(heap);
 
 	/* Test without the index function */
-	isc_heap_create(mctx, compare, NULL, 0, &heap);
+	isc_heap_create(mctx, compare, NULL, &heap);
 	assert_non_null(heap);
 
 	for (size_t i = 0; i < NROUNDS; i++) {
@@ -144,7 +144,7 @@ ISC_RUN_TEST_IMPL(isc_heap_insert) {
 	assert_null(heap);
 
 	/* Test with index function */
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	for (size_t i = 0; i < NROUNDS; i++) {
@@ -173,7 +173,7 @@ ISC_RUN_TEST_IMPL(isc_heap_element) {
 
 	expect_assert_failure(isc_heap_element(NULL, 1));
 
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	expect_assert_failure(isc_heap_element(heap, 0));
@@ -209,7 +209,7 @@ ISC_RUN_TEST_IMPL(isc_heap_delete) {
 
 	expect_assert_failure(isc_heap_delete(NULL, 1));
 
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	for (size_t i = 0; i < NROUNDS; i++) {
@@ -246,7 +246,7 @@ ISC_RUN_TEST_IMPL(isc_heap_increased) {
 
 	expect_assert_failure(isc_heap_element(NULL, 1));
 
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	expect_assert_failure(isc_heap_element(heap, 0));
@@ -289,7 +289,7 @@ ISC_RUN_TEST_IMPL(isc_heap_decreased) {
 
 	expect_assert_failure(isc_heap_element(NULL, 1));
 
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	expect_assert_failure(isc_heap_element(heap, 0));
@@ -329,7 +329,7 @@ ISC_RUN_TEST_IMPL(isc_heap_random) {
 	struct e *e = NULL;
 	uint64_t oldvalue = 0;
 
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	/* First, insert N random elements */
@@ -416,7 +416,7 @@ ISC_RUN_TEST_IMPL(isc_heap_foreach) {
 	isc_heap_t *heap = NULL;
 	struct e *e = NULL;
 
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	for (size_t i = 0; i < NROUNDS; i++) {
@@ -444,7 +444,7 @@ ISC_RUN_TEST_IMPL(isc_heap_resize) {
 	size_t expected_size = 1024;
 	size_t count = 0;
 
-	isc_heap_create(mctx, compare, idx, 0, &heap);
+	isc_heap_create(mctx, compare, idx, &heap);
 	assert_non_null(heap);
 
 	for (size_t i = 0; i < NROUNDS; i++) {

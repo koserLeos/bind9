@@ -1295,11 +1295,10 @@ vctx_init(vctx_t *vctx, isc_mem_t *mctx, dns_zone_t *zone, dns_db_t *db,
 	dns_rdataset_init(&vctx->nsec3paramsigs);
 
 	vctx->expected_chains = NULL;
-	isc_heap_create(mctx, chain_compare, NULL, 1024,
-			&vctx->expected_chains);
+	isc_heap_create(mctx, chain_compare, NULL, &vctx->expected_chains);
 
 	vctx->found_chains = NULL;
-	isc_heap_create(mctx, chain_compare, NULL, 1024, &vctx->found_chains);
+	isc_heap_create(mctx, chain_compare, NULL, &vctx->found_chains);
 }
 
 static void

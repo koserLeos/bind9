@@ -78,7 +78,6 @@ heap_check(isc_heap_t *heap) {
 
 void
 isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare, isc_heapindex_t idx,
-		unsigned int size_increment ISC_ATTR_UNUSED,
 		isc_heap_t **heapp) {
 	REQUIRE(heapp != NULL && *heapp == NULL);
 	REQUIRE(compare != NULL);

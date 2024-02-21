@@ -48,8 +48,7 @@ typedef struct isc_heap isc_heap_t;
 
 void
 isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare,
-		isc_heapindex_t index, unsigned int size_increment,
-		isc_heap_t **heapp);
+		isc_heapindex_t index, isc_heap_t **heapp);
 /*!<
  * \brief Create a new heap.  The heap is implemented using a space-efficient
  * storage method.  When the heap elements are deleted space is not freed
@@ -66,7 +65,6 @@ isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare,
  *	argument.  This function will be called whenever an element's
  *	index value changes, so it may continue to delete itself from the
  *	heap.  This option may be NULL if this functionality is unneeded.
- *\li	"size_increment" is ignored.
  *
  *\li	"heapp" is not NULL, and "*heap" is NULL.
  *
