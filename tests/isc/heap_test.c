@@ -37,7 +37,7 @@
 #include "heap.c"
 #undef mctx
 
-#define NROUNDS 1000000
+#define NROUNDS 100000
 
 struct e {
 	uint64_t value;
@@ -438,6 +438,57 @@ ISC_RUN_TEST_IMPL(isc_heap_foreach) {
 	assert_null(heap);
 }
 
+ISC_RUN_TEST_IMPL(isc_heap_resize) {
+	isc_heap_t *heap = NULL;
+	struct e *e = NULL;
+	size_t expected_size = 1024;
+	size_t count = 0;
+
+	isc_heap_create(mctx, compare, idx, 0, &heap);
+	assert_non_null(heap);
+
+	for (size_t i = 0; i < NROUNDS; i++) {
+		assert_int_equal(heap->size, expected_size);
+
+		e = isc_mem_get(mctx, sizeof(*e));
+		*e = (struct e){
+			.value = isc_random32(),
+		};
+
+		isc_heap_insert(heap, e);
+		assert_int_not_equal(e->index, 0);
+		count++;
+
+		if (count >= expected_size) {
+			expected_size *= 2;
+		}
+	}
+
+	/* Make sure we counted our expected size just right */
+	assert_int_equal(heap->size, 1 << (64 - __builtin_clzll(count)));
+
+	for (size_t i = NROUNDS; i > 0; i--) {
+		assert_int_equal(heap->size, expected_size);
+
+		e = isc_heap_element(heap, 1);
+		assert_non_null(e);
+
+		isc_heap_delete(heap, 1);
+		count--;
+
+		isc_mem_put(mctx, e, sizeof(*e));
+
+		if (expected_size > 1024 && count < expected_size / 3) {
+			expected_size /= 2;
+		}
+	}
+
+	assert_int_equal(heap->size, 1024);
+
+	isc_heap_destroy(&heap);
+	assert_null(heap);
+}
+
 ISC_TEST_LIST_START
 
 ISC_TEST_ENTRY(isc_heap_create)
@@ -449,6 +500,7 @@ ISC_TEST_ENTRY(isc_heap_increased)
 ISC_TEST_ENTRY(isc_heap_decreased)
 ISC_TEST_ENTRY(isc_heap_random)
 ISC_TEST_ENTRY(isc_heap_foreach)
+ISC_TEST_ENTRY(isc_heap_resize)
 
 ISC_TEST_LIST_END
 

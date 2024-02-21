@@ -88,6 +88,8 @@ isc_heap_create(isc_mem_t *mctx, isc_heapcompare_t compare, isc_heapindex_t idx,
 		.magic = HEAP_MAGIC,
 		.compare = compare,
 		.index = idx,
+		.size = 1024,
+		.array = isc_mem_cget(mctx, 1024, sizeof(heap->array[0])),
 	};
 
 	isc_mem_attach(mctx, &heap->mctx);
@@ -103,34 +105,20 @@ isc_heap_destroy(isc_heap_t **heapp) {
 	isc_heap_t *heap = *heapp;
 	*heapp = NULL;
 
-	if (heap->array != NULL) {
-		isc_mem_cput(heap->mctx, heap->array, heap->size,
-			     sizeof(void *));
-	}
 	heap->magic = 0;
+
+	isc_mem_cput(heap->mctx, heap->array, heap->size,
+		     sizeof(heap->array[0]));
 	isc_mem_putanddetach(&heap->mctx, heap, sizeof(*heap));
 }
 
 static void
-upsize(isc_heap_t *heap) {
-	size_t new_size = (heap->size != 0) ? ISC_CHECKED_MUL(heap->size, 2)
-					    : 1024;
-
-	heap->array = isc_mem_creget(heap->mctx, heap->array, heap->size,
-				     new_size, sizeof(void *));
-	heap->size = new_size;
-}
-
-static void
-downsize(isc_heap_t *heap) {
+resize(isc_heap_t *heap, size_t new_size) {
 	REQUIRE(heap->size != 0);
-	size_t new_size = (heap->size != 0) ? heap->size / 2 : 0;
-	if (new_size < 1024) {
-		return;
-	}
+	REQUIRE(new_size != heap->size);
 
 	heap->array = isc_mem_creget(heap->mctx, heap->array, heap->size,
-				     new_size, sizeof(void *));
+				     new_size, sizeof(heap->array[0]));
 	heap->size = new_size;
 }
 
@@ -195,7 +183,7 @@ isc_heap_insert(isc_heap_t *heap, void *elt) {
 	new_last = heap->last + 1;
 	RUNTIME_CHECK(new_last > 0); /* overflow check */
 	if (new_last >= heap->size) {
-		upsize(heap);
+		resize(heap, ISC_CHECKED_MUL(heap->size, 2));
 	}
 	heap->last = new_last;
 
@@ -229,8 +217,8 @@ isc_heap_delete(isc_heap_t *heap, unsigned int idx) {
 		}
 	}
 
-	if (heap->size >= 4098 && heap->last < heap->size / 3) {
-		downsize(heap);
+	if (heap->size >= 2048 && heap->last < heap->size / 3) {
+		resize(heap, heap->size / 2);
 	}
 }
 
