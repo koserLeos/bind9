@@ -1,3 +1,7 @@
+6353.	[func]		Refactor the isc_heap unit to grow and shrink the
+			array for holding the heap elements exponentially
+			instead of linearly. [GL #4592]
+
 6352.	[bug]		Improve the TTL-based cleaning by removing the expired
 			headers from the heap, so they don't block the next
 			cleaning round and clean more than a single item for
