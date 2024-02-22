@@ -1490,6 +1490,14 @@ named_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 		dns_zone_setzonemd(zone, DNS_ZONEMDOPT_REQUIRED,
 				   cfg_obj_asboolean(obj));
 
+		/*
+		 * Always accept expired signatures so that the server
+		 * can re-sign the zone post load.
+		 */
+		if (ztype == dns_zone_primary) {
+			dns_zone_setzonemd(zone, DNS_ZONEMDOPT_ACCEPTEXPIRED,
+					   true);
+		}
 	} else if (ztype == dns_zone_redirect) {
 		dns_zone_setnotifytype(zone, dns_notifytype_no);
 
