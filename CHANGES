@@ -1,3 +1,7 @@
+6351.	[bug]		Revert change introduced in fix to [GL #4383] that
+			converted multiple pruning events into a single pruning
+			queue. [GL #4596]
+
 6350.	[bug]		Address use after free in expire_lru_headers. [GL #4495]
 
 6349.	[placeholder]

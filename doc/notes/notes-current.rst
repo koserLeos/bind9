@@ -70,6 +70,10 @@ Bug Fixes
   ISC would like to thank to Jinmei Tatuya from Infoblox for bringing
   this issue to our attention.
 
+- A TTL-based cache cleaning was found to be ineffective to a level
+  that a memory used by the cache could grow indefinitely until
+  the configure ``max-cache-size`` limit was reached.  This has
+  been fixed. :gl:`#4596`
 
 Known Issues
 ~~~~~~~~~~~~
