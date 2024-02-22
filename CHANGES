@@ -1,3 +1,7 @@
+6352.	[bug]		Revert change introduced in fix to [GL #4383] that
+			converted multiple pruning events into a single pruning
+			queue. [GL #4596]
+
 6351.	[protocol]	Support for the RESINFO record type has been added.
 			[GL #4413]
 
