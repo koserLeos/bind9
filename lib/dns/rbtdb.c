@@ -3890,7 +3890,7 @@ dns__rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 
 	rbtdb->sooner = IS_CACHE(rbtdb) ? ttl_sooner : resign_sooner;
 	for (i = 0; i < (int)rbtdb->node_lock_count; i++) {
-		isc_heap_create(hmctx, rbtdb->sooner, set_index, 0,
+		isc_heap_create(hmctx, rbtdb->sooner, set_index,
 				&rbtdb->heaps[i]);
 	}
 
