@@ -28,9 +28,11 @@
 #include <isc/random.h>
 #include <isc/result.h>
 #include <isc/rwlock.h>
+#include <isc/spinlock.h>
 #include <isc/stats.h>
 #include <isc/string.h>
 #include <isc/tid.h>
+#include <isc/urcu.h>
 #include <isc/util.h>
 
 #include <dns/adb.h>
@@ -103,15 +105,13 @@ struct dns_adb {
 
 	isc_refcount_t references;
 
-	dns_adbnamelist_t names_lru;
-	isc_stdtime_t names_last_update;
-	isc_hashmap_t *names;
-	isc_rwlock_t names_lock;
+	struct cds_list_head names_list;
+	isc_spinlock_t names_spinlock;
+	struct cds_lfht *names_ht;
 
-	dns_adbentrylist_t entries_lru;
-	isc_stdtime_t entries_last_update;
-	isc_hashmap_t *entries;
-	isc_rwlock_t entries_lock;
+	struct cds_list_head entries_list;
+	isc_spinlock_t entries_spinlock;
+	struct cds_lfht *entries_ht;
 
 	isc_stats_t *stats;
 
@@ -133,6 +133,13 @@ struct dns_adb {
  * lists of records pointing to address information when the fetches are
  * complete (v4, v6).
  */
+typedef struct dns_adbnamelru {
+	isc_mem_t *mctx;
+	dns_adbname_t *adbname;
+	struct cds_list_head list_head;
+	struct rcu_head rcu_head;
+} dns_adbnamelru_t;
+
 struct dns_adbname {
 	unsigned int magic;
 	isc_refcount_t references;
@@ -154,9 +161,11 @@ struct dns_adbname {
 	dns_adbfindlist_t finds;
 	isc_mutex_t lock;
 	isc_stdtime_t last_used;
-	/* for LRU-based management */
 
-	ISC_LINK(dns_adbname_t) link;
+	dns_adbnamelru_t *lru;
+
+	struct cds_lfht_node ht_node;
+	struct rcu_head rcu_head;
 };
 
 #if DNS_ADB_TRACE
@@ -208,6 +217,13 @@ struct dns_adbnamehook {
  * including edns state (in "flags"), RTT, and of course the address of
  * the host.
  */
+typedef struct dns_adbentrylru {
+	isc_mem_t *mctx;
+	dns_adbentry_t *adbentry;
+	struct cds_list_head list_head;
+	struct rcu_head rcu_head;
+} dns_adbentrylru_t;
+
 struct dns_adbentry {
 	unsigned int magic;
 
@@ -248,7 +264,10 @@ struct dns_adbentry {
 	 * entry.
 	 */
 
-	ISC_LINK(dns_adbentry_t) link;
+	struct cds_lfht_node ht_node;
+	struct rcu_head rcu_head;
+
+	dns_adbentrylru_t *lru;
 };
 
 #if DNS_ADB_TRACE
@@ -272,8 +291,8 @@ static dns_adbname_t *
 new_adbname(dns_adb_t *adb, const dns_name_t *, bool start_at_zone);
 static void
 destroy_adbname(dns_adbname_t *);
-static bool
-match_adbname(void *node, const void *key);
+static int
+match_adbname(struct cds_lfht_node *ht_node, const void *key);
 static uint32_t
 hash_adbname(const dns_adbname_t *adbname);
 static dns_adbnamehook_t *
@@ -284,8 +303,8 @@ static dns_adbentry_t *
 new_adbentry(dns_adb_t *adb, const isc_sockaddr_t *addr);
 static void
 destroy_adbentry(dns_adbentry_t *entry);
-static bool
-match_adbentry(void *node, const void *key);
+static int
+match_adbentry(struct cds_lfht_node *ht_node, const void *key);
 static dns_adbfind_t *
 new_adbfind(dns_adb_t *, in_port_t);
 static void
@@ -645,9 +664,12 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 	return (ISC_R_SUCCESS);
 }
 
-static bool
-match_ptr(void *node, const void *key) {
-	return (node == key);
+static void
+destroy_adbnamelru_rcu(struct rcu_head *rcu_head) {
+	dns_adbnamelru_t *lru = caa_container_of(rcu_head, dns_adbnamelru_t,
+						 rcu_head);
+
+	isc_mem_putanddetach(&lru->mctx, lru, sizeof(*lru));
 }
 
 /*
@@ -655,8 +677,6 @@ match_ptr(void *node, const void *key) {
  */
 static void
 expire_name(dns_adbname_t *adbname, dns_adbstatus_t astat) {
-	isc_result_t result;
-
 	REQUIRE(DNS_ADBNAME_VALID(adbname));
 
 	dns_adb_t *adb = adbname->adb;
@@ -688,11 +708,17 @@ expire_name(dns_adbname_t *adbname, dns_adbstatus_t astat) {
 	/*
 	 * Remove the adbname from the hashtable...
 	 */
-	result = isc_hashmap_delete(adb->names, hash_adbname(adbname),
-				    match_ptr, adbname);
-	RUNTIME_CHECK(result == ISC_R_SUCCESS);
+	rcu_read_lock();
+
+	cds_lfht_del(adb->names_ht, &adbname->ht_node);
 	/* ... and LRU list */
-	ISC_LIST_UNLINK(adb->names_lru, adbname, link);
+	isc_spinlock_lock(&adb->names_spinlock);
+	cds_list_del_rcu(&adbname->lru->list_head);
+	isc_spinlock_unlock(&adb->names_spinlock);
+	call_rcu(&adbname->lru->rcu_head, destroy_adbnamelru_rcu);
+	adbname->lru = NULL;
+
+	rcu_read_unlock();
 
 	dns_adbname_unref(adbname);
 }
@@ -744,39 +770,46 @@ maybe_expire_namehooks(dns_adbname_t *adbname, isc_stdtime_t now) {
 
 static void
 shutdown_names(dns_adb_t *adb) {
-	dns_adbname_t *next = NULL;
+	dns_adbname_t *adbname = NULL;
+	struct cds_lfht_iter iter;
 
-	RWLOCK(&adb->names_lock, isc_rwlocktype_write);
-	for (dns_adbname_t *name = ISC_LIST_HEAD(adb->names_lru); name != NULL;
-	     name = next)
-	{
-		next = ISC_LIST_NEXT(name, link);
-		dns_adbname_ref(name);
-		LOCK(&name->lock);
+	rcu_read_lock();
+
+	struct cds_lfht *names_ht = rcu_dereference(adb->names_ht);
+
+	cds_lfht_for_each_entry(names_ht, &iter, adbname, ht_node) {
+		dns_adbname_ref(adbname);
+		LOCK(&adbname->lock);
 		/*
 		 * Run through the list.  For each name, clean up finds
 		 * found there, and cancel any fetches running.  When
 		 * all the fetches are canceled, the name will destroy
 		 * itself.
 		 */
-		expire_name(name, DNS_ADB_SHUTTINGDOWN);
-		UNLOCK(&name->lock);
-		dns_adbname_detach(&name);
+		expire_name(adbname, DNS_ADB_SHUTTINGDOWN);
+		UNLOCK(&adbname->lock);
+		dns_adbname_detach(&adbname);
 	}
-	RWUNLOCK(&adb->names_lock, isc_rwlocktype_write);
+	rcu_read_unlock();
 }
 
 static void
 shutdown_entries(dns_adb_t *adb) {
-	dns_adbentry_t *next = NULL;
-	RWLOCK(&adb->entries_lock, isc_rwlocktype_write);
-	for (dns_adbentry_t *adbentry = ISC_LIST_HEAD(adb->entries_lru);
-	     adbentry != NULL; adbentry = next)
-	{
-		next = ISC_LIST_NEXT(adbentry, link);
+	dns_adbentry_t *adbentry = NULL;
+	struct cds_lfht_iter iter;
+
+	rcu_read_lock();
+
+	struct cds_lfht *entries_ht = rcu_dereference(adb->entries_ht);
+
+	cds_lfht_for_each_entry(entries_ht, &iter, adbentry, ht_node) {
+		dns_adbentry_ref(adbentry);
+		LOCK(&adbentry->lock);
 		expire_entry(adbentry);
+		UNLOCK(&adbentry->lock);
+		dns_adbentry_detach(&adbentry);
 	}
-	RWUNLOCK(&adb->entries_lock, isc_rwlocktype_write);
+	rcu_read_unlock();
 }
 
 /*
@@ -974,7 +1007,6 @@ new_adbname(dns_adb_t *adb, const dns_name_t *dnsname, bool start_at_zone) {
 		.v4 = ISC_LIST_INITIALIZER,
 		.v6 = ISC_LIST_INITIALIZER,
 		.finds = ISC_LIST_INITIALIZER,
-		.link = ISC_LINK_INITIALIZER,
 		.magic = DNS_ADBNAME_MAGIC,
 	};
 
@@ -1005,25 +1037,32 @@ ISC_REFCOUNT_IMPL(dns_adbname, destroy_adbname);
 #endif
 
 static void
-destroy_adbname(dns_adbname_t *name) {
-	REQUIRE(DNS_ADBNAME_VALID(name));
+destroy_adbname_rcu(struct rcu_head *rcu_head) {
+	dns_adbname_t *adbname = caa_container_of(rcu_head, dns_adbname_t,
+						  rcu_head);
+	REQUIRE(DNS_ADBNAME_VALID(adbname));
 
-	dns_adb_t *adb = name->adb;
+	dns_adb_t *adb = adbname->adb;
 
-	REQUIRE(!NAME_HAS_V4(name));
-	REQUIRE(!NAME_HAS_V6(name));
-	REQUIRE(!NAME_FETCH(name));
-	REQUIRE(ISC_LIST_EMPTY(name->finds));
-	REQUIRE(!ISC_LINK_LINKED(name, link));
+	REQUIRE(!NAME_HAS_V4(adbname));
+	REQUIRE(!NAME_HAS_V6(adbname));
+	REQUIRE(!NAME_FETCH(adbname));
+	REQUIRE(ISC_LIST_EMPTY(adbname->finds));
+	REQUIRE(adbname->lru == NULL);
 
-	name->magic = 0;
+	adbname->magic = 0;
 
-	isc_mutex_destroy(&name->lock);
+	isc_mutex_destroy(&adbname->lock);
 
-	isc_mem_put(adb->mctx, name, sizeof(*name));
+	isc_mem_put(adb->mctx, adbname, sizeof(*adbname));
 
 	dec_adbstats(adb, dns_adbstats_namescnt);
 	dns_adb_detach(&adb);
+}
+
+static void
+destroy_adbname(dns_adbname_t *adbname) {
+	call_rcu(&adbname->rcu_head, destroy_adbname_rcu);
 }
 
 static dns_adbnamehook_t *
@@ -1064,7 +1103,6 @@ new_adbentry(dns_adb_t *adb, const isc_sockaddr_t *addr) {
 	*entry = (dns_adbentry_t){
 		.srtt = isc_random_uniform(0x1f) + 1,
 		.sockaddr = *addr,
-		.link = ISC_LINK_INITIALIZER,
 		.quota = adb->quota,
 		.references = ISC_REFCOUNT_INITIALIZER(1),
 		.adb = dns_adb_ref(adb),
@@ -1083,31 +1121,47 @@ new_adbentry(dns_adb_t *adb, const isc_sockaddr_t *addr) {
 }
 
 static void
-destroy_adbentry(dns_adbentry_t *entry) {
-	REQUIRE(DNS_ADBENTRY_VALID(entry));
+destroy_adbentrylru_rcu(struct rcu_head *rcu_head) {
+	dns_adbentrylru_t *lru = caa_container_of(rcu_head, dns_adbentrylru_t,
+						  rcu_head);
 
-	dns_adb_t *adb = entry->adb;
+	isc_mem_putanddetach(&lru->mctx, lru, sizeof(*lru));
+}
+
+static void
+destroy_adbentry_rcu(struct rcu_head *rcu_head) {
+	dns_adbentry_t *adbentry = caa_container_of(rcu_head, dns_adbentry_t,
+						    rcu_head);
+	REQUIRE(DNS_ADBENTRY_VALID(adbentry));
+
+	dns_adb_t *adb = adbentry->adb;
 	uint_fast32_t active;
 
-	entry->magic = 0;
+	adbentry->magic = 0;
 
-	INSIST(!ISC_LINK_LINKED(entry, link));
+	INSIST(ISC_LIST_EMPTY(adbentry->nhs));
+	REQUIRE(adbentry->lru == NULL);
 
-	INSIST(ISC_LIST_EMPTY(entry->nhs));
-
-	active = atomic_load_acquire(&entry->active);
+	active = atomic_load_acquire(&adbentry->active);
 	INSIST(active == 0);
 
-	if (entry->cookie != NULL) {
-		isc_mem_put(adb->mctx, entry->cookie, entry->cookielen);
+	if (adbentry->cookie != NULL) {
+		isc_mem_put(adb->mctx, adbentry->cookie, adbentry->cookielen);
 	}
 
-	isc_mutex_destroy(&entry->lock);
-	isc_mem_put(adb->mctx, entry, sizeof(*entry));
+	isc_mutex_destroy(&adbentry->lock);
+	isc_mem_put(adb->mctx, adbentry, sizeof(*adbentry));
 
 	dec_adbstats(adb, dns_adbstats_entriescnt);
 
 	dns_adb_detach(&adb);
+}
+
+static void
+destroy_adbentry(dns_adbentry_t *adbentry) {
+	REQUIRE(DNS_ADBENTRY_VALID(adbentry));
+
+	call_rcu(&adbentry->rcu_head, destroy_adbentry_rcu);
 }
 
 #if DNS_ADB_TRACE
@@ -1238,18 +1292,10 @@ free_adbaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **ainfo) {
 	isc_mem_put(adb->mctx, ai, sizeof(*ai));
 }
 
-static void
-upgrade_names_lock(dns_adb_t *adb, isc_rwlocktype_t *locktypep,
-		   isc_stdtime_t now) {
-	UPGRADELOCK(&adb->names_lock, *locktypep);
-	if (purge_stale_names(adb, now)) {
-		adb->names_last_update = now;
-	}
-}
-
-static bool
-match_adbname(void *node, const void *key) {
-	const dns_adbname_t *adbname0 = node;
+static int
+match_adbname(struct cds_lfht_node *ht_node, const void *key) {
+	const dns_adbname_t *adbname0 = caa_container_of(ht_node, dns_adbname_t,
+							 ht_node);
 	const dns_adbname_t *adbname1 = key;
 
 	if ((adbname0->flags & DNS_ADBFIND_STARTATZONE) !=
@@ -1279,67 +1325,69 @@ hash_adbname(const dns_adbname_t *adbname) {
 static dns_adbname_t *
 get_attached_and_locked_name(dns_adb_t *adb, const dns_name_t *name,
 			     bool start_at_zone, isc_stdtime_t now) {
-	isc_result_t result;
 	dns_adbname_t *adbname = NULL;
 	isc_time_t timenow;
-	isc_stdtime_t last_update;
 	dns_adbname_t key = {
 		.name = UNCONST(name),
 		.flags = (start_at_zone) ? DNS_ADBFIND_STARTATZONE : 0,
 	};
 	uint32_t hashval = hash_adbname(&key);
-	isc_rwlocktype_t locktype = isc_rwlocktype_read;
+	struct cds_lfht_iter iter;
+	isc_stdtime_t last_update = now; /* FIXME */
 
 	isc_time_set(&timenow, now, 0);
 
-	RWLOCK(&adb->names_lock, locktype);
-	last_update = adb->names_last_update;
+	purge_stale_names(adb, now);
 
-	if (last_update + ADB_STALE_MARGIN >= now ||
-	    isc_mem_isovermem(adb->mctx))
-	{
-		last_update = now;
-		upgrade_names_lock(adb, &locktype, now);
-	}
+	rcu_read_lock();
+	struct cds_lfht *names_ht = rcu_dereference(adb->names_ht);
+	INSIST(names_ht != NULL);
 
-	result = isc_hashmap_find(adb->names, hashval, match_adbname,
-				  (void *)&key, (void **)&adbname);
-	switch (result) {
-	case ISC_R_NOTFOUND:
-		UPGRADELOCK(&adb->names_lock, locktype);
+	cds_lfht_lookup(names_ht, hashval, match_adbname, &key, &iter);
 
+	struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+	if (ht_node == NULL) {
 		/* Allocate a new name and add it to the hash table. */
 		adbname = new_adbname(adb, name, start_at_zone);
 
-		void *found = NULL;
-		result = isc_hashmap_add(adb->names, hashval, match_adbname,
-					 (void *)&key, adbname, &found);
-		if (result == ISC_R_EXISTS) {
-			destroy_adbname(adbname);
-			adbname = found;
-			result = ISC_R_SUCCESS;
-			ISC_LIST_UNLINK(adb->names_lru, adbname, link);
+		ht_node = cds_lfht_add_unique(names_ht, hashval, match_adbname,
+					      &key, &adbname->ht_node);
+		if (ht_node != &adbname->ht_node) {
+			destroy_adbname_rcu(&adbname->rcu_head);
 		}
-		INSIST(result == ISC_R_SUCCESS);
-
-		break;
-	case ISC_R_SUCCESS:
-		if (locktype == isc_rwlocktype_write) {
-			ISC_LIST_UNLINK(adb->names_lru, adbname, link);
-		}
-		break;
-	default:
-		UNREACHABLE();
 	}
+
+	adbname = caa_container_of(ht_node, dns_adbname_t, ht_node);
 
 	dns_adbname_ref(adbname);
-
 	LOCK(&adbname->lock); /* Must be unlocked by the caller */
-	if (adbname->last_used + ADB_CACHE_MINIMUM <= last_update) {
+
+	if (adbname->lru == NULL ||
+	    adbname->last_used + ADB_CACHE_MINIMUM <= last_update)
+	{
 		adbname->last_used = now;
-	}
-	if (locktype == isc_rwlocktype_write) {
-		ISC_LIST_PREPEND(adb->names_lru, adbname, link);
+
+		if (adbname->lru != NULL) {
+			isc_spinlock_lock(&adb->names_spinlock);
+			cds_list_del_rcu(&adbname->lru->list_head);
+			isc_spinlock_unlock(&adb->names_spinlock);
+			call_rcu(&adbname->lru->rcu_head,
+				 destroy_adbnamelru_rcu);
+			adbname->lru = NULL;
+		}
+
+		dns_adbnamelru_t *lru = isc_mem_get(adb->mctx, sizeof(*lru));
+		*lru = (dns_adbnamelru_t){
+			.adbname = adbname,
+			.list_head = CDS_LIST_HEAD_INIT(lru->list_head),
+		};
+		isc_mem_attach(adbname->adb->mctx, &lru->mctx);
+
+		adbname->lru = lru;
+
+		isc_spinlock_lock(&adb->names_spinlock);
+		cds_list_add_rcu(&lru->list_head, &adb->names_list);
+		isc_spinlock_unlock(&adb->names_spinlock);
 	}
 
 	/*
@@ -1347,23 +1395,16 @@ get_attached_and_locked_name(dns_adb_t *adb, const dns_name_t *name,
 	 * expire_name() - the unused adbname stored in the hashtable and lru
 	 * has always refcount == 1
 	 */
-	RWUNLOCK(&adb->names_lock, locktype);
+
+	rcu_read_unlock();
 
 	return (adbname);
 }
 
-static void
-upgrade_entries_lock(dns_adb_t *adb, isc_rwlocktype_t *locktypep,
-		     isc_stdtime_t now) {
-	UPGRADELOCK(&adb->entries_lock, *locktypep);
-	if (purge_stale_entries(adb, now)) {
-		adb->entries_last_update = now;
-	}
-}
-
-static bool
-match_adbentry(void *node, const void *key) {
-	dns_adbentry_t *adbentry = node;
+static int
+match_adbentry(struct cds_lfht_node *ht_node, const void *key) {
+	dns_adbentry_t *adbentry = caa_container_of(ht_node, dns_adbentry_t,
+						    ht_node);
 
 	return (isc_sockaddr_equal(&adbentry->sockaddr, key));
 }
@@ -1374,52 +1415,38 @@ match_adbentry(void *node, const void *key) {
 static dns_adbentry_t *
 get_attached_and_locked_entry(dns_adb_t *adb, isc_stdtime_t now,
 			      const isc_sockaddr_t *addr) {
-	isc_result_t result;
 	dns_adbentry_t *adbentry = NULL;
 	isc_time_t timenow;
-	isc_stdtime_t last_update;
 	uint32_t hashval = isc_sockaddr_hash(addr, true);
-	isc_rwlocktype_t locktype = isc_rwlocktype_read;
+	isc_stdtime_t last_update = now; /* FIXME */
+	struct cds_lfht_iter iter;
 
 	isc_time_set(&timenow, now, 0);
 
-	RWLOCK(&adb->entries_lock, locktype);
-	last_update = adb->entries_last_update;
+	purge_stale_entries(adb, now);
 
-	if (now - last_update > ADB_STALE_MARGIN ||
-	    isc_mem_isovermem(adb->mctx))
-	{
-		last_update = now;
+	rcu_read_lock();
 
-		upgrade_entries_lock(adb, &locktype, now);
-	}
+	struct cds_lfht *entries_ht = rcu_dereference(adb->entries_ht);
+	INSIST(entries_ht != NULL);
 
-	result = isc_hashmap_find(adb->entries, hashval, match_adbentry,
-				  (const unsigned char *)addr,
-				  (void **)&adbentry);
-	if (result == ISC_R_NOTFOUND) {
-		if (locktype == isc_rwlocktype_read) {
-			upgrade_entries_lock(adb, &locktype, now);
-		}
+again:
+	cds_lfht_lookup(entries_ht, hashval, match_adbentry, addr, &iter);
 
-	create:
-		INSIST(locktype == isc_rwlocktype_write);
-
+	struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+	if (ht_node == NULL) {
 		/* Allocate a new entry and add it to the hash table. */
 		adbentry = new_adbentry(adb, addr);
 
-		void *found = NULL;
-		result = isc_hashmap_add(adb->entries, hashval, match_adbentry,
-					 &adbentry->sockaddr, adbentry, &found);
-		if (result == ISC_R_SUCCESS) {
-			ISC_LIST_PREPEND(adb->entries_lru, adbentry, link);
-		} else if (result == ISC_R_EXISTS) {
-			dns_adbentry_detach(&adbentry);
-			adbentry = found;
-			result = ISC_R_SUCCESS;
+		ht_node = cds_lfht_add_unique(entries_ht, hashval,
+					      match_adbentry, addr,
+					      &adbentry->ht_node);
+		if (ht_node != &adbentry->ht_node) {
+			destroy_adbentry_rcu(&adbentry->rcu_head);
 		}
 	}
-	INSIST(result == ISC_R_SUCCESS);
+
+	adbentry = caa_container_of(ht_node, dns_adbentry_t, ht_node);
 
 	/*
 	 * The dns_adbentry_ref() must stay here before trying to expire
@@ -1427,38 +1454,43 @@ get_attached_and_locked_entry(dns_adb_t *adb, isc_stdtime_t now,
 	 */
 	dns_adbentry_ref(adbentry);
 	LOCK(&adbentry->lock); /* Must be unlocked by the caller */
-	switch (locktype) {
-	case isc_rwlocktype_read:
-		if (!entry_expired(adbentry, now)) {
-			break;
-		}
 
-		/* We need to upgrade the LRU lock */
+	if (entry_expired(adbentry, now) || ENTRY_DEAD(adbentry) ||
+	    maybe_expire_entry(adbentry, now))
+	{
 		UNLOCK(&adbentry->lock);
-		upgrade_entries_lock(adb, &locktype, now);
-		LOCK(&adbentry->lock);
-		FALLTHROUGH;
-	case isc_rwlocktype_write:
-		if (ENTRY_DEAD(adbentry) || maybe_expire_entry(adbentry, now)) {
-			UNLOCK(&adbentry->lock);
-			dns_adbentry_detach(&adbentry);
-			goto create;
-		}
-		break;
-	default:
-		UNREACHABLE();
+		dns_adbentry_detach(&adbentry);
+		goto again;
 	}
-
 	/* Did enough time pass to update the LRU? */
-	if (adbentry->last_used + ADB_CACHE_MINIMUM <= last_update) {
+	if (adbentry->lru == NULL ||
+	    adbentry->last_used + ADB_CACHE_MINIMUM <= last_update)
+	{
 		adbentry->last_used = now;
-		if (locktype == isc_rwlocktype_write) {
-			ISC_LIST_UNLINK(adb->entries_lru, adbentry, link);
-			ISC_LIST_PREPEND(adb->entries_lru, adbentry, link);
+
+		if (adbentry->lru != NULL) {
+			isc_spinlock_lock(&adb->entries_spinlock);
+			cds_list_del_rcu(&adbentry->lru->list_head);
+			isc_spinlock_unlock(&adb->entries_spinlock);
+			call_rcu(&adbentry->lru->rcu_head,
+				 destroy_adbentrylru_rcu);
+			adbentry->lru = NULL;
 		}
+
+		dns_adbentrylru_t *lru = isc_mem_get(adb->mctx, sizeof(*lru));
+		*lru = (dns_adbentrylru_t){
+			.adbentry = adbentry,
+			.list_head = CDS_LIST_HEAD_INIT(lru->list_head),
+		};
+		isc_mem_attach(adbentry->adb->mctx, &lru->mctx);
+		adbentry->lru = lru;
+
+		isc_spinlock_lock(&adb->entries_spinlock);
+		cds_list_add_rcu(&lru->list_head, &adb->entries_list);
+		isc_spinlock_unlock(&adb->entries_spinlock);
 	}
 
-	RWUNLOCK(&adb->entries_lock, locktype);
+	rcu_read_unlock();
 
 	return (adbentry);
 }
@@ -1566,18 +1598,21 @@ maybe_expire_name(dns_adbname_t *adbname, isc_stdtime_t now) {
 
 static void
 expire_entry(dns_adbentry_t *adbentry) {
-	isc_result_t result;
 	dns_adb_t *adb = adbentry->adb;
 
 	if (!ENTRY_DEAD(adbentry)) {
 		(void)atomic_fetch_or(&adbentry->flags, ENTRY_IS_DEAD);
 
-		result = isc_hashmap_delete(
-			adb->entries,
-			isc_sockaddr_hash(&adbentry->sockaddr, true), match_ptr,
-			adbentry);
-		RUNTIME_CHECK(result == ISC_R_SUCCESS);
-		ISC_LIST_UNLINK(adb->entries_lru, adbentry, link);
+		rcu_read_lock();
+
+		cds_lfht_del(adb->entries_ht, &adbentry->ht_node);
+		isc_spinlock_lock(&adb->entries_spinlock);
+		cds_list_del_rcu(&adbentry->lru->list_head);
+		isc_spinlock_unlock(&adb->entries_spinlock);
+		call_rcu(&adbentry->lru->rcu_head, destroy_adbentrylru_rcu);
+		adbentry->lru = NULL;
+
+		rcu_read_unlock();
 	}
 
 	dns_adbentry_detach(&adbentry);
@@ -1625,7 +1660,6 @@ purge_stale_names(dns_adb_t *adb, isc_stdtime_t now) {
 	bool overmem = isc_mem_isovermem(adb->mctx);
 	int max_removed = overmem ? 10 : 5;
 	int scans = 0, removed = 0;
-	dns_adbname_t *prev = NULL;
 
 	/*
 	 * We limit the number of scanned entries to 10 (arbitrary choice)
@@ -1633,12 +1667,10 @@ purge_stale_names(dns_adb_t *adb, isc_stdtime_t now) {
 	 * tail entries that have fetches (this should be rare, but could
 	 * happen).
 	 */
-
-	for (dns_adbname_t *adbname = ISC_LIST_TAIL(adb->names_lru);
-	     adbname != NULL && removed < max_removed && scans < 10;
-	     adbname = prev)
-	{
-		prev = ISC_LIST_PREV(adbname, link);
+	bool done = false;
+	dns_adbnamelru_t *lru = NULL;
+	cds_list_for_each_entry_rcu(lru, &adb->names_list, list_head) {
+		dns_adbname_t *adbname = lru->adbname;
 
 		dns_adbname_ref(adbname);
 		LOCK(&adbname->lock);
@@ -1660,7 +1692,7 @@ purge_stale_names(dns_adb_t *adb, isc_stdtime_t now) {
 		 * just created.
 		 */
 		if (adbname->last_used + ADB_CACHE_MINIMUM >= now) {
-			prev = NULL;
+			done = true;
 			goto next;
 		}
 
@@ -1682,10 +1714,14 @@ purge_stale_names(dns_adb_t *adb, isc_stdtime_t now) {
 		 * than `now` for all previous entries, so we just stop
 		 * the scanning.
 		 */
-		prev = NULL;
+		done = true;
 	next:
 		UNLOCK(&adbname->lock);
 		dns_adbname_detach(&adbname);
+
+		if (scans >= 10 || removed >= max_removed || done) {
+			break;
+		}
 	}
 
 	if (removed == max_removed) {
@@ -1698,13 +1734,9 @@ purge_stale_names(dns_adb_t *adb, isc_stdtime_t now) {
 
 static void
 cleanup_names(dns_adb_t *adb, isc_stdtime_t now) {
-	dns_adbname_t *next = NULL;
-
-	RWLOCK(&adb->names_lock, isc_rwlocktype_write);
-	for (dns_adbname_t *adbname = ISC_LIST_HEAD(adb->names_lru);
-	     adbname != NULL; adbname = next)
-	{
-		next = ISC_LIST_NEXT(adbname, link);
+	dns_adbnamelru_t *lru = NULL;
+	cds_list_for_each_entry_rcu(lru, &adb->names_list, list_head) {
+		dns_adbname_t *adbname = lru->adbname;
 
 		dns_adbname_ref(adbname);
 		LOCK(&adbname->lock);
@@ -1719,7 +1751,6 @@ cleanup_names(dns_adb_t *adb, isc_stdtime_t now) {
 		UNLOCK(&adbname->lock);
 		dns_adbname_detach(&adbname);
 	}
-	RWUNLOCK(&adb->names_lock, isc_rwlocktype_write);
 }
 
 /*%
@@ -1737,7 +1768,7 @@ purge_stale_entries(dns_adb_t *adb, isc_stdtime_t now) {
 	bool overmem = isc_mem_isovermem(adb->mctx);
 	int max_removed = overmem ? 10 : 5;
 	int scans = 0, removed = 0;
-	dns_adbentry_t *prev = NULL;
+	bool done = false;
 
 	/*
 	 * We limit the number of scanned entries to 10 (arbitrary choice)
@@ -1746,11 +1777,9 @@ purge_stale_entries(dns_adb_t *adb, isc_stdtime_t now) {
 	 * happen).
 	 */
 
-	for (dns_adbentry_t *adbentry = ISC_LIST_TAIL(adb->entries_lru);
-	     adbentry != NULL && removed < max_removed && scans < 10;
-	     adbentry = prev)
-	{
-		prev = ISC_LIST_PREV(adbentry, link);
+	dns_adbentrylru_t *lru = NULL;
+	cds_list_for_each_entry_rcu(lru, &adb->entries_list, list_head) {
+		dns_adbentry_t *adbentry = lru->adbentry;
 
 		dns_adbentry_ref(adbentry);
 		LOCK(&adbentry->lock);
@@ -1770,7 +1799,7 @@ purge_stale_entries(dns_adb_t *adb, isc_stdtime_t now) {
 		 * just created.
 		 */
 		if (adbentry->last_used + ADB_CACHE_MINIMUM >= now) {
-			prev = NULL;
+			done = true;
 			goto next;
 		}
 
@@ -1792,10 +1821,13 @@ purge_stale_entries(dns_adb_t *adb, isc_stdtime_t now) {
 		 * than `now` for all previous entries, so we just stop
 		 * the scanning
 		 */
-		prev = NULL;
+		done = true;
 	next:
 		UNLOCK(&adbentry->lock);
 		dns_adbentry_detach(&adbentry);
+		if (removed >= max_removed || scans >= 10 || done) {
+			break;
+		}
 	}
 
 	if (removed == max_removed) {
@@ -1808,13 +1840,9 @@ purge_stale_entries(dns_adb_t *adb, isc_stdtime_t now) {
 
 static void
 cleanup_entries(dns_adb_t *adb, isc_stdtime_t now) {
-	dns_adbentry_t *next = NULL;
-
-	RWLOCK(&adb->entries_lock, isc_rwlocktype_write);
-	for (dns_adbentry_t *adbentry = ISC_LIST_HEAD(adb->entries_lru);
-	     adbentry != NULL; adbentry = next)
-	{
-		next = ISC_LIST_NEXT(adbentry, link);
+	dns_adbentrylru_t *lru = NULL;
+	cds_list_for_each_entry_rcu(lru, &adb->entries_list, list_head) {
+		dns_adbentry_t *adbentry = lru->adbentry;
 
 		dns_adbentry_ref(adbentry);
 		LOCK(&adbentry->lock);
@@ -1822,7 +1850,6 @@ cleanup_entries(dns_adb_t *adb, isc_stdtime_t now) {
 		UNLOCK(&adbentry->lock);
 		dns_adbentry_detach(&adbentry);
 	}
-	RWUNLOCK(&adb->entries_lock, isc_rwlocktype_write);
 }
 
 static void
@@ -1831,18 +1858,21 @@ destroy(dns_adb_t *adb) {
 
 	adb->magic = 0;
 
-	RWLOCK(&adb->names_lock, isc_rwlocktype_write);
-	INSIST(isc_hashmap_count(adb->names) == 0);
-	isc_hashmap_destroy(&adb->names);
-	RWUNLOCK(&adb->names_lock, isc_rwlocktype_write);
-	isc_rwlock_destroy(&adb->names_lock);
+	struct cds_lfht *names_ht = NULL;
+	struct cds_lfht *entries_ht = NULL;
 
-	RWLOCK(&adb->entries_lock, isc_rwlocktype_write);
-	/* There are no unassociated entries */
-	INSIST(isc_hashmap_count(adb->entries) == 0);
-	isc_hashmap_destroy(&adb->entries);
-	RWUNLOCK(&adb->entries_lock, isc_rwlocktype_write);
-	isc_rwlock_destroy(&adb->entries_lock);
+	rcu_read_lock();
+	names_ht = rcu_xchg_pointer(&adb->names_ht, NULL);
+	entries_ht = rcu_xchg_pointer(&adb->entries_ht, NULL);
+	rcu_read_unlock();
+
+	synchronize_rcu();
+
+	cds_lfht_destroy(names_ht, NULL);
+	cds_lfht_destroy(entries_ht, NULL);
+
+	isc_spinlock_destroy(&adb->names_spinlock);
+	isc_spinlock_destroy(&adb->entries_spinlock);
 
 	isc_mem_detach(&adb->hmctx);
 
@@ -1864,6 +1894,12 @@ ISC_REFCOUNT_IMPL(dns_adb, destroy);
  * Public functions.
  */
 
+#define NAMES_INIT_SIZE (1 << 10) /* Must be power of 2 */
+#define NAMES_MIN_SIZE	(1 << 8)  /* Must be power of 2 */
+
+#define ENTRIES_INIT_SIZE (1 << 10) /* Must be power of 2 */
+#define ENTRIES_MIN_SIZE  (1 << 8)  /* Must be power of 2 */
+
 void
 dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_loopmgr_t *loopmgr,
 	       dns_adb_t **newadb) {
@@ -1876,9 +1912,18 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_loopmgr_t *loopmgr,
 	adb = isc_mem_get(mem, sizeof(dns_adb_t));
 	*adb = (dns_adb_t){
 		.loopmgr = loopmgr,
-		.names_lru = ISC_LIST_INITIALIZER,
-		.entries_lru = ISC_LIST_INITIALIZER,
+		.names_ht = cds_lfht_new(
+			NAMES_INIT_SIZE, NAMES_MIN_SIZE, 0,
+			CDS_LFHT_AUTO_RESIZE | CDS_LFHT_ACCOUNTING, NULL),
+		.entries_ht = cds_lfht_new(
+			ENTRIES_INIT_SIZE, ENTRIES_MIN_SIZE, 0,
+			CDS_LFHT_AUTO_RESIZE | CDS_LFHT_ACCOUNTING, NULL),
+		.names_list = CDS_LIST_HEAD_INIT(adb->names_list),
+		.entries_list = CDS_LIST_HEAD_INIT(adb->entries_list),
 	};
+
+	isc_spinlock_init(&adb->names_spinlock);
+	isc_spinlock_init(&adb->entries_spinlock);
 
 	/*
 	 * Initialize things here that cannot fail, and especially things
@@ -1895,12 +1940,6 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_loopmgr_t *loopmgr,
 
 	isc_mem_create(&adb->hmctx);
 	isc_mem_setname(adb->hmctx, "ADB_hashmaps");
-
-	isc_hashmap_create(adb->hmctx, ADB_HASH_BITS, &adb->names);
-	isc_rwlock_init(&adb->names_lock);
-
-	isc_hashmap_create(adb->hmctx, ADB_HASH_BITS, &adb->entries);
-	isc_rwlock_init(&adb->entries_lock);
 
 	isc_mutex_init(&adb->lock);
 
@@ -2394,50 +2433,53 @@ dump_adb(dns_adb_t *adb, FILE *f, bool debug, isc_stdtime_t now) {
 	/*
 	 * Ensure this operation is applied to both hash tables at once.
 	 */
-	RWLOCK(&adb->names_lock, isc_rwlocktype_write);
 
-	for (dns_adbname_t *name = ISC_LIST_HEAD(adb->names_lru); name != NULL;
-	     name = ISC_LIST_NEXT(name, link))
-	{
-		LOCK(&name->lock);
+	rcu_read_lock();
+
+	struct cds_lfht *names_ht = rcu_dereference(adb->names_ht);
+	struct cds_lfht *entries_ht = rcu_dereference(adb->entries_ht);
+
+	dns_adbname_t *adbname = NULL;
+	struct cds_lfht_iter iter;
+
+	cds_lfht_for_each_entry(names_ht, &iter, adbname, ht_node) {
+		LOCK(&adbname->lock);
 		/*
 		 * Dump the names
 		 */
 		if (debug) {
-			fprintf(f, "; name %p (flags %08x)\n", name,
-				name->flags);
+			fprintf(f, "; name %p (flags %08x)\n", adbname,
+				adbname->flags);
 		}
 		fprintf(f, "; ");
-		dns_name_print(name->name, f);
-		if (dns_name_countlabels(&name->target) > 0) {
+		dns_name_print(adbname->name, f);
+		if (dns_name_countlabels(&adbname->target) > 0) {
 			fprintf(f, " alias ");
-			dns_name_print(&name->target, f);
+			dns_name_print(&adbname->target, f);
 		}
 
-		dump_ttl(f, "v4", name->expire_v4, now);
-		dump_ttl(f, "v6", name->expire_v6, now);
-		dump_ttl(f, "target", name->expire_target, now);
+		dump_ttl(f, "v4", adbname->expire_v4, now);
+		dump_ttl(f, "v6", adbname->expire_v6, now);
+		dump_ttl(f, "target", adbname->expire_target, now);
 
-		fprintf(f, " [v4 %s] [v6 %s]", errnames[name->fetch_err],
-			errnames[name->fetch6_err]);
+		fprintf(f, " [v4 %s] [v6 %s]", errnames[adbname->fetch_err],
+			errnames[adbname->fetch6_err]);
 
 		fprintf(f, "\n");
 
-		print_namehook_list(f, "v4", adb, &name->v4, debug, now);
-		print_namehook_list(f, "v6", adb, &name->v6, debug, now);
+		print_namehook_list(f, "v4", adb, &adbname->v4, debug, now);
+		print_namehook_list(f, "v6", adb, &adbname->v6, debug, now);
 
 		if (debug) {
-			print_fetch_list(f, name);
-			print_find_list(f, name);
+			print_fetch_list(f, adbname);
+			print_find_list(f, adbname);
 		}
-		UNLOCK(&name->lock);
+		UNLOCK(&adbname->lock);
 	}
 
-	RWLOCK(&adb->entries_lock, isc_rwlocktype_write);
 	fprintf(f, ";\n; Unassociated entries\n;\n");
-	for (dns_adbentry_t *adbentry = ISC_LIST_HEAD(adb->entries_lru);
-	     adbentry != NULL; adbentry = ISC_LIST_NEXT(adbentry, link))
-	{
+	dns_adbentry_t *adbentry = NULL;
+	cds_lfht_for_each_entry(entries_ht, &iter, adbentry, ht_node) {
 		LOCK(&adbentry->lock);
 		if (ISC_LIST_EMPTY(adbentry->nhs)) {
 			dump_entry(f, adb, adbentry, debug, now);
@@ -2445,8 +2487,7 @@ dump_adb(dns_adb_t *adb, FILE *f, bool debug, isc_stdtime_t now) {
 		UNLOCK(&adbentry->lock);
 	}
 
-	RWUNLOCK(&adb->entries_lock, isc_rwlocktype_write);
-	RWUNLOCK(&adb->names_lock, isc_rwlocktype_write);
+	rcu_read_unlock();
 }
 
 static void
@@ -2608,39 +2649,34 @@ isc_result_t
 dns_adb_dumpquota(dns_adb_t *adb, isc_buffer_t **buf) {
 	REQUIRE(DNS_ADB_VALID(adb));
 
-	isc_hashmap_iter_t *it = NULL;
-	isc_result_t result;
+	rcu_read_lock();
 
-	RWLOCK(&adb->entries_lock, isc_rwlocktype_read);
-	isc_hashmap_iter_create(adb->entries, &it);
-	for (result = isc_hashmap_iter_first(it); result == ISC_R_SUCCESS;
-	     result = isc_hashmap_iter_next(it))
-	{
-		dns_adbentry_t *entry = NULL;
-		isc_hashmap_iter_current(it, (void **)&entry);
+	struct cds_lfht *entries_ht = rcu_dereference(adb->entries_ht);
+	dns_adbentry_t *adbentry = NULL;
+	struct cds_lfht_iter iter;
 
-		LOCK(&entry->lock);
+	cds_lfht_for_each_entry(entries_ht, &iter, adbentry, ht_node) {
+		LOCK(&adbentry->lock);
 		char addrbuf[ISC_NETADDR_FORMATSIZE];
 		char text[ISC_NETADDR_FORMATSIZE + BUFSIZ];
 		isc_netaddr_t netaddr;
 
-		if (entry->atr == 0.0 && entry->quota == adb->quota) {
+		if (adbentry->atr == 0.0 && adbentry->quota == adb->quota) {
 			goto unlock;
 		}
 
-		isc_netaddr_fromsockaddr(&netaddr, &entry->sockaddr);
+		isc_netaddr_fromsockaddr(&netaddr, &adbentry->sockaddr);
 		isc_netaddr_format(&netaddr, addrbuf, sizeof(addrbuf));
 
 		snprintf(text, sizeof(text),
 			 "\n- quota %s (%" PRIuFAST32 "/%d) atr %0.2f", addrbuf,
-			 atomic_load_relaxed(&entry->quota), adb->quota,
-			 entry->atr);
+			 atomic_load_relaxed(&adbentry->quota), adb->quota,
+			 adbentry->atr);
 		putstr(buf, text);
 	unlock:
-		UNLOCK(&entry->lock);
+		UNLOCK(&adbentry->lock);
 	}
-	isc_hashmap_iter_destroy(&it);
-	RWUNLOCK(&adb->entries_lock, isc_rwlocktype_read);
+	rcu_read_unlock();
 
 	return (ISC_R_SUCCESS);
 }
@@ -3434,7 +3470,6 @@ dns_adb_flush(dns_adb_t *adb) {
 void
 dns_adb_flushname(dns_adb_t *adb, const dns_name_t *name) {
 	dns_adbname_t *adbname = NULL;
-	isc_result_t result;
 	bool start_at_zone = false;
 	dns_adbname_t key = { .name = UNCONST(name) };
 
@@ -3445,16 +3480,24 @@ dns_adb_flushname(dns_adb_t *adb, const dns_name_t *name) {
 		return;
 	}
 
-	RWLOCK(&adb->names_lock, isc_rwlocktype_write);
+	rcu_read_lock();
+	struct cds_lfht *names_ht = rcu_dereference(adb->names_ht);
+	INSIST(names_ht != NULL);
+
 again:
 	/*
 	 * Delete both entries - without and with DNS_ADBFIND_STARTATZONE set.
 	 */
 	key.flags = (start_at_zone) ? DNS_ADBFIND_STARTATZONE : 0;
 
-	result = isc_hashmap_find(adb->names, hash_adbname(&key), match_adbname,
-				  (void *)&key, (void **)&adbname);
-	if (result == ISC_R_SUCCESS) {
+	struct cds_lfht_iter iter;
+
+	cds_lfht_lookup(names_ht, hash_adbname(&key), match_adbname, &key,
+			&iter);
+
+	struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+	if (ht_node != NULL) {
+		adbname = caa_container_of(ht_node, dns_adbname_t, ht_node);
 		dns_adbname_ref(adbname);
 		LOCK(&adbname->lock);
 		if (dns_name_equal(name, adbname->name)) {
@@ -3467,13 +3510,12 @@ again:
 		start_at_zone = true;
 		goto again;
 	}
-	RWUNLOCK(&adb->names_lock, isc_rwlocktype_write);
+
+	rcu_read_unlock();
 }
 
 void
 dns_adb_flushnames(dns_adb_t *adb, const dns_name_t *name) {
-	dns_adbname_t *next = NULL;
-
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(name != NULL);
 
@@ -3481,11 +3523,13 @@ dns_adb_flushnames(dns_adb_t *adb, const dns_name_t *name) {
 		return;
 	}
 
-	RWLOCK(&adb->names_lock, isc_rwlocktype_write);
-	for (dns_adbname_t *adbname = ISC_LIST_HEAD(adb->names_lru);
-	     adbname != NULL; adbname = next)
-	{
-		next = ISC_LIST_NEXT(adbname, link);
+	rcu_read_lock();
+
+	struct cds_lfht *names_ht = rcu_dereference(adb->names_ht);
+	dns_adbname_t *adbname = NULL;
+	struct cds_lfht_iter iter;
+
+	cds_lfht_for_each_entry(names_ht, &iter, adbname, ht_node) {
 		dns_adbname_ref(adbname);
 		LOCK(&adbname->lock);
 		if (dns_name_issubdomain(adbname->name, name)) {
@@ -3494,7 +3538,8 @@ dns_adb_flushnames(dns_adb_t *adb, const dns_name_t *name) {
 		UNLOCK(&adbname->lock);
 		dns_adbname_detach(&adbname);
 	}
-	RWUNLOCK(&adb->names_lock, isc_rwlocktype_write);
+
+	rcu_read_unlock();
 }
 
 void
