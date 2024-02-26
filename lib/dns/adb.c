@@ -712,11 +712,13 @@ expire_name(dns_adbname_t *adbname, dns_adbstatus_t astat) {
 
 	cds_lfht_del(adb->names_ht, &adbname->ht_node);
 	/* ... and LRU list */
-	isc_spinlock_lock(&adb->names_spinlock);
-	cds_list_del_rcu(&adbname->lru->list_head);
-	isc_spinlock_unlock(&adb->names_spinlock);
-	call_rcu(&adbname->lru->rcu_head, destroy_adbnamelru_rcu);
-	adbname->lru = NULL;
+	if (adbname->lru != NULL) {
+		isc_spinlock_lock(&adb->names_spinlock);
+		cds_list_del_rcu(&adbname->lru->list_head);
+		isc_spinlock_unlock(&adb->names_spinlock);
+		call_rcu(&adbname->lru->rcu_head, destroy_adbnamelru_rcu);
+		adbname->lru = NULL;
+	}
 
 	rcu_read_unlock();
 
@@ -1606,11 +1608,14 @@ expire_entry(dns_adbentry_t *adbentry) {
 		rcu_read_lock();
 
 		cds_lfht_del(adb->entries_ht, &adbentry->ht_node);
-		isc_spinlock_lock(&adb->entries_spinlock);
-		cds_list_del_rcu(&adbentry->lru->list_head);
-		isc_spinlock_unlock(&adb->entries_spinlock);
-		call_rcu(&adbentry->lru->rcu_head, destroy_adbentrylru_rcu);
-		adbentry->lru = NULL;
+		if (adbentry->lru != NULL) {
+			isc_spinlock_lock(&adb->entries_spinlock);
+			cds_list_del_rcu(&adbentry->lru->list_head);
+			isc_spinlock_unlock(&adb->entries_spinlock);
+			call_rcu(&adbentry->lru->rcu_head,
+				 destroy_adbentrylru_rcu);
+			adbentry->lru = NULL;
+		}
 
 		rcu_read_unlock();
 	}
