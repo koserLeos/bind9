@@ -296,12 +296,12 @@ static dns_adbfetch_t *
 new_adbfetch(dns_adb_t *);
 static void
 free_adbfetch(dns_adb_t *, dns_adbfetch_t **);
-static void
+static bool
 purge_stale_names(dns_adb_t *adb, isc_stdtime_t now);
 static dns_adbname_t *
 get_attached_and_locked_name(dns_adb_t *, const dns_name_t *,
 			     bool start_at_zone, isc_stdtime_t now);
-static void
+static bool
 purge_stale_entries(dns_adb_t *adb, isc_stdtime_t now);
 static dns_adbentry_t *
 get_attached_and_locked_entry(dns_adb_t *adb, isc_stdtime_t now,
@@ -1238,6 +1238,15 @@ free_adbaddrinfo(dns_adb_t *adb, dns_adbaddrinfo_t **ainfo) {
 	isc_mem_put(adb->mctx, ai, sizeof(*ai));
 }
 
+static void
+upgrade_names_lock(dns_adb_t *adb, isc_rwlocktype_t *locktypep,
+		   isc_stdtime_t now) {
+	UPGRADELOCK(&adb->names_lock, *locktypep);
+	if (purge_stale_names(adb, now)) {
+		adb->names_last_update = now;
+	}
+}
+
 static bool
 match_adbname(void *node, const void *key) {
 	const dns_adbname_t *adbname0 = node;
@@ -1290,9 +1299,7 @@ get_attached_and_locked_name(dns_adb_t *adb, const dns_name_t *name,
 	    isc_mem_isovermem(adb->mctx))
 	{
 		last_update = now;
-		UPGRADELOCK(&adb->names_lock, locktype);
-		purge_stale_names(adb, now);
-		adb->names_last_update = last_update;
+		upgrade_names_lock(adb, &locktype, now);
 	}
 
 	result = isc_hashmap_find(adb->names, hashval, match_adbname,
@@ -1348,9 +1355,8 @@ get_attached_and_locked_name(dns_adb_t *adb, const dns_name_t *name,
 static void
 upgrade_entries_lock(dns_adb_t *adb, isc_rwlocktype_t *locktypep,
 		     isc_stdtime_t now) {
-	if (*locktypep == isc_rwlocktype_read) {
-		UPGRADELOCK(&adb->entries_lock, *locktypep);
-		purge_stale_entries(adb, now);
+	UPGRADELOCK(&adb->entries_lock, *locktypep);
+	if (purge_stale_entries(adb, now)) {
 		adb->entries_last_update = now;
 	}
 }
@@ -1392,7 +1398,9 @@ get_attached_and_locked_entry(dns_adb_t *adb, isc_stdtime_t now,
 				  (const unsigned char *)addr,
 				  (void **)&adbentry);
 	if (result == ISC_R_NOTFOUND) {
-		upgrade_entries_lock(adb, &locktype, now);
+		if (locktype == isc_rwlocktype_read) {
+			upgrade_entries_lock(adb, &locktype, now);
+		}
 
 	create:
 		INSIST(locktype == isc_rwlocktype_write);
@@ -1612,10 +1620,10 @@ maybe_expire_entry(dns_adbentry_t *adbentry, isc_stdtime_t now) {
  *
  * adb->names_lock MUST be write locked
  */
-static void
+static bool
 purge_stale_names(dns_adb_t *adb, isc_stdtime_t now) {
 	bool overmem = isc_mem_isovermem(adb->mctx);
-	int max_removed = overmem ? 2 : 1;
+	int max_removed = overmem ? 10 : 5;
 	int scans = 0, removed = 0;
 	dns_adbname_t *prev = NULL;
 
@@ -1679,6 +1687,13 @@ purge_stale_names(dns_adb_t *adb, isc_stdtime_t now) {
 		UNLOCK(&adbname->lock);
 		dns_adbname_detach(&adbname);
 	}
+
+	if (removed == max_removed) {
+		/* There are more names to be purged */
+		return (false);
+	}
+
+	return (true);
 }
 
 static void
@@ -1717,10 +1732,10 @@ cleanup_names(dns_adb_t *adb, isc_stdtime_t now) {
  *
  * adb->entries_lock MUST be write locked
  */
-static void
+static bool
 purge_stale_entries(dns_adb_t *adb, isc_stdtime_t now) {
 	bool overmem = isc_mem_isovermem(adb->mctx);
-	int max_removed = overmem ? 2 : 1;
+	int max_removed = overmem ? 10 : 5;
 	int scans = 0, removed = 0;
 	dns_adbentry_t *prev = NULL;
 
@@ -1782,6 +1797,13 @@ purge_stale_entries(dns_adb_t *adb, isc_stdtime_t now) {
 		UNLOCK(&adbentry->lock);
 		dns_adbentry_detach(&adbentry);
 	}
+
+	if (removed == max_removed) {
+		/* There are more entries to be removed */
+		return (false);
+	}
+
+	return (true);
 }
 
 static void
