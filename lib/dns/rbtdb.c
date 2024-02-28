@@ -520,10 +520,12 @@ struct dns_rbtdb {
 	 * nodes that await being cleaned up.
 	 */
 	rbtnodelist_t *deadnodes;
+	bool cleaning_queued;
 
 	/* List of nodes from which recursive tree pruning can be started from.
 	 * Locked by tree_lock. */
 	rbtnodelist_t *prunenodes;
+	bool pruning_queued;
 
 	/*
 	 * Heaps.  These are used for TTL based expiry in a cache,
@@ -638,7 +640,9 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		    rbtdb_serial_t least_serial, isc_rwlocktype_t nlock,
 		    isc_rwlocktype_t tlock, bool pruning);
 static void
-cleanup_nodes_callback(isc_task_t *task, isc_event_t *event);
+cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event);
+static void
+cleanup_prune_nodes_callback(isc_task_t *task, isc_event_t *event);
 
 static dns_rdatasetmethods_t rdataset_methods = { rdataset_disassociate,
 						  rdataset_first,
@@ -1974,21 +1978,41 @@ is_leaf(dns_rbtnode_t *node) {
  * updates rbtdb->prunenodes.
  */
 static void
+send_to_graveyard(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node) {
+	INSIST(node->data == NULL);
+	if (ISC_LINK_LINKED(node, deadlink)) {
+		INSIST(rbtdb->cleaning_queued);
+		return;
+	}
+	ISC_LIST_APPEND(rbtdb->deadnodes[node->locknum], node, deadlink);
+
+	if (!rbtdb->cleaning_queued) {
+		isc_event_t *event = isc_event_allocate(
+			rbtdb->common.mctx, NULL, DNS_EVENT_RBTDEADNODES,
+			cleanup_dead_nodes_callback, rbtdb,
+			sizeof(isc_event_t));
+		isc_refcount_increment(&rbtdb->references);
+		isc_task_send(rbtdb->task, &event);
+		rbtdb->cleaning_queued = true;
+	}
+}
+
+static void
 send_to_prune_tree(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		   isc_rwlocktype_t nlocktype) {
-	bool pruning_queued = !ISC_LIST_EMPTY(rbtdb->prunenodes[node->locknum]);
-
 	INSIST(!ISC_LINK_LINKED(node, prunelink));
 
 	new_reference(rbtdb, node, nlocktype);
 	ISC_LIST_APPEND(rbtdb->prunenodes[node->locknum], node, prunelink);
 
-	if (!pruning_queued) {
+	if (!rbtdb->pruning_queued) {
 		isc_event_t *event = isc_event_allocate(
 			rbtdb->common.mctx, NULL, DNS_EVENT_RBTDEADNODES,
-			cleanup_nodes_callback, rbtdb, sizeof(isc_event_t));
+			cleanup_prune_nodes_callback, rbtdb,
+			sizeof(isc_event_t));
 		isc_refcount_increment(&rbtdb->references);
 		isc_task_send(rbtdb->task, &event);
+		rbtdb->pruning_queued = true;
 	}
 }
 
@@ -2000,18 +2024,19 @@ send_to_prune_tree(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
  *
  * The caller must hold a tree write lock and bucketnum'th node (write) lock.
  */
-static void
+static int
 cleanup_dead_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 		   dns_rbtnode_t **end) {
 	dns_rbtnode_t *node;
-	int count = 10; /* XXXJT: should be adjustable */
+	int count = 0;
+	int deleted = 0;
 
 	if (end != NULL && *end == NULL) {
 		*end = ISC_LIST_TAIL(rbtdb->deadnodes[locknum]);
 	}
 
 	node = ISC_LIST_HEAD(rbtdb->deadnodes[locknum]);
-	while (node != NULL && count > 0) {
+	while (node != NULL && count < 10) {
 		ISC_LIST_UNLINK(rbtdb->deadnodes[locknum], node, deadlink);
 
 		if (end != NULL && node == *end) {
@@ -2027,7 +2052,7 @@ cleanup_dead_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 		    node->data != NULL)
 		{
 			node = ISC_LIST_HEAD(rbtdb->deadnodes[locknum]);
-			count--;
+			count++;
 			continue;
 		}
 
@@ -2038,6 +2063,7 @@ cleanup_dead_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 			 * Not a interior node and not needing to be
 			 * reactivated.
 			 */
+			deleted++;
 			delete_node(rbtdb, node);
 		} else if (node->data == NULL) {
 			/*
@@ -2048,18 +2074,20 @@ cleanup_dead_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 					deadlink);
 		}
 		node = ISC_LIST_HEAD(rbtdb->deadnodes[locknum]);
-		count--;
+		count++;
 	}
 	if (node == NULL && end != NULL) {
 		*end = NULL;
 	}
+
+	return (count);
 }
 
-static void
-cleanup_purged_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
-		     dns_rbtnode_t **end) {
+static int
+cleanup_prune_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
+		    dns_rbtnode_t **end) {
 	dns_rbtnode_t *node;
-	int count = 10; /* XXXJT: should be adjustable */
+	int count = 0;
 
 	dns_rbtnode_t *parent = NULL;
 
@@ -2075,7 +2103,7 @@ cleanup_purged_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 	}
 
 	node = ISC_LIST_HEAD(rbtdb->prunenodes[locknum]);
-	while (node != NULL && count > 0) {
+	while (node != NULL && count < 10) {
 		ISC_LIST_UNLINK(rbtdb->prunenodes[locknum], node, prunelink);
 		INSIST(!ISC_LINK_LINKED(node, deadlink));
 
@@ -2088,7 +2116,7 @@ cleanup_purged_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 		decrement_reference(rbtdb, node, 0, isc_rwlocktype_write,
 				    isc_rwlocktype_write, true);
 
-		count--;
+		count++;
 		node = ISC_LIST_HEAD(rbtdb->prunenodes[locknum]);
 
 		if (parent == NULL || !is_leaf(parent)) {
@@ -2127,36 +2155,44 @@ cleanup_purged_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 	if (node == NULL && end != NULL) {
 		*end = NULL;
 	}
+
+	return (count);
 }
 
-static void
+static unsigned int
 cleanup_all_dead_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum) {
 	dns_rbtnode_t *end = NULL;
+	unsigned int count = 0;
 
 	do {
 		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
 			  isc_rwlocktype_write);
-		cleanup_dead_nodes(rbtdb, locknum, &end);
+		count += cleanup_dead_nodes(rbtdb, locknum, &end);
 		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
 			    isc_rwlocktype_write);
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 	} while (end != NULL);
+
+	return (count);
 }
 
-static void
-cleanup_all_purged_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum) {
+static unsigned int
+cleanup_all_prune_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum) {
 	dns_rbtnode_t *end = NULL;
+	unsigned int count = 0;
 
 	do {
 		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
 			  isc_rwlocktype_write);
-		cleanup_purged_nodes(rbtdb, locknum, &end);
+		count += cleanup_prune_nodes(rbtdb, locknum, &end);
 		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
 			    isc_rwlocktype_write);
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 	} while (end != NULL);
+
+	return (count);
 }
 
 /*
@@ -2204,8 +2240,8 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 					deadlink);
 		}
 		if (maybe_cleanup) {
-			cleanup_purged_nodes(rbtdb, node->locknum, NULL);
 			cleanup_dead_nodes(rbtdb, node->locknum, NULL);
+			cleanup_prune_nodes(rbtdb, node->locknum, NULL);
 		}
 	}
 
@@ -2322,8 +2358,8 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 
 #undef KEEP_NODE
 	if (write_locked) {
-		cleanup_purged_nodes(rbtdb, node->locknum, NULL);
 		cleanup_dead_nodes(rbtdb, node->locknum, NULL);
+		cleanup_prune_nodes(rbtdb, node->locknum, NULL);
 
 		/*
 		 * If this node is the only one in the level it's in, deleting
@@ -2349,11 +2385,7 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 			delete_node(rbtdb, node);
 		}
 	} else {
-		INSIST(node->data == NULL);
-		if (!ISC_LINK_LINKED(node, deadlink)) {
-			ISC_LIST_APPEND(rbtdb->deadnodes[bucket], node,
-					deadlink);
-		}
+		send_to_graveyard(rbtdb, node);
 	}
 
 restore_locks:
@@ -2568,18 +2600,48 @@ unlock:
 }
 
 static void
-cleanup_nodes_callback(isc_task_t *task, isc_event_t *event) {
+cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event) {
 	UNUSED(task);
 
 	dns_rbtdb_t *rbtdb = event->ev_arg;
-	unsigned int locknum_start = isc_random_uniform(rbtdb->node_lock_count);
+	unsigned int count = 0;
 
-	for (unsigned int i = 0; i < rbtdb->node_lock_count; i++) {
-		unsigned int locknum = (locknum_start + i) %
-				       rbtdb->node_lock_count;
-		cleanup_all_purged_nodes(rbtdb, locknum);
-		cleanup_all_dead_nodes(rbtdb, locknum);
+	for (unsigned int locknum = 0; locknum < rbtdb->node_lock_count;
+	     locknum++)
+	{
+		count += cleanup_all_dead_nodes(rbtdb, locknum);
 	}
+
+	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+	rbtdb->cleaning_queued = false;
+	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+
+	fprintf(stderr, "DELETED %u DEAD NODES\n", count);
+
+	isc_event_free(&event);
+	if (isc_refcount_decrement(&rbtdb->references) == 1) {
+		(void)isc_refcount_current(&rbtdb->references);
+		maybe_free_rbtdb(rbtdb);
+	}
+}
+
+static void
+cleanup_prune_nodes_callback(isc_task_t *task, isc_event_t *event) {
+	UNUSED(task);
+
+	dns_rbtdb_t *rbtdb = event->ev_arg;
+	unsigned int count = 0;
+
+	for (unsigned int locknum = 0; locknum < rbtdb->node_lock_count;
+	     locknum++)
+	{
+		count += cleanup_all_prune_nodes(rbtdb, locknum);
+	}
+
+	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+	rbtdb->pruning_queued = false;
+	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+	fprintf(stderr, "PRUNED %u NODES\n", count);
 
 	isc_event_free(&event);
 	if (isc_refcount_decrement(&rbtdb->references) == 1) {
@@ -2800,7 +2862,7 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 		if (rbtdb->task != NULL) {
 			event = isc_event_allocate(rbtdb->common.mctx, NULL,
 						   DNS_EVENT_RBTDEADNODES,
-						   cleanup_nodes_callback,
+						   cleanup_dead_nodes_callback,
 						   rbtdb, sizeof(isc_event_t));
 		}
 		if (event == NULL) {
@@ -2832,10 +2894,10 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 			 * so use it.
 			 */
 			if (event == NULL) {
-				cleanup_purged_nodes(rbtdb, rbtnode->locknum,
-						     NULL);
 				cleanup_dead_nodes(rbtdb, rbtnode->locknum,
 						   NULL);
+				cleanup_prune_nodes(rbtdb, rbtnode->locknum,
+						    NULL);
 			}
 
 			if (rollback) {
@@ -7115,7 +7177,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 				   now);
 
 		if (tree_locked) {
-			cleanup_purged_nodes(rbtdb, rbtnode->locknum, NULL);
+			cleanup_prune_nodes(rbtdb, rbtnode->locknum, NULL);
 		}
 
 		/*
