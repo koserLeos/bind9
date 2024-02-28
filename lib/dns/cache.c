@@ -189,7 +189,6 @@ dns_cache_create(isc_mem_t *cmctx, isc_mem_t *hmctx, isc_taskmgr_t *taskmgr,
 	isc_result_t result;
 	dns_cache_t *cache;
 	int i, extra = 0;
-	isc_task_t *dbtask;
 
 	REQUIRE(cachep != NULL);
 	REQUIRE(*cachep == NULL);
@@ -261,15 +260,7 @@ dns_cache_create(isc_mem_t *cmctx, isc_mem_t *hmctx, isc_taskmgr_t *taskmgr,
 		goto cleanup_dbargv;
 	}
 	if (taskmgr != NULL) {
-		dbtask = NULL;
-		result = isc_task_create(taskmgr, 1, &dbtask);
-		if (result != ISC_R_SUCCESS) {
-			goto cleanup_db;
-		}
-
-		isc_task_setname(dbtask, "cache_dbtask", NULL);
-		dns_db_settask(cache->db, dbtask);
-		isc_task_detach(&dbtask);
+		dns_db_settask(cache->db, (void *)taskmgr);
 	}
 
 	cache->filename = NULL;
