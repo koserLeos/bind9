@@ -637,6 +637,8 @@ static bool
 decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		    rbtdb_serial_t least_serial, isc_rwlocktype_t nlock,
 		    isc_rwlocktype_t tlock, bool pruning);
+static void
+cleanup_nodes_callback(isc_task_t *task, isc_event_t *event);
 
 static dns_rdatasetmethods_t rdataset_methods = { rdataset_disassociate,
 						  rdataset_first,
@@ -1968,10 +1970,20 @@ is_leaf(dns_rbtnode_t *node) {
 static void
 send_to_prune_tree(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		   isc_rwlocktype_t nlocktype) {
+	bool pruning_queued = !ISC_LIST_EMPTY(rbtdb->prunenodes[node->locknum]);
+
 	INSIST(!ISC_LINK_LINKED(node, prunelink));
 
 	new_reference(rbtdb, node, nlocktype);
 	ISC_LIST_APPEND(rbtdb->prunenodes[node->locknum], node, prunelink);
+
+	if (!pruning_queued) {
+		isc_event_t *event = isc_event_allocate(
+			rbtdb->common.mctx, NULL, DNS_EVENT_RBTDEADNODES,
+			cleanup_nodes_callback, rbtdb, sizeof(isc_event_t));
+		isc_refcount_increment(&rbtdb->references);
+		isc_task_send(rbtdb->task, &event);
+	}
 }
 
 /*%
@@ -2107,7 +2119,8 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	 * Check if we can possibly cleanup the dead node.  If so, upgrade
 	 * the node lock below to perform the cleanup.
 	 */
-	if (!ISC_LIST_EMPTY(rbtdb->deadnodes[node->locknum]) &&
+	if ((!ISC_LIST_EMPTY(rbtdb->deadnodes[node->locknum]) ||
+	     !ISC_LIST_EMPTY(rbtdb->prunenodes[node->locknum])) &&
 	    treelocktype == isc_rwlocktype_write)
 	{
 		maybe_cleanup = true;
@@ -2243,6 +2256,12 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 
 #undef KEEP_NODE
 	if (write_locked) {
+		/*
+		 * We have both tree lock and node locknum, we can cleanup the
+		 * tree a bit.
+		 */
+		cleanup_nodes(rbtdb, node->locknum);
+
 		/*
 		 * If this node is the only one in the level it's in, deleting
 		 * this node may recursively make its parent the only node in
