@@ -2270,13 +2270,14 @@ prune_tree(isc_task_t *task, isc_event_t *event) {
 	REQUIRE(VALID_RBTDB(rbtdb));
 
 	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
+	NODE_LOCK(&rbtdb->node_locks[locknum].lock, isc_rwlocktype_write);
+
+	/* Use this opportunity to also cleanup dead nodes */
+	cleanup_dead_nodes(rbtdb, locknum);
+
 	for (;;) {
-		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
-			  isc_rwlocktype_write);
 		node = ISC_LIST_HEAD(rbtdb->prunenodes[locknum]);
 		if (node == NULL || count == 0) {
-			NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
-				    isc_rwlocktype_write);
 			break;
 		}
 
@@ -2291,8 +2292,6 @@ prune_tree(isc_task_t *task, isc_event_t *event) {
 		count--;
 
 		if (parent == NULL || !is_leaf(parent)) {
-			NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
-				    isc_rwlocktype_write);
 			continue;
 		}
 
@@ -2306,8 +2305,6 @@ prune_tree(isc_task_t *task, isc_event_t *event) {
 			new_reference(rbtdb, parent, isc_rwlocktype_write);
 			ISC_LIST_APPEND(rbtdb->prunenodes[parent->locknum],
 					parent, prunelink);
-			NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
-				    isc_rwlocktype_write);
 		} else {
 			/*
 			 * The parent needs to be added to a different
@@ -2322,8 +2319,11 @@ prune_tree(isc_task_t *task, isc_event_t *event) {
 			send_to_prune_tree(rbtdb, parent, isc_rwlocktype_write);
 			NODE_UNLOCK(&rbtdb->node_locks[parent->locknum].lock,
 				    isc_rwlocktype_write);
+			NODE_LOCK(&rbtdb->node_locks[locknum].lock,
+				  isc_rwlocktype_write);
 		}
 	}
+	NODE_UNLOCK(&rbtdb->node_locks[locknum].lock, isc_rwlocktype_write);
 	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 
 	if (node != NULL) {
