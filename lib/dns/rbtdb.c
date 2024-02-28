@@ -2515,9 +2515,11 @@ cleanup_nodes_callback(isc_task_t *task, isc_event_t *event) {
 	dns_rbtdb_t *rbtdb = event->ev_arg;
 	bool again = false;
 	unsigned int locknum;
+	unsigned int locknum_start = isc_random_uniform(rbtdb->node_lock_count);
 
 	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
-	for (locknum = 0; locknum < rbtdb->node_lock_count; locknum++) {
+	for (size_t i = 0; i < rbtdb->node_lock_count; i++) {
+		locknum = locknum_start + i % rbtdb->node_lock_count;
 		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
 			  isc_rwlocktype_write);
 		cleanup_nodes(rbtdb, locknum);
@@ -7042,6 +7044,8 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	}
 
 	if (cache_is_overmem) {
+		cleanup_nodes(rbtdb, rbtnode->locknum);
+
 		overmem_purge(rbtdb, rbtnode->locknum, rdataset_size(newheader),
 			      tree_locked);
 	}
