@@ -2080,7 +2080,7 @@ cleanup_dead_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 		*end = NULL;
 	}
 
-	return (count);
+	return (deleted);
 }
 
 static int
