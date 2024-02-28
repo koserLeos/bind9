@@ -617,8 +617,6 @@ static void
 resign_delete(dns_rbtdb_t *rbtdb, rbtdb_version_t *version,
 	      rdatasetheader_t *header);
 static void
-prune_tree(isc_task_t *task, isc_event_t *event);
-static void
 rdataset_settrust(dns_rdataset_t *rdataset, dns_trust_t trust);
 static void
 rdataset_expire(dns_rdataset_t *rdataset);
@@ -635,6 +633,10 @@ static void
 free_gluetable(rbtdb_version_t *version);
 static isc_result_t
 nodefullname(dns_db_t *db, dns_dbnode_t *node, dns_name_t *name);
+static bool
+decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
+		    rbtdb_serial_t least_serial, isc_rwlocktype_t nlock,
+		    isc_rwlocktype_t tlock, bool pruning);
 
 static dns_rdatasetmethods_t rdataset_methods = { rdataset_disassociate,
 						  rdataset_first,
@@ -1966,24 +1968,10 @@ is_leaf(dns_rbtnode_t *node) {
 static void
 send_to_prune_tree(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		   isc_rwlocktype_t nlocktype) {
-	bool pruning_queued = !ISC_LIST_EMPTY(rbtdb->prunenodes[node->locknum]);
-
 	INSIST(!ISC_LINK_LINKED(node, prunelink));
 
 	new_reference(rbtdb, node, nlocktype);
 	ISC_LIST_APPEND(rbtdb->prunenodes[node->locknum], node, prunelink);
-
-	if (!pruning_queued) {
-		isc_event_t *ev = NULL;
-		dns_db_t *db = NULL;
-
-		attach((dns_db_t *)rbtdb, &db);
-
-		ev = isc_event_allocate(rbtdb->common.mctx, db,
-					DNS_EVENT_RBTPRUNE, prune_tree, node,
-					sizeof(isc_event_t));
-		isc_task_send(rbtdb->task, &ev);
-	}
 }
 
 /*%
@@ -1995,10 +1983,67 @@ send_to_prune_tree(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
  * The caller must hold a tree write lock and bucketnum'th node (write) lock.
  */
 static void
-cleanup_dead_nodes(dns_rbtdb_t *rbtdb, int bucketnum) {
+cleanup_nodes(dns_rbtdb_t *rbtdb, int bucketnum) {
 	dns_rbtnode_t *node;
 	int count = 10; /* XXXJT: should be adjustable */
 
+	dns_rbtnode_t *parent = NULL;
+
+	/*
+	 * Prune the tree by cleaning up single leaves.  A single execution of
+	 * this function cleans up at most 10 nodes; if the parent of any node
+	 * freed in the process becomes a single leaf on its own level as a
+	 * result, the parent is then also sent to this function.
+	 */
+
+	node = ISC_LIST_HEAD(rbtdb->prunenodes[bucketnum]);
+	while (node != NULL && count > 0) {
+		ISC_LIST_UNLINK(rbtdb->prunenodes[bucketnum], node, prunelink);
+		INSIST(!ISC_LINK_LINKED(node, deadlink));
+
+		parent = node->parent;
+
+		decrement_reference(rbtdb, node, 0, isc_rwlocktype_write,
+				    isc_rwlocktype_write, true);
+
+		count--;
+		node = ISC_LIST_HEAD(rbtdb->prunenodes[bucketnum]);
+
+		if (parent == NULL || !is_leaf(parent)) {
+			continue;
+		}
+
+		if (parent->locknum == bucketnum) {
+			/*
+			 * Add the parent to the matching prunenodes list
+			 * manually, because send_to_prune_tree() would create
+			 * new event in the case the current node was the last
+			 * node on the prunenodes list.
+			 */
+			new_reference(rbtdb, parent, isc_rwlocktype_write);
+			ISC_LIST_APPEND(rbtdb->prunenodes[parent->locknum],
+					parent, prunelink);
+			continue;
+		}
+
+		/*
+		 * The parent needs to be added to a different
+		 * prunenodes list.  Switch locks and pass the parent
+		 * to prune_tree().
+		 */
+		NODE_UNLOCK(&rbtdb->node_locks[bucketnum].lock,
+			    isc_rwlocktype_write);
+
+		NODE_LOCK(&rbtdb->node_locks[parent->locknum].lock,
+			  isc_rwlocktype_write);
+		send_to_prune_tree(rbtdb, parent, isc_rwlocktype_write);
+		NODE_UNLOCK(&rbtdb->node_locks[parent->locknum].lock,
+			    isc_rwlocktype_write);
+		NODE_LOCK(&rbtdb->node_locks[bucketnum].lock,
+			  isc_rwlocktype_write);
+	}
+
+	count = 10;
 	node = ISC_LIST_HEAD(rbtdb->deadnodes[bucketnum]);
 	while (node != NULL && count > 0) {
 		ISC_LIST_UNLINK(rbtdb->deadnodes[bucketnum], node, deadlink);
@@ -2081,7 +2126,7 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 					deadlink);
 		}
 		if (maybe_cleanup) {
-			cleanup_dead_nodes(rbtdb, node->locknum);
+			cleanup_nodes(rbtdb, node->locknum);
 		}
 	}
 
@@ -2251,89 +2296,6 @@ restore_locks:
 	}
 
 	return (no_reference);
-}
-
-/*
- * Prune the tree by cleaning up single leaves.  A single execution of this
- * function cleans up at most 10 nodes; if the parent of any node freed in the
- * process becomes a single leaf on its own level as a result, the parent is
- * then also sent to this function.
- */
-static void
-prune_tree(isc_task_t *task, isc_event_t *event) {
-	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)event->ev_sender;
-	dns_rbtnode_t *node = event->ev_arg;
-	const unsigned int locknum = node->locknum;
-	dns_rbtnode_t *parent = NULL;
-	int count = 10;
-
-	REQUIRE(VALID_RBTDB(rbtdb));
-
-	RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
-	NODE_LOCK(&rbtdb->node_locks[locknum].lock, isc_rwlocktype_write);
-
-	/* Use this opportunity to also cleanup dead nodes */
-	cleanup_dead_nodes(rbtdb, locknum);
-
-	for (;;) {
-		node = ISC_LIST_HEAD(rbtdb->prunenodes[locknum]);
-		if (node == NULL || count == 0) {
-			break;
-		}
-
-		ISC_LIST_UNLINK(rbtdb->prunenodes[locknum], node, prunelink);
-		INSIST(!ISC_LINK_LINKED(node, deadlink));
-
-		parent = node->parent;
-
-		decrement_reference(rbtdb, node, 0, isc_rwlocktype_write,
-				    isc_rwlocktype_write, true);
-
-		count--;
-
-		if (parent == NULL || !is_leaf(parent)) {
-			continue;
-		}
-
-		if (parent->locknum == locknum) {
-			/*
-			 * Add the parent to the matching prunenodes list
-			 * manually, because send_to_prune_tree() would create
-			 * new event in the case the current node was the last
-			 * node on the prunenodes list.
-			 */
-			new_reference(rbtdb, parent, isc_rwlocktype_write);
-			ISC_LIST_APPEND(rbtdb->prunenodes[parent->locknum],
-					parent, prunelink);
-		} else {
-			/*
-			 * The parent needs to be added to a different
-			 * prunenodes list.  Switch locks and pass the parent
-			 * to prune_tree().
-			 */
-			NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
-				    isc_rwlocktype_write);
-
-			NODE_LOCK(&rbtdb->node_locks[parent->locknum].lock,
-				  isc_rwlocktype_write);
-			send_to_prune_tree(rbtdb, parent, isc_rwlocktype_write);
-			NODE_UNLOCK(&rbtdb->node_locks[parent->locknum].lock,
-				    isc_rwlocktype_write);
-			NODE_LOCK(&rbtdb->node_locks[locknum].lock,
-				  isc_rwlocktype_write);
-		}
-	}
-	NODE_UNLOCK(&rbtdb->node_locks[locknum].lock, isc_rwlocktype_write);
-	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
-
-	if (node != NULL) {
-		event->ev_arg = node;
-		isc_task_send(task, &event);
-		return;
-	}
-
-	isc_event_free(&event);
-	detach((dns_db_t **)&rbtdb);
 }
 
 static void
@@ -2524,7 +2486,7 @@ unlock:
 }
 
 static void
-cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event) {
+cleanup_nodes_callback(isc_task_t *task, isc_event_t *event) {
 	dns_rbtdb_t *rbtdb = event->ev_arg;
 	bool again = false;
 	unsigned int locknum;
@@ -2533,8 +2495,10 @@ cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event) {
 	for (locknum = 0; locknum < rbtdb->node_lock_count; locknum++) {
 		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
 			  isc_rwlocktype_write);
-		cleanup_dead_nodes(rbtdb, locknum);
-		if (ISC_LIST_HEAD(rbtdb->deadnodes[locknum]) != NULL) {
+		cleanup_nodes(rbtdb, locknum);
+		if (!ISC_LIST_EMPTY(rbtdb->deadnodes[locknum]) ||
+		    !ISC_LIST_EMPTY(rbtdb->prunenodes[locknum]))
+		{
 			again = true;
 		}
 		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
@@ -2764,7 +2728,7 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 		if (rbtdb->task != NULL) {
 			event = isc_event_allocate(rbtdb->common.mctx, NULL,
 						   DNS_EVENT_RBTDEADNODES,
-						   cleanup_dead_nodes_callback,
+						   cleanup_nodes_callback,
 						   rbtdb, sizeof(isc_event_t));
 		}
 		if (event == NULL) {
@@ -2796,7 +2760,7 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 			 * so use it.
 			 */
 			if (event == NULL) {
-				cleanup_dead_nodes(rbtdb, rbtnode->locknum);
+				cleanup_nodes(rbtdb, rbtnode->locknum);
 			}
 
 			if (rollback) {
@@ -7066,7 +7030,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	if (IS_CACHE(rbtdb)) {
 		if (tree_locked) {
-			cleanup_dead_nodes(rbtdb, rbtnode->locknum);
+			cleanup_nodes(rbtdb, rbtnode->locknum);
 		}
 
 		header = isc_heap_element(rbtdb->heaps[rbtnode->locknum], 1);
