@@ -2050,8 +2050,8 @@ cleanup_dead_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 		node = ISC_LIST_HEAD(rbtdb->deadnodes[locknum]);
 		count--;
 	}
-	if (node == NULL) {
-		INSIST(*end == NULL);
+	if (node == NULL && end != NULL) {
+		*end = NULL;
 	}
 }
 
@@ -2124,8 +2124,8 @@ cleanup_purged_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
 			  isc_rwlocktype_write);
 	}
-	if (node == NULL) {
-		INSIST(*end == NULL);
+	if (node == NULL && end != NULL) {
+		*end = NULL;
 	}
 }
 
