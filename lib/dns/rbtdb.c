@@ -636,7 +636,7 @@ nodefullname(dns_db_t *db, dns_dbnode_t *node, dns_name_t *name);
 static bool
 decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		    rbtdb_serial_t least_serial, isc_rwlocktype_t nlock,
-		    isc_rwlocktype_t tlock, bool pruning);
+		    isc_rwlocktype_t tlock, bool pruning, bool *deleted);
 static void
 cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event);
 static void
@@ -2078,14 +2078,18 @@ cleanup_dead_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 			 */
 			deleted++;
 			delete_node(rbtdb, node);
-		} else if (node->data == NULL) {
-			/*
-			 * A interior node without data. Leave linked to
-			 * to be cleaned up when node->down becomes NULL.
-			 */
-			ISC_LIST_APPEND(rbtdb->deadnodes[locknum], node,
-					deadlink);
+		} else {
+			send_to_prune_tree(rbtdb, node, isc_rwlocktype_write);
 		}
+		/* This should get cleaned via prune_tree() possibly? */
+		/* else if (node->data == NULL) { */
+		/* 	/\* */
+		/* 	 * A interior node without data. Leave linked to */
+		/* 	 * to be cleaned up when node->down becomes NULL. */
+		/* 	 *\/ */
+		/* 	ISC_LIST_APPEND(rbtdb->deadnodes[locknum], node, */
+		/* 			deadlink); */
+		/* } */
 		node = ISC_LIST_HEAD(rbtdb->deadnodes[locknum]);
 		count++;
 	}
@@ -2131,7 +2135,8 @@ cleanup_prune_nodes(dns_rbtdb_t *rbtdb, unsigned int locknum,
 		parent = node->parent;
 
 		decrement_reference(rbtdb, node, 0, isc_rwlocktype_write,
-				    isc_rwlocktype_write, true);
+				    isc_rwlocktype_write, true,
+				    &(bool){ false });
 
 		count++;
 		node = ISC_LIST_HEAD(rbtdb->prunenodes[locknum]);
@@ -2285,7 +2290,7 @@ reactivate_node(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 static bool
 decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 		    rbtdb_serial_t least_serial, isc_rwlocktype_t nlock,
-		    isc_rwlocktype_t tlock, bool pruning) {
+		    isc_rwlocktype_t tlock, bool pruning, bool *deleted) {
 	isc_result_t result;
 	bool write_locked;
 	bool locked = tlock != isc_rwlocktype_none;
@@ -2293,6 +2298,8 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	int bucket = node->locknum;
 	bool no_reference = true;
 	uint_fast32_t refs;
+
+	*deleted = false;
 
 	nodelock = &rbtdb->node_locks[bucket];
 
@@ -2373,6 +2380,8 @@ decrement_reference(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 	if (KEEP_NODE(node, rbtdb, locked || write_locked)) {
 		goto restore_locks;
 	}
+
+	*deleted = true;
 
 #undef KEEP_NODE
 	if (write_locked) {
@@ -2631,7 +2640,9 @@ cleanup_dead_nodes_callback(isc_task_t *task, isc_event_t *event) {
 
 	bool overmem = isc_mem_isovermem(rbtdb->common.mctx);
 
-	fprintf(stderr, "DELETED %u DEAD NODES; OVERMEM = %s\n", count,
+	isc_stdtime_t now;
+	isc_stdtime_get(&now);
+	fprintf(stderr, "%u DELETED %u DEAD NODES; OVERMEM = %s\n", now, count,
 		overmem ? "yes" : "no");
 
 	isc_event_free(&event);
@@ -2868,7 +2879,7 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 		}
 		decrement_reference(rbtdb, header->node, least_serial,
 				    isc_rwlocktype_write, isc_rwlocktype_none,
-				    false);
+				    false, &(bool){ false });
 		NODE_UNLOCK(lock, isc_rwlocktype_write);
 	}
 
@@ -2929,7 +2940,8 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, bool commit) {
 				rollback_node(rbtnode, serial);
 			}
 			decrement_reference(rbtdb, rbtnode, least_serial,
-					    isc_rwlocktype_write, tlock, false);
+					    isc_rwlocktype_write, tlock, false,
+					    &(bool){ false });
 
 			NODE_UNLOCK(lock, isc_rwlocktype_write);
 
@@ -4723,7 +4735,8 @@ tree_exit:
 
 		NODE_LOCK(lock, isc_rwlocktype_read);
 		decrement_reference(search.rbtdb, node, 0, isc_rwlocktype_read,
-				    isc_rwlocktype_none, false);
+				    isc_rwlocktype_none, false,
+				    &(bool){ false });
 		NODE_UNLOCK(lock, isc_rwlocktype_read);
 	}
 
@@ -5526,7 +5539,8 @@ tree_exit:
 
 		NODE_LOCK(lock, isc_rwlocktype_read);
 		decrement_reference(search.rbtdb, node, 0, isc_rwlocktype_read,
-				    isc_rwlocktype_none, false);
+				    isc_rwlocktype_none, false,
+				    &(bool){ false });
 		NODE_UNLOCK(lock, isc_rwlocktype_read);
 	}
 
@@ -5739,7 +5753,7 @@ detachnode(dns_db_t *db, dns_dbnode_t **targetp) {
 	NODE_LOCK(&nodelock->lock, isc_rwlocktype_read);
 
 	if (decrement_reference(rbtdb, node, 0, isc_rwlocktype_read,
-				isc_rwlocktype_none, false))
+				isc_rwlocktype_none, false, &(bool){ false }))
 	{
 		if (isc_refcount_current(&nodelock->references) == 0 &&
 		    nodelock->exiting)
@@ -9612,7 +9626,7 @@ dereference_iter_node(rbtdb_dbiterator_t *rbtdbiter) {
 	lock = &rbtdb->node_locks[node->locknum].lock;
 	NODE_LOCK(lock, isc_rwlocktype_read);
 	decrement_reference(rbtdb, node, 0, isc_rwlocktype_read,
-			    rbtdbiter->tree_locked, false);
+			    rbtdbiter->tree_locked, false, &(bool){ false });
 	NODE_UNLOCK(lock, isc_rwlocktype_read);
 
 	rbtdbiter->node = NULL;
@@ -9652,7 +9666,8 @@ flush_deletions(rbtdb_dbiterator_t *rbtdbiter) {
 
 			NODE_LOCK(lock, isc_rwlocktype_read);
 			decrement_reference(rbtdb, node, 0, isc_rwlocktype_read,
-					    rbtdbiter->tree_locked, false);
+					    rbtdbiter->tree_locked, false,
+					    &(bool){ false });
 			NODE_UNLOCK(lock, isc_rwlocktype_read);
 		}
 
@@ -10831,7 +10846,10 @@ overmem_purge(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, size_t purgesize,
 	NODE_UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
 		    isc_rwlocktype_write);
 
-	fprintf(stderr, "PURGED %zu HEADERS; OVERMEM = %s\n", purged, "yes");
+	isc_stdtime_t now;
+	isc_stdtime_get(&now);
+	fprintf(stderr, "%u PURGED %zu HEADERS; OVERMEM = %s\n", now, purged,
+		"yes");
 }
 
 static bool
@@ -10845,20 +10863,21 @@ expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, bool tree_locked,
 	 */
 
 	if (isc_refcount_current(&header->node->references) == 0) {
+		bool deleted = false;
 		/*
 		 * If no one else is using the node, we can clean it up now.
 		 * We first need to gain a new reference to the node to meet a
 		 * requirement of decrement_reference().
 		 */
 		new_reference(rbtdb, header->node, isc_rwlocktype_write);
-		bool done = decrement_reference(
-			rbtdb, header->node, 0, isc_rwlocktype_write,
-			tree_locked ? isc_rwlocktype_write
-				    : isc_rwlocktype_none,
-			false);
+		decrement_reference(rbtdb, header->node, 0,
+				    isc_rwlocktype_write,
+				    tree_locked ? isc_rwlocktype_write
+						: isc_rwlocktype_none,
+				    false, &deleted);
 
 		if (rbtdb->cachestats == NULL) {
-			return (done);
+			return (deleted);
 		}
 
 		switch (reason) {
@@ -10873,7 +10892,7 @@ expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, bool tree_locked,
 		default:
 			break;
 		}
-		return (done);
+		return (deleted);
 	}
 	return (false);
 }
