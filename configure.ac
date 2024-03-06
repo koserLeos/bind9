@@ -776,6 +776,60 @@ AX_RESTORE_FLAGS([openssl])
 AC_SUBST([OPENSSL_CFLAGS])
 AC_SUBST([OPENSSL_LIBS])
 
+# [pairwise: --enable-quic --with-libngtcp2=auto, --enable-quic --with-libngtcp2=yes, --disable-quic]
+AC_ARG_ENABLE([quic],
+	      [AS_HELP_STRING([--disable-quic], [disable QUIC, removes dependency on libngtcp2 (default is --enable-quic)])],
+	      [], [enable_quic=yes])
+
+# [pairwise: skip]
+AC_ARG_WITH([libngtcp2],
+	    [AS_HELP_STRING([--with-libngtcp2],
+			    [build with libngtcp2 library [yes|no|auto] (default is auto)])],
+	    [], [with_libngtcp2="auto"])
+
+AS_IF([test "$enable_quic" = "yes"],
+      [AS_CASE([$with_libngtcp2],
+	       [no],[AC_MSG_ERROR([Use '--disable-quic' to disable QUIC support])],
+	       [auto|yes],[PKG_CHECK_MODULES([LIBNGTCP2], [libngtcp2 >= 1.0.0],
+						 [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <openssl/ssl.h>]],
+							 [#if (!defined SSL_OP_NO_TLSv1_3) && (!defined TLS1_3_VERSION)
+							  #error TLSv1.3 support is required for QUIC
+							  #endif
+							 ])],
+							 [AC_DEFINE([HAVE_LIBNGTCP2], [1], [Build with QUIC support])],
+							 [AC_MSG_ERROR(m4_normalize([TLS version 1.3 support is required for QUIC but it is not provided by the OpenSSL/LibreSSL library in use. Either use an OpenSSL/LibreSSL library version with TLSv1.3 support or use --disable-quic to disable QUIC support.]))])],
+					     [AC_MSG_ERROR(m4_normalize([QUIC support requested, but libnghttp2 not found.
+									 Either install libngtcp2 or use --disable-quic.]))])],
+	       [AC_MSG_ERROR([Specifying libngtcp2 installation path is not supported, adjust PKG_CONFIG_PATH instead])])])
+
+AM_CONDITIONAL([HAVE_LIBNGTCP2], [test -n "$LIBNGTCP2_LIBS"])
+
+AS_IF([test "$enable_quic" = "yes"],
+	  AC_MSG_CHECKING([whether the OpenSSL library provides native TLS integration for QUIC])
+      AC_COMPILE_IFELSE(
+          [AC_LANG_PROGRAM([[#include <openssl/ssl.h>]],
+      					   [[SSL_QUIC_METHOD quic_method = { 0 };]])],
+		  [quic_native="yes"]
+          [AC_DEFINE([HAVE_NATIVE_BORINGSSL_QUIC_API], [1], [define if the OpenSSL library provides native TLS integration for QUIC])
+           AC_MSG_RESULT([yes])],
+          [AC_MSG_RESULT([no])]))
+
+AM_CONDITIONAL([HAVE_NATIVE_BORINGSSL_QUIC_API], [test "$quic_native" = "yes"])
+
+AS_IF([test "$quic_native" = "yes"],
+	  AC_MSG_CHECKING([whether the SSL_QUIC_METHOD has both set_read_secret() and set_write_secret()])
+	  AC_COMPILE_IFELSE(
+          [AC_LANG_PROGRAM([[#include <openssl/ssl.h>]],
+      					   [[SSL_QUIC_METHOD quic_method = { 0 };
+							 void *set_read_secret = (void *)quic_method.set_read_secret;
+							 void *set_write_secret = (void *)quic_method.set_write_secret;]])],
+		  [quic_has_set_read_write_secret="yes"]
+          [AC_DEFINE([HAVE_QUIC_METHOD_SET_READ_WRITE_SECRET], [1], [define if the SSL_QUIC_METHOD has both set_read_secret() and set_write_secret()])
+           AC_MSG_RESULT([yes])],
+          [AC_MSG_RESULT([no])]));
+
+AM_CONDITIONAL([HAVE_QUIC_METHOD_SET_READ_WRITE_SECRET], [test "$quic_has_set_read_write_secret" = "yes"])
+
 AC_CHECK_FUNCS([clock_gettime])
 
 # [pairwise: --with-gssapi=yes, --with-gssapi=auto, --without-gssapi]
