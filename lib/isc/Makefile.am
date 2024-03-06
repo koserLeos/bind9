@@ -259,6 +259,18 @@ libisc_la_LIBADD +=		\
 	$(LIBXML2_LIBS)
 endif HAVE_LIBXML2
 
+if HAVE_LIBNGTCP2
+libisc_la_SOURCES +=		\
+	quic/quic-int.h	\
+	quic/tls_quic.c
+
+libisc_la_CPPFLAGS +=		\
+	$(LIBNGTCP2_CFLAGS)
+
+libisc_la_LIBADD +=		\
+	$(LIBNGTCP2_LIBS)
+endif
+
 if !HAVE_SYSTEMTAP
 DTRACE_DEPS = libisc_la-rwlock.lo libisc_la-job.lo
 DTRACE_OBJS = .libs/libisc_la-rwlock.$(OBJEXT) .libs/libisc_la-job.$(OBJEXT)
