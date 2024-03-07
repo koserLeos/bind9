@@ -186,15 +186,12 @@ def test_named_shutdown(ports, kill_method):
     # necessary for sending RNDC commands to that instance.  This "custom"
     # instance listens on 10.53.0.3, so use "ns3" as the identifier passed to
     # the NamedInstance constructor.
-    named_ports = isctest.instance.NamedPorts(
-        dns=ports["PORT"], rndc=ports["CONTROLPORT"]
-    )
-    instance = isctest.instance.NamedInstance("ns3", named_ports)
+    instance = isctest.instance.NamedInstance("ns3", ports)
 
     # We create a resolver instance that will be used to send queries.
     resolver = dns.resolver.Resolver()
     resolver.nameservers = ["10.53.0.3"]
-    resolver.port = named_ports.dns
+    resolver.port = ports.dns
 
     named_cmdline = [named, "-c", cfg_file, "-d", "99", "-g"]
     with open(os.path.join(cfg_dir, "named.run"), "ab") as named_log:

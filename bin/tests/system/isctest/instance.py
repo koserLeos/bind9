@@ -11,7 +11,7 @@
 # See the COPYRIGHT file distributed with this work for additional
 # information regarding copyright ownership.
 
-from typing import NamedTuple, Optional
+from typing import Optional
 
 import logging
 import os
@@ -21,9 +21,55 @@ from .rndc import RNDCBinaryExecutor, RNDCException, RNDCExecutor
 from .log import info, LogFile, WatchLogFromStart, WatchLogFromHere
 
 
-class NamedPorts(NamedTuple):
-    dns: int = 53
-    rndc: int = 953
+# pylint: disable=too-many-instance-attributes
+class NamedPorts:
+    dns = 53
+    tls = 853
+    http = 80
+    https = 443
+    extra1 = 1337
+    extra2 = extra1 + 1
+    extra3 = extra1 + 2
+    extra4 = extra1 + 3
+    extra5 = extra1 + 4
+    extra6 = extra1 + 5
+    extra7 = extra1 + 6
+    extra8 = extra1 + 7
+    control = 953
+
+    ATTRIBUTE_TO_ENV_VAR = {
+        "dns": "PORT",
+        "tls": "TLSPORT",
+        "http": "HTTPPORT",
+        "https": "HTTPSPORT",
+        "extra1": "EXTRAPORT1",
+        "extra2": "EXTRAPORT2",
+        "extra3": "EXTRAPORT3",
+        "extra4": "EXTRAPORT4",
+        "extra5": "EXTRAPORT5",
+        "extra6": "EXTRAPORT6",
+        "extra7": "EXTRAPORT7",
+        "extra8": "EXTRAPORT8",
+        "control": "CONTROLPORT",
+    }
+
+    def __init__(self, base_port: Optional[int] = None) -> None:
+        if base_port is None:
+            # Defaults from above will be used
+            return
+        self.dns = base_port
+        self.tls = base_port + 1
+        self.http = base_port + 2
+        self.https = base_port + 3
+        self.extra1 = base_port + 4
+        self.extra2 = base_port + 5
+        self.extra3 = base_port + 6
+        self.extra4 = base_port + 7
+        self.extra5 = base_port + 8
+        self.extra6 = base_port + 9
+        self.extra7 = base_port + 10
+        self.extra8 = base_port + 11
+        self.control = base_port + 12
 
 
 class NamedInstance:
@@ -115,7 +161,7 @@ class NamedInstance:
         >>> response = ns4.rndc("stop", ignore_errors=True, log=False)
         """
         try:
-            response = self._rndc_executor.call(self.ip, self.ports.rndc, command)
+            response = self._rndc_executor.call(self.ip, self.ports.control, command)
             if log:
                 self._rndc_log(command, response)
         except RNDCException as exc:

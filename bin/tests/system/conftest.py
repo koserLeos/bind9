@@ -257,51 +257,37 @@ def base_port(request, module_base_ports):
 
 
 @pytest.fixture(scope="module")
-def ports(base_port):
+def ports(base_port: int) -> isctest.instance.NamedPorts:
     """Dictionary containing port names and their assigned values."""
-    return {
-        "PORT": base_port,
-        "TLSPORT": base_port + 1,
-        "HTTPPORT": base_port + 2,
-        "HTTPSPORT": base_port + 3,
-        "EXTRAPORT1": base_port + 4,
-        "EXTRAPORT2": base_port + 5,
-        "EXTRAPORT3": base_port + 6,
-        "EXTRAPORT4": base_port + 7,
-        "EXTRAPORT5": base_port + 8,
-        "EXTRAPORT6": base_port + 9,
-        "EXTRAPORT7": base_port + 10,
-        "EXTRAPORT8": base_port + 11,
-        "CONTROLPORT": base_port + 12,
-    }
+    return isctest.instance.NamedPorts(base_port)
 
 
 @pytest.fixture(scope="module")
-def named_port(ports):
-    return ports["PORT"]
+def named_port(ports: isctest.instance.NamedPorts):
+    return ports.dns
 
 
 @pytest.fixture(scope="module")
-def named_tlsport(ports):
-    return ports["TLSPORT"]
+def named_tlsport(ports: isctest.instance.NamedPorts):
+    return ports.tls
 
 
 @pytest.fixture(scope="module")
-def named_httpsport(ports):
-    return ports["HTTPSPORT"]
+def named_httpsport(ports: isctest.instance.NamedPorts):
+    return ports.https
 
 
 @pytest.fixture(scope="module")
-def control_port(ports):
-    return ports["CONTROLPORT"]
+def control_port(ports: isctest.instance.NamedPorts):
+    return ports.control
 
 
 @pytest.fixture(scope="module")
-def env(ports):
+def env(ports: isctest.instance.NamedPorts):
     """Dictionary containing environment variables for the test."""
     env = os.environ.copy()
-    for portname, portnum in ports.items():
-        env[portname] = str(portnum)
+    for attribute_name, environment_variable in ports.ATTRIBUTE_TO_ENV_VAR.items():
+        env[environment_variable] = str(getattr(ports, attribute_name))
     env["builddir"] = f"{env['TOP_BUILDDIR']}/{SYSTEM_TEST_DIR_GIT_PATH}"
     env["srcdir"] = f"{env['TOP_SRCDIR']}/{SYSTEM_TEST_DIR_GIT_PATH}"
     return env
@@ -625,17 +611,13 @@ def system_test(  # pylint: disable=too-many-arguments,too-many-statements
 
 
 @pytest.fixture
-def servers(ports, system_test_dir):
+def servers(ports: isctest.instance.NamedPorts, system_test_dir):
     instances = {}
     for entry in system_test_dir.rglob("*"):
         if entry.is_dir():
             try:
                 dir_name = entry.name
-                # LATER: Make ports fixture return NamedPorts directly
-                named_ports = isctest.instance.NamedPorts(
-                    dns=int(ports["PORT"]), rndc=int(ports["CONTROLPORT"])
-                )
-                instance = isctest.instance.NamedInstance(dir_name, named_ports)
+                instance = isctest.instance.NamedInstance(dir_name, ports)
                 instances[dir_name] = instance
             except ValueError:
                 continue
