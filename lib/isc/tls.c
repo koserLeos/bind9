@@ -56,6 +56,10 @@
 
 static isc_mem_t *isc__tls_mctx = NULL;
 
+#ifdef HAVE_SSL_CTX_SET_KEYLOG_CALLBACK
+static bool sslkeylogfile_enabled = false;
+#endif /* HAVE_SSL_CTX_SET_KEYLOG_CALLBACK */
+
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static isc_mutex_t *locks = NULL;
 static int nlocks;
@@ -204,6 +208,12 @@ isc__tls_initialize(void) {
 			    "cannot be initialized (see the `PRNG not "
 			    "seeded' message in the OpenSSL FAQ)");
 	}
+
+#ifdef HAVE_SSL_CTX_SET_KEYLOG_CALLBACK
+	if (getenv("SSLKEYLOGFILE") != NULL) {
+		sslkeylogfile_enabled = true;
+	}
+#endif /* HAVE_SSL_CTX_SET_KEYLOG_CALLBACK */
 }
 
 void
@@ -265,12 +275,18 @@ isc_tlsctx_attach(isc_tlsctx_t *src, isc_tlsctx_t **ptarget) {
  * Callback invoked by the SSL library whenever a new TLS pre-master secret
  * needs to be logged.
  */
+void
+isc_tls_sslkeylogfile_append(const char *line) {
+	if (sslkeylogfile_enabled) {
+		isc_log_write(isc_lctx, ISC_LOGCATEGORY_SSLKEYLOG,
+			      ISC_LOGMODULE_NETMGR, ISC_LOG_INFO, "%s", line);
+	}
+}
+
 static void
 sslkeylogfile_append(const SSL *ssl, const char *line) {
 	UNUSED(ssl);
-
-	isc_log_write(isc_lctx, ISC_LOGCATEGORY_SSLKEYLOG, ISC_LOGMODULE_NETMGR,
-		      ISC_LOG_INFO, "%s", line);
+	isc_tls_sslkeylogfile_append(line);
 }
 
 /*
@@ -280,7 +296,7 @@ sslkeylogfile_append(const SSL *ssl, const char *line) {
  */
 static void
 sslkeylogfile_init(isc_tlsctx_t *ctx) {
-	if (getenv("SSLKEYLOGFILE") != NULL) {
+	if (sslkeylogfile_enabled) {
 		SSL_CTX_set_keylog_callback(ctx, sslkeylogfile_append);
 	}
 }

@@ -607,6 +607,16 @@ isc_tlsctx_set_random_session_id_context(isc_tlsctx_t *ctx);
  *\li   'ctx' - a valid non-NULL pointer;
  */
 
+#if HAVE_SSL_CTX_SET_KEYLOG_CALLBACK
+void
+isc_tls_sslkeylogfile_append(const char *line);
+/*%<
+ * Appends the provided line to the dedicated SSL keys log file
+ * provided via "SSLKEYLOGFILE" environmental variable (iff the variable is
+ * set).
+ */
+#endif /* HAVE_SSL_CTX_SET_KEYLOG_CALLBACK */
+
 void
 isc__tls_initialize(void);
 
