@@ -13,6 +13,7 @@
 
 #define ISC_ZONEMD_DEBUG
 
+#include <isc/heap.h>
 #include <isc/md.h>
 #include <isc/mem.h>
 #include <isc/result.h>
@@ -157,19 +158,54 @@ cleanup:
 	return (result);
 }
 
+static bool
+bytype(void *a, void *b) {
+	dns_rdataset_t *ra = (dns_rdataset_t *)a, *rb = (dns_rdataset_t *)b;
+
+	if (ra->type < rb->type) {
+		return (true);
+	}
+	if (ra->type != dns_rdatatype_rrsig) {
+		return (false);
+	}
+	if (ra->covers < rb->covers) {
+		return (true);
+	}
+	return (false);
+}
+
+static isc_result_t
+add_rdatasets(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,
+	      isc_mem_t *mctx, isc_heap_t *heap) {
+	dns_rdatasetiter_t *iter = NULL;
+	isc_result_t result;
+
+	CHECK(dns_db_allrdatasets(db, node, version, 0, 0, &iter));
+	for (result = dns_rdatasetiter_first(iter); result == ISC_R_SUCCESS;
+	     result = dns_rdatasetiter_next(iter))
+	{
+		dns_rdataset_t *rdataset = isc_mem_get(mctx, sizeof(*rdataset));
+		dns_rdataset_init(rdataset);
+		dns_rdatasetiter_current(iter, rdataset);
+		isc_heap_insert(heap, rdataset);
+	}
+	if (result == ISC_R_NOMORE) {
+		result = ISC_R_SUCCESS;
+	}
+cleanup:
+	if (iter != NULL) {
+		dns_rdatasetiter_destroy(&iter);
+	}
+	return (result);
+}
+
 static isc_result_t
 process_name(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
-	     dns_dbnode_t *nsecnode, dns_dbnode_t *nsec3node, isc_mem_t *mctx,
-	     unsigned char *buf, isc_md_t *md, bool *seen_soa) {
-	dns_rdataset_t rds[20];
-	dns_rdatasetiter_t *nseciter = NULL;
-	dns_rdatasetiter_t *nsec3iter = NULL;
-	dns_rdatatype_t best = 0, covers = 0;
-	isc_result_t result;
-	size_t i, j;
-	bool again = true;
-	bool best_set = false;
-	bool covers_set = false;
+	     dns_dbnode_t *nsecnode, dns_dbnode_t *nsec3node, isc_heap_t *heap,
+	     isc_mem_t *mctx, unsigned char *buf, isc_md_t *md,
+	     bool *seen_soa) {
+	dns_rdataset_t *rdataset = NULL;
+	isc_result_t result = ISC_R_SUCCESS;
 
 	char namebuf[DNS_NAME_FORMATSIZE];
 	dns_name_format(name, namebuf, sizeof(namebuf));
@@ -181,180 +217,46 @@ process_name(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 		return (ISC_R_SUCCESS);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(rds); i++) {
-		dns_rdataset_init(&rds[i]);
-	}
-
 	if (nsecnode != NULL) {
-		CHECK(dns_db_allrdatasets(db, nsecnode, version, 0, 0,
-					  &nseciter));
+		CHECK(add_rdatasets(db, version, nsecnode, mctx, heap));
 	}
 	if (nsec3node != NULL) {
-		CHECK(dns_db_allrdatasets(db, nsec3node, version, 0, 0,
-					  &nsec3iter));
+		CHECK(add_rdatasets(db, version, nsec3node, mctx, heap));
 	}
 
-	while (again) {
-		again = false;
-		i = 0;
-
-		if (nseciter != NULL) {
-			result = dns_rdatasetiter_first(nseciter);
-		} else {
-			result = ISC_R_NOMORE;
-		}
-		while (result == ISC_R_SUCCESS) {
-			/*
-			 * Don't digest ZONEMD or RRSIG(ZONEMD).
-			 */
-			dns_rdatasetiter_current(nseciter, &rds[i]);
+	while ((rdataset = isc_heap_element(heap, 1)) != NULL) {
 #ifdef ISC_ZONEMD_DEBUG
-			fprintf(stderr, "looking at %s %u/%u\n", namebuf,
-				rds[i].type, rds[i].covers);
+		fprintf(stderr, "looking at %s %u/%u\n", namebuf,
+			rdataset->type, rdataset->covers);
 #endif
-			if ((rds[i].type == dns_rdatatype_zonemd ||
-			     (rds[i].type == dns_rdatatype_rrsig &&
-			      rds[i].covers == dns_rdatatype_zonemd)) &&
-			    dns_name_equal(name, dns_db_origin(db)))
-			{
-#ifdef ISC_ZONEMD_DEBUG
-				fprintf(stderr, "skipping apex zonemd / "
-						"RRSIG(zonemd)\n");
-#endif
-				dns_rdataset_disassociate(&rds[i]);
-				goto nsecskip;
-			}
-			if ((covers_set && rds[i].type == dns_rdatatype_rrsig &&
-			     rds[i].covers <= covers) ||
-			    (best_set && rds[i].type != dns_rdatatype_rrsig &&
-			     rds[i].type <= best))
-			{
-#ifdef ISC_ZONEMD_DEBUG
-				fprintf(stderr,
-					"skipping (already processed)\n");
-#endif
-				dns_rdataset_disassociate(&rds[i]);
-				goto nsecskip;
-			}
-			/*
-			 * Note RRSIG COVERED is the first field so multiple
-			 * RRSIG RRsets can be sorted by their COVERED field.
-			 */
-			for (j = 0; j < i; j++) {
-				if ((rds[i].type < rds[j].type ||
-				     (rds[j].type == dns_rdatatype_rrsig &&
-				      rds[i].type == dns_rdatatype_rrsig &&
-				      rds[i].covers < rds[j].covers)))
-				{
-					dns_rdataset_t tmp = rds[j];
-					rds[j] = rds[i];
-					rds[i] = tmp;
-				}
-			}
-			if (i == ARRAY_SIZE(rds) - 1 &&
-			    dns_rdataset_isassociated(&rds[i]))
-			{
-				dns_rdataset_disassociate(&rds[i]);
-				again = true;
-			} else {
-				i++;
-			}
-		nsecskip:
-			result = dns_rdatasetiter_next(nseciter);
-		}
-
-		if (result == ISC_R_NOMORE && nsec3iter != NULL) {
-			result = dns_rdatasetiter_first(nsec3iter);
-		}
-		while (result == ISC_R_SUCCESS) {
-			/*
-			 * Don't digest ZONEMD or RRSIG(ZONEMD).
-			 */
-			dns_rdatasetiter_current(nsec3iter, &rds[i]);
-#ifdef ISC_ZONEMD_DEBUG
-			fprintf(stderr, "looking at %s %u/%u\n", namebuf,
-				rds[i].type, rds[i].covers);
-#endif
-			if ((covers_set && rds[i].type == dns_rdatatype_rrsig &&
-			     rds[i].covers <= covers) ||
-			    (best_set && rds[i].type != dns_rdatatype_rrsig &&
-			     rds[i].type <= best))
-			{
-#ifdef ISC_ZONEMD_DEBUG
-				fprintf(stderr,
-					"skipping (already processed)\n");
-#endif
-				dns_rdataset_disassociate(&rds[i]);
-				goto nsec3skip;
-			}
-			/*
-			 * Note RRSIG COVERED is the first field so multiple
-			 * RRSIG RRsets can be sorted by their COVERED field.
-			 */
-			for (j = 0; j < i; j++) {
-				if ((rds[i].type < rds[j].type ||
-				     (rds[j].type == dns_rdatatype_rrsig &&
-				      rds[i].type == dns_rdatatype_rrsig &&
-				      rds[i].covers < rds[j].covers)))
-				{
-					dns_rdataset_t tmp = rds[j];
-					rds[j] = rds[i];
-					rds[i] = tmp;
-				}
-			}
-			if (i == ARRAY_SIZE(rds) - 1 &&
-			    dns_rdataset_isassociated(&rds[i]))
-			{
-				dns_rdataset_disassociate(&rds[i]);
-				again = true;
-			} else {
-				i++;
-			}
-		nsec3skip:
-			result = dns_rdatasetiter_next(nsec3iter);
-		}
-
 		/*
-		 * Digest the selected set of records.
+		 * Don't digest ZONEMD or RRSIG(ZONEMD).
 		 */
-		if (result == ISC_R_NOMORE) {
-			for (j = 0; j < i; j++) {
-				if (rds[j].type == dns_rdatatype_soa &&
-				    dns_name_equal(name, dns_db_origin(db)))
-				{
-					CHECK(get_serial(&rds[j], buf));
-					*seen_soa = true;
-				}
-				CHECK(digest_rdataset(name, &rds[j], mctx, md));
-				best = rds[j].type;
-				best_set = true;
-				if (rds[j].type == dns_rdatatype_rrsig) {
-					covers = rds[j].covers;
-					covers_set = true;
-				}
-				dns_rdataset_disassociate(&rds[j]);
-			}
-			if (dns_rdataset_isassociated(&rds[i])) {
-				if (!again) {
-					CHECK(digest_rdataset(name, &rds[i],
-							      mctx, md));
-				}
-				dns_rdataset_disassociate(&rds[i]);
-			}
-			result = ISC_R_SUCCESS;
+		if ((rdataset->type == dns_rdatatype_zonemd ||
+		     (rdataset->type == dns_rdatatype_rrsig &&
+		      rdataset->covers == dns_rdatatype_zonemd)) &&
+		    dns_name_equal(name, dns_db_origin(db)))
+		{
+			goto skip;
 		}
+		if (rdataset->type == dns_rdatatype_soa &&
+		    dns_name_equal(name, dns_db_origin(db)))
+		{
+			CHECK(get_serial(rdataset, buf));
+			*seen_soa = true;
+		}
+
+		CHECK(digest_rdataset(name, rdataset, mctx, md));
+	skip:
+		isc_heap_delete(heap, 1);
+		dns_rdataset_disassociate(rdataset);
+		isc_mem_put(mctx, rdataset, sizeof(*rdataset));
 	}
 cleanup:
-	for (i = 0; i < ARRAY_SIZE(rds); i++) {
-		if (dns_rdataset_isassociated(&rds[i])) {
-			dns_rdataset_disassociate(&rds[i]);
-		}
-	}
-	if (nseciter != NULL) {
-		dns_rdatasetiter_destroy(&nseciter);
-	}
-	if (nsec3iter != NULL) {
-		dns_rdatasetiter_destroy(&nsec3iter);
+	while ((rdataset = isc_heap_element(heap, 1)) != NULL) {
+		isc_heap_delete(heap, 1);
+		dns_rdataset_disassociate(rdataset);
+		isc_mem_put(mctx, rdataset, sizeof(*rdataset));
 	}
 	return (result);
 }
@@ -373,6 +275,7 @@ zonemd_simple(dns_rdata_t *rdata, dns_db_t *db, dns_dbversion_t *version,
 	dns_name_t *nsecname;
 	dns_name_t *nsec3name;
 	isc_md_t *md = isc_md_new();
+	isc_heap_t *heap = NULL;
 	isc_result_t result, nsecresult, nsec3result;
 	isc_region_t r;
 
@@ -401,6 +304,7 @@ zonemd_simple(dns_rdata_t *rdata, dns_db_t *db, dns_dbversion_t *version,
 	}
 	dns_fixedname_init(&nsecfixed);
 	dns_fixedname_init(&nsec3fixed);
+	isc_heap_create(mctx, bytype, NULL, 0, &heap);
 	CHECK(dns_db_createiterator(db, DNS_DB_NONSEC3, &nsecdbiter));
 	CHECK(dns_db_createiterator(db, DNS_DB_NSEC3ONLY, &nsec3dbiter));
 	nsecresult = dns_dbiterator_first(nsecdbiter);
@@ -442,7 +346,7 @@ zonemd_simple(dns_rdata_t *rdata, dns_db_t *db, dns_dbversion_t *version,
 		}
 		CHECK(process_name(
 			db, version, nsecname != NULL ? nsecname : nsec3name,
-			nsecnode, nsec3node, mctx, buf, md, &seen_soa));
+			nsecnode, nsec3node, heap, mctx, buf, md, &seen_soa));
 		if (nsecnode != NULL) {
 			dns_db_detachnode(db, &nsecnode);
 		}
@@ -478,6 +382,9 @@ zonemd_simple(dns_rdata_t *rdata, dns_db_t *db, dns_dbversion_t *version,
 cleanup:
 	if (md != NULL) {
 		isc_md_free(md);
+	}
+	if (heap != NULL) {
+		isc_heap_destroy(&heap);
 	}
 	if (nsecnode != NULL) {
 		dns_db_detachnode(db, &nsecnode);
