@@ -264,6 +264,11 @@ libisc_la_SOURCES +=		\
 	quic/quic-int.h	\
 	quic/tls_quic.c
 
+if HAVE_NATIVE_BORINGSSL_QUIC_API
+libisc_la_SOURCES +=		\
+	quic/quic_interface_native.c
+endif
+
 libisc_la_CPPFLAGS +=		\
 	$(LIBNGTCP2_CFLAGS)
 
