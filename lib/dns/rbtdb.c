@@ -3446,14 +3446,6 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 	}
 	INSIST(tlocktype == isc_rwlocktype_none);
 
-	/*
-	 * Update the zone's secure status.  If version is non-NULL
-	 * this is deferred until dns__rbtdb_closeversion() is called.
-	 */
-	if (result == ISC_R_SUCCESS && version == NULL && !IS_CACHE(rbtdb)) {
-		dns__rbtdb_setsecure(db, version, rbtdb->origin_node);
-	}
-
 	return (result);
 }
 
