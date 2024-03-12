@@ -235,9 +235,9 @@ static dns_dbmethods_t qpdb_zonemethods;
 #define qpdata_attach(ptr, ptrp) \
 	qpdata__attach(ptr, ptrp, __func__, __FILE__, __LINE__)
 #define qpdata_detach(ptrp) qpdata__detach(ptrp, __func__, __FILE__, __LINE__)
-ISC_REFCOUNT_TRACE_DECL(qpdata);
+ISC_REFCOUNT_STATIC_TRACE_DECL(qpdata);
 #else
-ISC_REFCOUNT_DECL(qpdata);
+ISC_REFCOUNT_STATIC_DECL(qpdata);
 #endif
 
 /* QP trie methods */
@@ -4462,10 +4462,9 @@ dbiterator_seek(dns_dbiterator_t *iterator,
 				       qpdbiter->current, NULL,
 				       (void **)&qpdbiter->node, NULL);
 		if (result == DNS_R_PARTIALMATCH) {
-			dns_qpdata_t *node = NULL;
 			tresult = dns_qp_lookup(qpdbiter->nsnap, name, NULL,
 						&qpdbiter->nsec3iter, NULL,
-						(void **)&node, NULL);
+						NULL, NULL);
 			if (tresult == ISC_R_SUCCESS) {
 				qpdbiter->current = &qpdbiter->nsec3iter;
 				result = tresult;
@@ -5390,9 +5389,9 @@ destroy_qpdata(qpdata_t *node) {
 }
 
 #if DNS_DB_NODETRACE
-ISC_REFCOUNT_TRACE_IMPL(qpdata, destroy_qpdata);
+ISC_REFCOUNT_STATIC_TRACE_IMPL(qpdata, destroy_qpdata);
 #else
-ISC_REFCOUNT_IMPL(qpdata, destroy_qpdata);
+ISC_REFCOUNT_STATIC_IMPL(qpdata, destroy_qpdata);
 #endif
 
 static void
