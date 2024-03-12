@@ -48,7 +48,6 @@
 #include <dns/db.h>
 #include <dns/diff.h>
 #include <dns/enumclass.h>
-#include <dns/rbt.h>
 #include <dns/rdatalist.h>
 #include <dns/rdatastruct.h>
 #include <dns/soa.h>

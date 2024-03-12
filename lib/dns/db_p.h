@@ -18,7 +18,6 @@
 #include <isc/urcu.h>
 
 #include <dns/nsec3.h>
-#include <dns/rbt.h>
 #include <dns/types.h>
 
 #define RDATATYPE_NCACHEANY DNS_TYPEPAIR_VALUE(0, dns_rdatatype_any)

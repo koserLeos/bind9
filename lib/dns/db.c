@@ -64,7 +64,6 @@ struct dns_dbimplementation {
 #include "db_p.h"
 #include "qpcache_p.h"
 #include "qpzone_p.h"
-#include "rbtdb_p.h"
 
 unsigned int dns_pps = 0U;
 
@@ -81,12 +80,6 @@ initialize(void) {
 	isc_rwlock_init(&implock);
 
 	ISC_LIST_INIT(implementations);
-
-	rbtimp = (dns_dbimplementation_t){
-		.name = "rbt",
-		.create = dns__rbtdb_create,
-		.link = ISC_LINK_INITIALIZER,
-	};
 
 	qpimp = (dns_dbimplementation_t){
 		.name = "qpcache",

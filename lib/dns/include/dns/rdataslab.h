@@ -117,12 +117,7 @@ struct dns_slabheader {
 
 	dns_db_t     *db;
 	dns_dbnode_t *node;
-	/*%<
-	 * The database and database node objects containing
-	 * this rdataset, if any.
-	 */
 
-	isc_stdtime_t last_used;
 	ISC_LINK(struct dns_slabheader) link;
 
 	/*%

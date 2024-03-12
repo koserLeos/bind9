@@ -19,6 +19,13 @@
 
 #pragma once
 
+#include <inttypes.h>
+
+#include <isc/refcount.h>
+#include <isc/util.h>
+
+#include <dns/qp.h>
+
 /***********************************************************************
  *
  *  interior node basics

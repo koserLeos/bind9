@@ -102,7 +102,6 @@ libdns_la_HEADERS =			\
 	include/dns/peer.h		\
 	include/dns/private.h		\
 	include/dns/qp.h		\
-	include/dns/rbt.h		\
 	include/dns/rcode.h		\
 	include/dns/rdata.h		\
 	include/dns/rdataclass.h	\
@@ -218,12 +217,7 @@ libdns_la_SOURCES =			\
 	qp_p.h				\
 	qpzone_p.h			\
 	qpzone.c			\
-	rbt.c				\
-	rbt-cachedb.c			\
-	rbt-zonedb.c			\
-	rbtdb.c				\
-	rbtdb_p.h			\
-	qpcache.c				\
+	qpcache.c			\
 	qpcache_p.h			\
 	rcode.c				\
 	rdata.c				\

@@ -1093,7 +1093,6 @@ dns_slabheader_copycase(dns_slabheader_t *dest, dns_slabheader_t *src) {
 
 void
 dns_slabheader_reset(dns_slabheader_t *h, dns_db_t *db, dns_dbnode_t *node) {
-	ISC_LINK_INIT(h, link);
 	h->heap_index = 0;
 	h->heap = NULL;
 	h->glue_list = NULL;
@@ -1115,9 +1114,7 @@ dns_slabheader_new(dns_db_t *db, dns_dbnode_t *node) {
 	dns_slabheader_t *h = NULL;
 
 	h = isc_mem_get(db->mctx, sizeof(*h));
-	*h = (dns_slabheader_t){
-		.link = ISC_LINK_INITIALIZER,
-	};
+	*h = (dns_slabheader_t){ 0 };
 	dns_slabheader_reset(h, db, node);
 	return (h);
 }
