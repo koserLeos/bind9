@@ -1,3 +1,7 @@
+6359.	[bug]		Reduce memory consumption of QP zone and cache
+			databases by dynamically allocating nodenames.
+			[GL #4614]
+
 6358.	[bug]		Fix validate_dnskey_dsset when KSK is not signing,
 			do not skip remainder of DS RRset. [GL #4625]
 
