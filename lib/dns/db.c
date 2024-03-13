@@ -71,7 +71,6 @@ static ISC_LIST(dns_dbimplementation_t) implementations;
 static isc_rwlock_t implock;
 static isc_once_t once = ISC_ONCE_INIT;
 
-static dns_dbimplementation_t rbtimp;
 static dns_dbimplementation_t qpimp;
 static dns_dbimplementation_t qpzoneimp;
 
@@ -93,7 +92,6 @@ initialize(void) {
 		.link = ISC_LINK_INITIALIZER,
 	};
 
-	ISC_LIST_APPEND(implementations, &rbtimp, link);
 	ISC_LIST_APPEND(implementations, &qpimp, link);
 	ISC_LIST_APPEND(implementations, &qpzoneimp, link);
 }
