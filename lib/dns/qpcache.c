@@ -235,7 +235,6 @@ struct dns_qpdb {
 	isc_mem_t *hmctx;
 
 	isc_mutex_t heaplock;
-	/* isc_timer_t *heaptimer; */
 	isc_heap_t *heap;
 
 	dns_qpmulti_t *tree; /* Main QP trie for data storage */
@@ -798,10 +797,6 @@ static void
 newttl(dns_slabheader_t *newheader) {
 	dns_qpdb_t *qpdb = (dns_qpdb_t *)newheader->db;
 
-	if (newheader) {
-		return;
-	}
-
 	LOCK(&qpdb->heaplock);
 	isc_heap_insert(qpdb->heap, newheader);
 	UNLOCK(&qpdb->heaplock);
@@ -811,10 +806,6 @@ newttl(dns_slabheader_t *newheader) {
 static void
 setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 	dns_ttl_t oldttl = header->ttl;
-
-	if (header) {
-		return;
-	}
 
 	header->ttl = newttl;
 
@@ -838,30 +829,6 @@ setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 
 	if (newttl == 0) {
 		isc_heap_delete(header->heap, header->heap_index);
-	}
-
-	dns_slabheader_t *top_header = isc_heap_element(qpdb->heap, 1);
-	if (top_header != NULL) {
-		isc_stdtime_t now = isc_stdtime_now();
-		dns_ttl_t ttl = header->ttl;
-
-		if (isc_mem_isovermem(qpdb->common.mctx)) {
-			/* Only account for stale TTL if cache is not overmem */
-			ttl += STALE_TTL(header, qpdb);
-		}
-
-		if (ttl >= now - QPDB_VIRTUAL) {
-			isc_interval_t interval;
-			isc_interval_set(&interval, ttl + QPDB_VIRTUAL - now,
-					 0);
-			/* isc_timer_start(qpdb->heaptimer, isc_timertype_once,
-			 */
-			/* 		&interval); */
-		} else {
-			/* isc_timer_start(qpdb->heaptimer, isc_timertype_once,
-			 */
-			/* 		isc_interval_zero); */
-		}
 	}
 	UNLOCK(&qpdb->heaplock);
 }
@@ -2219,7 +2186,6 @@ free_qpdb_rcu(struct rcu_head *rcu_head) {
 	isc_refcount_destroy(&qpdb->common.references);
 	if (qpdb->loop != NULL) {
 		isc_loop_detach(&qpdb->loop);
-		/* isc_timer_destroy(&qpdb->heaptimer); */
 	}
 
 	isc_mutex_destroy(&qpdb->lock);
@@ -2938,7 +2904,8 @@ cleanup:
 }
 
 static void
-expire_ttl_headers(void *arg);
+expire_ttl_headers(dns_qpdb_t *qpdb, dbmod_t *modctx, isc_stdtime_t now,
+		   bool cache_is_overmem DNS__DB_FLARG);
 
 static isc_result_t
 addrdataset(dns_db_t *db, dns_dbnode_t *node,
@@ -3060,6 +3027,9 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 		modctx.tree = (dns_qp_t *)&modctx.qpr;
 	}
 
+	expire_ttl_headers(qpdb, &modctx, now,
+			   cache_is_overmem DNS__DB_FLARG_PASS);
+
 	SPINLOCK(&qpnode->spinlock);
 
 	if (qpdb->rrsetstats != NULL) {
@@ -3173,12 +3143,9 @@ setloop(dns_db_t *db, isc_loop_t *loop) {
 	LOCK(&qpdb->lock);
 	if (qpdb->loop != NULL) {
 		isc_loop_detach(&qpdb->loop);
-		/* isc_timer_async_destroy(&qpdb->heaptimer); */
 	}
 	if (loop != NULL) {
 		isc_loop_attach(loop, &qpdb->loop);
-		/* isc_timer_create(qpdb->loop, expire_ttl_headers, qpdb, */
-		/* 		 &qpdb->heaptimer); */
 	}
 	UNLOCK(&qpdb->lock);
 }
@@ -3739,21 +3706,22 @@ deletedata(dns_db_t *db ISC_ATTR_UNUSED, dns_dbnode_t *node ISC_ATTR_UNUSED,
 	}
 }
 
-static void __attribute__((__unused__))
-expire_ttl_headers(void *arg) {
-	dns_qpdb_t *qpdb = arg;
-	dbmod_t modctx = {
-		.writing = true,
-	};
-	isc_stdtime_t now = isc_stdtime_now();
-	bool cache_is_overmem = isc_mem_isovermem(qpdb->common.mctx);
-	dns_slabheader_t *header = NULL;
+/*
+ * Caller must be holding the node write lock.
+ */
+static void
+expire_ttl_headers(dns_qpdb_t *qpdb, dbmod_t *modctx, isc_stdtime_t now,
+		   bool cache_is_overmem DNS__DB_FLARG) {
+	for (size_t i = 0; i < DNS_QPDB_EXPIRE_TTL_COUNT; i++) {
+		LOCK(&qpdb->heaplock);
+		dns_slabheader_t *header = isc_heap_element(qpdb->heap, 1);
+		UNLOCK(&qpdb->heaplock);
 
-	dns_qpmulti_write(qpdb->tree, &modctx.tree);
-	dns_qpmulti_write(qpdb->nsec, &modctx.nsec);
+		if (header == NULL) {
+			/* No headers left on this TTL heap; exit cleaning */
+			return;
+		}
 
-	LOCK(&qpdb->heaplock);
-	while ((header = isc_heap_element(qpdb->heap, 1)) != NULL) {
 		qpdata_t *node = HEADERNODE(header);
 		qpdata_ref(node);
 		SPINLOCK(&node->spinlock);
@@ -3772,23 +3740,15 @@ expire_ttl_headers(void *arg) {
 			 * the same heap can be eligible for expiry, either;
 			 * exit cleaning.
 			 */
-			SPINUNLOCK(&node->spinlock);
-			qpdata_unref(node);
-			break;
+			i = DNS_QPDB_EXPIRE_TTL_COUNT;
+		} else {
+			expireheader(header, modctx,
+				     dns_expire_ttl DNS__DB_FLARG_PASS);
 		}
 
-		expireheader(header, &modctx,
-			     dns_expire_ttl DNS__DB_FLARG_PASS);
 		SPINUNLOCK(&node->spinlock);
 		qpdata_unref(node);
 	}
-	UNLOCK(&qpdb->heaplock);
-
-	dns_qp_compact(modctx.tree, DNS_QPGC_MAYBE);
-	dns_qpmulti_commit(qpdb->tree, &modctx.tree);
-
-	dns_qp_compact(modctx.nsec, DNS_QPGC_MAYBE);
-	dns_qpmulti_commit(qpdb->nsec, &modctx.nsec);
 }
 
 static dns_dbmethods_t qpdb_cachemethods = {
