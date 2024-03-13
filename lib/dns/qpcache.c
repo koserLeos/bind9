@@ -3727,6 +3727,10 @@ expire_ttl_headers(dns_qpdb_t *qpdb, dbmod_t *modctx, isc_stdtime_t now,
 			return;
 		}
 
+		qpdata_t *node = HEADERNODE(header);
+		qpdata_ref(node);
+		SPINLOCK(&node->spinlock);
+
 		dns_ttl_t ttl = header->ttl;
 
 		if (!cache_is_overmem) {
@@ -3741,12 +3745,11 @@ expire_ttl_headers(dns_qpdb_t *qpdb, dbmod_t *modctx, isc_stdtime_t now,
 			 * the same heap can be eligible for expiry, either;
 			 * exit cleaning.
 			 */
+			SPINUNLOCK(&node->spinlock);
+			qpdata_unref(node);
 			return;
 		}
 
-		qpdata_t *node = HEADERNODE(header);
-		qpdata_ref(node);
-		SPINLOCK(&node->spinlock);
 		expireheader(header, modctx, dns_expire_ttl DNS__DB_FLARG_PASS);
 		SPINUNLOCK(&node->spinlock);
 		qpdata_unref(node);
