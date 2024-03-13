@@ -47,7 +47,6 @@
 #include <dns/log.h>
 #include <dns/masterdump.h>
 #include <dns/nsec.h>
-#include <dns/nsec3.h>
 #include <dns/qp.h>
 #include <dns/rbt.h>
 #include <dns/rdata.h>
@@ -119,10 +118,6 @@
 	(((rbtiterator)->common.options & DNS_DB_STALEOK) != 0)
 
 #define KEEPSTALE(qpdb) ((qpdb)->common.serve_stale_ttl > 0)
-
-#define QPDBITER_NSEC3_ORIGIN_NODE(qpdb, iterator)        \
-	((iterator)->current == &(iterator)->nsec3iter && \
-	 (iterator)->node == (qpdb)->nsec3_origin_node)
 
 /*%
  * Note that "impmagic" is not the first four bytes of the struct, so
@@ -231,7 +226,6 @@ struct qpcache {
 	unsigned int node_lock_count;
 	db_nodelock_t *node_locks;
 	qpdata_t *origin_node;
-	qpdata_t *nsec3_origin_node;
 	dns_stats_t *rrsetstats;     /* cache DB only */
 	isc_stats_t *cachestats;     /* cache DB only */
 	isc_stats_t *gluecachestats; /* zone DB only */
@@ -282,7 +276,6 @@ struct qpcache {
 	/* Locked by tree_lock. */
 	dns_qp_t *tree;
 	dns_qp_t *nsec;
-	dns_qp_t *nsec3;
 };
 
 /*%
@@ -376,15 +369,6 @@ typedef struct qpdb_rdatasetiter {
 	dns_slabheader_t *current;
 } qpdb_rdatasetiter_t;
 
-/*
- * Note that these iterators, unless created with either DNS_DB_NSEC3ONLY or
- * DNS_DB_NONSEC3, will transparently move between the last node of the
- * "regular" QP ("iter" field) and the root node of the NSEC3 QP
- * ("nsec3iter" field) of the database in question, as if the latter was a
- * successor to the former in lexical order.  The "current" field always holds
- * the address of either "iter" or "nsec3iter", depending on which QP is
- * being traversed at given time.
- */
 static void
 dbiterator_destroy(dns_dbiterator_t **iteratorp DNS__DB_FLARG);
 static isc_result_t
@@ -413,22 +397,16 @@ static dns_dbiteratormethods_t dbiterator_methods = {
 };
 
 /*
- * If 'paused' is true, then the tree lock is not being held.
+ * Note that the QP cache database uses only a single QP iterator, because
+ * unlike QP zone databases, NSEC3 records are cached in the main tree.
  */
 typedef struct qpdb_dbiterator {
 	dns_dbiterator_t common;
 	bool paused;
-	bool new_origin;
 	isc_rwlocktype_t tree_locked;
 	isc_result_t result;
-	dns_fixedname_t origin;
-	dns_fixedname_t fixed;
-	dns_name_t *name;
 	dns_qpiter_t iter;
-	dns_qpiter_t nsec3iter;
-	dns_qpiter_t *current;
 	qpdata_t *node;
-	enum { full, nonsec3, nsec3only } nsec3mode;
 } qpdb_dbiterator_t;
 
 static void
@@ -634,10 +612,6 @@ delete_node(qpcache_t *qpdb, qpdata_t *node) {
 	case DNS_DB_NSEC_NSEC:
 		result = dns_qp_deletename(qpdb->nsec, &node->name, NULL, NULL);
 		break;
-	case DNS_DB_NSEC_NSEC3:
-		result = dns_qp_deletename(qpdb->nsec3, &node->name, NULL,
-					   NULL);
-		break;
 	}
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
@@ -718,9 +692,7 @@ decref(qpcache_t *qpdb, qpdata_t *node, isc_rwlocktype_t *nlocktypep,
 
 	nodelock = &qpdb->node_locks[bucket];
 
-#define KEEP_NODE(n, r)                                  \
-	((n)->data != NULL || (n) == (r)->origin_node || \
-	 (n) == (r)->nsec3_origin_node)
+#define KEEP_NODE(n, r) ((n)->data != NULL || (n) == (r)->origin_node)
 
 	/* Handle easy and typical case first. */
 	if (!node->dirty && KEEP_NODE(node, qpdb)) {
@@ -2514,13 +2486,7 @@ free_qpdb(qpcache_t *qpdb, bool log) {
 		if (*treep == NULL) {
 			treep = &qpdb->nsec;
 			if (*treep == NULL) {
-				treep = &qpdb->nsec3;
-				/*
-				 * we're finished after clear cutting
-				 */
-				if (*treep == NULL) {
-					break;
-				}
+				break;
 			}
 		}
 
@@ -2613,9 +2579,6 @@ qpdb_destroy(dns_db_t *arg) {
 
 	if (qpdb->origin_node != NULL) {
 		qpdata_detach(&qpdb->origin_node);
-	}
-	if (qpdb->nsec3_origin_node != NULL) {
-		qpdata_detach(&qpdb->nsec3_origin_node);
 	}
 
 	/*
@@ -2883,45 +2846,23 @@ detachnode(dns_db_t *db, dns_dbnode_t **targetp DNS__DB_FLARG) {
 }
 
 static isc_result_t
-createiterator(dns_db_t *db, unsigned int options,
+createiterator(dns_db_t *db, unsigned int options ISC_ATTR_UNUSED,
 	       dns_dbiterator_t **iteratorp) {
 	qpcache_t *qpdb = (qpcache_t *)db;
 	qpdb_dbiterator_t *qpdbiter = NULL;
 
 	REQUIRE(VALID_QPDB(qpdb));
-	REQUIRE((options & (DNS_DB_NSEC3ONLY | DNS_DB_NONSEC3)) !=
-		(DNS_DB_NSEC3ONLY | DNS_DB_NONSEC3));
 
 	qpdbiter = isc_mem_get(qpdb->common.mctx, sizeof(*qpdbiter));
+	*qpdbiter = (qpdb_dbiterator_t){
+		.common.methods = &dbiterator_methods,
+		.common.magic = DNS_DBITERATOR_MAGIC,
+		.paused = true,
+	};
 
-	qpdbiter->common.methods = &dbiterator_methods;
-	qpdbiter->common.db = NULL;
 	dns_db_attach(db, &qpdbiter->common.db);
-	qpdbiter->common.relative_names = 0; /* no special logic for relative
-						 names */
-	qpdbiter->common.magic = DNS_DBITERATOR_MAGIC;
-	qpdbiter->paused = true;
-	qpdbiter->tree_locked = isc_rwlocktype_none;
-	qpdbiter->result = ISC_R_SUCCESS;
-	dns_fixedname_init(&qpdbiter->origin);
-	dns_fixedname_init(&qpdbiter->fixed);
-	qpdbiter->name = dns_fixedname_initname(&qpdbiter->fixed);
-	qpdbiter->node = NULL;
 
-	if ((options & DNS_DB_NSEC3ONLY) != 0) {
-		qpdbiter->nsec3mode = nsec3only;
-	} else if ((options & DNS_DB_NONSEC3) != 0) {
-		qpdbiter->nsec3mode = nonsec3;
-	} else {
-		qpdbiter->nsec3mode = full;
-	}
 	dns_qpiter_init(qpdb->tree, &qpdbiter->iter);
-	dns_qpiter_init(qpdb->nsec3, &qpdbiter->nsec3iter);
-	if (qpdbiter->nsec3mode == nsec3only) {
-		qpdbiter->current = &qpdbiter->nsec3iter;
-	} else {
-		qpdbiter->current = &qpdbiter->iter;
-	}
 
 	*iteratorp = (dns_dbiterator_t *)qpdbiter;
 	return (ISC_R_SUCCESS);
@@ -3648,9 +3589,6 @@ nodecount(dns_db_t *db, dns_dbtree_t tree) {
 	case dns_dbtree_nsec:
 		mu = dns_qp_memusage(qpdb->nsec);
 		break;
-	case dns_dbtree_nsec3:
-		mu = dns_qp_memusage(qpdb->nsec3);
-		break;
 	default:
 		UNREACHABLE();
 	}
@@ -3800,7 +3738,6 @@ dns__qpcache_create(isc_mem_t *mctx, const dns_name_t *origin,
 	 */
 	dns_qp_create(mctx, &qpmethods, qpdb, &qpdb->tree);
 	dns_qp_create(mctx, &qpmethods, qpdb, &qpdb->nsec);
-	dns_qp_create(mctx, &qpmethods, qpdb, &qpdb->nsec3);
 
 	qpdb->common.magic = DNS_DB_MAGIC;
 	qpdb->common.impmagic = QPDB_MAGIC;
@@ -4069,13 +4006,8 @@ resume_iteration(qpdb_dbiterator_t *qpdbiter, bool continuing) {
 	 */
 	if (continuing && qpdbiter->node != NULL) {
 		isc_result_t result;
-		dns_qp_t *tree = qpdb->tree;
-
-		if (qpdbiter->current == &qpdbiter->nsec3iter) {
-			tree = qpdb->nsec3;
-		}
-		result = dns_qp_lookup(tree, qpdbiter->name, NULL,
-				       qpdbiter->current, NULL, NULL, NULL);
+		result = dns_qp_lookup(qpdb->tree, NULL, NULL, &qpdbiter->iter,
+				       NULL, NULL, NULL);
 		INSIST(result == ISC_R_SUCCESS);
 	}
 
@@ -4124,46 +4056,11 @@ dbiterator_first(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 
 	dereference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
 
-	switch (qpdbiter->nsec3mode) {
-	case nsec3only:
-		qpdbiter->current = &qpdbiter->nsec3iter;
-		dns_qpiter_init(qpdb->nsec3, qpdbiter->current);
-		result = dns_qpiter_next(qpdbiter->current, qpdbiter->name,
-					 (void **)&qpdbiter->node, NULL);
-		if (result == ISC_R_SUCCESS || result == DNS_R_NEWORIGIN) {
-			/* If we're in the NSEC3 tree, skip the origin */
-			if (QPDBITER_NSEC3_ORIGIN_NODE(qpdb, qpdbiter)) {
-				result = dns_qpiter_next(
-					qpdbiter->current, qpdbiter->name,
-					(void **)&qpdbiter->node, NULL);
-			}
-		}
-		break;
-	case nonsec3:
-		qpdbiter->current = &qpdbiter->iter;
-		dns_qpiter_init(qpdb->tree, qpdbiter->current);
-		result = dns_qpiter_next(qpdbiter->current, qpdbiter->name,
-					 (void **)&qpdbiter->node, NULL);
-		break;
-	case full:
-		qpdbiter->current = &qpdbiter->iter;
-		dns_qpiter_init(qpdb->tree, qpdbiter->current);
-		result = dns_qpiter_next(qpdbiter->current, qpdbiter->name,
-					 (void **)&qpdbiter->node, NULL);
-		if (result == ISC_R_NOMORE) {
-			qpdbiter->current = &qpdbiter->nsec3iter;
-			dns_qpiter_init(qpdb->nsec3, qpdbiter->current);
-			result = dns_qpiter_next(
-				qpdbiter->current, qpdbiter->name,
-				(void **)&qpdbiter->node, NULL);
-		}
-		break;
-	default:
-		UNREACHABLE();
-	}
+	dns_qpiter_init(qpdb->tree, &qpdbiter->iter);
+	result = dns_qpiter_next(&qpdbiter->iter, NULL,
+				 (void **)&qpdbiter->node, NULL);
 
-	if (result == ISC_R_SUCCESS || result == DNS_R_NEWORIGIN) {
-		qpdbiter->new_origin = true;
+	if (result == ISC_R_SUCCESS) {
 		reference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
 	} else {
 		INSIST(result == ISC_R_NOMORE); /* The tree is empty. */
@@ -4199,56 +4096,11 @@ dbiterator_last(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 
 	dereference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
 
-	switch (qpdbiter->nsec3mode) {
-	case nsec3only:
-		qpdbiter->current = &qpdbiter->nsec3iter;
-		dns_qpiter_init(qpdb->nsec3, qpdbiter->current);
-		result = dns_qpiter_prev(qpdbiter->current, qpdbiter->name,
-					 (void **)&qpdbiter->node, NULL);
-		if ((result == ISC_R_SUCCESS || result == DNS_R_NEWORIGIN) &&
-		    QPDBITER_NSEC3_ORIGIN_NODE(qpdb, qpdbiter))
-		{
-			/*
-			 * NSEC3 tree only has an origin node.
-			 */
-			qpdbiter->node = NULL;
-			result = ISC_R_NOMORE;
-		}
-		break;
-	case nonsec3:
-		qpdbiter->current = &qpdbiter->iter;
-		dns_qpiter_init(qpdb->tree, qpdbiter->current);
-		result = dns_qpiter_prev(qpdbiter->current, qpdbiter->name,
-					 (void **)&qpdbiter->node, NULL);
-		break;
-	case full:
-		qpdbiter->current = &qpdbiter->nsec3iter;
-		dns_qpiter_init(qpdb->nsec3, qpdbiter->current);
-		result = dns_qpiter_prev(qpdbiter->current, qpdbiter->name,
-					 (void **)&qpdbiter->node, NULL);
-		if ((result == ISC_R_SUCCESS || result == DNS_R_NEWORIGIN) &&
-		    QPDBITER_NSEC3_ORIGIN_NODE(qpdb, qpdbiter))
-		{
-			/*
-			 * NSEC3 tree only has an origin node.
-			 */
-			qpdbiter->node = NULL;
-			result = ISC_R_NOMORE;
-		}
-		if (result == ISC_R_NOMORE) {
-			qpdbiter->current = &qpdbiter->iter;
-			dns_qpiter_init(qpdb->tree, qpdbiter->current);
-			result = dns_qpiter_prev(
-				qpdbiter->current, qpdbiter->name,
-				(void **)&qpdbiter->node, NULL);
-		}
-		break;
-	default:
-		UNREACHABLE();
-	}
+	dns_qpiter_init(qpdb->tree, &qpdbiter->iter);
+	result = dns_qpiter_prev(&qpdbiter->iter, NULL,
+				 (void **)&qpdbiter->node, NULL);
 
-	if (result == ISC_R_SUCCESS || result == DNS_R_NEWORIGIN) {
-		qpdbiter->new_origin = true;
+	if (result == ISC_R_SUCCESS) {
 		reference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
 	} else {
 		INSIST(result == ISC_R_NOMORE); /* The tree is empty. */
@@ -4256,14 +4108,13 @@ dbiterator_last(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 	}
 
 	qpdbiter->result = result;
-
 	return (result);
 }
 
 static isc_result_t
 dbiterator_seek(dns_dbiterator_t *iterator,
 		const dns_name_t *name DNS__DB_FLARG) {
-	isc_result_t result, tresult;
+	isc_result_t result;
 	qpdb_dbiterator_t *qpdbiter = (qpdb_dbiterator_t *)iterator;
 	qpcache_t *qpdb = (qpcache_t *)iterator->db;
 
@@ -4281,47 +4132,10 @@ dbiterator_seek(dns_dbiterator_t *iterator,
 
 	dereference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
 
-	switch (qpdbiter->nsec3mode) {
-	case nsec3only:
-		qpdbiter->current = &qpdbiter->nsec3iter;
-		result = dns_qp_lookup(qpdb->nsec3, name, NULL,
-				       qpdbiter->current, NULL,
-				       (void **)&qpdbiter->node, NULL);
-		break;
-	case nonsec3:
-		qpdbiter->current = &qpdbiter->iter;
-		result = dns_qp_lookup(qpdb->tree, name, NULL,
-				       qpdbiter->current, NULL,
-				       (void **)&qpdbiter->node, NULL);
-		break;
-	case full:
-		/*
-		 * Stay on main chain if not found on
-		 * either iterator.
-		 */
-		qpdbiter->current = &qpdbiter->iter;
-		result = dns_qp_lookup(qpdb->tree, name, NULL,
-				       qpdbiter->current, NULL,
-				       (void **)&qpdbiter->node, NULL);
-		if (result == DNS_R_PARTIALMATCH) {
-			qpdata_t *node = NULL;
-			tresult = dns_qp_lookup(qpdb->nsec3, name, NULL,
-						&qpdbiter->nsec3iter, NULL,
-						(void **)&node, NULL);
-			if (tresult == ISC_R_SUCCESS) {
-				qpdbiter->node = node;
-				qpdbiter->current = &qpdbiter->nsec3iter;
-				result = tresult;
-			}
-		}
-		break;
-	default:
-		UNREACHABLE();
-	}
+	result = dns_qp_lookup(qpdb->tree, name, NULL, &qpdbiter->iter, NULL,
+			       (void **)&qpdbiter->node, NULL);
 
 	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH) {
-		qpdbiter->new_origin = true;
-		dns_name_copy(&qpdbiter->node->name, qpdbiter->name);
 		reference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
 	} else {
 		qpdbiter->node = NULL;
@@ -4329,7 +4143,6 @@ dbiterator_seek(dns_dbiterator_t *iterator,
 
 	qpdbiter->result = (result == DNS_R_PARTIALMATCH) ? ISC_R_SUCCESS
 							  : result;
-
 	return (result);
 }
 
@@ -4337,7 +4150,6 @@ static isc_result_t
 dbiterator_prev(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 	isc_result_t result;
 	qpdb_dbiterator_t *qpdbiter = (qpdb_dbiterator_t *)iterator;
-	qpcache_t *qpdb = (qpcache_t *)iterator->db;
 
 	REQUIRE(qpdbiter->node != NULL);
 
@@ -4346,36 +4158,13 @@ dbiterator_prev(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 	}
 
 	if (qpdbiter->paused) {
-		resume_iteration(qpdbiter, true);
+		resume_iteration(qpdbiter, false);
 	}
 
 	dereference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
 
-	result = dns_qpiter_prev(qpdbiter->current, qpdbiter->name,
+	result = dns_qpiter_prev(&qpdbiter->iter, NULL,
 				 (void **)&qpdbiter->node, NULL);
-
-	if (qpdbiter->current == &qpdbiter->nsec3iter) {
-		if (result == ISC_R_SUCCESS || result == DNS_R_NEWORIGIN) {
-			/*
-			 * If we're in the NSEC3 tree, it's empty or
-			 * we've reached the origin, then we're done
-			 * with it.
-			 */
-			if (QPDBITER_NSEC3_ORIGIN_NODE(qpdb, qpdbiter)) {
-				qpdbiter->node = NULL;
-				result = ISC_R_NOMORE;
-			}
-		}
-		if (result == ISC_R_NOMORE && qpdbiter->nsec3mode == full) {
-			qpdbiter->current = &qpdbiter->iter;
-			dns_qpiter_init(qpdb->tree, qpdbiter->current);
-			result = dns_qpiter_prev(
-				qpdbiter->current, qpdbiter->name,
-				(void **)&qpdbiter->node, NULL);
-		}
-	}
-
-	qpdbiter->new_origin = (result == DNS_R_NEWORIGIN);
 
 	if (result == ISC_R_SUCCESS) {
 		reference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
@@ -4385,7 +4174,6 @@ dbiterator_prev(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 	}
 
 	qpdbiter->result = result;
-
 	return (result);
 }
 
@@ -4393,7 +4181,6 @@ static isc_result_t
 dbiterator_next(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 	isc_result_t result;
 	qpdb_dbiterator_t *qpdbiter = (qpdb_dbiterator_t *)iterator;
-	qpcache_t *qpdb = (qpcache_t *)iterator->db;
 
 	REQUIRE(qpdbiter->node != NULL);
 
@@ -4402,47 +4189,13 @@ dbiterator_next(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 	}
 
 	if (qpdbiter->paused) {
-		resume_iteration(qpdbiter, true);
+		resume_iteration(qpdbiter, false);
 	}
 
 	dereference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
 
-	result = dns_qpiter_next(qpdbiter->current, qpdbiter->name,
+	result = dns_qpiter_next(&qpdbiter->iter, NULL,
 				 (void **)&qpdbiter->node, NULL);
-
-	if (result == ISC_R_NOMORE && qpdbiter->nsec3mode == full &&
-	    qpdbiter->current == &qpdbiter->iter)
-	{
-		qpdbiter->current = &qpdbiter->nsec3iter;
-		dns_qpiter_init(qpdb->nsec3, qpdbiter->current);
-		result = dns_qpiter_next(qpdbiter->current, qpdbiter->name,
-					 (void **)&qpdbiter->node, NULL);
-	}
-
-	if (result == DNS_R_NEWORIGIN || result == ISC_R_SUCCESS) {
-		/*
-		 * If we've just started the NSEC3 tree,
-		 * skip over the origin.
-		 */
-		if (QPDBITER_NSEC3_ORIGIN_NODE(qpdb, qpdbiter)) {
-			switch (qpdbiter->nsec3mode) {
-			case nsec3only:
-			case full:
-				result = dns_qpiter_next(
-					qpdbiter->current, qpdbiter->name,
-					(void **)&qpdbiter->node, NULL);
-				break;
-			case nonsec3:
-				result = ISC_R_NOMORE;
-				qpdbiter->node = NULL;
-				break;
-			default:
-				UNREACHABLE();
-			}
-		}
-	}
-
-	qpdbiter->new_origin = (result == DNS_R_NEWORIGIN);
 
 	if (result == ISC_R_SUCCESS) {
 		reference_iter_node(qpdbiter DNS__DB_FLARG_PASS);
@@ -4452,7 +4205,6 @@ dbiterator_next(dns_dbiterator_t *iterator DNS__DB_FLARG) {
 	}
 
 	qpdbiter->result = result;
-
 	return (result);
 }
 
@@ -4462,30 +4214,22 @@ dbiterator_current(dns_dbiterator_t *iterator, dns_dbnode_t **nodep,
 	qpcache_t *qpdb = (qpcache_t *)iterator->db;
 	qpdb_dbiterator_t *qpdbiter = (qpdb_dbiterator_t *)iterator;
 	qpdata_t *node = qpdbiter->node;
-	isc_result_t result = ISC_R_SUCCESS;
 
 	REQUIRE(qpdbiter->result == ISC_R_SUCCESS);
-	REQUIRE(qpdbiter->node != NULL);
+	REQUIRE(node != NULL);
 
 	if (qpdbiter->paused) {
 		resume_iteration(qpdbiter, false);
 	}
 
 	if (name != NULL) {
-		dns_name_copy(&qpdbiter->node->name, name);
-
-		if (qpdbiter->common.relative_names && qpdbiter->new_origin) {
-			result = DNS_R_NEWORIGIN;
-		}
-	} else {
-		result = ISC_R_SUCCESS;
+		dns_name_copy(&node->name, name);
 	}
 
 	newref(qpdb, node, isc_rwlocktype_none DNS__DB_FLARG_PASS);
 
 	*nodep = qpdbiter->node;
-
-	return (result);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
@@ -4518,13 +4262,12 @@ dbiterator_pause(dns_dbiterator_t *iterator) {
 static isc_result_t
 dbiterator_origin(dns_dbiterator_t *iterator, dns_name_t *name) {
 	qpdb_dbiterator_t *qpdbiter = (qpdb_dbiterator_t *)iterator;
-	dns_name_t *origin = dns_fixedname_name(&qpdbiter->origin);
 
 	if (qpdbiter->result != ISC_R_SUCCESS) {
 		return (qpdbiter->result);
 	}
 
-	dns_name_copy(origin, name);
+	dns_name_copy(dns_rootname, name);
 	return (ISC_R_SUCCESS);
 }
 
