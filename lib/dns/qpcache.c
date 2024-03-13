@@ -145,8 +145,6 @@
  */
 #define DNS_QPDB_EXPIRE_TTL_COUNT 10
 
-#define DNS_QPDB_CLEANUP_DEAD_NODES_COUNT 10
-
 /*%
  * This is the structure that is used for each node in the qp trie of trees.
  * For now it is a copy of the dns_rbtnode structure.
@@ -175,7 +173,7 @@ struct qpdata {
 	 * have no data any longer, but we cannot unlink at that exact moment
 	 * because we did not or could not obtain a write lock on the tree.
 	 */
-	ISC_LINK(qpdata_t) deadlink;
+	struct cds_wfcq_node deadlink;
 };
 
 typedef struct qpdb_changed {
@@ -220,8 +218,13 @@ struct dns_qpdb {
 	 * Temporary storage for stale cache nodes and dynamically deleted
 	 * nodes that await being cleaned up.
 	 */
-	isc_mutex_t deadlock;
-	qpdatalist_t deadnodes;
+	struct {
+		struct __cds_wfcq_head head;
+		uint8_t __padding[ISC_OS_CACHELINE_SIZE -
+				  sizeof(struct __cds_wfcq_head)];
+		struct cds_wfcq_tail tail;
+		struct rcu_head rcu_head;
+	} deadnodes;
 
 	/*
 	 * Heaps.  These are used for TTL based expiry in a cache,
@@ -479,7 +482,6 @@ static void
 delete_node(qpdata_t *node, dbmod_t *modctx) {
 	isc_result_t result = ISC_R_UNEXPECTED;
 
-	INSIST(!ISC_LINK_LINKED(node, deadlink));
 	INSIST(modctx->writing);
 
 	if (isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(1))) {
@@ -528,12 +530,8 @@ delete_node(qpdata_t *node, dbmod_t *modctx) {
  * Caller must be holding the node lock.
  */
 static void
-newref(dns_qpdb_t *qpdb, qpdata_t *node, bool nlocked DNS__DB_FLARG) {
+newref(dns_qpdb_t *qpdb, qpdata_t *node DNS__DB_FLARG) {
 	uint_fast32_t refs;
-
-	if (nlocked && ISC_LINK_LINKED(node, deadlink)) {
-		ISC_LIST_UNLINK(qpdb->deadnodes, node, deadlink);
-	}
 
 	qpdata_ref(node);
 	refs = isc_refcount_increment0(&node->erefs);
@@ -558,6 +556,9 @@ newref(dns_qpdb_t *qpdb, qpdata_t *node, bool nlocked DNS__DB_FLARG) {
 #endif
 	}
 }
+
+static void
+cleanup_dead_nodes(struct rcu_head *rcu_head);
 
 /*
  * Caller must be holding the node lock; either the read or write lock.
@@ -638,17 +639,25 @@ decref(dns_qpdb_t *qpdb, qpdata_t *node, bool nlocked,
 	UNUSED(refs);
 #endif
 
-	if (!KEEP_NODE(node, qpdb)) {
-		if (modctx != NULL && modctx->writing) {
-			/* We can delete the node now. */
-			delete_node(node, modctx);
-		} else {
-			/* We can't delete it now, but add it to deadnodes. */
-			INSIST(node->data == NULL);
-			if (!ISC_LINK_LINKED(node, deadlink)) {
-				ISC_LIST_APPEND(qpdb->deadnodes, node,
-						deadlink);
-			}
+	if (KEEP_NODE(node, qpdb)) {
+		goto unlock;
+	}
+
+	if (modctx != NULL && modctx->writing) {
+		/* We can delete the node now. */
+		delete_node(node, modctx);
+	} else {
+		/* We can't delete it now, but add it to deadnodes. */
+		INSIST(node->data == NULL);
+		cds_wfcq_node_init(&node->deadlink);
+
+		/* The newref() will increment qpdb->references */
+		newref(qpdb, node);
+		refs++;
+		if (!cds_wfcq_enqueue(&qpdb->deadnodes.head,
+				      &qpdb->deadnodes.tail, &node->deadlink))
+		{
+			call_rcu(&qpdb->deadnodes.rcu_head, cleanup_dead_nodes);
 		}
 	}
 #undef KEEP_NODE
@@ -661,6 +670,58 @@ unlock:
 	qpdata_unref(node);
 
 	return (refs);
+}
+
+/*%
+ * Clean up dead nodes.  These are nodes which have no references, and
+ * have no data.  They are dead but we could not delete them because we
+ * didn't have the write transaction.
+ *
+ * The caller must pass a write transaction.
+ */
+static void
+cleanup_dead_nodes(struct rcu_head *rcu_head) {
+	dns_qpdb_t *qpdb = caa_container_of(rcu_head, dns_qpdb_t,
+					    deadnodes.rcu_head);
+	dbmod_t modctx = { .writing = true };
+	struct __cds_wfcq_head head;
+	struct cds_wfcq_tail tail;
+
+	dns_qpmulti_write(qpdb->tree, &modctx.tree);
+	dns_qpmulti_write(qpdb->nsec, &modctx.nsec);
+
+	__cds_wfcq_init(&head, &tail);
+
+	enum cds_wfcq_ret ret = __cds_wfcq_splice_blocking(
+		&head, &tail, &qpdb->deadnodes.head, &qpdb->deadnodes.tail);
+	INSIST(ret != CDS_WFCQ_RET_WOULDBLOCK);
+	if (ret == CDS_WFCQ_RET_SRC_EMPTY) {
+		/* Nothing to do, weird. */
+		return;
+	}
+
+	/*
+	 * FIXME: It's possible that the deadnodes list here will be non-empty
+	 * but qpdb_destroy() was already called.  In such case, we need to
+	 * initiate free_qpdb() from here somehow.  There's rcu_barrier() in the
+	 * qpdb_destroy() now, but I don't think it's complete.
+	 */
+	struct cds_wfcq_node *node, *next;
+	__cds_wfcq_for_each_blocking_safe(&head, &tail, node, next) {
+		qpdata_t *qpnode = caa_container_of(node, qpdata_t, deadlink);
+
+		qpdata_ref(qpnode);
+		SPINLOCK(&qpnode->spinlock);
+		decref(qpdb, qpnode, true, &modctx DNS__DB_FLARG_PASS);
+		SPINUNLOCK(&qpnode->spinlock);
+		qpdata_unref(qpnode);
+	}
+
+	dns_qp_compact(modctx.tree, DNS_QPGC_MAYBE);
+	dns_qpmulti_commit(qpdb->tree, &modctx.tree);
+
+	dns_qp_compact(modctx.nsec, DNS_QPGC_MAYBE);
+	dns_qpmulti_commit(qpdb->nsec, &modctx.nsec);
 }
 
 static void
@@ -780,7 +841,7 @@ expireheader(dns_slabheader_t *header, dbmod_t *modctx,
 		 * We first need to gain a new reference to the node to meet a
 		 * requirement of decref().
 		 */
-		newref(qpdb, HEADERNODE(header), true DNS__DB_FLARG_PASS);
+		newref(qpdb, HEADERNODE(header) DNS__DB_FLARG_PASS);
 		decref(qpdb, HEADERNODE(header), true,
 		       modctx DNS__DB_FLARG_PASS);
 
@@ -831,8 +892,7 @@ update_cachestats(dns_qpdb_t *qpdb, isc_result_t result) {
 
 static void
 bindrdataset(dns_qpdb_t *qpdb, qpdata_t *node, dns_slabheader_t *header,
-	     isc_stdtime_t now, bool nlocked,
-	     dns_rdataset_t *rdataset DNS__DB_FLARG) {
+	     isc_stdtime_t now, dns_rdataset_t *rdataset DNS__DB_FLARG) {
 	bool stale = STALE(header);
 	bool ancient = ANCIENT(header);
 
@@ -840,7 +900,7 @@ bindrdataset(dns_qpdb_t *qpdb, qpdata_t *node, dns_slabheader_t *header,
 		return;
 	}
 
-	newref(qpdb, node, nlocked DNS__DB_FLARG_PASS);
+	newref(qpdb, node DNS__DB_FLARG_PASS);
 
 	INSIST(rdataset->methods == NULL); /* We must be disassociated. */
 
@@ -968,11 +1028,11 @@ setup_delegation(qpdb_search_t *search, dns_dbnode_t **nodep,
 		qpdata_ref(node);
 		SPINLOCK(&node->spinlock);
 		bindrdataset(search->qpdb, node, search->zonecut_header,
-			     search->now, true, rdataset DNS__DB_FLARG_PASS);
+			     search->now, rdataset DNS__DB_FLARG_PASS);
 		if (sigrdataset != NULL && search->zonecut_sigheader != NULL) {
 			bindrdataset(search->qpdb, node,
 				     search->zonecut_sigheader, search->now,
-				     true, sigrdataset DNS__DB_FLARG_PASS);
+				     sigrdataset DNS__DB_FLARG_PASS);
 		}
 		SPINUNLOCK(&node->spinlock);
 		qpdata_unref(node);
@@ -1127,7 +1187,7 @@ check_zonecut(qpdata_t *node, void *arg DNS__DB_FLARG) {
 		 * We increment the reference count on node to ensure that
 		 * search->zonecut_header will still be valid later.
 		 */
-		newref(search->qpdb, node, true DNS__DB_FLARG_PASS);
+		newref(search->qpdb, node DNS__DB_FLARG_PASS);
 		search->zonecut = node;
 		search->zonecut_header = dname_header;
 		search->zonecut_sigheader = sigdname_header;
@@ -1202,15 +1262,14 @@ find_deepest_zonecut(qpdb_search_t *search, qpdata_t *node,
 			}
 			result = DNS_R_DELEGATION;
 			if (nodep != NULL) {
-				newref(search->qpdb, node,
-				       true DNS__DB_FLARG_PASS);
+				newref(search->qpdb, node DNS__DB_FLARG_PASS);
 				*nodep = node;
 			}
 			bindrdataset(search->qpdb, node, found, search->now,
-				     true, rdataset DNS__DB_FLARG_PASS);
+				     rdataset DNS__DB_FLARG_PASS);
 			if (foundsig != NULL) {
 				bindrdataset(search->qpdb, node, foundsig,
-					     search->now, true,
+					     search->now,
 					     sigrdataset DNS__DB_FLARG_PASS);
 			}
 		}
@@ -1304,13 +1363,13 @@ find_coveringnsec(qpdb_search_t *search, const dns_name_t *name,
 		header_prev = header;
 	}
 	if (found != NULL) {
-		bindrdataset(search->qpdb, node, found, now, true,
+		bindrdataset(search->qpdb, node, found, now,
 			     rdataset DNS__DB_FLARG_PASS);
 		if (foundsig != NULL) {
-			bindrdataset(search->qpdb, node, foundsig, now, true,
+			bindrdataset(search->qpdb, node, foundsig, now,
 				     sigrdataset DNS__DB_FLARG_PASS);
 		}
-		newref(search->qpdb, node, true DNS__DB_FLARG_PASS);
+		newref(search->qpdb, node DNS__DB_FLARG_PASS);
 
 		dns_name_copy(fname, foundname);
 
@@ -1595,15 +1654,14 @@ find(dns_db_t *db, const dns_name_t *name,
 		    nsecheader != NULL)
 		{
 			if (nodep != NULL) {
-				newref(search.qpdb, node,
-				       true DNS__DB_FLARG_PASS);
+				newref(search.qpdb, node DNS__DB_FLARG_PASS);
 				*nodep = node;
 			}
 			bindrdataset(search.qpdb, node, nsecheader, search.now,
-				     true, rdataset DNS__DB_FLARG_PASS);
+				     rdataset DNS__DB_FLARG_PASS);
 			if (nsecsig != NULL) {
 				bindrdataset(search.qpdb, node, nsecsig,
-					     search.now, true,
+					     search.now,
 					     sigrdataset DNS__DB_FLARG_PASS);
 			}
 			result = DNS_R_COVERINGNSEC;
@@ -1633,15 +1691,14 @@ find(dns_db_t *db, const dns_name_t *name,
 		 */
 		if (nsheader != NULL) {
 			if (nodep != NULL) {
-				newref(search.qpdb, node,
-				       true DNS__DB_FLARG_PASS);
+				newref(search.qpdb, node DNS__DB_FLARG_PASS);
 				*nodep = node;
 			}
 			bindrdataset(search.qpdb, node, nsheader, search.now,
-				     true, rdataset DNS__DB_FLARG_PASS);
+				     rdataset DNS__DB_FLARG_PASS);
 			if (nssig != NULL) {
 				bindrdataset(search.qpdb, node, nssig,
-					     search.now, true,
+					     search.now,
 					     sigrdataset DNS__DB_FLARG_PASS);
 			}
 			result = DNS_R_DELEGATION;
@@ -1661,7 +1718,7 @@ find(dns_db_t *db, const dns_name_t *name,
 	 */
 
 	if (nodep != NULL) {
-		newref(search.qpdb, node, true DNS__DB_FLARG_PASS);
+		newref(search.qpdb, node DNS__DB_FLARG_PASS);
 		*nodep = node;
 	}
 
@@ -1693,11 +1750,11 @@ find(dns_db_t *db, const dns_name_t *name,
 	if (type != dns_rdatatype_any || result == DNS_R_NCACHENXDOMAIN ||
 	    result == DNS_R_NCACHENXRRSET)
 	{
-		bindrdataset(search.qpdb, node, found, search.now, true,
+		bindrdataset(search.qpdb, node, found, search.now,
 			     rdataset DNS__DB_FLARG_PASS);
 		if (!NEGATIVE(found) && foundsig != NULL) {
 			bindrdataset(search.qpdb, node, foundsig, search.now,
-				     true, sigrdataset DNS__DB_FLARG_PASS);
+				     sigrdataset DNS__DB_FLARG_PASS);
 		}
 	}
 
@@ -1853,14 +1910,14 @@ findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 	}
 
 	if (nodep != NULL) {
-		newref(search.qpdb, node, true DNS__DB_FLARG_PASS);
+		newref(search.qpdb, node DNS__DB_FLARG_PASS);
 		*nodep = node;
 	}
 
-	bindrdataset(search.qpdb, node, found, search.now, true,
+	bindrdataset(search.qpdb, node, found, search.now,
 		     rdataset DNS__DB_FLARG_PASS);
 	if (foundsig != NULL) {
-		bindrdataset(search.qpdb, node, foundsig, search.now, true,
+		bindrdataset(search.qpdb, node, foundsig, search.now,
 			     sigrdataset DNS__DB_FLARG_PASS);
 	}
 
@@ -1943,10 +2000,10 @@ findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		}
 	}
 	if (found != NULL) {
-		bindrdataset(qpdb, qpnode, found, now, true,
+		bindrdataset(qpdb, qpnode, found, now,
 			     rdataset DNS__DB_FLARG_PASS);
 		if (!NEGATIVE(found) && foundsig != NULL) {
-			bindrdataset(qpdb, qpnode, foundsig, now, true,
+			bindrdataset(qpdb, qpnode, foundsig, now,
 				     sigrdataset DNS__DB_FLARG_PASS);
 		}
 	}
@@ -2100,12 +2157,6 @@ free_qpdb_rcu(struct rcu_head *rcu_head) {
 	}
 
 	/*
-	 * Clean up dead node buckets.
-	 */
-	INSIST(ISC_LIST_EMPTY(qpdb->deadnodes));
-	isc_mutex_destroy(&qpdb->deadlock);
-
-	/*
 	 * Clean up heap objects.
 	 */
 	isc_heap_destroy(&qpdb->heap);
@@ -2143,15 +2194,6 @@ static void
 free_qpdb(dns_qpdb_t *qpdb, bool log) {
 	char buf[DNS_NAME_FORMATSIZE];
 
-	/*
-	 * We assume the number of remaining dead nodes is reasonably small;
-	 * the overhead of unlinking all nodes here should be negligible.
-	 */
-	qpdata_t *node = NULL;
-	while ((node = ISC_LIST_HEAD(qpdb->deadnodes)) != NULL) {
-		ISC_LIST_UNLINK(qpdb->deadnodes, node, deadlink);
-	}
-
 	dns_qpmulti_destroy(&qpdb->tree);
 	dns_qpmulti_destroy(&qpdb->nsec);
 
@@ -2172,6 +2214,8 @@ free_qpdb(dns_qpdb_t *qpdb, bool log) {
 static void
 qpdb_destroy(dns_db_t *arg) {
 	dns_qpdb_t *qpdb = (dns_qpdb_t *)arg;
+
+	rcu_barrier();
 
 	if (qpdb->origin_node != NULL) {
 		qpdata_detach(&qpdb->origin_node);
@@ -2212,36 +2256,6 @@ mark_ancient(dns_slabheader_t *header) {
 	HEADERNODE(header)->dirty = 1;
 }
 
-/*%
- * Clean up dead nodes.  These are nodes which have no references, and
- * have no data.  They are dead but we could not delete them because we
- * didn't have the write transaction.
- *
- * The caller must pass a write transaction.
- */
-static void
-cleanup_dead_nodes(dns_qpdb_t *qpdb, dbmod_t *modctx DNS__DB_FLARG) {
-	qpdata_t *node = NULL;
-	int count = DNS_QPDB_CLEANUP_DEAD_NODES_COUNT;
-
-	LOCK(&qpdb->deadlock);
-	while ((node = ISC_LIST_HEAD(qpdb->deadnodes)) != NULL && count > 0) {
-		qpdata_ref(node);
-		SPINLOCK(&node->spinlock);
-		ISC_LIST_UNLINK(qpdb->deadnodes, node, deadlink);
-		UNLOCK(&qpdb->deadlock);
-
-		newref(qpdb, node, true DNS__DB_FLARG_PASS);
-		decref(qpdb, node, true, modctx DNS__DB_FLARG_PASS);
-		SPINUNLOCK(&node->spinlock);
-		qpdata_unref(node);
-
-		LOCK(&qpdb->deadlock);
-		count--;
-	}
-	UNLOCK(&qpdb->deadlock);
-}
-
 /*
  * This function is assumed to be called when a node is newly referenced
  * and can be in the deadnode list.  In that case the node must be retrieved
@@ -2253,16 +2267,11 @@ cleanup_dead_nodes(dns_qpdb_t *qpdb, dbmod_t *modctx DNS__DB_FLARG) {
  * have been added to the list).
  */
 static void
-reactivate_node(dns_qpdb_t *qpdb, qpdata_t *node,
-		dbmod_t *modctx DNS__DB_FLARG) {
+reactivate_node(dns_qpdb_t *qpdb, qpdata_t *node DNS__DB_FLARG) {
 	/* Reactive the node first in case it's already on the dead list */
 	SPINLOCK(&node->spinlock);
-	newref(qpdb, node, true DNS__DB_FLARG_PASS);
+	newref(qpdb, node DNS__DB_FLARG_PASS);
 	SPINUNLOCK(&node->spinlock);
-
-	if (modctx != NULL && modctx->writing) {
-		cleanup_dead_nodes(qpdb, modctx DNS__DB_FLARG_PASS);
-	}
 }
 
 static qpdata_t *
@@ -2278,8 +2287,6 @@ new_qpdata(dns_qpdb_t *qpdb, const dns_name_t *name) {
 	isc_mem_attach(qpdb->common.mctx, &newdata->mctx);
 	dns_name_dupwithoffsets(name, newdata->mctx, &newdata->name);
 
-	ISC_LINK_INIT(newdata, deadlink);
-
 #ifdef DNS_DB_NODETRACE
 	fprintf(stderr, "new_qpdata:%s:%s:%d:%p->references = 1\n", __func__,
 		__FILE__, __LINE__ + 1, name);
@@ -2294,18 +2301,14 @@ findnode(dns_db_t *db, const dns_name_t *name, bool create,
 	qpdata_t *node = NULL;
 	isc_result_t result;
 	dns_qpread_t qpr = { 0 };
-	dbmod_t modctx = (dbmod_t){ .writing = create };
 	dns_qp_t *qp = NULL;
 
 	if (create) {
-		dns_qpmulti_write(qpdb->tree, &modctx.tree);
-		dns_qpmulti_write(qpdb->nsec, &modctx.nsec);
+		dns_qpmulti_write(qpdb->tree, &qp);
 	} else {
 		dns_qpmulti_query(qpdb->tree, &qpr);
-		modctx.tree = (dns_qp_t *)&qpr;
+		qp = (dns_qp_t *)&qpr;
 	}
-
-	qp = modctx.tree;
 
 	result = dns_qp_lookup(qp, name, NULL, NULL, NULL, (void **)&node,
 			       NULL);
@@ -2328,15 +2331,11 @@ findnode(dns_db_t *db, const dns_name_t *name, bool create,
 		}
 	}
 
-	reactivate_node(qpdb, node, &modctx DNS__DB_FLARG_PASS);
+	reactivate_node(qpdb, node DNS__DB_FLARG_PASS);
 
 	if (create) {
 		dns_qp_compact(qp, DNS_QPGC_MAYBE);
 		dns_qpmulti_commit(qpdb->tree, &qp);
-
-		/* We probably don't need to compact here */
-		dns_qp_compact(modctx.nsec, DNS_QPGC_MAYBE);
-		dns_qpmulti_commit(qpdb->nsec, &modctx.nsec);
 	} else {
 		dns_qpread_destroy(qpdb->tree, &qpr);
 	}
@@ -2355,7 +2354,7 @@ attachnode(dns_db_t *db, dns_dbnode_t *source,
 	dns_qpdb_t *qpdb = (dns_qpdb_t *)db;
 	qpdata_t *node = (qpdata_t *)source;
 
-	newref(qpdb, node, false DNS__DB_FLARG_PASS);
+	newref(qpdb, node DNS__DB_FLARG_PASS);
 
 	*targetp = source;
 }
@@ -2443,7 +2442,7 @@ allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	iterator->common.now = now;
 	iterator->current = NULL;
 
-	newref(qpdb, qpnode, false DNS__DB_FLARG_PASS);
+	newref(qpdb, qpnode DNS__DB_FLARG_PASS);
 
 	*iteratorp = (dns_rdatasetiter_t *)iterator;
 
@@ -2453,8 +2452,8 @@ allrdatasets(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 static isc_result_t
 add(dns_qpdb_t *qpdb, qpdata_t *qpnode,
     const dns_name_t *nodename ISC_ATTR_UNUSED, dns_slabheader_t *newheader,
-    unsigned int options, bool loading, bool nlocked,
-    dns_rdataset_t *addedrdataset, isc_stdtime_t now DNS__DB_FLARG) {
+    unsigned int options, bool loading, dns_rdataset_t *addedrdataset,
+    isc_stdtime_t now DNS__DB_FLARG) {
 	qpdb_changed_t *changed = NULL;
 	dns_slabheader_t *topheader = NULL, *topheader_prev = NULL;
 	dns_slabheader_t *header = NULL, *sigheader = NULL;
@@ -2545,7 +2544,7 @@ add(dns_qpdb_t *qpdb, qpdata_t *qpnode,
 					if (addedrdataset != NULL) {
 						bindrdataset(
 							qpdb, qpnode, topheader,
-							now, nlocked,
+							now,
 							addedrdataset
 								DNS__DB_FLARG_PASS);
 					}
@@ -2609,7 +2608,7 @@ find_header:
 		{
 			dns_slabheader_destroy(&newheader);
 			if (addedrdataset != NULL) {
-				bindrdataset(qpdb, qpnode, header, now, nlocked,
+				bindrdataset(qpdb, qpnode, header, now,
 					     addedrdataset DNS__DB_FLARG_PASS);
 			}
 			return (DNS_R_UNCHANGED);
@@ -2653,7 +2652,7 @@ find_header:
 			}
 			dns_slabheader_destroy(&newheader);
 			if (addedrdataset != NULL) {
-				bindrdataset(qpdb, qpnode, header, now, nlocked,
+				bindrdataset(qpdb, qpnode, header, now,
 					     addedrdataset DNS__DB_FLARG_PASS);
 			}
 			return (ISC_R_SUCCESS);
@@ -2705,7 +2704,7 @@ find_header:
 			}
 			dns_slabheader_destroy(&newheader);
 			if (addedrdataset != NULL) {
-				bindrdataset(qpdb, qpnode, header, now, nlocked,
+				bindrdataset(qpdb, qpnode, header, now,
 					     addedrdataset DNS__DB_FLARG_PASS);
 			}
 			return (ISC_R_SUCCESS);
@@ -2819,7 +2818,7 @@ find_header:
 	}
 
 	if (addedrdataset != NULL) {
-		bindrdataset(qpdb, qpnode, newheader, now, nlocked,
+		bindrdataset(qpdb, qpnode, newheader, now,
 			     addedrdataset DNS__DB_FLARG_PASS);
 	}
 
@@ -3027,10 +3026,6 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 		modctx.tree = (dns_qp_t *)&modctx.qpr;
 	}
 
-	if (writing) {
-		cleanup_dead_nodes(qpdb, &modctx DNS__DB_FLARG_PASS);
-	}
-
 	expire_ttl_headers(qpdb, &modctx, now,
 			   cache_is_overmem DNS__DB_FLARG_PASS);
 
@@ -3064,7 +3059,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 
 	if (result == ISC_R_SUCCESS) {
 		result = add(qpdb, qpnode, name, newheader, options, false,
-			     true, addedrdataset, now DNS__DB_FLARG_PASS);
+			     addedrdataset, now DNS__DB_FLARG_PASS);
 	}
 	if (result == ISC_R_SUCCESS && delegating) {
 		qpnode->delegating = 1;
@@ -3111,7 +3106,7 @@ deleterdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	SPINLOCK(&qpnode->spinlock);
 	result = add(qpdb, qpnode, NULL, newheader, DNS_DBADD_FORCE, false,
-		     true, NULL, 0 DNS__DB_FLARG_PASS);
+		     NULL, 0 DNS__DB_FLARG_PASS);
 	SPINUNLOCK(&qpnode->spinlock);
 
 	return (result);
@@ -3166,7 +3161,7 @@ getoriginnode(dns_db_t *db, dns_dbnode_t **nodep DNS__DB_FLARG) {
 	/* Note that the modctx to origin_node doesn't require a DB lock */
 	onode = (qpdata_t *)qpdb->origin_node;
 	if (onode != NULL) {
-		newref(qpdb, onode, false DNS__DB_FLARG_PASS);
+		newref(qpdb, onode DNS__DB_FLARG_PASS);
 		*nodep = qpdb->origin_node;
 	} else {
 		result = ISC_R_NOTFOUND;
@@ -3237,8 +3232,7 @@ dns__qpcache_create(isc_mem_t *mctx, const dns_name_t *origin,
 	/*
 	 * Create deadnode lists.
 	 */
-	isc_mutex_init(&qpdb->deadlock);
-	ISC_LIST_INIT(qpdb->deadnodes);
+	__cds_wfcq_init(&qpdb->deadnodes.head, &qpdb->deadnodes.tail);
 
 	/*
 	 * Attach to the mctx.  The database will persist so long as there
@@ -3457,7 +3451,7 @@ rdatasetiter_current(dns_rdatasetiter_t *iterator,
 	REQUIRE(header != NULL);
 
 	SPINLOCK(&qpnode->spinlock);
-	bindrdataset(qpdb, qpnode, header, rbtiterator->common.now, true,
+	bindrdataset(qpdb, qpnode, header, rbtiterator->common.now,
 		     rdataset DNS__DB_FLARG_PASS);
 	SPINUNLOCK(&qpnode->spinlock);
 }
@@ -3475,7 +3469,7 @@ reference_iter_node(qpdb_dbiterator_t *qpdbiter DNS__DB_FLARG) {
 		return;
 	}
 
-	reactivate_node(qpdb, node, NULL DNS__DB_FLARG_PASS);
+	reactivate_node(qpdb, node DNS__DB_FLARG_PASS);
 }
 
 static void
@@ -3665,7 +3659,7 @@ dbiterator_current(dns_dbiterator_t *iterator, dns_dbnode_t **nodep,
 		dns_name_copy(&node->name, name);
 	}
 
-	newref(qpdb, node, false DNS__DB_FLARG_PASS);
+	newref(qpdb, node DNS__DB_FLARG_PASS);
 
 	*nodep = qpdbiter->node;
 	return (ISC_R_SUCCESS);
