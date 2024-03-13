@@ -2679,8 +2679,10 @@ dns_zone_checkzonemd(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver);
  * Returns:
  *
  * \li	#ISC_R_SUCCESS		a ZONEMD is present at the zone apex,
- * 				which is validly signed by a trusted key,
- * 				or ZONEMD is not required by policy.
+ * 				which is validly signed by a trusted key
+ *
+ * \li	#ISC_R_NOTFOUND		a ZONEMD record is not present at the
+ * 				zone apex, but is not required
  *
  * \li	#DNS_R_BADZONE		a ZONEMD record was required but
  * 				was not present, was not validly
