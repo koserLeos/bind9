@@ -747,6 +747,9 @@ setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 		return;
 	}
 
+	dns_qpdb_t *qpdb = (dns_qpdb_t *)header->db;
+
+	LOCK(&qpdb->heaplock);
 	if (newttl < oldttl) {
 		isc_heap_increased(header->heap, header->heap_index);
 	} else {
@@ -756,6 +759,7 @@ setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 	if (newttl == 0) {
 		isc_heap_delete(header->heap, header->heap_index);
 	}
+	UNLOCK(&qpdb->heaplock);
 }
 
 /*
@@ -3691,7 +3695,9 @@ deletedata(dns_db_t *db ISC_ATTR_UNUSED, dns_dbnode_t *node ISC_ATTR_UNUSED,
 	dns_qpdb_t *qpdb = (dns_qpdb_t *)header->db;
 
 	if (header->heap != NULL && header->heap_index != 0) {
+		LOCK(&qpdb->heaplock);
 		isc_heap_delete(header->heap, header->heap_index);
+		UNLOCK(&qpdb->heaplock);
 	}
 
 	update_rrsetstats(qpdb->rrsetstats, header->type,
