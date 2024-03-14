@@ -1,7 +1,8 @@
 /ascii
 /compress
-/iterated_hash
 /dns_name_fromwire
+/heap
+/iterated_hash
 /load-names
 /qp-dump
 /qplookups
