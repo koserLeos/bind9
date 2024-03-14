@@ -32,6 +32,7 @@
 #include <isc/string.h>
 #include <isc/tid.h>
 #include <isc/util.h>
+#include <isc/work.h>
 
 #include <dns/adb.h>
 #include <dns/db.h>
@@ -102,12 +103,12 @@ struct dns_adb {
 	isc_refcount_t references;
 
 	dns_adbnamelist_t names_lru;
-	isc_stdtime_t names_last_update;
+	_Atomic(isc_stdtime_t) names_last_update;
 	isc_hashmap_t *names;
 	isc_rwlock_t names_lock;
 
 	dns_adbentrylist_t entries_lru;
-	isc_stdtime_t entries_last_update;
+	_Atomic(isc_stdtime_t) entries_last_update;
 	isc_hashmap_t *entries;
 	isc_rwlock_t entries_lock;
 
@@ -1281,16 +1282,17 @@ get_attached_and_locked_name(dns_adb_t *adb, const dns_name_t *name,
 
 	isc_time_set(&timenow, now, 0);
 
-	RWLOCK(&adb->names_lock, locktype);
-	last_update = adb->names_last_update;
-
-	if (last_update + ADB_STALE_MARGIN >= now ||
-	    isc_mem_isovermem(adb->mctx))
-	{
+	last_update = atomic_load_relaxed(&adb->names_last_update);
+	if ((last_update < now) || isc_mem_isovermem(adb->mctx)) {
 		last_update = now;
-		UPGRADELOCK(&adb->names_lock, locktype);
+		atomic_store_release(&adb->names_last_update, last_update);
+		locktype = isc_rwlocktype_write;
+	}
+
+	RWLOCK(&adb->names_lock, locktype);
+
+	if (locktype == isc_rwlocktype_write) {
 		purge_stale_names(adb, now);
-		adb->names_last_update = last_update;
 	}
 
 	result = isc_hashmap_find(adb->names, hashval, match_adbname,
@@ -1309,15 +1311,11 @@ get_attached_and_locked_name(dns_adb_t *adb, const dns_name_t *name,
 			destroy_adbname(adbname);
 			adbname = found;
 			result = ISC_R_SUCCESS;
-			ISC_LIST_UNLINK(adb->names_lru, adbname, link);
 		}
 		INSIST(result == ISC_R_SUCCESS);
 
 		break;
 	case ISC_R_SUCCESS:
-		if (locktype == isc_rwlocktype_write) {
-			ISC_LIST_UNLINK(adb->names_lru, adbname, link);
-		}
 		break;
 	default:
 		UNREACHABLE();
@@ -1326,10 +1324,13 @@ get_attached_and_locked_name(dns_adb_t *adb, const dns_name_t *name,
 	dns_adbname_ref(adbname);
 
 	LOCK(&adbname->lock); /* Must be unlocked by the caller */
-	if (adbname->last_used + ADB_CACHE_MINIMUM <= last_update) {
+	if (adbname->last_used < last_update) {
 		adbname->last_used = now;
-	}
-	if (locktype == isc_rwlocktype_write) {
+
+		UPGRADELOCK(&adb->names_lock, locktype);
+		if (ISC_LINK_LINKED(adbname, link)) {
+			ISC_LIST_UNLINK(adb->names_lru, adbname, link);
+		}
 		ISC_LIST_PREPEND(adb->names_lru, adbname, link);
 	}
 
@@ -1341,16 +1342,6 @@ get_attached_and_locked_name(dns_adb_t *adb, const dns_name_t *name,
 	RWUNLOCK(&adb->names_lock, locktype);
 
 	return (adbname);
-}
-
-static void
-upgrade_entries_lock(dns_adb_t *adb, isc_rwlocktype_t *locktypep,
-		     isc_stdtime_t now) {
-	if (*locktypep == isc_rwlocktype_read) {
-		UPGRADELOCK(&adb->entries_lock, *locktypep);
-		purge_stale_entries(adb, now);
-		adb->entries_last_update = now;
-	}
 }
 
 static bool
@@ -1375,23 +1366,24 @@ get_attached_and_locked_entry(dns_adb_t *adb, isc_stdtime_t now,
 
 	isc_time_set(&timenow, now, 0);
 
-	RWLOCK(&adb->entries_lock, locktype);
-	last_update = adb->entries_last_update;
-
-	if (now - last_update > ADB_STALE_MARGIN ||
-	    isc_mem_isovermem(adb->mctx))
-	{
+	last_update = atomic_load_relaxed(&adb->entries_last_update);
+	if ((last_update < now) || isc_mem_isovermem(adb->mctx)) {
 		last_update = now;
+		atomic_store_release(&adb->entries_last_update, last_update);
+		locktype = isc_rwlocktype_write;
+	}
 
-		upgrade_entries_lock(adb, &locktype, now);
+	RWLOCK(&adb->entries_lock, locktype);
+
+	if (locktype == isc_rwlocktype_write) {
+		purge_stale_entries(adb, now);
 	}
 
 	result = isc_hashmap_find(adb->entries, hashval, match_adbentry,
 				  (const unsigned char *)addr,
 				  (void **)&adbentry);
 	if (result == ISC_R_NOTFOUND) {
-		upgrade_entries_lock(adb, &locktype, now);
-
+		UPGRADELOCK(&adb->entries_lock, locktype);
 	create:
 		INSIST(locktype == isc_rwlocktype_write);
 
@@ -1425,7 +1417,7 @@ get_attached_and_locked_entry(dns_adb_t *adb, isc_stdtime_t now,
 
 		/* We need to upgrade the LRU lock */
 		UNLOCK(&adbentry->lock);
-		upgrade_entries_lock(adb, &locktype, now);
+		UPGRADELOCK(&adb->entries_lock, locktype);
 		LOCK(&adbentry->lock);
 		FALLTHROUGH;
 	case isc_rwlocktype_write:
@@ -1440,12 +1432,13 @@ get_attached_and_locked_entry(dns_adb_t *adb, isc_stdtime_t now,
 	}
 
 	/* Did enough time pass to update the LRU? */
-	if (adbentry->last_used + ADB_CACHE_MINIMUM <= last_update) {
+	if (adbentry->last_used < last_update) {
 		adbentry->last_used = now;
-		if (locktype == isc_rwlocktype_write) {
+		UPGRADELOCK(&adb->entries_lock, locktype);
+		if (ISC_LINK_LINKED(adbentry, link)) {
 			ISC_LIST_UNLINK(adb->entries_lru, adbentry, link);
-			ISC_LIST_PREPEND(adb->entries_lru, adbentry, link);
 		}
+		ISC_LIST_PREPEND(adb->entries_lru, adbentry, link);
 	}
 
 	RWUNLOCK(&adb->entries_lock, locktype);
