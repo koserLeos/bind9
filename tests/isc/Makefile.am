@@ -142,6 +142,25 @@ proxyudp_test_SOURCES =	\
 	netmgr_common.c \
 	uv_wrap.h
 
+if HAVE_LIBNGTCP2
+
+check_PROGRAMS +=	\
+	quic_tls_test
+
+quic_tls_test_CPPFLAGS =	\
+	$(AM_CPPFLAGS)	\
+	$(LIBNGTCP2_CFLAGS)	\
+	$(OPENSSL_CFLAGS)
+
+quic_tls_test_LDADD =	\
+	$(LDADD)	\
+	$(LIBNGTCP2_LIBS)
+
+quic_tls_test_SOURCES =	\
+	quic_tls_test.c
+
+endif HAVE_LIBNGTCP2
+
 random_test_LDADD =	\
 	$(LDADD)	\
 	-lm
