@@ -76,9 +76,6 @@
 #define NONEXISTENT(header)                            \
 	((atomic_load_acquire(&(header)->attributes) & \
 	  DNS_SLABHEADERATTR_NONEXISTENT) != 0)
-#define IGNORE(header)                                 \
-	((atomic_load_acquire(&(header)->attributes) & \
-	  DNS_SLABHEADERATTR_IGNORE) != 0)
 #define NXDOMAIN(header)                               \
 	((atomic_load_acquire(&(header)->attributes) & \
 	  DNS_SLABHEADERATTR_NXDOMAIN) != 0)
@@ -3094,14 +3091,9 @@ add(qpcache_t *qpdb, qpdata_t *qpnode,
 
 find_header:
 	/*
-	 * If header isn't NULL, we've found the right type.  There may be
-	 * IGNORE rdatasets between the top of the chain and the first real
-	 * data.  We skip over them.
+	 * If header isn't NULL, we've found the right type.
 	 */
 	header = topheader;
-	while (header != NULL && IGNORE(header)) {
-		header = header->down;
-	}
 	if (header != NULL) {
 		header_nx = NONEXISTENT(header) ? true : false;
 
@@ -3304,11 +3296,6 @@ find_header:
 		}
 	} else {
 		/*
-		 * No non-IGNORED rdatasets of the given type exist at
-		 * this node.
-		 */
-
-		/*
 		 * If we're trying to delete the type, don't bother.
 		 */
 		if (newheader_nx) {
@@ -3325,44 +3312,23 @@ find_header:
 			ISC_LIST_PREPEND(qpdb->lru[idx], newheader, link);
 		}
 
-		if (topheader != NULL) {
-			/*
-			 * We have a list of rdatasets of the given type,
-			 * but they're all marked IGNORE.  We simply insert
-			 * the new rdataset at the head of the list.
-			 *
-			 * Ignored rdatasets cannot occur during loading, so
-			 * we INSIST on it.
-			 */
-			INSIST(!loading);
-			if (topheader_prev != NULL) {
-				topheader_prev->next = newheader;
-			} else {
-				qpnode->data = newheader;
-			}
-			newheader->next = topheader->next;
-			newheader->down = topheader;
-			topheader->next = newheader;
-			qpnode->dirty = 1;
-		} else {
-			/*
-			 * No rdatasets of the given type exist at the node.
-			 */
-			INSIST(newheader->down == NULL);
+		/*
+		 * No rdatasets of the given type exist at the node.
+		 */
+		INSIST(newheader->down == NULL);
 
-			if (prio_type(newheader->type)) {
-				/* This is a priority type, prepend it */
-				newheader->next = qpnode->data;
-				qpnode->data = newheader;
-			} else if (prioheader != NULL) {
-				/* Append after the priority headers */
-				newheader->next = prioheader->next;
-				prioheader->next = newheader;
-			} else {
-				/* There were no priority headers */
-				newheader->next = qpnode->data;
-				qpnode->data = newheader;
-			}
+		if (prio_type(newheader->type)) {
+			/* This is a priority type, prepend it */
+			newheader->next = qpnode->data;
+			qpnode->data = newheader;
+		} else if (prioheader != NULL) {
+			/* Append after the priority headers */
+			newheader->next = prioheader->next;
+			prioheader->next = newheader;
+		} else {
+			/* There were no priority headers */
+			newheader->next = qpnode->data;
+			qpnode->data = newheader;
 		}
 	}
 
@@ -3909,14 +3875,12 @@ rdatasetiter_first(dns_rdatasetiter_t *iterator DNS__DB_FLARG) {
 					break;
 				}
 				header = header->down;
-			} else if (!IGNORE(header)) {
+			} else {
 				if (!iterator_active(qpdb, rbtiterator, header))
 				{
 					header = NULL;
 				}
 				break;
-			} else {
-				header = header->down;
 			}
 		} while (header != NULL);
 		if (header != NULL) {
@@ -3989,14 +3953,12 @@ rdatasetiter_next(dns_rdatasetiter_t *iterator DNS__DB_FLARG) {
 					break;
 				}
 				header = header->down;
-			} else if (!IGNORE(header)) {
+			} else {
 				if (!iterator_active(qpdb, rbtiterator, header))
 				{
 					header = NULL;
 				}
 				break;
-			} else {
-				header = header->down;
 			}
 		} while (header != NULL);
 		if (header != NULL) {
