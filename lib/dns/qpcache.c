@@ -2297,12 +2297,21 @@ overmem(qpcache_t *qpdb, dns_slabheader_t *newheader,
 	dbmod_t *modctx DNS__DB_FLARG) {
 	uint32_t locknum_start = qpdb->lru_sweep++ % qpdb->node_lock_count;
 	uint32_t locknum = locknum_start;
-	/* Size of added data, possible node and possible ENT node. */
-	size_t purgesize = rdataset_size(newheader) + 2 * sizeof(qpdata_t);
-	size_t purged = 0;
+	size_t purgesize, purged = 0;
 	isc_stdtime_t min_last_used = 0;
 	size_t max_passes = 8;
 
+	/*
+	 * Maximum estimated size of the data being added: The size
+	 * of the rdataset, plus a new QP database node and nodename,
+	 * and a possible additional NSEC node and nodename. Also add
+	 * a 12k margin for a possible QP-trie chunk allocation.
+	 * (It's okay to overestimate, we want to get cache memory
+	 * down quickly.)
+	 */
+	purgesize = 2 * (sizeof(qpdata_t) +
+			 dns_name_size(&HEADERNODE(newheader)->name)) +
+		    rdataset_size(newheader) + 12288;
 again:
 	do {
 		isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
@@ -3390,7 +3399,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 
 	/*
 	 * If we're adding a delegation type, adding to the auxiliary NSEC
-	 * tree, or the DB is a cache in an overmem state, open a write
+	 * tree, or the cache is in an overmem state, open a write
 	 * transaction.
 	 */
 	if (isc_mem_isovermem(qpdb->common.mctx)) {
