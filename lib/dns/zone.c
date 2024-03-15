@@ -5480,7 +5480,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 			goto cleanup;
 		}
 
-		if (zone->type == dns_zone_mirror) {
+		if (result != ISC_R_SUCCESS && zone->type == dns_zone_mirror) {
 			result = dns_zone_verifydb(zone, db, NULL);
 			if (result != ISC_R_SUCCESS) {
 				goto cleanup;
