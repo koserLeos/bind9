@@ -138,4 +138,14 @@
 				__typeof__(*(pos)), member))
 
 #endif /* !defined(caa_container_of_check_null) */
+
+#define cds_lfht_for_each_entry_next(ht, iter, pos, member)     \
+	for (cds_lfht_next(ht, iter),                           \
+	     pos = cds_lfht_entry(cds_lfht_iter_get_node(iter), \
+				  __typeof__(*(pos)), member);  \
+	     pos != NULL; /**/                                  \
+	     cds_lfht_next(ht, iter),                           \
+	     pos = cds_lfht_entry(cds_lfht_iter_get_node(iter), \
+				  __typeof__(*(pos)), member))
+
 /* clang-format on */

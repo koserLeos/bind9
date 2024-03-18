@@ -173,15 +173,6 @@ bcentry_alive(struct cds_lfht *ht, dns_bcentry_t *bad, isc_stdtime_t now) {
 	return (true);
 }
 
-#define cds_lfht_for_each_entry_next(ht, iter, pos, member)     \
-	for (cds_lfht_next(ht, iter),                           \
-	     pos = cds_lfht_entry(cds_lfht_iter_get_node(iter), \
-				  __typeof__(*(pos)), member);  \
-	     pos != NULL; /**/                                  \
-	     cds_lfht_next(ht, iter),                           \
-	     pos = cds_lfht_entry(cds_lfht_iter_get_node(iter), \
-				  __typeof__(*(pos)), member))
-
 static void
 bcentry_purge_next(struct cds_lfht *ht, struct cds_lfht_iter *iter,
 		   isc_stdtime_t now) {
