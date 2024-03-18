@@ -16286,7 +16286,7 @@ named_server_fetchlimit(named_server_t *server, isc_lex_t *lex,
 		first = false;
 		CHECK(putstr(text, tbuf));
 		used = isc_buffer_usedlength(*text);
-		CHECK(dns_adb_dumpquota(adb, text));
+		dns_adb_dumpquota(adb, text);
 		if (used == isc_buffer_usedlength(*text)) {
 			CHECK(putstr(text, "\n  None."));
 		}

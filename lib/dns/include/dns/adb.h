@@ -724,7 +724,7 @@ dns_adb_getstats(dns_adb_t *adb);
  * \li 'adb' is valid.
  */
 
-isc_result_t
+void
 dns_adb_dumpquota(dns_adb_t *adb, isc_buffer_t **buf);
 /*%
  * Dump the addresses, current quota values, and current ATR values
