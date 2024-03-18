@@ -453,13 +453,6 @@ dns_view_detach(dns_view_t **viewp) {
 			dns_resolver_shutdown(view->resolver);
 		}
 
-		rcu_read_lock();
-		adb = rcu_dereference(view->adb);
-		if (adb != NULL) {
-			dns_adb_shutdown(adb);
-		}
-		rcu_read_unlock();
-
 		if (view->requestmgr != NULL) {
 			dns_requestmgr_shutdown(view->requestmgr);
 		}
@@ -472,7 +465,6 @@ dns_view_detach(dns_view_t **viewp) {
 			view->resolver = NULL;
 		}
 
-		rcu_read_lock();
 		zonetable = rcu_xchg_pointer(&view->zonetable, NULL);
 		if (zonetable != NULL) {
 			if (view->flush) {
@@ -480,8 +472,10 @@ dns_view_detach(dns_view_t **viewp) {
 			}
 		}
 		adb = rcu_xchg_pointer(&view->adb, NULL);
+		if (adb != NULL) {
+			dns_adb_shutdown(adb);
+		}
 		dispatchmgr = rcu_xchg_pointer(&view->dispatchmgr, NULL);
-		rcu_read_unlock();
 
 		if (view->requestmgr != NULL) {
 			requestmgr = view->requestmgr;

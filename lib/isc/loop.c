@@ -460,6 +460,12 @@ isc_loopmgr_run(isc_loopmgr_t *loopmgr) {
 	}
 
 	isc_thread_main(loop_thread, &loopmgr->loops[0]);
+
+	/*
+	 * Finish all the call_rcu calls before returning the control back to
+	 * the caller.
+	 */
+	rcu_barrier();
 }
 
 void

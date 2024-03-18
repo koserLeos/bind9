@@ -295,7 +295,7 @@ purge_stale_names(dns_adb_t *adb, struct cds_lfht_iter *iter,
 static dns_adbname_t *
 get_attached_and_locked_name(dns_adb_t *, const dns_name_t *,
 			     bool start_at_zone, isc_stdtime_t now);
-static void
+static void __attribute__((__unused__))
 purge_stale_entries(dns_adb_t *adb, struct cds_lfht_iter *iter,
 		    isc_stdtime_t now);
 static dns_adbentry_t *
@@ -362,6 +362,28 @@ enum {
 	FIND_EVENT_SENT = 1 << 31,
 };
 #define FIND_EVENTSENT(h) (((h)->flags & FIND_EVENT_SENT) != 0)
+
+/*
+ * Private flag(s) for adbname objects.
+ */
+enum {
+	NAME_IS_DEAD = 1 << 31,
+};
+#define NAME_DEAD(n) (((n)->flags & NAME_IS_DEAD) != 0)
+
+/*
+ * Private flag(s) for adbentry objects.  Note that these will also
+ * be used for addrinfo flags, and in resolver.c we'll use the same
+ * field for FCTX_ADDRINFO_xxx flags to store information about remote
+ * servers, so we must be careful that there is no overlap between
+ * these values and those. To make it easier, we will number these
+ * starting from the most significant bit instead of the least
+ * significant.
+ */
+enum {
+	ENTRY_IS_DEAD = 1 << 31,
+};
+#define ENTRY_DEAD(e) ((atomic_load_relaxed(&(e)->flags) & ENTRY_IS_DEAD) != 0)
 
 /*
  * To the name, address classes are all that really exist.  If it has a
@@ -606,7 +628,7 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 }
 
 /*
- * Requires the name to be locked.
+ * Requires the RCU read-critical section and the name lock to be locked.
  */
 static void
 expire_name(dns_adbname_t *adbname, dns_adbstatus_t astat) {
@@ -637,7 +659,10 @@ expire_name(dns_adbname_t *adbname, dns_adbstatus_t astat) {
 	}
 
 	/* Remove the name from the hashtable only once */
-	if (cds_lfht_del(adb->names_ht, &adbname->ht_node) == 0) {
+	if (!NAME_DEAD(adbname)) {
+		adbname->flags |= NAME_IS_DEAD;
+
+		INSIST(cds_lfht_del(adb->names_ht, &adbname->ht_node) == 0);
 		dns_adbname_unref(adbname);
 	}
 }
@@ -694,7 +719,11 @@ shutdown_names(dns_adb_t *adb) {
 
 	rcu_read_lock();
 	cds_lfht_for_each_entry(adb->names_ht, &iter, adbname, ht_node) {
-		dns_adbname_ref(adbname);
+		/* Skip already deleted adb names */
+		if (cds_lfht_is_node_deleted(&adbname->ht_node)) {
+			continue;
+		}
+
 		LOCK(&adbname->lock);
 		/*
 		 * Run through the list.  For each name, clean up finds
@@ -704,7 +733,6 @@ shutdown_names(dns_adb_t *adb) {
 		 */
 		expire_name(adbname, DNS_ADB_SHUTTINGDOWN);
 		UNLOCK(&adbname->lock);
-		dns_adbname_detach(&adbname);
 	}
 	rcu_read_unlock();
 }
@@ -716,11 +744,14 @@ shutdown_entries(dns_adb_t *adb) {
 
 	rcu_read_lock();
 	cds_lfht_for_each_entry(adb->entries_ht, &iter, adbentry, ht_node) {
-		dns_adbentry_ref(adbentry);
+		/* Skip already deleted adb entries */
+		if (cds_lfht_is_node_deleted(&adbentry->ht_node)) {
+			continue;
+		}
+
 		LOCK(&adbentry->lock);
 		expire_entry(adbentry);
 		UNLOCK(&adbentry->lock);
-		dns_adbentry_detach(&adbentry);
 	}
 	rcu_read_unlock();
 }
@@ -1268,8 +1299,22 @@ create:
 		goto create;
 	}
 
+	/*
+	 * The adbname is protected by the RCU mechanism at this
+	 * point because we are in the RCU read critical section.
+	 *
+	 * It is guaranteed that the mutex still exists, but it is
+	 * not guaranteed that the references >= 1, if (in unlikely
+	 * event) the adbname gets deleted between the check above
+	 * and LOCK below.
+	 */
+	LOCK(&adbname->lock); /* Must be unlocked by the caller */
+	if (NAME_DEAD(adbname)) {
+		UNLOCK(&adbname->lock);
+		goto create;
+	}
+
 	dns_adbname_ref(adbname); /* Must be unreferenced by the caller */
-	LOCK(&adbname->lock);	  /* Must be unlocked by the caller */
 	if (adbname->last_used + ADB_CACHE_MINIMUM < now) {
 		adbname->last_used = now;
 	}
@@ -1319,13 +1364,25 @@ create:
 		purge_stale_entries(adb, &iter, now);
 	}
 
+	/*
+	 * The adbentry is protected by the RCU mechanism at this
+	 * point because we are in the RCU read critical section.
+	 *
+	 * More information can be found in the get_attached_and_locked_name()
+	 * function above.
+	 */
 	if (cds_lfht_is_node_deleted(&adbentry->ht_node)) {
 		adbentry = NULL;
 		goto create;
 	}
 
+	LOCK(&adbentry->lock); /* Must be unlocked by the caller */
+	if (ENTRY_DEAD(adbentry)) {
+		UNLOCK(&adbentry->lock);
+		goto create;
+	}
+
 	dns_adbentry_ref(adbentry); /* Must be unreferenced by the caller */
-	LOCK(&adbentry->lock);	    /* Must be unlocked by the caller */
 	if (adbentry->last_used + ADB_CACHE_MINIMUM < now) {
 		adbentry->last_used = now;
 	}
@@ -1404,13 +1461,8 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find, dns_adbname_t *name) {
 	}
 }
 
-/*
- * The name must be locked and write lock on adb->names_lock must be held.
- */
 static bool
-maybe_expire_name(dns_adbname_t *adbname, isc_stdtime_t now) {
-	REQUIRE(DNS_ADBNAME_VALID(adbname));
-
+name_expired(dns_adbname_t *adbname, isc_stdtime_t now) {
 	/* Leave this name alone if it still has active namehooks... */
 	if (NAME_HAS_V4(adbname) || NAME_HAS_V6(adbname)) {
 		return (false);
@@ -1429,13 +1481,26 @@ maybe_expire_name(dns_adbname_t *adbname, isc_stdtime_t now) {
 		return (false);
 	}
 
-	expire_name(adbname, DNS_ADB_EXPIRED);
-
 	return (true);
 }
 
 /*
- * The caller must hold ADB entry lock.
+ * Requires the RCU read-critical section and the name lock to be locked.
+ */
+static bool
+maybe_expire_name(dns_adbname_t *adbname, isc_stdtime_t now) {
+	REQUIRE(DNS_ADBNAME_VALID(adbname));
+
+	if (name_expired(adbname, now)) {
+		expire_name(adbname, DNS_ADB_EXPIRED);
+		return (true);
+	}
+
+	return (false);
+}
+
+/*
+ * Requires the RCU read-critical section and the entry lock to be locked.
  */
 static void
 expire_entry(dns_adbentry_t *adbentry) {
@@ -1444,7 +1509,9 @@ expire_entry(dns_adbentry_t *adbentry) {
 	/*
 	 * Remove the entry from the hashtable only once.
 	 */
-	if (cds_lfht_del(adb->entries_ht, &adbentry->ht_node) == 0) {
+	if (!ENTRY_DEAD(adbentry)) {
+		(void)atomic_fetch_or_relaxed(&adbentry->flags, ENTRY_IS_DEAD);
+		INSIST(cds_lfht_del(adb->entries_ht, &adbentry->ht_node) == 0);
 		dns_adbentry_detach(&adbentry);
 	}
 }
@@ -1464,6 +1531,9 @@ entry_expired(dns_adbentry_t *adbentry, isc_stdtime_t now) {
 	return (true);
 }
 
+/*
+ * Requires the RCU read-critical section and the entry lock to be locked.
+ */
 static bool
 maybe_expire_entry(dns_adbentry_t *adbentry, isc_stdtime_t now) {
 	REQUIRE(DNS_ADBENTRY_VALID(adbentry));
@@ -1491,8 +1561,10 @@ purge_stale_names(dns_adb_t *adb, struct cds_lfht_iter *iter,
 		  isc_stdtime_t now) {
 	REQUIRE(DNS_ADB_VALID(adb));
 
+	/* Remove enough items from the hash table */
+	bool overmem = isc_mem_isovermem(adb->mctx);
+	size_t count = overmem ? 10 : 1;
 	dns_adbname_t *adbname = NULL;
-	size_t count = 10; /* Remove enough items from the hash table */
 
 	cds_lfht_for_each_entry_next(adb->names_ht, iter, adbname, ht_node) {
 		/* Skip already deleted adb names */
@@ -1500,17 +1572,7 @@ purge_stale_names(dns_adb_t *adb, struct cds_lfht_iter *iter,
 			continue;
 		}
 
-		dns_adbname_ref(adbname);
 		LOCK(&adbname->lock);
-
-		/*
-		 * Remove the name if it's expired or unused,
-		 * has no address data.
-		 */
-		maybe_expire_namehooks(adbname, now);
-		if (maybe_expire_name(adbname, now)) {
-			goto next;
-		}
 
 		/*
 		 * Make sure that we are not purging ADB names that has been
@@ -1520,15 +1582,21 @@ purge_stale_names(dns_adb_t *adb, struct cds_lfht_iter *iter,
 			goto next;
 		}
 
-		if (isc_mem_isovermem(adb->mctx) ||
-		    adbname->last_used + ADB_STALE_MARGIN < now)
-		{
+		/*
+		 * Remove the name if it's expired or unused, and has no address
+		 * data.
+		 */
+		maybe_expire_namehooks(adbname, now);
+		if (maybe_expire_name(adbname, now)) {
+			goto next;
+		}
+
+		if (adbname->last_used + ADB_STALE_MARGIN < now || overmem) {
 			expire_name(adbname, DNS_ADB_CANCELED);
 			goto next;
 		}
 	next:
 		UNLOCK(&adbname->lock);
-		dns_adbname_detach(&adbname);
 		if (--count == 0) {
 			break;
 		}
@@ -1542,7 +1610,11 @@ cleanup_names(dns_adb_t *adb, isc_stdtime_t now) {
 	dns_adbname_t *adbname = NULL;
 
 	cds_lfht_for_each_entry(adb->names_ht, &iter, adbname, ht_node) {
-		dns_adbname_ref(adbname);
+		/* Skip already deleted adb names */
+		if (cds_lfht_is_node_deleted(&adbname->ht_node)) {
+			continue;
+		}
+
 		LOCK(&adbname->lock);
 		/*
 		 * Name hooks expire after the address record's TTL
@@ -1553,7 +1625,6 @@ cleanup_names(dns_adb_t *adb, isc_stdtime_t now) {
 		maybe_expire_namehooks(adbname, now);
 		(void)maybe_expire_name(adbname, now);
 		UNLOCK(&adbname->lock);
-		dns_adbname_detach(&adbname);
 	}
 }
 
@@ -1572,8 +1643,10 @@ purge_stale_entries(dns_adb_t *adb, struct cds_lfht_iter *iter,
 		    isc_stdtime_t now) {
 	REQUIRE(DNS_ADB_VALID(adb));
 
+	/* Remove enough items from the hash table */
+	bool overmem = isc_mem_isovermem(adb->mctx);
+	size_t count = overmem ? 10 : 1;
 	dns_adbentry_t *adbentry = NULL;
-	size_t count = 10; /* Remove enough items from the hash table */
 
 	cds_lfht_for_each_entry_next(adb->entries_ht, iter, adbentry, ht_node) {
 		/* Skip already deleted adb entries */
@@ -1581,15 +1654,7 @@ purge_stale_entries(dns_adb_t *adb, struct cds_lfht_iter *iter,
 			continue;
 		}
 
-		dns_adbentry_ref(adbentry);
 		LOCK(&adbentry->lock);
-
-		/*
-		 * Remove the entry if it's expired and unused.
-		 */
-		if (maybe_expire_entry(adbentry, now)) {
-			goto next;
-		}
 
 		/*
 		 * Make sure that we are not purging ADB entry that has been
@@ -1599,15 +1664,19 @@ purge_stale_entries(dns_adb_t *adb, struct cds_lfht_iter *iter,
 			goto next;
 		}
 
-		if (isc_mem_isovermem(adb->mctx) ||
-		    adbentry->last_used + ADB_STALE_MARGIN < now)
-		{
+		/*
+		 * Remove the entry if it's expired and unused.
+		 */
+		if (maybe_expire_entry(adbentry, now)) {
+			goto next;
+		}
+
+		if (adbentry->last_used + ADB_STALE_MARGIN < now || overmem) {
 			maybe_expire_entry(adbentry, INT_MAX);
 		}
 
 	next:
 		UNLOCK(&adbentry->lock);
-		dns_adbentry_detach(&adbentry);
 		if (--count == 0) {
 			break;
 		}
@@ -1621,11 +1690,14 @@ cleanup_entries(dns_adb_t *adb, isc_stdtime_t now) {
 	dns_adbentry_t *adbentry = NULL;
 
 	cds_lfht_for_each_entry(adb->entries_ht, &iter, adbentry, ht_node) {
-		dns_adbentry_ref(adbentry);
+		/* Skip already deleted adb entries */
+		if (cds_lfht_is_node_deleted(&adbentry->ht_node)) {
+			continue;
+		}
+
 		LOCK(&adbentry->lock);
 		maybe_expire_entry(adbentry, now);
 		UNLOCK(&adbentry->lock);
-		dns_adbentry_detach(&adbentry);
 	}
 }
 
@@ -1717,8 +1789,6 @@ adb_shutdown_rcu(struct rcu_head *rcu_head) {
 
 	shutdown_names(adb);
 	shutdown_entries(adb);
-
-	dns_adb_detach(&adb);
 }
 
 void
@@ -1731,8 +1801,8 @@ dns_adb_shutdown(dns_adb_t *adb) {
 
 	DP(DEF_LEVEL, "shutting down ADB %p", adb);
 
-	dns_adb_ref(adb);
-	call_rcu(&adb->rcu_head, adb_shutdown_rcu);
+	synchronize_rcu();
+	adb_shutdown_rcu(&adb->rcu_head);
 }
 
 /*
@@ -2199,6 +2269,11 @@ dump_adb(dns_adb_t *adb, FILE *f, bool debug, isc_stdtime_t now) {
 	dns_adbname_t *adbname = NULL;
 
 	cds_lfht_for_each_entry(adb->names_ht, &iter, adbname, ht_node) {
+		/* Skip already deleted adb names */
+		if (cds_lfht_is_node_deleted(&adbname->ht_node)) {
+			continue;
+		}
+
 		LOCK(&adbname->lock);
 		/*
 		 * Dump the names
@@ -2236,6 +2311,11 @@ dump_adb(dns_adb_t *adb, FILE *f, bool debug, isc_stdtime_t now) {
 	fprintf(f, ";\n; Unassociated entries\n;\n");
 	dns_adbentry_t *adbentry = NULL;
 	cds_lfht_for_each_entry(adb->entries_ht, &iter, adbentry, ht_node) {
+		/* Skip already deleted adb entries */
+		if (cds_lfht_is_node_deleted(&adbentry->ht_node)) {
+			continue;
+		}
+
 		LOCK(&adbentry->lock);
 		if (ISC_LIST_EMPTY(adbentry->nhs)) {
 			dump_entry(f, adb, adbentry, debug, now);
@@ -2413,6 +2493,11 @@ dns_adb_dumpquota(dns_adb_t *adb, isc_buffer_t **buf) {
 	}
 
 	cds_lfht_for_each_entry(adb->entries_ht, &iter, adbentry, ht_node) {
+		/* Skip already deleted adb entries */
+		if (cds_lfht_is_node_deleted(&adbentry->ht_node)) {
+			continue;
+		}
+
 		LOCK(&adbentry->lock);
 		char addrbuf[ISC_NETADDR_FORMATSIZE];
 		char text[ISC_NETADDR_FORMATSIZE + BUFSIZ];
@@ -2600,6 +2685,8 @@ fetch_callback(void *arg) {
 
 	dns_adb_attach(name->adb, &adb);
 
+	rcu_read_lock();
+
 	LOCK(&name->lock);
 	INSIST(NAME_FETCH_A(name) || NAME_FETCH_AAAA(name));
 	if (NAME_FETCH_A(name) && (name->fetch_a->fetch == resp->fetch)) {
@@ -2628,13 +2715,10 @@ fetch_callback(void *arg) {
 		dns_db_detach(&resp->db);
 	}
 
-	rcu_read_lock();
 	/*
 	 * The ADB name was already deleted or we are shutting down.
 	 */
-	if (cds_lfht_is_node_deleted(&name->ht_node) ||
-	    atomic_load(&adb->shuttingdown))
-	{
+	if (NAME_DEAD(name) || atomic_load(&adb->shuttingdown)) {
 		astat = DNS_ADB_CANCELED;
 		goto out;
 	}
@@ -3289,13 +3373,16 @@ dns_adb_flushnames(dns_adb_t *adb, const dns_name_t *name) {
 	dns_adbname_t *adbname = NULL;
 
 	cds_lfht_for_each_entry(adb->names_ht, &iter, adbname, ht_node) {
-		dns_adbname_ref(adbname);
+		/* Skip already deleted adb name */
+		if (cds_lfht_is_node_deleted(&adbname->ht_node)) {
+			continue;
+		}
+
 		LOCK(&adbname->lock);
 		if (dns_name_issubdomain(adbname->name, name)) {
 			expire_name(adbname, DNS_ADB_CANCELED);
 		}
 		UNLOCK(&adbname->lock);
-		dns_adbname_detach(&adbname);
 	}
 	rcu_read_unlock();
 }
