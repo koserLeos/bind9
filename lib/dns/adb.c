@@ -298,7 +298,7 @@ purge_stale_names(dns_adb_t *adb, struct cds_lfht_iter *iter,
 static dns_adbname_t *
 get_attached_and_locked_name(dns_adb_t *, const dns_name_t *,
 			     bool start_at_zone, isc_stdtime_t now);
-static void __attribute__((__unused__))
+static void
 purge_stale_entries(dns_adb_t *adb, struct cds_lfht_iter *iter,
 		    isc_stdtime_t now);
 static dns_adbentry_t *
@@ -579,7 +579,7 @@ again:
 			maybe_expire_entry(adbentry, now);
 		} else if (isc_random8() % 10 == 0) {
 			/* Randomly expire 10% of the entries */
-			maybe_expire_entry(adbentry, INT_MAX);
+			expire_entry(adbentry);
 		}
 		UNLOCK(&adbentry->lock);
 
@@ -1783,7 +1783,7 @@ purge_stale_entries(dns_adb_t *adb, struct cds_lfht_iter *iter,
 		}
 
 		if (adbentry->last_used + ADB_STALE_MARGIN < now || overmem) {
-			maybe_expire_entry(adbentry, INT_MAX);
+			expire_entry(adbentry);
 		}
 
 	next:
