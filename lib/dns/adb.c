@@ -114,6 +114,9 @@ struct dns_adb {
 	double atr_discount;
 
 	struct rcu_head rcu_head; /* shutdown */
+
+	/* overmem */
+	atomic_bool overmem_cleaning_active;
 };
 
 /*%
@@ -519,8 +522,116 @@ ttlclamp(dns_ttl_t ttl) {
 	return (ttl);
 }
 
+static bool
+dns__adb_isovermem(dns_adb_t *adb);
+
+static void
+overmem_cleaning(void *arg) {
+	dns_adb_t *adb = arg;
+	struct cds_lfht_iter iter;
+	dns_adbname_t *adbname = NULL;
+	dns_adbentry_t *adbentry = NULL;
+	isc_stdtime_t now = isc_stdtime_now();
+	bool force = false;
+	size_t count;
+
+again:
+	rcu_read_lock();
+	count = 0;
+	cds_lfht_for_each_entry(adb->names_ht, &iter, adbname, ht_node) {
+		/* Skip already deleted adb names */
+		if (cds_lfht_is_node_deleted(&adbname->ht_node)) {
+			continue;
+		}
+
+		LOCK(&adbname->lock);
+		if (!force) {
+			maybe_expire_namehooks(adbname, now);
+			if (maybe_expire_name(adbname, now)) {
+				count++;
+			}
+		} else if (isc_random8() % 10 == 0) {
+			/* Randomly expire 10% of the names */
+			expire_name(adbname, DNS_ADB_CANCELED);
+			count++;
+		}
+		UNLOCK(&adbname->lock);
+
+		if (force && !dns__adb_isovermem(adb)) {
+			/* We are no longer in the overmem condition */
+			break;
+		}
+	}
+	rcu_read_unlock();
+	DP(DEF_LEVEL, "%s: %scleaned %zu names\n", __func__,
+	   force ? "force " : "", count);
+
+	rcu_read_lock();
+	count = 0;
+	cds_lfht_for_each_entry(adb->entries_ht, &iter, adbentry, ht_node) {
+		/* Skip already deleted adb entries */
+		if (cds_lfht_is_node_deleted(&adbentry->ht_node)) {
+			continue;
+		}
+
+		LOCK(&adbentry->lock);
+		if (!force) {
+			maybe_expire_entry(adbentry, now);
+		} else if (isc_random8() % 10 == 0) {
+			/* Randomly expire 10% of the entries */
+			maybe_expire_entry(adbentry, INT_MAX);
+		}
+		UNLOCK(&adbentry->lock);
+
+		if (force && !dns__adb_isovermem(adb)) {
+			/* We are no longer in the overmem condition */
+			break;
+		}
+	}
+	rcu_read_unlock();
+	DP(DEF_LEVEL, "%s: %scleaned %zu entries\n", __func__,
+	   force ? "force " : "", count);
+
+	if (!force && dns__adb_isovermem(adb)) {
+		force = true;
+		goto again;
+	}
+}
+
+static void
+overmem_cleaning_done(void *arg) {
+	dns_adb_t *adb = arg;
+	atomic_store_relaxed(&adb->overmem_cleaning_active, false);
+	dns_adb_detach(&adb);
+}
+
+static void
+maybe_start_overmem_cleaning(dns_adb_t *adb) {
+	if (!atomic_compare_exchange_strong_relaxed(
+		    &adb->overmem_cleaning_active, &(bool){ false }, true))
+	{
+		/* Other thread had already started the cleaning */
+		return;
+	}
+
+	dns_adb_ref(adb);
+	isc_work_enqueue(isc_loop_current(adb->loopmgr), overmem_cleaning,
+			 overmem_cleaning_done, adb);
+}
+
+static bool
+dns__adb_isovermem(dns_adb_t *adb) {
+	bool overmem = isc_mem_isovermem(adb->mctx);
+
+	if (overmem && !atomic_load_relaxed(&adb->overmem_cleaning_active)) {
+		maybe_start_overmem_cleaning(adb);
+	}
+
+	return (overmem);
+}
+
 /*
- * Requires the name to be locked and that no entries to be locked.
+ * Requires the name to be locked and no entries to be locked.
  *
  * This code handles A and AAAA rdatasets only.
  *
@@ -1562,7 +1673,7 @@ purge_stale_names(dns_adb_t *adb, struct cds_lfht_iter *iter,
 	REQUIRE(DNS_ADB_VALID(adb));
 
 	/* Remove enough items from the hash table */
-	bool overmem = isc_mem_isovermem(adb->mctx);
+	bool overmem = dns__adb_isovermem(adb);
 	size_t count = overmem ? 10 : 1;
 	dns_adbname_t *adbname = NULL;
 
@@ -1644,7 +1755,7 @@ purge_stale_entries(dns_adb_t *adb, struct cds_lfht_iter *iter,
 	REQUIRE(DNS_ADB_VALID(adb));
 
 	/* Remove enough items from the hash table */
-	bool overmem = isc_mem_isovermem(adb->mctx);
+	bool overmem = dns__adb_isovermem(adb);
 	size_t count = overmem ? 10 : 1;
 	dns_adbentry_t *adbentry = NULL;
 
