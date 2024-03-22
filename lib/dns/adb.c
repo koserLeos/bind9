@@ -563,7 +563,7 @@ again:
 		}
 	}
 	rcu_read_unlock();
-	DP(DEF_LEVEL, "%s: %scleaned %zu names\n", __func__,
+	DP(ISC_LOG_INFO, "%s: %scleaned %zu names", __func__,
 	   force ? "force " : "", count);
 
 	rcu_read_lock();
@@ -576,10 +576,14 @@ again:
 
 		LOCK(&adbentry->lock);
 		if (!force) {
-			maybe_expire_entry(adbentry, now);
+			if (maybe_expire_entry(adbentry, now)) {
+				count++;
+			}
 		} else if (isc_random8() % 10 == 0) {
 			/* Randomly expire 10% of the entries */
-			expire_entry(adbentry);
+			if (maybe_expire_entry(adbentry, INT_MAX)) {
+				count++;
+			}
 		}
 		UNLOCK(&adbentry->lock);
 
@@ -589,7 +593,7 @@ again:
 		}
 	}
 	rcu_read_unlock();
-	DP(DEF_LEVEL, "%s: %scleaned %zu entries\n", __func__,
+	DP(ISC_LOG_INFO, "%s: %scleaned %zu entries", __func__,
 	   force ? "force " : "", count);
 
 	if (!force && dns__adb_isovermem(adb)) {
@@ -1163,6 +1167,7 @@ new_adbentry(dns_adb_t *adb, const isc_sockaddr_t *addr) {
 		.quota = adb->quota,
 		.references = ISC_REFCOUNT_INITIALIZER(1),
 		.adb = dns_adb_ref(adb),
+		.expires = INT_MAX,
 		.magic = DNS_ADBENTRY_MAGIC,
 	};
 
@@ -1633,9 +1638,7 @@ entry_expired(dns_adbentry_t *adbentry, isc_stdtime_t now) {
 		return (false);
 	}
 
-	if (atomic_load(&adbentry->expires) == 0 ||
-	    atomic_load(&adbentry->expires) > now)
-	{
+	if (!EXPIRE_OK(atomic_load_acquire(&adbentry->expires), now)) {
 		return (false);
 	}
 
@@ -1783,7 +1786,7 @@ purge_stale_entries(dns_adb_t *adb, struct cds_lfht_iter *iter,
 		}
 
 		if (adbentry->last_used + ADB_STALE_MARGIN < now || overmem) {
-			expire_entry(adbentry);
+			maybe_expire_entry(adbentry, INT_MAX);
 		}
 
 	next:
@@ -2465,9 +2468,9 @@ dump_entry(FILE *f, dns_adb_t *adb, dns_adbentry_t *entry, bool debug,
 		}
 		fprintf(f, "]");
 	}
-	if (atomic_load(&entry->expires) != 0) {
-		fprintf(f, " [ttl %d]",
-			(int)(atomic_load(&entry->expires) - now));
+	isc_stdtime_t expires = atomic_load_relaxed(&entry->expires);
+	if (expires != INT_MAX) {
+		fprintf(f, " [ttl %d]", (int)(expires - now));
 	}
 
 	if (adb != NULL && adb->quota != 0 && adb->atr_freq != 0) {
@@ -3044,8 +3047,10 @@ dns_adb_adjustsrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr, unsigned int rtt,
 
 	dns_adbentry_t *entry = addr->entry;
 
-	isc_stdtime_t now = 0;
-	if (atomic_load(&entry->expires) == 0 || factor == DNS_ADB_RTTADJAGE) {
+	isc_stdtime_t now = INT_MAX;
+	if (atomic_load_acquire(&entry->expires) == INT_MAX ||
+	    factor == DNS_ADB_RTTADJAGE)
+	{
 		now = isc_stdtime_now();
 	}
 
@@ -3056,6 +3061,7 @@ void
 dns_adb_agesrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr, isc_stdtime_t now) {
 	REQUIRE(DNS_ADB_VALID(adb));
 	REQUIRE(DNS_ADBADDRINFO_VALID(addr));
+	REQUIRE(now != 0);
 
 	adjustsrtt(addr, 0, DNS_ADB_RTTADJAGE, now);
 }
@@ -3081,9 +3087,13 @@ adjustsrtt(dns_adbaddrinfo_t *addr, unsigned int rtt, unsigned int factor,
 		addr->srtt = new_srtt;
 	}
 
-	(void)atomic_compare_exchange_strong(&addr->entry->expires,
-					     &(isc_stdtime_t){ 0 },
-					     now + ADB_ENTRY_WINDOW);
+	if (now != INT_MAX &&
+	    atomic_load_relaxed(&addr->entry->expires) == INT_MAX)
+	{
+		atomic_compare_exchange_strong(&addr->entry->expires,
+					       &(isc_stdtime_t){ INT_MAX },
+					       now + ADB_ENTRY_WINDOW);
+	}
 }
 
 void
@@ -3102,9 +3112,11 @@ dns_adb_changeflags(dns_adb_t *adb, dns_adbaddrinfo_t *addr, unsigned int bits,
 		/* repeat */
 	}
 
-	if (atomic_load(&entry->expires) == 0) {
+	if (atomic_load(&entry->expires) == INT_MAX) {
 		now = isc_stdtime_now();
-		atomic_store(&entry->expires, now + ADB_ENTRY_WINDOW);
+		atomic_compare_exchange_strong(&addr->entry->expires,
+					       &(isc_stdtime_t){ INT_MAX },
+					       now + ADB_ENTRY_WINDOW);
 	}
 
 	/*
