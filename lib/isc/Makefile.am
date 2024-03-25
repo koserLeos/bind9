@@ -271,6 +271,15 @@ libisc_la_SOURCES +=		\
 	quic/quic_interface_native.c
 endif
 
+# The QUIC compatibility layer will not work on LibreSSL
+# due to purposefully broken key logging functionality
+if !HAVE_LIBRESSL
+libisc_la_SOURCES +=		\
+	quic/quic_interface_compat.c	\
+	quic/tls_keylog_parser.c
+endif
+
+
 libisc_la_CPPFLAGS +=		\
 	$(LIBNGTCP2_CFLAGS)
 

@@ -831,6 +831,20 @@ AS_IF([test "$quic_native" = "yes"],
 
 AM_CONDITIONAL([HAVE_QUIC_METHOD_SET_READ_WRITE_SECRET], [test "$quic_has_set_read_write_secret" = "yes"])
 
+AC_MSG_CHECKING([whether LibreSSL is used])
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([[#include <openssl/opensslv.h>]],
+			 [[#ifndef LIBRESSL_VERSION_NUMBER
+			   #error LibreSSL is not used
+			   #endif
+			  ]])],
+	  [have_libressl="yes"]
+      [AC_DEFINE([HAVE_LIBRESSL], [1], [define if LibreSSL is used])
+	   AC_MSG_RESULT([yes])],
+	  [AC_MSG_RESULT([no])])
+
+AM_CONDITIONAL([HAVE_LIBRESSL], [test "$have_libressl" = "yes"])
+
 AC_CHECK_FUNCS([clock_gettime])
 
 # [pairwise: --with-gssapi=yes, --with-gssapi=auto, --without-gssapi]
