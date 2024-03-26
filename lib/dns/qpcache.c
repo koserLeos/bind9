@@ -871,6 +871,7 @@ decref(dns_qpdb_t *qpdb, dns_qpdata_t *node, uint32_t least_serial,
 	} else {
 		newref(qpdb, node, *nlocktypep DNS__DB_FLARG_PASS);
 
+		isc_queue_node_init(&node->deadlink);
 		if (!isc_queue_enqueue_entry(&qpdb->deadnodes[bucket], node,
 					     deadlink))
 		{
@@ -2746,7 +2747,6 @@ __cleanup_deadnodes(dns_qpdb_t *qpdb, uint16_t locknum,
 	/* Queue must not be empty */
 	RUNTIME_CHECK(isc_queue_splice(&deadnodes, &qpdb->deadnodes[locknum]));
 	isc_queue_for_each_entry_safe(&deadnodes, qpnode, qpnext, deadlink) {
-		isc_queue_node_init(&qpnode->deadlink);
 		decref(qpdb, qpnode, 0, nlocktypep, tlocktypep, false, true);
 	}
 }
@@ -2805,8 +2805,6 @@ new_qpdata(dns_qpdb_t *qpdb, const dns_name_t *name) {
 
 	isc_mem_attach(qpdb->common.mctx, &newdata->mctx);
 	dns_name_dupwithoffsets(name, newdata->mctx, &newdata->name);
-
-	isc_queue_node_init(&newdata->deadlink);
 
 #ifdef DNS_DB_NODETRACE
 	fprintf(stderr, "new_qpdata:%s:%s:%d:%p->references = 1\n", __func__,
