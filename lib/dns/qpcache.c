@@ -2746,6 +2746,7 @@ __cleanup_deadnodes(dns_qpdb_t *qpdb, uint16_t locknum,
 	/* Queue must not be empty */
 	RUNTIME_CHECK(isc_queue_splice(&deadnodes, &qpdb->deadnodes[locknum]));
 	isc_queue_for_each_entry_safe(&deadnodes, qpnode, qpnext, deadlink) {
+		isc_queue_node_init(&qpnode->deadlink);
 		decref(qpdb, qpnode, 0, nlocktypep, tlocktypep, false, true);
 	}
 }
