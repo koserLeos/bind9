@@ -619,8 +619,8 @@ maybe_start_overmem_cleaning(dns_adb_t *adb) {
 	}
 
 	dns_adb_ref(adb);
-	isc_work_enqueue(isc_loop_current(adb->loopmgr), overmem_cleaning,
-			 overmem_cleaning_done, adb);
+	isc_work_enqueue(isc_loop(), overmem_cleaning, overmem_cleaning_done,
+			 adb);
 }
 
 static bool
