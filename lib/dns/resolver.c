@@ -5202,6 +5202,11 @@ validated(void *arg) {
 							 true, &node);
 			}
 			if (result == ISC_R_SUCCESS) {
+				if (val->sigrdataset != NULL) {
+					dns_rdataset_addrrsigs(
+						val->rdataset,
+						val->sigrdataset);
+				}
 				(void)dns_db_addrdataset(
 					fctx->cache, node, NULL, now,
 					val->rdataset, 0, NULL);
@@ -5344,6 +5349,9 @@ validated(void *arg) {
 	if ((fctx->options & DNS_FETCHOPT_PREFETCH) != 0) {
 		options = DNS_DBADD_PREFETCH;
 	}
+	if (val->sigrdataset != NULL) {
+		dns_rdataset_addrrsigs(val->rdataset, val->sigrdataset);
+	}
 	result = dns_db_addrdataset(fctx->cache, node, NULL, now, val->rdataset,
 				    options, ardataset);
 	if (result != ISC_R_SUCCESS && result != DNS_R_UNCHANGED) {
@@ -5473,6 +5481,7 @@ answer_response:
 				continue;
 			}
 
+			// dns_rdataset_addrrsigs(rdataset, sigrdataset);
 			result = dns_db_addrdataset(fctx->cache, nsnode, NULL,
 						    now, rdataset, 0, NULL);
 			if (result == ISC_R_SUCCESS) {
@@ -5502,6 +5511,7 @@ answer_response:
 
 		result = dns_db_findnode(fctx->cache, wild, true, &wnode);
 		if (result == ISC_R_SUCCESS) {
+			// dns_rdataset_addrrsigs(val->rdataset, val->sigrdataset);
 			result = dns_db_addrdataset(fctx->cache, wnode, NULL,
 						    now, val->rdataset, 0,
 						    NULL);
@@ -5970,6 +5980,10 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_message_t *message,
 					options |= DNS_DBADD_FORCE;
 				}
 				addedrdataset = ardataset;
+				if (sigrdataset != NULL) {
+					dns_rdataset_addrrsigs(rdataset,
+							       sigrdataset);
+				}
 				result = dns_db_addrdataset(
 					fctx->cache, node, NULL, now, rdataset,
 					options, addedrdataset);
