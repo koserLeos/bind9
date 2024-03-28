@@ -1333,6 +1333,10 @@ rdataset_getnoqname(dns_rdataset_t *rdataset, dns_name_t *name,
 	dns_dbnode_t *node = rdataset->slab.node;
 	const dns_slabheader_proof_t *noqname = rdataset->slab.noqname;
 
+	if (noqname == NULL) {
+		return (ISC_R_NOTFOUND);
+	}
+
 	/*
 	 * Usually, rdataset->slab.raw refers the data following a
 	 * dns_slabheader, but in this case it points to a bare
@@ -1388,6 +1392,10 @@ rdataset_getclosest(dns_rdataset_t *rdataset, dns_name_t *name,
 	dns_db_t *db = rdataset->slab.db;
 	dns_dbnode_t *node = rdataset->slab.node;
 	const dns_slabheader_proof_t *closest = rdataset->slab.closest;
+
+	if (closest == NULL) {
+		return (ISC_R_NOTFOUND);
+	}
 
 	/*
 	 * As mentioned above, rdataset->slab.raw usually refers the data
