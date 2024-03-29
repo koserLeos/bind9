@@ -7,6 +7,7 @@ AM_CPPFLAGS +=				\
 	$(LIBURCU_CFLAGS)		\
 	$(LIBISC_CFLAGS)		\
 	$(LIBDNS_CFLAGS)		\
+	-I.\
 	-I$(top_srcdir)/fuzz		\
 	-I$(top_srcdir)/lib/dns		\
 	-I$(top_srcdir)/lib/isc		\
@@ -23,6 +24,7 @@ noinst_PROGRAMS =			\
 	ascii				\
 	compress			\
 	dns_name_fromwire		\
+	heap				\
 	iterated_hash			\
 	load-names			\
 	qp-dump				\

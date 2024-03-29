@@ -225,12 +225,11 @@ struct dns_adbaddrinfo {
  */
 
 /****
-**** FUNCTIONS
-****/
+ **** FUNCTIONS
+ ****/
 
 void
-dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_loopmgr_t *loopmgr,
-	       dns_adb_t **newadb);
+dns_adb_create(isc_mem_t *mem, dns_view_t *view, dns_adb_t **newadb);
 /*%<
  * Create a new ADB.
  *
@@ -244,8 +243,6 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_loopmgr_t *loopmgr,
  *\li	'mem' must be a valid memory context.
  *
  *\li	'view' be a pointer to a valid view.
- *
- *\li	'loopmgr' be a valid loop manager.
  *
  *\li	'newadb' != NULL && '*newadb' == NULL.
  */
@@ -727,7 +724,7 @@ dns_adb_getstats(dns_adb_t *adb);
  * \li 'adb' is valid.
  */
 
-isc_result_t
+void
 dns_adb_dumpquota(dns_adb_t *adb, isc_buffer_t **buf);
 /*%
  * Dump the addresses, current quota values, and current ATR values
