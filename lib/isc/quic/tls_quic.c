@@ -23,6 +23,7 @@
 
 #include "../openssl_shim.h"
 #include "quic-int.h"
+#include "quic_crypto.h"
 
 static bool tls_quic_initialized = false;
 
@@ -75,6 +76,16 @@ isc__tls_quic_shutdown(void) {
 
 	tls_quic_initialized = false;
 #endif /* HAVE_CRYPTO_FREE_EX_INDEX */
+}
+
+void
+isc_tls_quic_crypto_initialize(void) {
+	isc__quic_crypto_initialize();
+}
+
+void
+isc_tls_quic_crypto_shutdown(void) {
+	isc__quic_crypto_shutdown();
 }
 
 const char *

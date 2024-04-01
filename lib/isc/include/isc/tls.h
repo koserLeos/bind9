@@ -891,6 +891,24 @@ isc_tls_quic_write_level(const isc_tls_t *tls);
  */
 
 void
+isc_tls_quic_crypto_initialize(void);
+/*%<
+ * Initializes cryptography related functionality needed for QUIC
+ * support.  It is supposed to be called directly by the first thread
+ * early on a program startup AFTER all required OpenSSL modules were
+ * loaded and before any QUIC-related functionality is used.
+ */
+
+void
+isc_tls_quic_crypto_shutdown(void);
+/*%<
+ * Uninitializes cryptography related functionality needed for QUIC
+ * support.  It is supposed to be called later before the program exit and
+ * BEFORE unloading the loaded OpenSSL modules. Undoes what
+ * 'isc_tls_quic_crypto_initialize()' did.
+ */
+
+void
 isc__tls_quic_initialize(void);
 
 void

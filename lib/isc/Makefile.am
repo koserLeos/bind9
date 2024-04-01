@@ -261,6 +261,8 @@ endif HAVE_LIBXML2
 
 if HAVE_LIBNGTCP2
 libisc_la_SOURCES +=		\
+	quic/quic_crypto.c	\
+	quic/quic_crypto.h	\
 	quic/quic-int.h	\
 	quic/tls_quic.c
 
