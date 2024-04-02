@@ -5511,7 +5511,8 @@ answer_response:
 
 		result = dns_db_findnode(fctx->cache, wild, true, &wnode);
 		if (result == ISC_R_SUCCESS) {
-			// dns_rdataset_addrrsigs(val->rdataset, val->sigrdataset);
+			// dns_rdataset_addrrsigs(val->rdataset,
+			// val->sigrdataset);
 			result = dns_db_addrdataset(fctx->cache, wnode, NULL,
 						    now, val->rdataset, 0,
 						    NULL);
