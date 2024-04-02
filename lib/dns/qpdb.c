@@ -3356,6 +3356,11 @@ find_header:
 				header->closest = newheader->closest;
 				newheader->closest = NULL;
 			}
+			if (header->rrsigs == NULL && newheader->rrsigs != NULL)
+			{
+				header->rrsigs = newheader->rrsigs;
+				newheader->rrsigs = NULL;
+			}
 			dns_slabheader_destroy(&newheader);
 			if (addedrdataset != NULL) {
 				bindrdataset(qpdb, qpnode, header, now,
@@ -3419,6 +3424,11 @@ find_header:
 			{
 				header->closest = newheader->closest;
 				newheader->closest = NULL;
+			}
+			if (header->rrsigs == NULL && newheader->rrsigs != NULL)
+			{
+				header->rrsigs = newheader->rrsigs;
+				newheader->rrsigs = NULL;
 			}
 			dns_slabheader_destroy(&newheader);
 			if (addedrdataset != NULL) {
@@ -3718,6 +3728,21 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		if (result != ISC_R_SUCCESS) {
 			dns_slabheader_destroy(&newheader);
 			return (result);
+		}
+		if ((rdataset->attributes & DNS_RDATASETATTR_RRSIGS) != 0) {
+			dns_rdataset_t rrsigs = DNS_RDATASET_INIT;
+			result = dns_rdataset_getrrsigs(rdataset, &rrsigs);
+			RUNTIME_CHECK(result == ISC_R_SUCCESS);
+			INSIST(rrsigs.type == dns_rdatatype_rrsig);
+			INSIST(rrsigs.covers == rdataset->type);
+			result = dns_rdataslab_fromrdataset(
+				&rrsigs, qpdb->common.mctx, &region, 0);
+			dns_rdataset_disassociate(&rrsigs);
+			if (result != ISC_R_SUCCESS) {
+				dns_slabheader_destroy(&newheader);
+				return (result);
+			}
+			newheader->rrsigs = region.base;
 		}
 	}
 
@@ -4801,6 +4826,10 @@ deletedata(dns_db_t *db ISC_ATTR_UNUSED, dns_dbnode_t *node ISC_ATTR_UNUSED,
 	}
 	if (header->closest != NULL) {
 		dns_slabheader_freeproof(db->mctx, &header->closest);
+	}
+	if (header->rrsigs != NULL) {
+		isc_mem_put(qpdb->common.mctx, header->rrsigs,
+			    dns_rdataslab_size(header->rrsigs, 0));
 	}
 }
 
