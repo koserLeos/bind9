@@ -5782,7 +5782,9 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_message_t *message,
 
 	if (name->attributes.answer && !need_validation) {
 		have_answer = true;
+		LOCK(&fctx->lock);
 		resp = ISC_LIST_HEAD(fctx->resps);
+		UNLOCK(&fctx->lock);
 
 		if (resp != NULL) {
 			adbp = &resp->db;
@@ -6223,7 +6225,6 @@ cache_message(fetchctx_t *fctx, dns_message_t *message,
 	FCTX_ATTR_CLR(fctx, FCTX_ATTR_WANTCACHE);
 
 	REQUIRE(fctx->tid == isc_tid());
-	LOCK(&fctx->lock);
 
 	for (section = DNS_SECTION_ANSWER; section <= DNS_SECTION_ADDITIONAL;
 	     section++)
@@ -6248,8 +6249,6 @@ cache_message(fetchctx_t *fctx, dns_message_t *message,
 	if (result == ISC_R_NOMORE) {
 		result = ISC_R_SUCCESS;
 	}
-
-	UNLOCK(&fctx->lock);
 
 	return (result);
 }
