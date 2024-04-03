@@ -6066,10 +6066,12 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_message_t *message,
 					 * having to remember which
 					 * rdatasets needed validation.
 					 */
+					LOCK(&fctx->lock);
 					result = valcreate(
 						fctx, message, addrinfo, name,
 						rdataset->type, rdataset,
 						sigrdataset, valoptions);
+					UNLOCK(&fctx->lock);
 				}
 			} else if (CHAINING(rdataset)) {
 				if (rdataset->type == dns_rdatatype_cname) {
@@ -6202,7 +6204,9 @@ cache_name(fetchctx_t *fctx, dns_name_t *name, dns_message_t *message,
 			}
 			dns_db_attach(fctx->cache, adbp);
 			dns_db_transfernode(fctx->cache, &node, anodep);
+			LOCK(&fctx->lock);
 			clone_results(fctx);
+			UNLOCK(&fctx->lock);
 		}
 	}
 
