@@ -613,22 +613,24 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 
 	switch (rdtype) {
 	case dns_rdatatype_a:
-		DP(NCACHE_LEVEL,
-		   "expire_v4 set to MIN(%u,%u,%u) import_rdataset",
-		   adbname->expire_v4, now + ADB_ENTRY_WINDOW,
-		   now + rdataset->ttl);
-		adbname->expire_v4 = ISC_MIN(
-			adbname->expire_v4,
-			ISC_MIN(now + ADB_ENTRY_WINDOW, now + rdataset->ttl));
+		adbname->expire_v4 =
+			(rdataset->ttl != 0)
+				? ISC_MIN(adbname->expire_v4,
+					  ISC_MAX(now + ADB_ENTRY_WINDOW,
+						  now + rdataset->ttl))
+				: INT_MAX;
+		DP(NCACHE_LEVEL, "expire_v4 set to %u import_rdataset",
+		   adbname->expire_v4);
 		break;
 	case dns_rdatatype_aaaa:
-		DP(NCACHE_LEVEL,
-		   "expire_v6 set to MIN(%u,%u,%u) import_rdataset",
-		   adbname->expire_v6, now + ADB_ENTRY_WINDOW,
-		   now + rdataset->ttl);
-		adbname->expire_v6 = ISC_MIN(
-			adbname->expire_v6,
-			ISC_MIN(now + ADB_ENTRY_WINDOW, now + rdataset->ttl));
+		adbname->expire_v6 =
+			(rdataset->ttl != 0)
+				? ISC_MIN(adbname->expire_v6,
+					  ISC_MAX(now + ADB_ENTRY_WINDOW,
+						  now + rdataset->ttl))
+				: INT_MAX;
+		DP(NCACHE_LEVEL, "expire_v6 set to %u import_rdataset",
+		   adbname->expire_v6);
 		break;
 	default:
 		UNREACHABLE();
