@@ -1014,6 +1014,7 @@ resquery_destroy(resquery_t *query) {
 		dns_dispatch_detach(&query->dispatch);
 	}
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	atomic_fetch_sub_release(&fctx->nqueries, 1);
 	UNLOCK(&fctx->lock);
@@ -1273,6 +1274,7 @@ fctx_cancelquery(resquery_t **queryp, isc_time_t *finish, bool no_response,
 		dns_dispatch_done(&query->dispentry);
 	}
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	if (ISC_LINK_LINKED(query, link)) {
 		ISC_LIST_UNLINK(fctx->queries, query, link);
@@ -1338,6 +1340,7 @@ fctx_cancelqueries(fetchctx_t *fctx, bool no_response, bool age_untried) {
 	 * Move the queries to a local list so we can cancel
 	 * them without holding the lock.
 	 */
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	ISC_LIST_MOVE(queries, fctx->queries);
 	UNLOCK(&fctx->lock);
@@ -1551,6 +1554,7 @@ fctx_sendevents(fetchctx_t *fctx, isc_result_t result) {
 
 	FCTXTRACE("sendevents");
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 
 	/*
@@ -1654,6 +1658,7 @@ fctx__done(fetchctx_t *fctx, isc_result_t result, const char *func,
 	UNUSED(func);
 #endif
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	/* We need to do this under the lock for intra-thread synchronization */
 	if (fctx->state == fetchstate_done) {
@@ -2071,6 +2076,7 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		INSIST(query->dispatch != NULL);
 	}
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	INSIST(!SHUTTINGDOWN(fctx));
 	fetchctx_attach(fctx, &query->fctx);
@@ -2138,6 +2144,7 @@ cleanup_udpfetch:
 	}
 
 cleanup_fetch:
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	if (ISC_LINK_LINKED(query, link)) {
 		atomic_fetch_sub_release(&fctx->nqueries, 1);
@@ -2868,6 +2875,7 @@ fctx_finddone(void *arg) {
 
 	REQUIRE(fctx->tid == isc_tid());
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	pending = atomic_fetch_sub_release(&fctx->pending, 1);
 	INSIST(pending > 0);
@@ -4117,6 +4125,7 @@ resume_qmin(void *arg) {
 	result = resp->result;
 	isc_mem_putanddetach(&resp->mctx, resp, sizeof(*resp));
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	if (SHUTTINGDOWN(fctx)) {
 		result = ISC_R_SHUTTINGDOWN;
@@ -4335,6 +4344,7 @@ fctx_start(void *arg) {
 
 	FCTXTRACE("start");
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	if (SHUTTINGDOWN(fctx)) {
 		UNLOCK(&fctx->lock);
@@ -5091,6 +5101,7 @@ validated(void *arg) {
 	message = val->message;
 	fctx->vresult = val->result;
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	ISC_LIST_UNLINK(fctx->validators, val, link);
 	fctx->validator = NULL;
@@ -5109,6 +5120,7 @@ validated(void *arg) {
 
 	negative = (val->rdataset == NULL);
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	sentresponse = ((fctx->options & DNS_FETCHOPT_NOVALIDATE) != 0);
 
@@ -6210,6 +6222,7 @@ cache_message(fetchctx_t *fctx, dns_message_t *message,
 
 	FCTX_ATTR_CLR(fctx, FCTX_ATTR_WANTCACHE);
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 
 	for (section = DNS_SECTION_ANSWER; section <= DNS_SECTION_ADDITIONAL;
@@ -6394,6 +6407,7 @@ ncache_message(fetchctx_t *fctx, dns_message_t *message,
 		return (result);
 	}
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 
 	if (!HAVE_ANSWER(fctx)) {
@@ -6968,6 +6982,7 @@ resume_dslookup(void *arg) {
 	result = resp->result;
 	isc_mem_putanddetach(&resp->mctx, resp, sizeof(*resp));
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	if (SHUTTINGDOWN(fctx)) {
 		result = ISC_R_SHUTTINGDOWN;
@@ -9514,6 +9529,7 @@ rctx_done(respctx_t *rctx, isc_result_t result) {
 	/*
 	 * If nobody's waiting for results, don't resend or try next server.
 	 */
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 	if (ISC_LIST_EMPTY(fctx->resps)) {
 		rctx->next_server = false;
@@ -10263,6 +10279,7 @@ again:
 unlock:
 	RWUNLOCK(&res->fctxs_lock, locktype);
 	if (result == ISC_R_SUCCESS) {
+		/* Nope, not here... REQUIRE(fctx->tid == isc_tid()); */
 		LOCK(&fctx->lock);
 		if (SHUTTINGDOWN(fctx) || fctx->cloned) {
 			/*
@@ -10430,6 +10447,7 @@ dns_resolver_cancelfetch(dns_fetch_t *fetch) {
 
 	FTRACE("cancelfetch");
 
+	/* Nope, not here ... REQUIRE(fctx->tid == isc_tid()); */
 	LOCK(&fctx->lock);
 
 	/*
@@ -10478,6 +10496,7 @@ dns_resolver_destroyfetch(dns_fetch_t **fetchp) {
 
 	fetch->magic = 0;
 
+	/* Nope, not here... REQUIRE(fctx->tid == isc_tid()); */
 	LOCK(&fctx->lock);
 	/*
 	 * Sanity check: the caller should have gotten its event before
@@ -10510,6 +10529,7 @@ dns_resolver_logfetch(dns_fetch_t *fetch, isc_log_t *lctx,
 	fctx = fetch->private;
 	REQUIRE(VALID_FCTX(fctx));
 
+	REQUIRE(fctx->tid == isc_tid());
 	LOCK(&fctx->lock);
 
 	if (!fctx->logged || duplicateok) {
