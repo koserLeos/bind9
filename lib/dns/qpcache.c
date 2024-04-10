@@ -3482,6 +3482,11 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 		dns_qpread_destroy(qpdb->tree, &modctx.qpr);
 	}
 
+	if (cache_is_overmem) {
+		/* Clean memory before returning. */
+		rcu_barrier();
+	}
+
 	return (result);
 }
 
