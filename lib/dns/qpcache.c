@@ -300,6 +300,7 @@ typedef struct {
  */
 typedef struct {
 	bool writing;
+	bool compact;
 	dns_qpread_t qpr;
 	dns_qp_t *tree;
 	dns_qp_t *nsec;
@@ -566,6 +567,8 @@ delete_node(qpdata_t *node, dbmod_t *modctx) {
 
 	INSIST(!ISC_LINK_LINKED(node, deadlink));
 	INSIST(modctx->writing);
+
+	modctx->compact = true;
 
 	if (isc_log_wouldlog(dns_lctx, ISC_LOG_DEBUG(1))) {
 		char printname[DNS_NAME_FORMATSIZE];
@@ -2703,6 +2706,7 @@ findnode(dns_db_t *db, const dns_name_t *name, bool create,
 			result = dns_qp_insert(modctx.tree, node, 0);
 			INSIST(result == ISC_R_SUCCESS);
 			qpdata_unref(node);
+			modctx.compact = true;
 		}
 	}
 
@@ -2712,7 +2716,9 @@ findnode(dns_db_t *db, const dns_name_t *name, bool create,
 
 cleanup:
 	if (create) {
-		dns_qp_compact(modctx.tree, DNS_QPGC_MAYBE);
+		if (modctx.compact) {
+			dns_qp_compact(modctx.tree, DNS_QPGC_MAYBE);
+		}
 		dns_qpmulti_commit(qpdb->tree, &modctx.tree);
 	} else {
 		dns_qpread_destroy(qpdb->tree, &modctx.qpr);
@@ -3461,6 +3467,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 			result = dns_qp_insert(modctx.nsec, nsecnode, 0);
 			INSIST(result == ISC_R_SUCCESS);
 			qpdata_detach(&nsecnode);
+			modctx.compact = true;
 		}
 		qpnode->nsec = DNS_DB_NSEC_HAS_NSEC;
 	}
@@ -3476,10 +3483,14 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 	NODE_UNLOCK(&qpdb->node_locks[qpnode->locknum].lock, &nlocktype);
 
 	if (writing) {
-		dns_qp_compact(modctx.tree, DNS_QPGC_MAYBE);
+		if (modctx.compact) {
+			dns_qp_compact(modctx.tree, DNS_QPGC_MAYBE);
+		}
 		dns_qpmulti_commit(qpdb->tree, &modctx.tree);
 		if (newnsec) {
-			dns_qp_compact(modctx.nsec, DNS_QPGC_MAYBE);
+			if (modctx.compact) {
+				dns_qp_compact(modctx.nsec, DNS_QPGC_MAYBE);
+			}
 			dns_qpmulti_commit(qpdb->nsec, &modctx.nsec);
 		}
 	} else {
