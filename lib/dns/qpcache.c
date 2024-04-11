@@ -1412,11 +1412,12 @@ find_coveringnsec(search_t *search, const dns_name_t *name,
 	 * Lookup the predecessor in the main tree.
 	 */
 	node = NULL;
-	result = dns_qp_lookup(&search->tree, predecessor, fname, NULL, NULL,
+	result = dns_qp_lookup(&search->tree, predecessor, NULL, NULL, NULL,
 			       (void **)&node, NULL);
 	if (result != ISC_R_SUCCESS) {
 		return (ISC_R_NOTFOUND);
 	}
+	dns_name_copy(&node->name, fname);
 
 	lock = &(search->qpdb->node_locks[node->locknum].lock);
 	NODE_RDLOCK(lock, &nlocktype);
@@ -1506,8 +1507,11 @@ find(dns_db_t *db, const dns_name_t *name,
 	/*
 	 * Search down from the root of the tree.
 	 */
-	result = dns_qp_lookup(&search.tree, name, foundname, NULL,
-			       &search.chain, (void **)&node, NULL);
+	result = dns_qp_lookup(&search.tree, name, NULL, NULL, &search.chain,
+			       (void **)&node, NULL);
+	if (result != ISC_R_NOTFOUND && foundname != NULL) {
+		dns_name_copy(&node->name, foundname);
+	}
 
 	/*
 	 * Check the QP chain to see if there's a node above us with a
@@ -1532,10 +1536,11 @@ find(dns_db_t *db, const dns_name_t *name,
 					 (void *)&search DNS__DB_FLARG_PASS);
 		if (zcresult != DNS_R_CONTINUE) {
 			result = DNS_R_PARTIALMATCH;
-			dns_qpchain_node(&search.chain, i, foundname, NULL,
-					 NULL);
 			search.chain.len = i - 1;
 			node = encloser;
+			if (foundname != NULL) {
+				dns_name_copy(&node->name, foundname);
+			}
 			break;
 		}
 	}
@@ -1935,8 +1940,11 @@ findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 	/*
 	 * Search down from the root of the tree.
 	 */
-	result = dns_qp_lookup(&search.tree, name, dcname, NULL, &search.chain,
+	result = dns_qp_lookup(&search.tree, name, NULL, NULL, &search.chain,
 			       (void **)&node, NULL);
+	if (result != ISC_R_NOTFOUND) {
+		dns_name_copy(&node->name, dcname);
+	}
 	if ((options & DNS_DBFIND_NOEXACT) != 0 && result == ISC_R_SUCCESS) {
 		int len = dns_qpchain_length(&search.chain);
 		if (len >= 2) {
