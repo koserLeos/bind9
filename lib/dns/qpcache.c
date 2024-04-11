@@ -1412,10 +1412,10 @@ find_coveringnsec(search_t *search, const dns_name_t *name,
 	 * Lookup the predecessor in the main tree.
 	 */
 	node = NULL;
-	result = dns_qp_lookup(&search->tree, predecessor, NULL, NULL, NULL,
-			       (void **)&node, NULL);
+	result = dns_qp_getname(&search->tree, predecessor, (void **)&node,
+				NULL);
 	if (result != ISC_R_SUCCESS) {
-		return (ISC_R_NOTFOUND);
+		return (result);
 	}
 	dns_name_copy(&node->name, fname);
 
@@ -2690,18 +2690,14 @@ findnode(dns_db_t *db, const dns_name_t *name, bool create,
 		modctx.tree = (dns_qp_t *)&modctx.qpr;
 	}
 
-	result = dns_qp_lookup(modctx.tree, name, NULL, NULL, NULL,
-			       (void **)&node, NULL);
+	result = dns_qp_getname(modctx.tree, name, (void **)&node, NULL);
 	if (result != ISC_R_SUCCESS) {
 		if (!create) {
-			if (result == DNS_R_PARTIALMATCH) {
-				result = ISC_R_NOTFOUND;
-			}
 			goto cleanup;
 		}
 
-		result = dns_qp_lookup(modctx.tree, name, NULL, NULL, NULL,
-				       (void **)&node, NULL);
+		result = dns_qp_getname(modctx.tree, name, (void **)&node,
+					NULL);
 		if (result != ISC_R_SUCCESS) {
 			node = new_qpdata(qpdb, name);
 			result = dns_qp_insert(modctx.tree, node, 0);
