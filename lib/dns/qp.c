@@ -776,7 +776,7 @@ reclaim_chunks(dns_qpmulti_t *multi) {
 		}
 	}
 
-	call_rcu(&rcuctx->rcu_head, reclaim_chunks_cb);
+	isc_urcu_call_rcu(&rcuctx->rcu_head, reclaim_chunks_cb);
 
 	LOG_STATS("qp will reclaim %u chunks", count);
 }
@@ -1315,7 +1315,7 @@ dns_qpmulti_rollback(dns_qpmulti_t *multi, dns_qp_t **qptp) {
 static dns_qpmulti_t *
 reader_open(dns_qpmulti_t *multi, dns_qpreadable_t qpr) {
 	dns_qpreader_t *qp = dns_qpreader(qpr);
-	dns_qpnode_t *reader = rcu_dereference(multi->reader);
+	dns_qpnode_t *reader = isc_urcu_dereference(multi->reader);
 	if (reader == NULL) {
 		QP_INIT(qp, multi->writer.methods, multi->writer.uctx);
 	} else {
@@ -1334,7 +1334,7 @@ dns_qpmulti_query(dns_qpmulti_t *multi, dns_qpread_t *qp) {
 	REQUIRE(qp != NULL);
 
 	qp->tid = isc_tid();
-	rcu_read_lock();
+	isc_urcu_read_lock();
 
 	dns_qpmulti_t *whence = reader_open(multi, qp);
 	INSIST(whence == multi);
@@ -1346,7 +1346,7 @@ dns_qpread_destroy(dns_qpmulti_t *multi, dns_qpread_t *qp) {
 	REQUIRE(QP_VALID(qp));
 	REQUIRE(qp->tid == isc_tid());
 	*qp = (dns_qpread_t){};
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 /*
@@ -1358,7 +1358,7 @@ dns_qpmulti_snapshot(dns_qpmulti_t *multi, dns_qpsnap_t **qpsp) {
 	REQUIRE(QPMULTI_VALID(multi));
 	REQUIRE(qpsp != NULL && *qpsp == NULL);
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 
 	LOCK(&multi->mutex);
 
@@ -1392,7 +1392,7 @@ dns_qpmulti_snapshot(dns_qpmulti_t *multi, dns_qpsnap_t **qpsp) {
 	*qpsp = qps;
 	UNLOCK(&multi->mutex);
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 void
@@ -1548,7 +1548,7 @@ dns_qpmulti_destroy(dns_qpmulti_t **qpmp) {
 		.multi = multi,
 	};
 	isc_mem_attach(qp->mctx, &rcuctx->mctx);
-	call_rcu(&rcuctx->rcu_head, qpmulti_destroy_cb);
+	isc_urcu_call_rcu(&rcuctx->rcu_head, qpmulti_destroy_cb);
 }
 
 /***********************************************************************

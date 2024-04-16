@@ -443,15 +443,15 @@ free_gluetable(struct cds_wfs_stack *glue_stack) {
 	struct cds_wfs_head *head = __cds_wfs_pop_all(glue_stack);
 	struct cds_wfs_node *node = NULL, *next = NULL;
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	cds_wfs_for_each_blocking_safe(head, node, next) {
 		dns_slabheader_t *header =
 			caa_container_of(node, dns_slabheader_t, wfs_node);
 		dns_glue_t *glue = rcu_xchg_pointer(&header->glue_list, NULL);
 
-		call_rcu(&glue->rcu_head, free_gluelist_rcu);
+		isc_urcu_call_rcu(&glue->rcu_head, free_gluelist_rcu);
 	}
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 static void
@@ -528,7 +528,7 @@ free_qpdb(qpzonedb_t *qpdb, bool log) {
 			      "called free_qpdb(%s)", buf);
 	}
 
-	call_rcu(&qpdb->rcu_head, free_db_rcu);
+	isc_urcu_call_rcu(&qpdb->rcu_head, free_db_rcu);
 }
 
 static void
@@ -5291,9 +5291,9 @@ addglue(dns_db_t *db, dns_dbversion_t *dbversion, dns_rdataset_t *rdataset,
 	REQUIRE(qpdb == version->qpdb);
 	REQUIRE(!IS_STUB(qpdb));
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 
-	dns_glue_t *glue = rcu_dereference(header->glue_list);
+	dns_glue_t *glue = isc_urcu_dereference(header->glue_list);
 	if (glue == NULL) {
 		/* No cached glue was found in the table. Get new glue. */
 		glue = newglue(qpdb, version, node, rdataset);
@@ -5328,7 +5328,7 @@ addglue(dns_db_t *db, dns_dbversion_t *dbversion, dns_rdataset_t *rdataset,
 		addglue_to_message(glue, msg);
 	}
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	return (ISC_R_SUCCESS);
 }

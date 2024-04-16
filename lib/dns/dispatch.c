@@ -441,7 +441,7 @@ dispentry_destroy(dns_dispentry_t *resp) {
 
 	dns_dispatch_detach(&disp); /* DISPATCH001 */
 
-	call_rcu(&resp->rcu_head, dispentry_destroy_rcu);
+	isc_urcu_call_rcu(&resp->rcu_head, dispentry_destroy_rcu);
 }
 
 #if DNS_DISPATCH_TRACE
@@ -788,7 +788,7 @@ tcp_recv(isc_nmhandle_t *handle, isc_result_t result, isc_region_t *region,
 
 	peer = isc_nmhandle_peeraddr(handle);
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	/*
 	 * Phase 1: Process timeout and success.
 	 */
@@ -885,7 +885,7 @@ tcp_recv(isc_nmhandle_t *handle, isc_result_t result, isc_region_t *region,
 		isc_nmhandle_settimeout(handle, timeout);
 	}
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	/*
 	 * Phase 6: Process all scheduled callbacks.
@@ -1189,10 +1189,10 @@ dns_dispatch_createtcp(dns_dispatchmgr_t *mgr, const isc_sockaddr_t *localaddr,
 	};
 
 	if ((disp->options & DNS_DISPATCHOPT_UNSHARED) == 0) {
-		rcu_read_lock();
+		isc_urcu_read_lock();
 		cds_lfht_add(mgr->tcps[tid], dispatch_hash(&key),
 			     &disp->ht_node);
-		rcu_read_unlock();
+		isc_urcu_read_unlock();
 	}
 
 	if (isc_log_wouldlog(dns_lctx, 90)) {
@@ -1228,7 +1228,7 @@ dns_dispatch_gettcp(dns_dispatchmgr_t *mgr, const isc_sockaddr_t *destaddr,
 		.peer = destaddr,
 	};
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	struct cds_lfht_iter iter;
 	dns_dispatch_t *disp = NULL;
 	cds_lfht_for_each_entry_duplicate(mgr->tcps[tid], dispatch_hash(&key),
@@ -1270,7 +1270,7 @@ dns_dispatch_gettcp(dns_dispatchmgr_t *mgr, const isc_sockaddr_t *destaddr,
 			break;
 		}
 	}
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	if (disp_connected != NULL) {
 		/* We found connected dispatch */
@@ -1390,7 +1390,7 @@ dispatch_destroy(dns_dispatch_t *disp) {
 	}
 	dns_dispatchmgr_detach(&disp->mgr);
 
-	call_rcu(&disp->rcu_head, dispatch_destroy_rcu);
+	isc_urcu_call_rcu(&disp->rcu_head, dispatch_destroy_rcu);
 }
 
 #if DNS_DISPATCH_TRACE
@@ -1456,7 +1456,7 @@ dns_dispatch_add(dns_dispatch_t *disp, isc_loop_t *loop,
 
 	isc_result_t result = ISC_R_NOMORE;
 	size_t i = 0;
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	do {
 		/*
 		 * Try somewhat hard to find a unique ID. Start with
@@ -1508,7 +1508,7 @@ fail:
 				     ? dns_resstatscounter_disprequdp
 				     : dns_resstatscounter_dispreqtcp);
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	*idp = resp->id;
 	*respp = resp;
@@ -1720,7 +1720,7 @@ dispentry_cancel(dns_dispentry_t *resp, isc_result_t result) {
 
 	dns_dispatch_t *disp = resp->disp;
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	switch (disp->socktype) {
 	case isc_socktype_udp:
 		udp_dispentry_cancel(resp, result);
@@ -1731,7 +1731,7 @@ dispentry_cancel(dns_dispentry_t *resp, isc_result_t result) {
 	default:
 		UNREACHABLE();
 	}
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 void

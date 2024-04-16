@@ -195,10 +195,10 @@ dns_requestmgr_shutdown(dns_requestmgr_t *requestmgr) {
 
 	req_log(ISC_LOG_DEBUG(3), "%s: %p", __func__, requestmgr);
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	first = atomic_compare_exchange_strong(&requestmgr->shuttingdown,
 					       &(bool){ false }, true);
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	if (!first) {
 		return;
@@ -208,7 +208,7 @@ dns_requestmgr_shutdown(dns_requestmgr_t *requestmgr) {
 	 * Wait until all dns_request_create{raw}() are finished, so
 	 * there will be no new requests added to the lists.
 	 */
-	synchronize_rcu();
+	isc_urcu_synchronize_rcu();
 
 	uint32_t tid = isc_tid();
 	uint32_t nloops = isc_loopmgr_nloops(requestmgr->loopmgr);
@@ -438,7 +438,7 @@ dns_request_createraw(dns_requestmgr_t *requestmgr, isc_buffer_t *msgbuf,
 
 	req_log(ISC_LOG_DEBUG(3), "%s", __func__);
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 
 	if (atomic_load_acquire(&requestmgr->shuttingdown)) {
 		result = ISC_R_SHUTTINGDOWN;
@@ -528,7 +528,7 @@ cleanup:
 	}
 
 done:
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 	return (result);
 }
 
@@ -566,7 +566,7 @@ dns_request_create(dns_requestmgr_t *requestmgr, dns_message_t *message,
 
 	req_log(ISC_LOG_DEBUG(3), "%s", __func__);
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 
 	if (atomic_load_acquire(&requestmgr->shuttingdown)) {
 		result = ISC_R_SHUTTINGDOWN;
@@ -655,7 +655,7 @@ cleanup:
 			isc_result_totext(result));
 	}
 done:
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	return (result);
 }

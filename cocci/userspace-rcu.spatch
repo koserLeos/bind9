@@ -1,0 +1,32 @@
+@@
+@@
+
+- rcu_read_lock();
++ isc_urcu_read_lock();
+
+@@
+@@
+
+- rcu_read_unlock();
++ isc_urcu_read_unlock();
+
+@@
+expression P;
+expression PP;
+@@
+
+- P = rcu_dereference(PP)
++ P = isc_urcu_dereference(PP)
+
+@@
+expression E1, E2;
+@@
+
+- call_rcu(E1, E2);
++ isc_urcu_call_rcu(E1, E2);
+
+@@
+@@
+
+- synchronize_rcu();
++ isc_urcu_synchronize_rcu();

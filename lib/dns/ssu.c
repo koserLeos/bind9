@@ -367,11 +367,11 @@ dns_ssutable_checkrules(dns_ssutable_t *table, const dns_name_t *signer,
 			if (!dns_name_issubdomain(name, rule->name)) {
 				continue;
 			}
-			rcu_read_lock();
-			dns_acl_t *localhost = rcu_dereference(env->localhost);
+			isc_urcu_read_lock();
+			dns_acl_t *localhost = isc_urcu_dereference(env->localhost);
 			dns_acl_match(addr, NULL, localhost, NULL, &match,
 				      NULL);
-			rcu_read_unlock();
+			isc_urcu_read_unlock();
 			if (match == 0) {
 				if (signer != NULL) {
 					isc_log_write(dns_lctx,

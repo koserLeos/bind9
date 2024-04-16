@@ -51,8 +51,8 @@
 		urcu_qsbr_read_lock();             \
 	}
 
-#undef rcu_read_lock
-#define rcu_read_lock() isc_qsbr_read_lock()
+#define isc_urcu_read_lock()   isc_qsbr_read_lock()
+#define isc_urcu_read_unlock() urcu_qsbr_read_unlock()
 
 #define isc_qsbr_call_rcu(rcu_head, func)           \
 	{                                           \
@@ -62,8 +62,7 @@
 		urcu_qsbr_call_rcu(rcu_head, func); \
 	}
 
-#undef call_rcu
-#define call_rcu(rcu_head, func) isc_qsbr_call_rcu(rcu_head, func)
+#define isc_urcu_call_rcu(rcu_head, func) isc_qsbr_call_rcu(rcu_head, func)
 
 #define isc_qsbr_synchronize_rcu()                 \
 	{                                          \
@@ -73,19 +72,25 @@
 		urcu_qsbr_synchronize_rcu();       \
 	}
 
-#undef synchronize_rcu
-#define synchronize_rcu() isc_qsbr_synchronize_rcu()
+#define isc_urcu_synchronize_rcu() isc_qsbr_synchronize_rcu()
 
 #define isc_qsbr_rcu_dereference(ptr)              \
 	({                                         \
 		if (!urcu_qsbr_read_ongoing()) {   \
 			urcu_qsbr_thread_online(); \
 		}                                  \
-		_rcu_dereference(ptr);             \
+		rcu_dereference(ptr);              \
 	})
 
-#undef rcu_dereference
-#define rcu_dereference(ptr) isc_qsbr_rcu_dereference(ptr)
+#define isc_urcu_dereference(ptr) isc_qsbr_rcu_dereference(ptr)
+
+#else /* RCU_QSBR */
+
+#define isc_urcu_read_lock()		  rcu_read_lock()
+#define isc_urcu_read_unlock()		  rcu_read_unlock()
+#define isc_urcu_call_rcu(rcu_head, func) call_rcu(rcu_head, func)
+#define isc_urcu_synchronize_rcu()	  synchronize_rcu()
+#define isc_urcu_dereference(ptr)	  rcu_dereference(ptr)
 
 #endif /* RCU_QSBR */
 

@@ -353,7 +353,7 @@ isc_logconfig_use(isc_log_t *lctx, isc_logconfig_t *lcfg) {
 
 	old_cfg = rcu_xchg_pointer(&lctx->logconfig, lcfg);
 	sync_highest_level(lctx, lcfg);
-	synchronize_rcu();
+	isc_urcu_synchronize_rcu();
 
 	isc_logconfig_destroy(&old_cfg);
 }
@@ -377,7 +377,7 @@ isc_log_destroy(isc_log_t **lctxp) {
 	atomic_store_release(&lctx->dynamic, false);
 
 	lcfg = rcu_xchg_pointer(&lctx->logconfig, NULL);
-	synchronize_rcu();
+	isc_urcu_synchronize_rcu();
 
 	if (lcfg != NULL) {
 		isc_logconfig_destroy(&lcfg);
@@ -422,9 +422,9 @@ isc_logconfig_destroy(isc_logconfig_t **lcfgp) {
 	 */
 	REQUIRE(lcfg->lctx != NULL);
 
-	rcu_read_lock();
-	REQUIRE(rcu_dereference(lcfg->lctx->logconfig) != lcfg);
-	rcu_read_unlock();
+	isc_urcu_read_lock();
+	REQUIRE(isc_urcu_dereference(lcfg->lctx->logconfig) != lcfg);
+	isc_urcu_read_unlock();
 
 	mctx = lcfg->lctx->mctx;
 
@@ -738,11 +738,11 @@ isc_log_usechannel(isc_logconfig_t *lcfg, const char *name,
 	/*
 	 * Update the highest logging level, if the current lcfg is in use.
 	 */
-	rcu_read_lock();
-	if (rcu_dereference(lcfg->lctx->logconfig) == lcfg) {
+	isc_urcu_read_lock();
+	if (isc_urcu_dereference(lcfg->lctx->logconfig) == lcfg) {
 		sync_highest_level(lctx, lcfg);
 	}
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	return (ISC_R_SUCCESS);
 }
@@ -809,8 +809,8 @@ isc_log_setdebuglevel(isc_log_t *lctx, unsigned int level) {
 	 * Close ISC_LOG_DEBUGONLY channels if level is zero.
 	 */
 	if (level == 0) {
-		rcu_read_lock();
-		isc_logconfig_t *lcfg = rcu_dereference(lctx->logconfig);
+		isc_urcu_read_lock();
+		isc_logconfig_t *lcfg = isc_urcu_dereference(lctx->logconfig);
 		if (lcfg != NULL) {
 			LOCK(&lctx->lock);
 			for (isc_logchannel_t *channel =
@@ -828,7 +828,7 @@ isc_log_setdebuglevel(isc_log_t *lctx, unsigned int level) {
 			}
 			UNLOCK(&lctx->lock);
 		}
-		rcu_read_unlock();
+		isc_urcu_read_unlock();
 	}
 }
 
@@ -887,8 +887,8 @@ void
 isc_log_closefilelogs(isc_log_t *lctx) {
 	REQUIRE(VALID_CONTEXT(lctx));
 
-	rcu_read_lock();
-	isc_logconfig_t *lcfg = rcu_dereference(lctx->logconfig);
+	isc_urcu_read_lock();
+	isc_logconfig_t *lcfg = isc_urcu_dereference(lctx->logconfig);
 	if (lcfg != NULL) {
 		LOCK(&lctx->lock);
 		for (isc_logchannel_t *channel = ISC_LIST_HEAD(lcfg->channels);
@@ -903,7 +903,7 @@ isc_log_closefilelogs(isc_log_t *lctx) {
 		}
 		UNLOCK(&lctx->lock);
 	}
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 /****
@@ -1505,12 +1505,12 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 	iso8601l_string[0] = '\0';
 	iso8601z_string[0] = '\0';
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	LOCK(&lctx->lock);
 
 	lctx->buffer[0] = '\0';
 
-	isc_logconfig_t *lcfg = rcu_dereference(lctx->logconfig);
+	isc_logconfig_t *lcfg = isc_urcu_dereference(lctx->logconfig);
 
 	category_channels = ISC_LIST_HEAD(lcfg->channellists[category->id]);
 
@@ -1861,7 +1861,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 
 unlock:
 	UNLOCK(&lctx->lock);
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 void

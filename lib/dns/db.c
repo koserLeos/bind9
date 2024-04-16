@@ -968,9 +968,8 @@ dns__db_getsigningtime(dns_db_t *db, dns_rdataset_t *rdataset,
 
 static void
 call_updatenotify(dns_db_t *db) {
-	rcu_read_lock();
-	struct cds_lfht *update_listeners =
-		rcu_dereference(db->update_listeners);
+	isc_urcu_read_lock();
+	struct cds_lfht *update_listeners = isc_urcu_dereference(db->update_listeners);
 	if (update_listeners != NULL) {
 		struct cds_lfht_iter iter;
 		dns_dbonupdatelistener_t *listener;
@@ -981,7 +980,7 @@ call_updatenotify(dns_db_t *db) {
 			}
 		}
 	}
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 static void
@@ -1019,14 +1018,13 @@ dns_db_updatenotify_register(dns_db_t *db, dns_dbupdate_callback_t fn,
 
 	isc_mem_attach(db->mctx, &listener->mctx);
 
-	rcu_read_lock();
-	struct cds_lfht *update_listeners =
-		rcu_dereference(db->update_listeners);
+	isc_urcu_read_lock();
+	struct cds_lfht *update_listeners = isc_urcu_dereference(db->update_listeners);
 	INSIST(update_listeners != NULL);
 	struct cds_lfht_node *ht_node =
 		cds_lfht_add_unique(update_listeners, hash, updatenotify_match,
 				    &key, &listener->ht_node);
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	if (ht_node != &listener->ht_node) {
 		updatenotify_free(&listener->rcu_head);
@@ -1043,9 +1041,8 @@ dns_db_updatenotify_unregister(dns_db_t *db, dns_dbupdate_callback_t fn,
 	uint32_t hash = isc_hash32(&key, sizeof(key), true);
 	struct cds_lfht_iter iter;
 
-	rcu_read_lock();
-	struct cds_lfht *update_listeners =
-		rcu_dereference(db->update_listeners);
+	isc_urcu_read_lock();
+	struct cds_lfht *update_listeners = isc_urcu_dereference(db->update_listeners);
 	INSIST(update_listeners != NULL);
 	cds_lfht_lookup(update_listeners, hash, updatenotify_match, &key,
 			&iter);
@@ -1054,9 +1051,9 @@ dns_db_updatenotify_unregister(dns_db_t *db, dns_dbupdate_callback_t fn,
 	if (ht_node != NULL && !cds_lfht_del(update_listeners, ht_node)) {
 		dns_dbonupdatelistener_t *listener = caa_container_of(
 			ht_node, dns_dbonupdatelistener_t, ht_node);
-		call_rcu(&listener->rcu_head, updatenotify_free);
+		isc_urcu_call_rcu(&listener->rcu_head, updatenotify_free);
 	}
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 isc_result_t
