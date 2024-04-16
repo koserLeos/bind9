@@ -1,0 +1,5 @@
+subdir('dns')
+subdir('isc')
+subdir('isccc')
+subdir('isccfg')
+subdir('ns')
