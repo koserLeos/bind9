@@ -158,7 +158,7 @@ qp_test_dumpqp(dns_qp_t *qp) {
 void
 qp_test_dumpmulti(dns_qpmulti_t *multi) {
 	dns_qpreader_t qpr;
-	dns_qpnode_t *reader = rcu_dereference(multi->reader);
+	dns_qpnode_t *reader = isc_urcu_dereference(multi->reader);
 	dns_qpmulti_t *whence = unpack_reader(&qpr, reader);
 	dumpqp(&multi->writer, "qpmulti->writer");
 	printf("qpmulti->reader %p root_ref %u %u:%u base %p\n", reader,

@@ -64,9 +64,9 @@ ISC_LOOP_TEST_IMPL(apply) {
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	view = dns_zone_getview(zone);
-	rcu_read_lock();
-	zt = rcu_dereference(view->zonetable);
-	rcu_read_unlock();
+	isc_urcu_read_lock();
+	zt = isc_urcu_dereference(view->zonetable);
+	isc_urcu_read_unlock();
 
 	assert_non_null(zt);
 
@@ -167,9 +167,9 @@ ISC_LOOP_TEST_IMPL(asyncload_zone) {
 	assert_int_equal(result, ISC_R_SUCCESS);
 
 	view = dns_zone_getview(zone);
-	rcu_read_lock();
-	zt = rcu_dereference(view->zonetable);
-	rcu_read_unlock();
+	isc_urcu_read_lock();
+	zt = isc_urcu_dereference(view->zonetable);
+	isc_urcu_read_unlock();
 	assert_non_null(zt);
 
 	assert_false(dns__zone_loadpending(zone));
@@ -248,9 +248,9 @@ ISC_LOOP_TEST_IMPL(asyncload_zt) {
 	dns_zone_setfile(zone3, TESTS_DIR "/testdata/zt/nonexistent.db",
 			 dns_masterformat_text, &dns_master_style_default);
 
-	rcu_read_lock();
-	zt = rcu_dereference(view->zonetable);
-	rcu_read_unlock();
+	isc_urcu_read_lock();
+	zt = isc_urcu_dereference(view->zonetable);
+	isc_urcu_read_unlock();
 	assert_non_null(zt);
 
 	dns_test_setupzonemgr();
@@ -265,10 +265,10 @@ ISC_LOOP_TEST_IMPL(asyncload_zt) {
 	assert_false(dns__zone_loadpending(zone2));
 	assert_false(atomic_load(&done));
 
-	rcu_read_lock();
-	zt = rcu_dereference(view->zonetable);
+	isc_urcu_read_lock();
+	zt = isc_urcu_dereference(view->zonetable);
 	dns_zt_asyncload(zt, false, all_done, NULL);
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 ISC_TEST_LIST_START

@@ -2342,9 +2342,9 @@ addglue(dns_db_t *db, dns_dbversion_t *version, dns_rdataset_t *rdataset,
 	REQUIRE(rbtdb == rbtversion->rbtdb);
 	REQUIRE(!IS_CACHE(rbtdb) && !IS_STUB(rbtdb));
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 
-	dns_glue_t *glue = rcu_dereference(header->glue_list);
+	dns_glue_t *glue = isc_urcu_dereference(header->glue_list);
 	if (glue == NULL) {
 		/* No cached glue was found in the table. Get new glue. */
 		glue = newglue(rbtdb, rbtversion, node, rdataset);
@@ -2380,7 +2380,7 @@ addglue(dns_db_t *db, dns_dbversion_t *version, dns_rdataset_t *rdataset,
 		addglue_to_message(glue, msg);
 	}
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	return (ISC_R_SUCCESS);
 }

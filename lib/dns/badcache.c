@@ -157,7 +157,7 @@ bcentry_evict(struct cds_lfht *ht, dns_bcentry_t *bad) {
 	 * function were redundant.
 	 */
 	if (!cds_lfht_del(ht, &bad->ht_node)) {
-		call_rcu(&bad->rcu_head, bcentry_destroy);
+		isc_urcu_call_rcu(&bad->rcu_head, bcentry_destroy);
 	}
 }
 
@@ -210,8 +210,8 @@ dns_badcache_add(dns_badcache_t *bc, const dns_name_t *name,
 		expire = now;
 	}
 
-	rcu_read_lock();
-	struct cds_lfht *ht = rcu_dereference(bc->ht);
+	isc_urcu_read_lock();
+	struct cds_lfht *ht = isc_urcu_dereference(bc->ht);
 	INSIST(ht != NULL);
 
 	dns_bcentry_t *bad = NULL;
@@ -245,7 +245,7 @@ dns_badcache_add(dns_badcache_t *bc, const dns_name_t *name,
 		atomic_store_relaxed(&found->flags, flags);
 	}
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 isc_result_t
@@ -256,8 +256,8 @@ dns_badcache_find(dns_badcache_t *bc, const dns_name_t *name,
 
 	isc_result_t result = ISC_R_NOTFOUND;
 
-	rcu_read_lock();
-	struct cds_lfht *ht = rcu_dereference(bc->ht);
+	isc_urcu_read_lock();
+	struct cds_lfht *ht = isc_urcu_dereference(bc->ht);
 	INSIST(ht != NULL);
 
 	dns_bcentry_t *bad = NULL;
@@ -281,7 +281,7 @@ dns_badcache_find(dns_badcache_t *bc, const dns_name_t *name,
 		bcentry_purge_next(ht, &iter, now);
 	}
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	return (result);
 }
@@ -296,12 +296,12 @@ dns_badcache_flush(dns_badcache_t *bc) {
 	INSIST(ht != NULL);
 
 	/* First swap the hashtables */
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	ht = rcu_xchg_pointer(&bc->ht, ht);
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	/* Make sure nobody is using the old hash table */
-	synchronize_rcu();
+	isc_urcu_synchronize_rcu();
 
 	/* Flush the old hash table */
 	dns_bcentry_t *bad = NULL;
@@ -318,8 +318,8 @@ dns_badcache_flushname(dns_badcache_t *bc, const dns_name_t *name) {
 	REQUIRE(VALID_BADCACHE(bc));
 	REQUIRE(name != NULL);
 
-	rcu_read_lock();
-	struct cds_lfht *ht = rcu_dereference(bc->ht);
+	isc_urcu_read_lock();
+	struct cds_lfht *ht = isc_urcu_dereference(bc->ht);
 	INSIST(ht != NULL);
 
 	dns_bcentry_t *bad = NULL;
@@ -331,7 +331,7 @@ dns_badcache_flushname(dns_badcache_t *bc, const dns_name_t *name) {
 		bcentry_evict(ht, bad);
 	}
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 void
@@ -342,8 +342,8 @@ dns_badcache_flushtree(dns_badcache_t *bc, const dns_name_t *name) {
 	REQUIRE(VALID_BADCACHE(bc));
 	REQUIRE(name != NULL);
 
-	rcu_read_lock();
-	struct cds_lfht *ht = rcu_dereference(bc->ht);
+	isc_urcu_read_lock();
+	struct cds_lfht *ht = isc_urcu_dereference(bc->ht);
 	INSIST(ht != NULL);
 
 	struct cds_lfht_iter iter;
@@ -355,7 +355,7 @@ dns_badcache_flushtree(dns_badcache_t *bc, const dns_name_t *name) {
 		}
 	}
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 static void
@@ -379,8 +379,8 @@ dns_badcache_print(dns_badcache_t *bc, const char *cachename, FILE *fp) {
 
 	fprintf(fp, ";\n; %s\n;\n", cachename);
 
-	rcu_read_lock();
-	struct cds_lfht *ht = rcu_dereference(bc->ht);
+	isc_urcu_read_lock();
+	struct cds_lfht *ht = isc_urcu_dereference(bc->ht);
 	INSIST(ht != NULL);
 
 	struct cds_lfht_iter iter;
@@ -390,5 +390,5 @@ dns_badcache_print(dns_badcache_t *bc, const char *cachename, FILE *fp) {
 		}
 	}
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }

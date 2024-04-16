@@ -403,18 +403,18 @@ dns_aclelement_match(const isc_netaddr_t *reqaddr, const dns_name_t *reqsigner,
 		if (env == NULL) {
 			return (false);
 		}
-		rcu_read_lock();
-		dns_acl_attach(rcu_dereference(env->localhost), &inner);
-		rcu_read_unlock();
+		isc_urcu_read_lock();
+		dns_acl_attach(isc_urcu_dereference(env->localhost), &inner);
+		isc_urcu_read_unlock();
 		break;
 
 	case dns_aclelementtype_localnets:
 		if (env == NULL) {
 			return (false);
 		}
-		rcu_read_lock();
-		dns_acl_attach(rcu_dereference(env->localnets), &inner);
-		rcu_read_unlock();
+		isc_urcu_read_lock();
+		dns_acl_attach(isc_urcu_dereference(env->localnets), &inner);
+		isc_urcu_read_unlock();
 		break;
 
 #if defined(HAVE_GEOIP2)
@@ -659,10 +659,10 @@ dns_aclenv_set(dns_aclenv_t *env, dns_acl_t *localhost, dns_acl_t *localnets) {
 	REQUIRE(DNS_ACL_VALID(localhost));
 	REQUIRE(DNS_ACL_VALID(localnets));
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	localhost = rcu_xchg_pointer(&env->localhost, dns_acl_ref(localhost));
 	localnets = rcu_xchg_pointer(&env->localnets, dns_acl_ref(localnets));
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	dns_acl_detach(&localhost);
 	dns_acl_detach(&localnets);
@@ -673,12 +673,12 @@ dns_aclenv_copy(dns_aclenv_t *target, dns_aclenv_t *source) {
 	REQUIRE(VALID_ACLENV(source));
 	REQUIRE(VALID_ACLENV(target));
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 
-	dns_acl_t *localhost = rcu_dereference(source->localhost);
+	dns_acl_t *localhost = isc_urcu_dereference(source->localhost);
 	INSIST(DNS_ACL_VALID(localhost));
 
-	dns_acl_t *localnets = rcu_dereference(source->localnets);
+	dns_acl_t *localnets = isc_urcu_dereference(source->localnets);
 	INSIST(DNS_ACL_VALID(localnets));
 
 	localhost = rcu_xchg_pointer(&target->localhost,
@@ -691,7 +691,7 @@ dns_aclenv_copy(dns_aclenv_t *target, dns_aclenv_t *source) {
 	target->geoip = source->geoip;
 #endif /* if defined(HAVE_GEOIP2) */
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	dns_acl_detach(&localhost);
 	dns_acl_detach(&localnets);
@@ -703,14 +703,14 @@ dns__aclenv_destroy(dns_aclenv_t *aclenv) {
 
 	aclenv->magic = 0;
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	dns_acl_t *localhost = rcu_xchg_pointer(&aclenv->localhost, NULL);
 	INSIST(DNS_ACL_VALID(localhost));
 
 	dns_acl_t *localnets = rcu_xchg_pointer(&aclenv->localnets, NULL);
 	INSIST(DNS_ACL_VALID(localnets));
 
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 
 	dns_acl_detach(&localhost);
 	dns_acl_detach(&localnets);

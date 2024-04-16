@@ -4874,15 +4874,15 @@ free_gluetable(dns_rbtdb_version_t *rbtversion) {
 	struct cds_wfs_head *head = __cds_wfs_pop_all(&rbtversion->glue_stack);
 	struct cds_wfs_node *node = NULL, *next = NULL;
 
-	rcu_read_lock();
+	isc_urcu_read_lock();
 	cds_wfs_for_each_blocking_safe(head, node, next) {
 		dns_slabheader_t *header =
 			caa_container_of(node, dns_slabheader_t, wfs_node);
 		dns_glue_t *glue = rcu_xchg_pointer(&header->glue_list, NULL);
 
-		call_rcu(&glue->rcu_head, free_gluelist_rcu);
+		isc_urcu_call_rcu(&glue->rcu_head, free_gluelist_rcu);
 	}
-	rcu_read_unlock();
+	isc_urcu_read_unlock();
 }
 
 void

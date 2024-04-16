@@ -84,25 +84,25 @@ ns_sortlist_setup(dns_acl_t *acl, dns_aclenv_t *env, isc_netaddr_t *clientaddr,
 		}
 
 		if (order_elt->type == dns_aclelementtype_localhost) {
-			rcu_read_lock();
-			dns_acl_t *inner = rcu_dereference(env->localhost);
+			isc_urcu_read_lock();
+			dns_acl_t *inner = isc_urcu_dereference(env->localhost);
 			if (inner != NULL) {
 				*argp = dns_acl_ref(inner);
-				rcu_read_unlock();
+				isc_urcu_read_unlock();
 				return (NS_SORTLISTTYPE_2ELEMENT);
 			}
-			rcu_read_unlock();
+			isc_urcu_read_unlock();
 		}
 
 		if (order_elt->type == dns_aclelementtype_localnets) {
-			rcu_read_lock();
-			dns_acl_t *inner = rcu_dereference(env->localhost);
+			isc_urcu_read_lock();
+			dns_acl_t *inner = isc_urcu_dereference(env->localhost);
 			if (inner != NULL) {
 				*argp = dns_acl_ref(inner);
-				rcu_read_unlock();
+				isc_urcu_read_unlock();
 				return (NS_SORTLISTTYPE_2ELEMENT);
 			}
-			rcu_read_unlock();
+			isc_urcu_read_unlock();
 		}
 
 		/*
