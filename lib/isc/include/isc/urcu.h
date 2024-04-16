@@ -22,10 +22,6 @@
 #if defined(RCU_MEMBARRIER) || defined(RCU_MB) || defined(RCU_SIGNAL)
 #include <urcu.h>
 #elif defined(RCU_QSBR)
-/* QSBR require inlining small functions */
-#ifndef URCU_INLINE_SMALL_FUNCTIONS
-#define URCU_INLINE_SMALL_FUNCTIONS 1
-#endif
 #include <urcu-qsbr.h>
 #elif defined(RCU_BP)
 #include <urcu-bp.h>
