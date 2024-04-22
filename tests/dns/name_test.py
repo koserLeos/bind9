@@ -34,8 +34,8 @@ import dns.name
 
 from strategies import dns_names
 
-from _pi_cffi import ffi
-from _pi_cffi import lib as isclibs
+from _name_test_cffi import ffi
+from _name_test_cffi import lib as isclibs
 
 NULL = ffi.NULL
 
