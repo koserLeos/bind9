@@ -135,17 +135,6 @@ struct dns_rbtdb {
 	 */
 	dns_slabheaderlist_t *lru;
 
-	/*
-	 * Start point % node_lock_count for next LRU cleanup.
-	 */
-	atomic_uint lru_sweep;
-
-	/*
-	 * When performing LRU cleaning limit cleaning to headers that were
-	 * last used at or before this.
-	 */
-	_Atomic(isc_stdtime_t) last_used;
-
 	/*%
 	 * Temporary storage for stale cache nodes and dynamically deleted
 	 * nodes that await being cleaned up.
@@ -475,6 +464,7 @@ dns__cacherbt_expireheader(dns_slabheader_t *header,
 			   dns_expire_t reason DNS__DB_FLARG);
 void
 dns__cacherbt_overmem(dns_rbtdb_t *rbtdb, dns_slabheader_t *newheader,
+		      uint32_t locknum,
 		      isc_rwlocktype_t *tlocktypep DNS__DB_FLARG);
 
 ISC_LANG_ENDDECLS

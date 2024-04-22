@@ -282,17 +282,6 @@ struct dns_qpdb {
 	 */
 	dns_slabheaderlist_t *lru;
 
-	/*
-	 * Start point % node_lock_count for next LRU cleanup.
-	 */
-	atomic_uint lru_sweep;
-
-	/*
-	 * When performing LRU cleaning limit cleaning to headers that were
-	 * last used at or before this.
-	 */
-	_Atomic(isc_stdtime_t) last_used;
-
 	/*%
 	 * Temporary storage for stale cache nodes and dynamically deleted
 	 * nodes that await being cleaned up.
@@ -2427,8 +2416,7 @@ expire_lru_headers(dns_qpdb_t *qpdb, unsigned int locknum,
 	size_t purged = 0;
 
 	for (header = ISC_LIST_TAIL(qpdb->lru[locknum]);
-	     header != NULL && header->last_used <= qpdb->last_used &&
-	     purged <= purgesize;
+	     header != NULL && purged <= purgesize;
 	     header = ISC_LIST_TAIL(qpdb->lru[locknum]))
 	{
 		size_t header_size = rdataset_size(header);
@@ -2460,51 +2448,19 @@ expire_lru_headers(dns_qpdb_t *qpdb, unsigned int locknum,
  * A write lock on the tree must be held.
  */
 static void
-overmem(dns_qpdb_t *qpdb, dns_slabheader_t *newheader,
+overmem(dns_qpdb_t *qpdb, dns_slabheader_t *newheader, uint32_t locknum,
 	isc_rwlocktype_t *tlocktypep DNS__DB_FLARG) {
-	uint32_t locknum_start = qpdb->lru_sweep++ % qpdb->node_lock_count;
-	uint32_t locknum = locknum_start;
 	/* Size of added data, possible node and possible ENT node. */
 	size_t purgesize = rdataset_size(newheader) + 2 * sizeof(dns_qpdata_t);
 	size_t purged = 0;
-	isc_stdtime_t min_last_used = 0;
-	size_t max_passes = 8;
+	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
-again:
-	do {
-		isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
-		NODE_WRLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
+	NODE_WRLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
 
-		purged += expire_lru_headers(qpdb, locknum, tlocktypep,
-					     purgesize -
-						     purged DNS__DB_FLARG_PASS);
+	purged += expire_lru_headers(qpdb, locknum, tlocktypep,
+				     purgesize - purged DNS__DB_FLARG_PASS);
 
-		/*
-		 * Work out the oldest remaining last_used values of the list
-		 * tails as we walk across the array of lru lists.
-		 */
-		dns_slabheader_t *header = ISC_LIST_TAIL(qpdb->lru[locknum]);
-		if (header != NULL &&
-		    (min_last_used == 0 || header->last_used < min_last_used))
-		{
-			min_last_used = header->last_used;
-		}
-		NODE_UNLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
-		locknum = (locknum + 1) % qpdb->node_lock_count;
-	} while (locknum != locknum_start && purged <= purgesize);
-
-	/*
-	 * Update qpdb->last_used if we have walked all the list tails and have
-	 * not freed the required amount of memory.
-	 */
-	if (purged < purgesize) {
-		if (min_last_used != 0) {
-			qpdb->last_used = min_last_used;
-			if (max_passes-- > 0) {
-				goto again;
-			}
-		}
-	}
+	NODE_UNLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
 }
 
 static bool
@@ -3296,7 +3252,6 @@ find_header:
 			newheader->down = NULL;
 			idx = QPDB_HEADERNODE(newheader)->locknum;
 			if (ZEROTTL(newheader)) {
-				newheader->last_used = qpdb->last_used + 1;
 				ISC_LIST_APPEND(qpdb->lru[idx], newheader,
 						link);
 			} else {
@@ -3326,7 +3281,6 @@ find_header:
 			isc_heap_insert(qpdb->heaps[idx], newheader);
 			newheader->heap = qpdb->heaps[idx];
 			if (ZEROTTL(newheader)) {
-				newheader->last_used = qpdb->last_used + 1;
 				ISC_LIST_APPEND(qpdb->lru[idx], newheader,
 						link);
 			} else {
@@ -3615,7 +3569,8 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	}
 
 	if (cache_is_overmem) {
-		overmem(qpdb, newheader, &tlocktype DNS__DB_FLARG_PASS);
+		overmem(qpdb, newheader, qpnode->locknum,
+			&tlocktype DNS__DB_FLARG_PASS);
 	}
 
 	NODE_WRLOCK(&qpdb->node_locks[qpnode->locknum].lock, &nlocktype);

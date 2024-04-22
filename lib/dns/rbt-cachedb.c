@@ -1647,8 +1647,7 @@ expire_lru_headers(dns_rbtdb_t *rbtdb, unsigned int locknum,
 	size_t purged = 0;
 
 	for (header = ISC_LIST_TAIL(rbtdb->lru[locknum]);
-	     header != NULL && header->last_used <= rbtdb->last_used &&
-	     purged <= purgesize;
+	     header != NULL && purged <= purgesize;
 	     header = ISC_LIST_TAIL(rbtdb->lru[locknum]))
 	{
 		size_t header_size = rdataset_size(header);
@@ -1681,50 +1680,18 @@ expire_lru_headers(dns_rbtdb_t *rbtdb, unsigned int locknum,
  */
 void
 dns__cacherbt_overmem(dns_rbtdb_t *rbtdb, dns_slabheader_t *newheader,
+		      uint32_t locknum,
 		      isc_rwlocktype_t *tlocktypep DNS__DB_FLARG) {
-	uint32_t locknum_start = rbtdb->lru_sweep++ % rbtdb->node_lock_count;
-	uint32_t locknum = locknum_start;
 	/* Size of added data, possible node and possible ENT node. */
 	size_t purgesize =
 		rdataset_size(newheader) +
 		2 * dns__rbtnode_getsize(RBTDB_HEADERNODE(newheader));
 	size_t purged = 0;
-	isc_stdtime_t min_last_used = 0;
-	size_t max_passes = 8;
 
-again:
-	do {
-		isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
-		NODE_WRLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
+	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
+	NODE_WRLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
+	purged += expire_lru_headers(rbtdb, locknum, tlocktypep,
+				     purgesize - purged DNS__DB_FLARG_PASS);
 
-		purged += expire_lru_headers(rbtdb, locknum, tlocktypep,
-					     purgesize -
-						     purged DNS__DB_FLARG_PASS);
-
-		/*
-		 * Work out the oldest remaining last_used values of the list
-		 * tails as we walk across the array of lru lists.
-		 */
-		dns_slabheader_t *header = ISC_LIST_TAIL(rbtdb->lru[locknum]);
-		if (header != NULL &&
-		    (min_last_used == 0 || header->last_used < min_last_used))
-		{
-			min_last_used = header->last_used;
-		}
-		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
-		locknum = (locknum + 1) % rbtdb->node_lock_count;
-	} while (locknum != locknum_start && purged <= purgesize);
-
-	/*
-	 * Update rbtdb->last_used if we have walked all the list tails and have
-	 * not freed the required amount of memory.
-	 */
-	if (purged < purgesize) {
-		if (min_last_used != 0) {
-			rbtdb->last_used = min_last_used;
-			if (max_passes-- > 0) {
-				goto again;
-			}
-		}
-	}
+	NODE_UNLOCK(&rbtdb->node_locks[locknum].lock, &nlocktype);
 }

@@ -2938,8 +2938,6 @@ find_header:
 			idx = RBTDB_HEADERNODE(newheader)->locknum;
 			if (IS_CACHE(rbtdb)) {
 				if (ZEROTTL(newheader)) {
-					newheader->last_used =
-						rbtdb->last_used + 1;
 					ISC_LIST_APPEND(rbtdb->lru[idx],
 							newheader, link);
 				} else {
@@ -2984,8 +2982,6 @@ find_header:
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 				newheader->heap = rbtdb->heaps[idx];
 				if (ZEROTTL(newheader)) {
-					newheader->last_used =
-						rbtdb->last_used + 1;
 					ISC_LIST_APPEND(rbtdb->lru[idx],
 							newheader, link);
 				} else {
@@ -3384,7 +3380,7 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 	}
 
 	if (cache_is_overmem) {
-		dns__cacherbt_overmem(rbtdb, newheader,
+		dns__cacherbt_overmem(rbtdb, newheader, rbtnode->locknum,
 				      &tlocktype DNS__DB_FLARG_PASS);
 	}
 
