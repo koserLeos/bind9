@@ -2453,14 +2453,9 @@ overmem(dns_qpdb_t *qpdb, dns_slabheader_t *newheader, uint32_t locknum,
 	/* Size of added data, possible node and possible ENT node. */
 	size_t purgesize = rdataset_size(newheader) + 2 * sizeof(dns_qpdata_t);
 	size_t purged = 0;
-	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
-
-	NODE_WRLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
 
 	purged += expire_lru_headers(qpdb, locknum, tlocktypep,
 				     purgesize - purged DNS__DB_FLARG_PASS);
-
-	NODE_UNLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
 }
 
 static bool
@@ -3568,12 +3563,12 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		TREE_WRLOCK(&qpdb->tree_lock, &tlocktype);
 	}
 
+	NODE_WRLOCK(&qpdb->node_locks[qpnode->locknum].lock, &nlocktype);
+
 	if (cache_is_overmem) {
 		overmem(qpdb, newheader, qpnode->locknum,
 			&tlocktype DNS__DB_FLARG_PASS);
 	}
-
-	NODE_WRLOCK(&qpdb->node_locks[qpnode->locknum].lock, &nlocktype);
 
 	if (qpdb->rrsetstats != NULL) {
 		DNS_SLABHEADER_SETATTR(newheader, DNS_SLABHEADERATTR_STATCOUNT);
