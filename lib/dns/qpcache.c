@@ -164,6 +164,7 @@
  * enough, so we expire enough headers if their TTL is clustered.
  */
 #define DNS_QPDB_EXPIRE_TTL_COUNT 10
+#define DNS_QPDB_EXPIRE_LRU_COUNT 10
 
 /*%
  * This is the structure that is used for each node in the qp trie of trees.
@@ -2398,66 +2399,6 @@ expiredata(dns_db_t *db, dns_dbnode_t *node, void *data) {
 	INSIST(tlocktype == isc_rwlocktype_none);
 }
 
-static size_t
-rdataset_size(dns_slabheader_t *header) {
-	if (!NONEXISTENT(header)) {
-		return (dns_rdataslab_size((unsigned char *)header,
-					   sizeof(*header)));
-	}
-
-	return (sizeof(*header));
-}
-
-static size_t
-expire_lru_headers(dns_qpdb_t *qpdb, unsigned int locknum,
-		   isc_rwlocktype_t *tlocktypep,
-		   size_t purgesize DNS__DB_FLARG) {
-	dns_slabheader_t *header = NULL;
-	size_t purged = 0;
-
-	for (header = ISC_LIST_TAIL(qpdb->lru[locknum]);
-	     header != NULL && purged <= purgesize;
-	     header = ISC_LIST_TAIL(qpdb->lru[locknum]))
-	{
-		size_t header_size = rdataset_size(header);
-
-		/*
-		 * Unlink the entry at this point to avoid checking it
-		 * again even if it's currently used someone else and
-		 * cannot be purged at this moment.  This entry won't be
-		 * referenced any more (so unlinking is safe) since the
-		 * TTL will be reset to 0.
-		 */
-		ISC_LIST_UNLINK(qpdb->lru[locknum], header, link);
-		expireheader(header, tlocktypep,
-			     dns_expire_lru DNS__DB_FLARG_PASS);
-		purged += header_size;
-	}
-
-	return (purged);
-}
-
-/*%
- * Purge some expired and/or stale (i.e. unused for some period) cache entries
- * due to an overmem condition.  To recover from this condition quickly,
- * we clean up entries up to the size of newly added rdata that triggered
- * the overmem; this is accessible via newheader.
- *
- * The LRU lists tails are processed in LRU order to the nearest second.
- *
- * A write lock on the tree must be held.
- */
-static void
-overmem(dns_qpdb_t *qpdb, dns_slabheader_t *newheader, uint32_t locknum,
-	isc_rwlocktype_t *tlocktypep DNS__DB_FLARG) {
-	/* Size of added data, possible node and possible ENT node. */
-	size_t purgesize = rdataset_size(newheader) + 2 * sizeof(dns_qpdata_t);
-	size_t purged = 0;
-
-	purged += expire_lru_headers(qpdb, locknum, tlocktypep,
-				     purgesize - purged DNS__DB_FLARG_PASS);
-}
-
 static bool
 prio_type(dns_typepair_t type) {
 	switch (type) {
@@ -3450,6 +3391,31 @@ expire_ttl_headers(dns_qpdb_t *qpdb, unsigned int locknum,
 		   isc_rwlocktype_t *tlocktypep, isc_stdtime_t now,
 		   bool cache_is_overmem DNS__DB_FLARG);
 
+static void
+overmem_async(void *arg) {
+	dns_qpdb_t *qpdb = arg;
+	uint32_t locknum = isc_tid();
+	isc_rwlocktype_t tlocktype = isc_rwlocktype_none;
+	isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
+	dns_slabheader_t *header;
+	size_t i;
+
+	TREE_WRLOCK(&qpdb->tree_lock, &tlocktype);
+	NODE_WRLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
+
+	for (i = 0, header = ISC_LIST_TAIL(qpdb->lru[locknum]);
+	     i < DNS_QPDB_EXPIRE_LRU_COUNT;
+	     i++, header = ISC_LIST_TAIL(qpdb->lru[locknum]))
+	{
+		ISC_LIST_UNLINK(qpdb->lru[locknum], header, link);
+		expireheader(header, &tlocktype,
+			     dns_expire_lru DNS__DB_FLARG_PASS);
+	}
+
+	NODE_UNLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
+	TREE_UNLOCK(&qpdb->tree_lock, &tlocktype);
+}
+
 static isc_result_t
 addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	    isc_stdtime_t now, dns_rdataset_t *rdataset, unsigned int options,
@@ -3558,17 +3524,17 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	 */
 	if (isc_mem_isovermem(qpdb->common.mctx)) {
 		cache_is_overmem = true;
+
+		for (size_t i = 0; i < qpdb->node_lock_count; i++) {
+			isc_async_run(isc_loop_get(qpdb->loopmgr, i),
+				      overmem_async, qpdb);
+		}
 	}
 	if (delegating || newnsec || cache_is_overmem) {
 		TREE_WRLOCK(&qpdb->tree_lock, &tlocktype);
 	}
 
 	NODE_WRLOCK(&qpdb->node_locks[qpnode->locknum].lock, &nlocktype);
-
-	if (cache_is_overmem) {
-		overmem(qpdb, newheader, qpnode->locknum,
-			&tlocktype DNS__DB_FLARG_PASS);
-	}
 
 	if (qpdb->rrsetstats != NULL) {
 		DNS_SLABHEADER_SETATTR(newheader, DNS_SLABHEADERATTR_STATCOUNT);
