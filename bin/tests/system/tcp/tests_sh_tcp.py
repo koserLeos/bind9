@@ -10,5 +10,11 @@
 # information regarding copyright ownership.
 
 
+import isctest.mark
+
+
+# The "checking that BIND 9 doesn't crash on long TCP messages" check of the
+# tcp system test is unstable when free memory is lacking. See issue #4298.
+@isctest.mark.flaky(max_runs=2)
 def test_tcp(run_tests_sh):
     run_tests_sh()
