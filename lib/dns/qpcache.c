@@ -3404,7 +3404,7 @@ overmem_async(void *arg) {
 	NODE_WRLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
 
 	for (i = 0, header = ISC_LIST_TAIL(qpdb->lru[locknum]);
-	     i < DNS_QPDB_EXPIRE_LRU_COUNT;
+	     i < DNS_QPDB_EXPIRE_LRU_COUNT && header != NULL;
 	     i++, header = ISC_LIST_TAIL(qpdb->lru[locknum]))
 	{
 		ISC_LIST_UNLINK(qpdb->lru[locknum], header, link);
