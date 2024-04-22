@@ -34,6 +34,7 @@ check_PROGRAMS =			\
 	dns_name_fromtext_target	\
 	dns_name_fromwire		\
 	dns_qp				\
+	dns_qpdb			\
 	dns_qpkey_name			\
 	dns_rdata_fromtext		\
 	dns_rdata_fromwire_text		\
@@ -47,6 +48,7 @@ EXTRA_DIST =				\
 	dns_name_fromtext_target.in	\
 	dns_name_fromwire.in		\
 	dns_qp.in			\
+	dns_qpdb.in			\
 	dns_qpkey_name.in		\
 	dns_rdata_fromtext.in		\
 	dns_rdata_fromwire_text.in	\

@@ -30,15 +30,15 @@
 
 #include <tests/qp.h>
 
-bool debug = false;
+bool debug = true;
 
-#if 0
+#if 1
 #define TRACE(...) warnx(__VA_ARGS__)
 #else
 #define TRACE(...)
 #endif
 
-#if 0
+#if 1
 #define ASSERT(p)                                               \
 	do {                                                    \
 		warnx("%s:%d: %s (%s)", __func__, __LINE__, #p, \
