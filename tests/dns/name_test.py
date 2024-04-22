@@ -34,24 +34,77 @@ import dns.name
 
 from strategies import dns_names
 
-from _pi_cffi import ffi, isc
+from _pi_cffi import ffi
+from _pi_cffi import lib as isclibs
 
-MCTXP = ffi.new('isc_mem_t **')
-isc.isc__mem_create(MCTXP[0])
+NULL = ffi.NULL
+
+# MCTXP = ffi.new('isc_mem_t **')
+# isclibs.isc__mem_create(MCTXP)
 
 
 class ISCName:
-    def __init__(self, from_bytes=None):
-        self.fixedname = ffi.new('dns_fixedname_t *')
-        self.name = isc.dns_fixedname_initname(self.fixedname)
-        self.cctx = ffi.new("dns_compress_t *")
-        self.dctx = ffi.new("dns_decompress_t *")
+    """dns_name_t instance with a private fixed buffer"""
 
-        if from_bytes is not None:
-            isc.dns_comress_init()
+    def __init__(self, from_text=None):
+        self.fixedname = ffi.new("dns_fixedname_t *")
+        self.name = isclibs.dns_fixedname_initname(self.fixedname)
+        # self.cctx = ffi.new("dns_compress_t *")
+        # self.dctx = ffi.new("dns_decompress_t *")
+        self.formatbuf = ffi.new("char[1024]")  # DNS_NAME_FORMATSIZE
+
+        if from_text is not None:
+            assert (
+                isclibs.dns_name_fromstring(
+                    self.name, from_text.encode("ascii"), NULL, 0, NULL
+                )
+                == 0
+            )
+
+    def format(self):
+        isclibs.dns_name_format(self.name, self.formatbuf, len(self.formatbuf))
+        return ffi.string(self.formatbuf).decode("ascii")
+
 
 @given(pyname=dns_names(suffix=dns.name.root))
-def test_name_in_between_wildcards(pyname: dns.name.Name) -> None:
-    iscname = ISCName()
-    print(pyname)
-    assert pyname == dns.name.from_text(name.to_text())
+def test_totext_fromtext_roundtrip(pyname: dns.name.Name) -> None:
+    """
+    text formatting and parsing roundtrip must not change the name
+
+    dnspython to_text -> ISC from_string -> ISC format -> dnspython from_text
+    """
+    iscname = ISCName(from_text=str(pyname))
+    assert pyname == dns.name.from_text(iscname.format())
+
+
+@given(pyname=dns_names(suffix=dns.name.root))
+def test_downcase(pyname: dns.name.Name) -> None:
+    downcased = ISCName(from_text=str(pyname))
+    assert isclibs.dns_name_hash(downcased.name)
+
+    isclibs.dns_name_downcase(downcased.name, downcased.name, NULL)
+    assert not any(
+        letter.isupper() for letter in downcased.format()
+    ), "downcasing removes all ASCII uppercase letters"
+
+
+@given(pyname=dns_names(suffix=dns.name.root))
+def test_hash_downcase(pyname: dns.name.Name) -> None:
+    """downcasing must not affect hash value"""
+    orig = ISCName(from_text=str(pyname))
+    orig_hash = isclibs.dns_name_hash(orig.name)
+
+    downcased = ISCName(from_text=str(pyname))
+    assert isclibs.dns_name_hash(downcased.name) == orig_hash, "hash is stable"
+
+    isclibs.dns_name_downcase(downcased.name, downcased.name, NULL)
+    assert not any(
+        letter.isupper() for letter in downcased.format()
+    ), "downcasing actually works"
+
+    assert pyname == dns.name.from_text(
+        downcased.format()
+    ), "downcasing must not change semantic value"
+
+    downcased_hash = isclibs.dns_name_hash(downcased.name)
+    assert orig_hash == downcased_hash, "downcasing must not change hash value"
