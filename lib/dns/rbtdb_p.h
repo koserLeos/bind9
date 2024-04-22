@@ -473,8 +473,5 @@ void
 dns__cacherbt_expireheader(dns_slabheader_t *header,
 			   isc_rwlocktype_t *tlocktypep,
 			   dns_expire_t reason DNS__DB_FLARG);
-void
-dns__cacherbt_overmem(dns_rbtdb_t *rbtdb, dns_slabheader_t *newheader,
-		      isc_rwlocktype_t *tlocktypep DNS__DB_FLARG);
 
 ISC_LANG_ENDDECLS

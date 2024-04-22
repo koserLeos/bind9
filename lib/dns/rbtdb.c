@@ -1988,8 +1988,6 @@ dns__rbtdb_closeversion(dns_db_t *db, dns_dbversion_t **versionp,
 		isc_rwlocktype_t tlocktype = isc_rwlocktype_none;
 		isc_rwlocktype_t nlocktype = isc_rwlocktype_none;
 
-		ISC_LIST_UNLINK(resigned_list, header, link);
-
 		lock = &rbtdb->node_locks[RBTDB_HEADERNODE(header)->locknum]
 				.lock;
 		NODE_WRLOCK(lock, &nlocktype);
@@ -2834,17 +2832,6 @@ find_header:
 			if (header->ttl > newheader->ttl) {
 				dns__rbtdb_setttl(header, newheader->ttl);
 			}
-			if (header->last_used != now) {
-				ISC_LIST_UNLINK(
-					rbtdb->lru[RBTDB_HEADERNODE(header)
-							   ->locknum],
-					header, link);
-				header->last_used = now;
-				ISC_LIST_PREPEND(
-					rbtdb->lru[RBTDB_HEADERNODE(header)
-							   ->locknum],
-					header, link);
-			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
 			{
@@ -2899,17 +2886,6 @@ find_header:
 			if (header->ttl > newheader->ttl) {
 				dns__rbtdb_setttl(header, newheader->ttl);
 			}
-			if (header->last_used != now) {
-				ISC_LIST_UNLINK(
-					rbtdb->lru[RBTDB_HEADERNODE(header)
-							   ->locknum],
-					header, link);
-				header->last_used = now;
-				ISC_LIST_PREPEND(
-					rbtdb->lru[RBTDB_HEADERNODE(header)
-							   ->locknum],
-					header, link);
-			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
 			{
@@ -2937,15 +2913,6 @@ find_header:
 			newheader->down = NULL;
 			idx = RBTDB_HEADERNODE(newheader)->locknum;
 			if (IS_CACHE(rbtdb)) {
-				if (ZEROTTL(newheader)) {
-					newheader->last_used =
-						rbtdb->last_used + 1;
-					ISC_LIST_APPEND(rbtdb->lru[idx],
-							newheader, link);
-				} else {
-					ISC_LIST_PREPEND(rbtdb->lru[idx],
-							 newheader, link);
-				}
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 				newheader->heap = rbtdb->heaps[idx];
@@ -2983,15 +2950,6 @@ find_header:
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 				newheader->heap = rbtdb->heaps[idx];
-				if (ZEROTTL(newheader)) {
-					newheader->last_used =
-						rbtdb->last_used + 1;
-					ISC_LIST_APPEND(rbtdb->lru[idx],
-							newheader, link);
-				} else {
-					ISC_LIST_PREPEND(rbtdb->lru[idx],
-							 newheader, link);
-				}
 			} else if (RESIGN(newheader)) {
 				dns__zonerbt_resigninsert(rbtdb, idx,
 							  newheader);
@@ -3041,13 +2999,6 @@ find_header:
 		if (IS_CACHE(rbtdb)) {
 			isc_heap_insert(rbtdb->heaps[idx], newheader);
 			newheader->heap = rbtdb->heaps[idx];
-			if (ZEROTTL(newheader)) {
-				ISC_LIST_APPEND(rbtdb->lru[idx], newheader,
-						link);
-			} else {
-				ISC_LIST_PREPEND(rbtdb->lru[idx], newheader,
-						 link);
-			}
 		} else if (RESIGN(newheader)) {
 			dns__zonerbt_resigninsert(rbtdb, idx, newheader);
 			dns__zonerbt_resigndelete(rbtdb, rbtversion,
@@ -3285,7 +3236,6 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 	*newheader = (dns_slabheader_t){
 		.type = DNS_TYPEPAIR_VALUE(rdataset->type, rdataset->covers),
 		.trust = rdataset->trust,
-		.last_used = now,
 		.node = rbtnode,
 	};
 
@@ -3381,11 +3331,6 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 	}
 	if (delegating || newnsec || cache_is_overmem) {
 		TREE_WRLOCK(&rbtdb->tree_lock, &tlocktype);
-	}
-
-	if (cache_is_overmem) {
-		dns__cacherbt_overmem(rbtdb, newheader,
-				      &tlocktype DNS__DB_FLARG_PASS);
 	}
 
 	NODE_WRLOCK(&rbtdb->node_locks[rbtnode->locknum].lock, &nlocktype);
@@ -3503,7 +3448,6 @@ dns__rbtdb_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 	newheader->closest = NULL;
 	atomic_init(&newheader->count,
 		    atomic_fetch_add_relaxed(&init_count, 1));
-	newheader->last_used = 0;
 	newheader->node = rbtnode;
 	newheader->db = (dns_db_t *)rbtdb;
 	if ((rdataset->attributes & DNS_RDATASETATTR_RESIGN) != 0) {
@@ -4899,12 +4843,6 @@ dns__rbtdb_deletedata(dns_db_t *db ISC_ATTR_UNUSED,
 		update_rrsetstats(rbtdb->rrsetstats, header->type,
 				  atomic_load_acquire(&header->attributes),
 				  false);
-
-		if (ISC_LINK_LINKED(header, link)) {
-			int idx = RBTDB_HEADERNODE(header)->locknum;
-			INSIST(IS_CACHE(rbtdb));
-			ISC_LIST_UNLINK(rbtdb->lru[idx], header, link);
-		}
 
 		if (header->noqname != NULL) {
 			dns_slabheader_freeproof(db->mctx, &header->noqname);
