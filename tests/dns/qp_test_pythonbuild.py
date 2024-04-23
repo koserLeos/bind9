@@ -7,7 +7,7 @@ ffibuilder = FFI()
 # globals needed to use the shared object. It must be in valid C syntax.
 ffibuilder.cdef(
     """
-typedef int... isc_result_t;
+typedef enum {ISC_R_SUCCESS, ISC_R_EXISTS, ISC_R_NOTFOUND, ...} isc_result_t;
 typedef ... isc_mem_t;
 typedef ... isc_buffer_t;
 
@@ -16,6 +16,9 @@ typedef struct { ...; } dns_fixedname_t;
 
 typedef int... dns_qpshift_t;
 typedef dns_qpshift_t dns_qpkey_t[...];
+typedef ... dns_qp_t;
+typedef ... dns_qpreadable_t;
+typedef struct { ...; } dns_qpmethods_t;
 
 void
 isc__mem_create(isc_mem_t **);
@@ -46,6 +49,23 @@ dns_qpkey_toname(const dns_qpkey_t key, size_t keylen, dns_name_t *name);
 
 size_t
 dns_qpkey_fromname(dns_qpkey_t key, const dns_name_t *name);
+
+void
+dns_qp_create(isc_mem_t *mctx, const dns_qpmethods_t *methods, void *uctx,
+	      dns_qp_t **qptp);
+
+extern const dns_qpmethods_t qp_methods;
+
+isc_result_t
+dns_qp_insert(dns_qp_t *qp, void *pval, uint32_t ival);
+
+isc_result_t
+dns_qp_deletename(dns_qp_t *qp, const dns_name_t *name, void **pval_r,
+		  uint32_t *ival_r);
+
+isc_result_t
+dns_qp_getname(dns_qpreadable_t qpr, const dns_name_t *name, void **pval_r,
+	       uint32_t *ival_r);
 """
 )
 
@@ -61,6 +81,26 @@ ffibuilder.set_source(
     #include "dns/name.h"
     #include "dns/fixedname.h"
     #include "dns/qp.h"
+
+    static void
+    noopref(void *uctx, void *pval, uint32_t ival) {}
+
+    static void
+    noopgetname(void *uctx, char *buf, size_t size) {}
+
+    size_t
+    qp_makekey(dns_qpkey_t key, void *uctx, void *pval,
+           uint32_t ival) {
+        dns_name_t *name = pval;
+        return dns_qpkey_fromname(key, name);
+    }
+
+    const dns_qpmethods_t qp_methods = {
+        noopref,
+        noopref,
+        qp_makekey,
+        noopgetname,
+    };
 """,
     libraries=["dns"],
     include_dirs=["../../lib/isc/include", "../../lib/dns/include"],
