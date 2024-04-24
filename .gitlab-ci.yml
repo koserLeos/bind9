@@ -1036,7 +1036,7 @@ gcc:focal:amd64:
   variables:
     CC: gcc
     CFLAGS: "${CFLAGS_COMMON} -Og"
-    EXTRA_CONFIGURE: "--with-libidn2 --with-gssapi=/usr --disable-geoip"
+    EXTRA_CONFIGURE: "--with-libidn2 --with-gssapi=/usr --disable-geoip --disable-doh"
   <<: *ubuntu_focal_amd64_image
   <<: *build_job
 
