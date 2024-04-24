@@ -182,6 +182,10 @@ stages:
   image: "$CI_REGISTRY_IMAGE:ubuntu-jammy-amd64"
   <<: *linux_amd64
 
+.ubuntu-noble-amd64: &ubuntu_noble_amd64_image
+  image: "$CI_REGISTRY_IMAGE:ubuntu-noble-amd64"
+  <<: *linux_amd64
+
 # Windows
 
 .windows-server-2016-amd64: &windows_server_2016_amd64_image
@@ -781,6 +785,30 @@ unit:gcc:buster:amd64:
   <<: *api_pipelines_schedules_tags_triggers_web_triggering_rules
   needs:
     - job: gcc:buster:amd64
+      artifacts: true
+
+# Jobs for regular GCC builds on Ubuntu 24.04 Noble Numbat (amd64)
+
+gcc:noble:amd64:
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON}"
+    EXTRA_CONFIGURE: "--with-libidn2"
+  <<: *ubuntu_noble_amd64_image
+  <<: *build_job
+
+system:gcc:noble:amd64:
+  <<: *ubuntu_noble_amd64_image
+  <<: *system_test_job
+  needs:
+    - job: gcc:noble:amd64
+      artifacts: true
+
+unit:gcc:noble:amd64:
+  <<: *ubuntu_noble_amd64_image
+  <<: *unit_test_job
+  needs:
+    - job: gcc:noble:amd64
       artifacts: true
 
 # Jobs for Debian 11 "bullseye" (amd64)
