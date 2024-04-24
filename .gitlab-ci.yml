@@ -608,7 +608,7 @@ danger:
     GIT_DEPTH: 1000
   needs: []
   script:
-    - pip install git+https://gitlab.isc.org/isc-projects/hazard.git
+    - pip install git+https://gitlab.isc.org/isc-projects/hazard.git@michal/add-support-for-cross-project-merge-requests
     - hazard
   only:
     refs:
