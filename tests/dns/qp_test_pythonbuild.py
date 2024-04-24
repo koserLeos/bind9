@@ -7,7 +7,7 @@ ffibuilder = FFI()
 # globals needed to use the shared object. It must be in valid C syntax.
 ffibuilder.cdef(
     """
-typedef enum {ISC_R_SUCCESS, ISC_R_EXISTS, ISC_R_NOTFOUND, ...} isc_result_t;
+typedef enum {ISC_R_SUCCESS, ISC_R_EXISTS, ISC_R_NOTFOUND, ISC_R_NOMORE, ISC_R_FAILURE, ...} isc_result_t;
 typedef ... isc_mem_t;
 typedef ... isc_buffer_t;
 
@@ -17,8 +17,26 @@ typedef struct { ...; } dns_fixedname_t;
 typedef int... dns_qpshift_t;
 typedef dns_qpshift_t dns_qpkey_t[...];
 typedef ... dns_qp_t;
-typedef ... dns_qpreadable_t;
+typedef ... dns_qpmulti_t;
+typedef union { ...; } dns_qpreadable_t;
 typedef struct { ...; } dns_qpmethods_t;
+
+typedef struct { ...; } dns_qpiter_t;
+
+// FIXME: first argument's type is modified to make it work with CFFI
+void
+dns_qpiter_init(dns_qp_t *qpr, dns_qpiter_t *qpi);
+
+isc_result_t
+dns_qpiter_next(dns_qpiter_t *qpi, dns_name_t *name, void **pval_r,
+		uint32_t *ival_r);
+isc_result_t
+dns_qpiter_prev(dns_qpiter_t *qpi, dns_name_t *name, void **pval_r,
+		uint32_t *ival_r);
+
+isc_result_t
+dns_qpiter_current(dns_qpiter_t *qpi, dns_name_t *name, void **pval_r,
+		   uint32_t *ival_r);
 
 void
 isc__mem_create(isc_mem_t **);
@@ -53,6 +71,10 @@ dns_qpkey_fromname(dns_qpkey_t key, const dns_name_t *name);
 void
 dns_qp_create(isc_mem_t *mctx, const dns_qpmethods_t *methods, void *uctx,
 	      dns_qp_t **qptp);
+
+void
+dns_qpmulti_create(isc_mem_t *mctx, const dns_qpmethods_t *methods, void *uctx,
+	      dns_qpmulti_t **qpmp);
 
 extern const dns_qpmethods_t qp_methods;
 

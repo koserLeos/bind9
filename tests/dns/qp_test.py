@@ -100,13 +100,40 @@ def test_fromname_toname_roundtrip(pyname_source: dns.name.Name) -> None:
 
     pyname_target = iscname_target.pyname()
     assert pyname_source == pyname_target
-    print(pyname_source)
 
 
-class QPMultiTest(RuleBasedStateMachine):
+class QPIterator:
+    def __init__(self, qp, model):
+        self.qp = qp
+        self.citer = ffi.new("dns_qpiter_t *")
+        isclibs.dns_qpiter_init(self.qp, self.citer)
+        self.expected = sorted(model.items())
+
+    def _step(self, cfunc):
+        iscname = ISCName()
+        pval_r = ffi.new("void **")
+        ival_r = ffi.new("uint32_t *")
+        ret = cfunc(self.citer, iscname.cobj, pval_r, ival_r)
+        if ret == isclibs.ISC_R_NOMORE:
+            raise StopIteration
+        elif ret == isclibs.ISC_R_FAILURE:
+            raise RuntimeError
+        assert ret == isclibs.ISC_R_SUCCESS
+        return iscname, pval_r[0], ival_r[0]
+
+    def next_(self):
+        return self._step(isclibs.dns_qpiter_next)
+
+    def prev(self):
+        return self._step(isclibs.dns_qpiter_prev)
+
+    def current(self):
+        return self._step(isclibs.dns_qpiter_current)
+
+
+class BareQPTest(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
-        self.changed = 0
 
         self.qpptr = ffi.new("dns_qp_t **")
         isclibs.dns_qp_create(MCTX, ffi.addressof(isclibs.qp_methods), NULL, self.qpptr)
@@ -122,8 +149,6 @@ class QPMultiTest(RuleBasedStateMachine):
 
         iscname = ISCName(pyname)
 
-        self.changed += 1
-
         ret = isclibs.dns_qp_insert(self.qp, iscname.cobj, 0)
         if pyname not in self.model:
             assert ret == isclibs.ISC_R_SUCCESS
@@ -136,34 +161,52 @@ class QPMultiTest(RuleBasedStateMachine):
     @rule(pyname=names)
     def delete(self, pyname):
         hypothesis.event("DELETE")
-        iscname = ISCName(pyname)
-
         exists = pyname in self.model
 
-        pval = ffi.new('void **')
+        iscname = ISCName(pyname)
+
+        pval = ffi.new("void **")
         ret = isclibs.dns_qp_deletename(self.qp, iscname.cobj, pval, NULL)
         if exists:
             assert ret == isclibs.ISC_R_SUCCESS
             assert pval[0] == self.model[pyname].cobj
             del self.model[pyname]
-            self.changed += 1
         else:
             assert ret == isclibs.ISC_R_NOTFOUND
 
-    # Triggers hypothesis.errors.FailedHealthCheck: Data generation is extremely slow - WHY?
-    # @precondition(lambda self: self.changed)
-    # @rule()
-    # def values_agree(self):
-    #    hypothesis.event("CHECK", len(self.zone.nodes))
-    #    assert set(self.zone) == set(self.model)
-    #    self.changed = False
+    @rule()
+    def values_agree(self):
+        hypothesis.event("CHECK", len(self.model))
+        tmp_iter = QPIterator(self.qp, self.model)
+        qp_count = 0
+
+        # not-yet positioned iterator must always fail
+        with pytest.raises(RuntimeError):
+            got_iscname, got_cobj, _ = tmp_iter.current()
+
+        for exp_pyname, exp_iscname in tmp_iter.expected:
+            try:
+                got_iscname, got_cobj, _ = tmp_iter.next_()
+                qp_count += 1
+            except StopIteration:
+                pass
+            else:
+                assert exp_pyname == got_iscname.pyname()
+                assert exp_iscname.cobj == ffi.cast("dns_name_t *", got_cobj)
+
+        assert qp_count == len(
+            tmp_iter.expected
+        ), "number of keys during full iteration must match"
 
 
-TestTrees = QPMultiTest.TestCase
+TestTrees = BareQPTest.TestCase
 # TestTrees.settings = hypothesis.settings(
 # max_examples=50, stateful_step_count=10
 # )
 
 # Or just run with pytest's unittest support
 if __name__ == "__main__":
-    unittest.main()
+    state = BareQPTest()
+    names_0 = state.add(pyname=dns.name.root)
+    state.values_agree()
+    # unittest.main()
