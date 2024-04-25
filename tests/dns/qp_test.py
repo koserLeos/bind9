@@ -108,43 +108,89 @@ class QPIterator:
         self.iter_generation = testcase.generation
         self.qp = testcase.qp
         self.citer = ffi.new("dns_qpiter_t *")
-        print(isclibs.dns_qpiter_init)
+        #print(id(self), isclibs.dns_qpiter_init)
         isclibs.dns_qpiter_init(self.qp, self.citer)
         self.expected = sorted(testcase.model.items())
+        self.position = None
 
     def _step(self, cfunc):
         iscname = ISCName()
-        pval_r = ffi.new("void **")
-        ival_r = ffi.new("uint32_t *")
-        ret = cfunc(self.citer, iscname.cobj, pval_r, ival_r)
-        print("_step", cfunc, "returned", ret)
-        if ret == isclibs.ISC_R_NOMORE:
-            raise StopIteration(cfunc)
-        elif ret == isclibs.ISC_R_FAILURE:
-            raise RuntimeError(cfunc)
-        print("  -> iterator returned: ", iscname.pyname(), pval_r[0], ival_r[0])
-        assert ret == isclibs.ISC_R_SUCCESS
-        return iscname, pval_r[0], ival_r[0]
+        got_pval_r = ffi.new("void **")
+        got_ival_r = ffi.new("uint32_t *")
+        got_ret = cfunc(self.citer, iscname.cobj, got_pval_r, got_ival_r)
+        #print(
+        #    id(self),
+        #    "_step",
+        #    cfunc,
+        #    "\n-> returned: ",
+        #    got_ret,
+        #    iscname.pyname(),
+        #    got_pval_r[0],
+        #    got_ival_r[0],
+        # )
+        return got_ret, iscname, got_pval_r[0], got_ival_r[0]
+
+    def _check_return_values(self, got_iscname, got_pval_r, _got_ival_r):
+        assert self.position is not None, "usage error in test script"
+        exp_pyname, exp_iscname = self.expected[self.position]
+        assert exp_pyname == got_iscname.pyname()
+        assert exp_iscname.cobj == got_pval_r
 
     def is_valid(self):
         """Check if QP this iterator referenced is supposed to be still valid"""
         return self.iter_generation == self.testcase.generation
 
     def next_(self):
-        return self._step(isclibs.dns_qpiter_next)
+        got_ret, got_iscname, got_pval_r, got_ival_r = self._step(
+            isclibs.dns_qpiter_next
+        )
+        if len(self.expected) == 0 or self.position == len(self.expected) - 1:
+            assert got_ret == isclibs.ISC_R_NOMORE
+            self.position = None
+        else:
+            assert got_ret == isclibs.ISC_R_SUCCESS
+            if self.position is None:
+                self.position = 0
+            else:
+                self.position += 1
+            self._check_return_values(got_iscname, got_pval_r, got_ival_r)
+        return got_ret, got_iscname, got_pval_r, got_ival_r
 
     def prev(self):
-        return self._step(isclibs.dns_qpiter_prev)
+        got_ret, got_iscname, got_pval_r, got_ival_r = self._step(
+            isclibs.dns_qpiter_prev
+        )
+        if len(self.expected) == 0 or self.position == 0:
+            assert got_ret == isclibs.ISC_R_NOMORE
+            self.position = None
+        else:
+            assert got_ret == isclibs.ISC_R_SUCCESS
+            if self.position is None:
+                self.position = len(self.expected) - 1
+            else:
+                self.position -= 1
+            self._check_return_values(got_iscname, got_pval_r, got_ival_r)
+        return got_ret, got_iscname, got_pval_r, got_ival_r
 
     def current(self):
-        return self._step(isclibs.dns_qpiter_current)
+        got_ret, got_iscname, got_pval_r, got_ival_r = self._step(
+            isclibs.dns_qpiter_current
+        )
+
+        if self.position is None:
+            assert got_ret == isclibs.ISC_R_FAILURE
+            return
+
+        assert got_ret == isclibs.ISC_R_SUCCESS
+        self._check_return_values(got_iscname, got_pval_r, got_ival_r)
+        return got_ret, got_iscname, got_pval_r, got_ival_r
 
 
 class BareQPTest(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self.generation = 0
-        print("TEST RESTART FROM SCRATCH, GENERATION", self.generation)
+        #print("TEST RESTART FROM SCRATCH, GENERATION", self.generation)
 
         self.qpptr = ffi.new("dns_qp_t **")
         isclibs.dns_qp_create(MCTX, ffi.addressof(isclibs.qp_methods), NULL, self.qpptr)
@@ -153,16 +199,17 @@ class BareQPTest(RuleBasedStateMachine):
         self.model = {}
 
     names = Bundle("names")
+    iterators = Bundle("iterators")
 
     def invalidate_refs(self):
         """Mark current QP as changed - iterators which depend on unchanged state are now invalid"""
         self.generation += 1
-        print("GENERATION ", self.generation)
+        #print("GENERATION ", self.generation)
 
     @rule(target=names, pyname=dns_names())
     def add(self, pyname):
         hypothesis.event("ADD")
-        print("ADD", pyname)
+        #print("ADD", pyname)
         self.invalidate_refs()
 
         iscname = ISCName(pyname)
@@ -179,7 +226,7 @@ class BareQPTest(RuleBasedStateMachine):
     @rule(pyname=names)
     def delete(self, pyname):
         hypothesis.event("DELETE")
-        print("DELETE", pyname)
+        #print("DELETE", pyname)
         self.invalidate_refs()
         exists = pyname in self.model
 
@@ -194,57 +241,38 @@ class BareQPTest(RuleBasedStateMachine):
         else:
             assert ret == isclibs.ISC_R_NOTFOUND
 
-    def _iterate_compare(self, tmp_iter, expected, stepfunc):
-        """QP must be non-empty, and must be positioned on first item"""
+    @rule(target=iterators)
+    def iter_init(self):
+        return QPIterator(self)
 
-        got_iscname, got_cobj, _ = tmp_iter.current()
-        qp_count = 1
-        for exp_pyname, exp_iscname in expected:
-            assert exp_pyname == got_iscname.pyname()
-            assert exp_iscname.cobj == ffi.cast("dns_name_t *", got_cobj)
-
-            try:
-                got_iscname, got_cobj, _ = stepfunc()
-                qp_count += 1
-            except StopIteration:
-                pass
-
-        with pytest.raises(StopIteration):
-            # QP must not have more items than we recorded in model
-            stepfunc()
-
-        assert qp_count == len(
-            tmp_iter.expected
-        ), "number of keys during full forward iteration must match"
+    @rule(iter_=iterators)
+    def iter_next(self, iter_):
+        if not iter_.is_valid():
+            return
 
     @rule()
-    def values_agree(self):
+    def values_agree_forward(self):
         """Iterate through all values and check ordering"""
         tmp_iter = QPIterator(self)
-        hypothesis.event("CHECK", len(tmp_iter.expected))
+        hypothesis.event("values_agree_forward", len(tmp_iter.expected))
 
-        # not-yet positioned iterator must always fail
-        with pytest.raises(RuntimeError):
-            got_iscname, got_cobj, _ = tmp_iter.current()
+        qp_count = 0
+        while (got_ret := tmp_iter.next_()[0]) == isclibs.ISC_R_SUCCESS:
+            qp_count += 1
 
-        # prev() gives the last entry unless the QP is empty
-        try:
-            got_iscname, got_cobj, _ = tmp_iter.prev()
-        except StopIteration:
-            assert len(tmp_iter.expected) == 0
+        assert qp_count == len(tmp_iter.expected)
 
-        # try next() will fail if the set is empty or has only one item
-        try:
-            got_iscname, got_cobj, _ = tmp_iter.next_()
-        except StopIteration:
-            assert len(tmp_iter.expected) <= 1
-            if len(tmp_iter.expected) == 0:
-                return
+    @rule()
+    def values_agree_backwards(self):
+        """Iterate through all values and check ordering"""
+        tmp_iter = QPIterator(self)
+        hypothesis.event("values_agree_backwards", len(tmp_iter.expected))
 
-        self._iterate_compare(tmp_iter, sorted(tmp_iter.expected), tmp_iter.next_)
-        self._iterate_compare(
-            tmp_iter, sorted(tmp_iter.expected, reverse=True), tmp_iter.prev
-        )
+        qp_count = 0
+        while (got_ret := tmp_iter.prev()[0]) == isclibs.ISC_R_SUCCESS:
+            qp_count += 1
+
+        assert qp_count == len(tmp_iter.expected)
 
 
 TestTrees = BareQPTest.TestCase
