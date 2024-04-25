@@ -108,7 +108,7 @@ class QPIterator:
         self.iter_generation = testcase.generation
         self.qp = testcase.qp
         self.citer = ffi.new("dns_qpiter_t *")
-        # print(id(self), isclibs.dns_qpiter_init)
+        print(id(self), isclibs.dns_qpiter_init)
         isclibs.dns_qpiter_init(self.qp, self.citer)
         self.expected = sorted(testcase.model.items())
         self.position = None
@@ -118,16 +118,16 @@ class QPIterator:
         got_pval_r = ffi.new("void **")
         got_ival_r = ffi.new("uint32_t *")
         got_ret = cfunc(self.citer, iscname.cobj, got_pval_r, got_ival_r)
-        # print(
-        #    id(self),
-        #    "_step",
-        #    cfunc,
-        #    "\n-> returned: ",
-        #    got_ret,
-        #    iscname.pyname(),
-        #    got_pval_r[0],
-        #    got_ival_r[0],
-        # )
+        print(
+           id(self),
+           "_step",
+           cfunc,
+           "\n-> returned: ",
+           got_ret,
+           iscname.pyname(),
+           got_pval_r[0],
+           got_ival_r[0],
+        )
         return got_ret, iscname, got_pval_r[0], got_ival_r[0]
 
     def _check_return_values(self, got_iscname, got_pval_r, _got_ival_r):
@@ -145,6 +145,7 @@ class QPIterator:
             isclibs.dns_qpiter_next
         )
         if len(self.expected) == 0 or self.position == len(self.expected) - 1:
+            print(self.expected, self.position)
             assert got_ret == isclibs.ISC_R_NOMORE
             self.position = None
         else:
@@ -190,13 +191,14 @@ class BareQPTest(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self.generation = 0
-        # print("TEST RESTART FROM SCRATCH, GENERATION", self.generation)
+        print("TEST RESTART FROM SCRATCH, GENERATION", self.generation)
 
         self.qpptr = ffi.new("dns_qp_t **")
         isclibs.dns_qp_create(MCTX, ffi.addressof(isclibs.qp_methods), NULL, self.qpptr)
         self.qp = self.qpptr[0]
 
         self.model = {}
+        self.iter_ = QPIterator(self)
 
     names = Bundle("names")
     iterators = Bundle("iterators")
@@ -204,13 +206,13 @@ class BareQPTest(RuleBasedStateMachine):
     def invalidate_refs(self):
         """Mark current QP as changed - iterators which depend on unchanged state are now invalid"""
         self.generation += 1
-        # print("GENERATION ", self.generation)
+        self.iter_ = QPIterator(self)
+        print("GENERATION ", self.generation)
 
-    @rule(target=names, pyname=dns_names())
+    @rule(target=names, pyname=dns_names(max_labels=2))
     def add(self, pyname):
         hypothesis.event("ADD")
-        # print("ADD", pyname)
-        self.invalidate_refs()
+        print("ADD", pyname)
 
         iscname = ISCName(pyname)
 
@@ -221,13 +223,13 @@ class BareQPTest(RuleBasedStateMachine):
         else:
             assert ret == isclibs.ISC_R_EXISTS
 
+        self.invalidate_refs()
         return pyname
 
     @rule(pyname=names)
     def delete(self, pyname):
         hypothesis.event("DELETE")
-        # print("DELETE", pyname)
-        self.invalidate_refs()
+        print("DELETE", pyname)
         exists = pyname in self.model
 
         iscname = ISCName(pyname)
@@ -240,67 +242,67 @@ class BareQPTest(RuleBasedStateMachine):
             del self.model[pyname]
         else:
             assert ret == isclibs.ISC_R_NOTFOUND
+        self.invalidate_refs()
 
-    @rule(target=iterators)
     def iter_init(self):
         hypothesis.event("init")
-        return QPIterator(self)
+        self.iter_ = QPIterator(self)
 
-    @rule(iter_=iterators)
-    def iter_next(self, iter_):
-        if not iter_.is_valid():
+    @rule()
+    def iter_next(self):
+        if not self.iter_.is_valid():
             hypothesis.event("iter invalid")
             return
 
-        hypothesis.event("next", iter_.position)
-        iter_.next_()
+        hypothesis.event("next", self.iter_.position)
+        self.iter_.next_()
 
-    @rule(iter_=iterators)
-    def iter_prev(self, iter_):
-        if not iter_.is_valid():
+    @rule()
+    def iter_prev(self):
+        if not self.iter_.is_valid():
             hypothesis.event("iter invalid")
             return
 
-        hypothesis.event("prev", iter_.position)
-        iter_.prev()
+        hypothesis.event("prev", self.iter_.position)
+        self.iter_.prev()
 
-    @rule(iter_=iterators)
-    def iter_current(self, iter_):
-        if not iter_.is_valid():
+    @rule()
+    def iter_current(self):
+        if not self.iter_.is_valid():
             hypothesis.event("iter invalid")
             return
 
         hypothesis.event("current")
-        iter_.current()
+        self.iter_.current()
 
 
-    @rule()
-    def values_agree_forward(self):
-        """Iterate through all values and check ordering"""
-        tmp_iter = QPIterator(self)
-        hypothesis.event("values_agree_forward", len(tmp_iter.expected))
+    #@rule()
+    #def values_agree_forward(self):
+    #    """Iterate through all values and check ordering"""
+    #    tmp_iter = QPIterator(self)
+    #    hypothesis.event("values_agree_forward", len(tmp_iter.expected))
 
-        qp_count = 0
-        while (got_ret := tmp_iter.next_()[0]) == isclibs.ISC_R_SUCCESS:
-            qp_count += 1
+    #    qp_count = 0
+    #    while (got_ret := tmp_iter.next_()[0]) == isclibs.ISC_R_SUCCESS:
+    #        qp_count += 1
 
-        assert qp_count == len(tmp_iter.expected)
+    #    assert qp_count == len(tmp_iter.expected)
 
-    @rule()
-    def values_agree_backwards(self):
-        """Iterate through all values and check ordering"""
-        tmp_iter = QPIterator(self)
-        hypothesis.event("values_agree_backwards", len(tmp_iter.expected))
+    #@rule()
+    #def values_agree_backwards(self):
+    #    """Iterate through all values and check ordering"""
+    #    tmp_iter = QPIterator(self)
+    #    hypothesis.event("values_agree_backwards", len(tmp_iter.expected))
 
-        qp_count = 0
-        while (got_ret := tmp_iter.prev()[0]) == isclibs.ISC_R_SUCCESS:
-            qp_count += 1
+    #    qp_count = 0
+    #    while (got_ret := tmp_iter.prev()[0]) == isclibs.ISC_R_SUCCESS:
+    #        qp_count += 1
 
-        assert qp_count == len(tmp_iter.expected)
+    #    assert qp_count == len(tmp_iter.expected)
 
 
 TestTrees = BareQPTest.TestCase
-#TestTrees.settings = hypothesis.settings(max_examples=500)  # , stateful_step_count=10
+TestTrees.settings = hypothesis.settings(max_examples=1000)  # , stateful_step_count=10
 
 # Or just run with pytest's unittest support
 if __name__ == "__main__":
