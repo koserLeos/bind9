@@ -108,7 +108,7 @@ class QPIterator:
         self.iter_generation = testcase.generation
         self.qp = testcase.qp
         self.citer = ffi.new("dns_qpiter_t *")
-        #print(id(self), isclibs.dns_qpiter_init)
+        # print(id(self), isclibs.dns_qpiter_init)
         isclibs.dns_qpiter_init(self.qp, self.citer)
         self.expected = sorted(testcase.model.items())
         self.position = None
@@ -118,7 +118,7 @@ class QPIterator:
         got_pval_r = ffi.new("void **")
         got_ival_r = ffi.new("uint32_t *")
         got_ret = cfunc(self.citer, iscname.cobj, got_pval_r, got_ival_r)
-        #print(
+        # print(
         #    id(self),
         #    "_step",
         #    cfunc,
@@ -190,7 +190,7 @@ class BareQPTest(RuleBasedStateMachine):
     def __init__(self):
         super().__init__()
         self.generation = 0
-        #print("TEST RESTART FROM SCRATCH, GENERATION", self.generation)
+        # print("TEST RESTART FROM SCRATCH, GENERATION", self.generation)
 
         self.qpptr = ffi.new("dns_qp_t **")
         isclibs.dns_qp_create(MCTX, ffi.addressof(isclibs.qp_methods), NULL, self.qpptr)
@@ -204,12 +204,12 @@ class BareQPTest(RuleBasedStateMachine):
     def invalidate_refs(self):
         """Mark current QP as changed - iterators which depend on unchanged state are now invalid"""
         self.generation += 1
-        #print("GENERATION ", self.generation)
+        # print("GENERATION ", self.generation)
 
     @rule(target=names, pyname=dns_names())
     def add(self, pyname):
         hypothesis.event("ADD")
-        #print("ADD", pyname)
+        # print("ADD", pyname)
         self.invalidate_refs()
 
         iscname = ISCName(pyname)
@@ -226,7 +226,7 @@ class BareQPTest(RuleBasedStateMachine):
     @rule(pyname=names)
     def delete(self, pyname):
         hypothesis.event("DELETE")
-        #print("DELETE", pyname)
+        # print("DELETE", pyname)
         self.invalidate_refs()
         exists = pyname in self.model
 
@@ -243,12 +243,36 @@ class BareQPTest(RuleBasedStateMachine):
 
     @rule(target=iterators)
     def iter_init(self):
+        hypothesis.event("init")
         return QPIterator(self)
 
     @rule(iter_=iterators)
     def iter_next(self, iter_):
         if not iter_.is_valid():
+            hypothesis.event("iter invalid")
             return
+
+        hypothesis.event("next", iter_.position)
+        iter_.next_()
+
+    @rule(iter_=iterators)
+    def iter_prev(self, iter_):
+        if not iter_.is_valid():
+            hypothesis.event("iter invalid")
+            return
+
+        hypothesis.event("prev", iter_.position)
+        iter_.prev()
+
+    @rule(iter_=iterators)
+    def iter_current(self, iter_):
+        if not iter_.is_valid():
+            hypothesis.event("iter invalid")
+            return
+
+        hypothesis.event("current")
+        iter_.current()
+
 
     @rule()
     def values_agree_forward(self):
@@ -276,13 +300,8 @@ class BareQPTest(RuleBasedStateMachine):
 
 
 TestTrees = BareQPTest.TestCase
-# TestTrees.settings = hypothesis.settings(
-# max_examples=50, stateful_step_count=10
-# )
+#TestTrees.settings = hypothesis.settings(max_examples=500)  # , stateful_step_count=10
 
 # Or just run with pytest's unittest support
 if __name__ == "__main__":
-    state = BareQPTest()
-    names_0 = state.add(pyname=dns.name.root)
-    state.values_agree()
-    # unittest.main()
+    unittest.main()
