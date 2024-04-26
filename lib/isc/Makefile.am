@@ -260,7 +260,11 @@ libisc_la_LIBADD +=		\
 endif HAVE_LIBXML2
 
 if HAVE_LIBNGTCP2
+libisc_la_HEADERS +=			\
+	include/isc/ngtcp2_crypto.h
+
 libisc_la_SOURCES +=		\
+	quic/ngtcp2_crypto.c	\
 	quic/quic_crypto.c	\
 	quic/quic_crypto.h	\
 	quic/quic-int.h	\
