@@ -7,7 +7,7 @@ ffibuilder = FFI()
 # globals needed to use the shared object. It must be in valid C syntax.
 ffibuilder.cdef(
     """
-typedef enum {ISC_R_SUCCESS, ISC_R_EXISTS, ISC_R_NOTFOUND, ISC_R_NOMORE, ISC_R_FAILURE, ...} isc_result_t;
+typedef enum {ISC_R_SUCCESS, ISC_R_EXISTS, ISC_R_NOTFOUND, ISC_R_NOMORE, ISC_R_FAILURE, DNS_R_PARTIALMATCH, ...} isc_result_t;
 typedef ... isc_mem_t;
 typedef ... isc_buffer_t;
 
@@ -22,6 +22,7 @@ typedef union { ...; } dns_qpreadable_t;
 typedef struct { ...; } dns_qpmethods_t;
 
 typedef struct { ...; } dns_qpiter_t;
+typedef struct { ...; } dns_qpchain_t;
 
 // FIXME: first argument's type is modified to make it work with CFFI
 void
@@ -88,6 +89,13 @@ dns_qp_deletename(dns_qp_t *qp, const dns_name_t *name, void **pval_r,
 isc_result_t
 dns_qp_getname(dns_qpreadable_t qpr, const dns_name_t *name, void **pval_r,
 	       uint32_t *ival_r);
+
+// FIXME: first argument's type is modified to make it work with CFFI
+isc_result_t
+dns_qp_lookup(dns_qp_t *qpr, const dns_name_t *name,
+	      dns_name_t *foundname, dns_qpiter_t *iter, dns_qpchain_t *chain,
+	      void **pval_r, uint32_t *ival_r);
+
 """
 )
 
