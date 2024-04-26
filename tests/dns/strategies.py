@@ -39,7 +39,7 @@ def dns_names(
     prefix: dns.name.Name = dns.name.empty,
     suffix: dns.name.Name = dns.name.root,
     min_labels: int = 1,
-    max_labels: int = 127,
+    max_labels: int = 128,
 ) -> dns.name.Name:
     """
     This is a hypothesis strategy to be used for generating DNS names with given `prefix`, `suffix`
@@ -82,7 +82,7 @@ def dns_names(
             "Maximal length name of name execeeded by prefix and suffix. Strategy won't generate any names.",
             RuntimeWarning,
         )
-        return nothing()
+        return draw(nothing())
 
     minimum_number_of_labels_to_generate = max(0, min_labels - len(outer_name.labels))
     maximum_number_of_labels_to_generate = max_labels - len(outer_name.labels)
@@ -91,7 +91,7 @@ def dns_names(
             "Maximal number of labels execeeded by prefix and suffix. Strategy won't generate any names.",
             RuntimeWarning,
         )
-        return nothing()
+        return draw(nothing())
 
     maximum_number_of_labels_to_generate = min(
         maximum_number_of_labels_to_generate, remaining_bytes // 2
@@ -101,14 +101,14 @@ def dns_names(
             f"Minimal number set to {minimum_number_of_labels_to_generate}, but in {remaining_bytes} bytes there is only space for maximum of {maximum_number_of_labels_to_generate} labels.",
             RuntimeWarning,
         )
-        return nothing()
+        return draw(nothing())
 
     if remaining_bytes == 0 or maximum_number_of_labels_to_generate == 0:
         warn(
             f"Strategy will return only one name ({outer_name}) as it exactly matches byte or label length limit.",
             RuntimeWarning,
         )
-        return just(outer_name)
+        return draw(just(outer_name))
 
     chosen_number_of_labels_to_generate = draw(
         integers(
