@@ -117,10 +117,13 @@ class QPIterator:
         self.testcase = testcase
         self.iter_generation = testcase.generation
         self.qp = testcase.qp
+
         self.citer = ffi.new("dns_qpiter_t *")
         # print(id(self), isclibs.dns_qpiter_init)
         isclibs.dns_qpiter_init(self.qp, self.citer)
-        self.expected = sorted(testcase.model.items())
+
+        self.model = testcase.model.copy()
+        self.sorted = sorted(self.model)
         self.position = None
 
     def _step(self, cfunc):
@@ -142,7 +145,8 @@ class QPIterator:
 
     def _check_return_values(self, got_iscname, got_pval_r, _got_ival_r):
         assert self.position is not None, "usage error in test script"
-        exp_pyname, exp_iscname = self.expected[self.position]
+        exp_pyname = self.sorted[self.position]
+        exp_iscname = self.model[exp_pyname]
         assert exp_pyname == got_iscname.pyname()
         assert exp_iscname.cobj == got_pval_r
 
@@ -154,8 +158,7 @@ class QPIterator:
         got_ret, got_iscname, got_pval_r, got_ival_r = self._step(
             isclibs.dns_qpiter_next
         )
-        if len(self.expected) == 0 or self.position == len(self.expected) - 1:
-            print(self.expected, self.position)
+        if len(self.model) == 0 or self.position == len(self.model) - 1:
             assert got_ret == isclibs.ISC_R_NOMORE
             self.position = None
         else:
@@ -171,13 +174,13 @@ class QPIterator:
         got_ret, got_iscname, got_pval_r, got_ival_r = self._step(
             isclibs.dns_qpiter_prev
         )
-        if len(self.expected) == 0 or self.position == 0:
+        if len(self.model) == 0 or self.position == 0:
             assert got_ret == isclibs.ISC_R_NOMORE
             self.position = None
         else:
             assert got_ret == isclibs.ISC_R_SUCCESS
             if self.position is None:
-                self.position = len(self.expected) - 1
+                self.position = len(self.model) - 1
             else:
                 self.position -= 1
             self._check_return_values(got_iscname, got_pval_r, got_ival_r)
@@ -265,36 +268,36 @@ class BareQPTest(RuleBasedStateMachine):
             assert ret == isclibs.ISC_R_NOTFOUND
         self.invalidate_refs()
 
-    #    def iter_init(self):
-    #        hypothesis.event("init")
-    #        self.iter_ = QPIterator(self)
-    #
-    #    @rule()
-    #    def iter_next(self):
-    #        if not self.iter_.is_valid():
-    #            hypothesis.event("iter invalid")
-    #            return
-    #
-    #        hypothesis.event("next", self.iter_.position)
-    #        self.iter_.next_()
-    #
-    #    @rule()
-    #    def iter_prev(self):
-    #        if not self.iter_.is_valid():
-    #            hypothesis.event("iter invalid")
-    #            return
-    #
-    #        hypothesis.event("prev", self.iter_.position)
-    #        self.iter_.prev()
-    #
-    #    @rule()
-    #    def iter_current(self):
-    #        if not self.iter_.is_valid():
-    #            hypothesis.event("iter invalid")
-    #            return
-    #
-    #        hypothesis.event("current")
-    #        self.iter_.current()
+    def iter_init(self):
+        hypothesis.event("init")
+        self.iter_ = QPIterator(self)
+
+    @rule()
+    def iter_next(self):
+        if not self.iter_.is_valid():
+            hypothesis.event("iter invalid")
+            return
+
+        hypothesis.event("next", self.iter_.position)
+        self.iter_.next_()
+
+    @rule()
+    def iter_prev(self):
+        if not self.iter_.is_valid():
+            hypothesis.event("iter invalid")
+            return
+
+        hypothesis.event("prev", self.iter_.position)
+        self.iter_.prev()
+
+    @rule()
+    def iter_current(self):
+        if not self.iter_.is_valid():
+            hypothesis.event("iter invalid")
+            return
+
+        hypothesis.event("current")
+        self.iter_.current()
 
     @rule(pylookupname=dns_names())
     def lookup_random(self, pylookupname):
@@ -341,29 +344,29 @@ class BareQPTest(RuleBasedStateMachine):
                 parentname not in self.model
             ), "found parent node which reportedly does not exist"
 
-    # @rule()
-    # def values_agree_forward(self):
-    #    """Iterate through all values and check ordering"""
-    #    tmp_iter = QPIterator(self)
-    #    hypothesis.event("values_agree_forward", len(tmp_iter.expected))
+    @rule()
+    def values_agree_forward(self):
+       """Iterate through all values and check ordering"""
+       tmp_iter = QPIterator(self)
+       hypothesis.event("values_agree_forward", len(tmp_iter.model))
 
-    #    qp_count = 0
-    #    while (got_ret := tmp_iter.next_()[0]) == isclibs.ISC_R_SUCCESS:
-    #        qp_count += 1
+       qp_count = 0
+       while (got_ret := tmp_iter.next_()[0]) == isclibs.ISC_R_SUCCESS:
+           qp_count += 1
 
-    #    assert qp_count == len(tmp_iter.expected)
+       assert qp_count == len(tmp_iter.model)
 
-    # @rule()
-    # def values_agree_backwards(self):
-    #    """Iterate through all values and check ordering"""
-    #    tmp_iter = QPIterator(self)
-    #    hypothesis.event("values_agree_backwards", len(tmp_iter.expected))
+    @rule()
+    def values_agree_backwards(self):
+       """Iterate through all values and check ordering"""
+       tmp_iter = QPIterator(self)
+       hypothesis.event("values_agree_backwards", len(tmp_iter.model))
 
-    #    qp_count = 0
-    #    while (got_ret := tmp_iter.prev()[0]) == isclibs.ISC_R_SUCCESS:
-    #        qp_count += 1
+       qp_count = 0
+       while (got_ret := tmp_iter.prev()[0]) == isclibs.ISC_R_SUCCESS:
+           qp_count += 1
 
-    #    assert qp_count == len(tmp_iter.expected)
+       assert qp_count == len(tmp_iter.model)
 
 
 TestTrees = BareQPTest.TestCase
