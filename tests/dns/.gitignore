@@ -1,3 +1,4 @@
+/.hypothesis
 /_*_cffi.*
 /badcache.out
 /testdata/dnstap/dnstap.file
