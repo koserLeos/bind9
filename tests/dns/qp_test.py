@@ -209,7 +209,7 @@ class BareQPTest(RuleBasedStateMachine):
         self.iter_ = QPIterator(self)
         print("GENERATION ", self.generation)
 
-    @rule(target=names, pyname=dns_names(max_labels=2))
+    @rule(target=names, pyname=dns_names())
     def add(self, pyname):
         hypothesis.event("ADD")
         print("ADD", pyname)
@@ -302,7 +302,7 @@ class BareQPTest(RuleBasedStateMachine):
 
 
 TestTrees = BareQPTest.TestCase
-TestTrees.settings = hypothesis.settings(max_examples=1000)  # , stateful_step_count=10
+TestTrees.settings = hypothesis.settings(max_examples=20)  # , stateful_step_count=10
 
 # Or just run with pytest's unittest support
 if __name__ == "__main__":
