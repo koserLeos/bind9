@@ -126,6 +126,26 @@ class QPIterator:
         self.sorted = sorted(self.model)
         self.position = None
 
+    def set_to_predecessor(self, name: dns.name.Name):
+        self.position = self._find_predecesor(name)
+
+    def set_to_name(self, name: dns.name.Name):
+        self.position = self.sorted.index(name)
+
+    def _find_predecesor(self, lookup: dns.name.Name):
+        """ridiculously ineffective method for finding closest predecesor of a given name"""
+        for reversed_idx, present in enumerate(reversed(self.sorted)):
+            if present < lookup:
+                print("_find_predecesor regular", len(self.sorted) - 1 - reversed_idx)
+                return len(self.sorted) - 1 - reversed_idx
+        print("_find_predecesor wraparound", len(self.sorted) - 1)
+        if len(self.sorted) > 0:
+            # predecessor is BEFORE the first existing name, wrap around to the last name
+            return len(self.sorted) - 1
+        else:
+            # predecessor does not exist at all - an empty QP
+            return None
+
     def _step(self, cfunc):
         iscname = ISCName()
         got_pval_r = ffi.new("void **")
@@ -226,13 +246,13 @@ class BareQPTest(RuleBasedStateMachine):
 
     @rule(target=names, pyname=dns_names())
     def add_random(self, pyname):
-        hypothesis.event("ADD random")
+        event("ADD random")
         return self._add(pyname)
 
     @precondition(lambda self: len(self.model) > 0)
     @rule(target=names, pyname=subdomains(names))
     def add_subdomain(self, pyname):
-        hypothesis.event("ADD subdomain")
+        event("ADD subdomain")
         return self._add(pyname)
 
     def _add(self, pyname):
@@ -240,7 +260,7 @@ class BareQPTest(RuleBasedStateMachine):
 
         ret = isclibs.dns_qp_insert(self.qp, iscname.cobj, 0)
         print("insert", pyname, ret)
-        hypothesis.event("INSERT", ret)
+        event("INSERT", ret)
         if pyname not in self.model:
             assert ret == isclibs.ISC_R_SUCCESS
             self.model[pyname] = iscname
@@ -259,7 +279,7 @@ class BareQPTest(RuleBasedStateMachine):
 
         pval = ffi.new("void **")
         ret = isclibs.dns_qp_deletename(self.qp, iscname.cobj, pval, NULL)
-        hypothesis.event("DELETENAME", ret)
+        event("DELETENAME", ret)
         if exists:
             assert ret == isclibs.ISC_R_SUCCESS
             assert pval[0] == self.model[pyname].cobj
@@ -269,34 +289,34 @@ class BareQPTest(RuleBasedStateMachine):
         self.invalidate_refs()
 
     def iter_init(self):
-        hypothesis.event("init")
+        event("init")
         self.iter_ = QPIterator(self)
 
     @rule()
     def iter_next(self):
         if not self.iter_.is_valid():
-            hypothesis.event("iter invalid")
+            event("iter invalid")
             return
 
-        hypothesis.event("next", self.iter_.position)
+        event("next", self.iter_.position)
         self.iter_.next_()
 
     @rule()
     def iter_prev(self):
         if not self.iter_.is_valid():
-            hypothesis.event("iter invalid")
+            event("iter invalid")
             return
 
-        hypothesis.event("prev", self.iter_.position)
+        event("prev", self.iter_.position)
         self.iter_.prev()
 
     @rule()
     def iter_current(self):
         if not self.iter_.is_valid():
-            hypothesis.event("iter invalid")
+            event("iter invalid")
             return
 
-        hypothesis.event("current")
+        event("current")
         self.iter_.current()
 
     @rule(pylookupname=dns_names())
@@ -320,21 +340,24 @@ class BareQPTest(RuleBasedStateMachine):
             self.qp, lookupname.cobj, foundname.cobj, outiter.citer, NULL, NULL, NULL
         )
         print("LOOKUP", ret, pylookupname)
-        hypothesis.event("LOOKUP", ret)
+        event("LOOKUP", ret)
 
         # verify that no unepected parent name exists in our model
         if ret == isclibs.ISC_R_NOTFOUND:
             # no parent can be present, not even the root
             common_labels = 0
+            outiter.set_to_predecessor(pylookupname)
         elif ret == isclibs.DNS_R_PARTIALMATCH:
             assert (
                 foundname.pyname() < pylookupname
             ), "foundname is not a subdomain of looked up name"
             common_labels = len(foundname.pyname())
+            outiter.set_to_predecessor(pylookupname)
         elif ret == isclibs.ISC_R_SUCCESS:
             # exact match!
             assert pylookupname == foundname.pyname()
             common_labels = len(pylookupname)
+            outiter.set_to_name(pylookupname)
         else:
             raise NotImplementedError(ret)
 
@@ -344,29 +367,36 @@ class BareQPTest(RuleBasedStateMachine):
                 parentname not in self.model
             ), "found parent node which reportedly does not exist"
 
+        # iterator must point to the foundname or predecessor
+        outiter.current()
+
+        # overwrite the previous iterator with the one produced by lookup()
+        # this should allow the state machine to excercise iteration after lookup
+        self.iter_ = outiter
+
     @rule()
     def values_agree_forward(self):
-       """Iterate through all values and check ordering"""
-       tmp_iter = QPIterator(self)
-       hypothesis.event("values_agree_forward", len(tmp_iter.model))
+        """Iterate through all values and check ordering"""
+        tmp_iter = QPIterator(self)
+        event("values_agree_forward", len(tmp_iter.model))
 
-       qp_count = 0
-       while (got_ret := tmp_iter.next_()[0]) == isclibs.ISC_R_SUCCESS:
-           qp_count += 1
+        qp_count = 0
+        while (got_ret := tmp_iter.next_()[0]) == isclibs.ISC_R_SUCCESS:
+            qp_count += 1
 
-       assert qp_count == len(tmp_iter.model)
+        assert qp_count == len(tmp_iter.model)
 
     @rule()
     def values_agree_backwards(self):
-       """Iterate through all values and check ordering"""
-       tmp_iter = QPIterator(self)
-       hypothesis.event("values_agree_backwards", len(tmp_iter.model))
+        """Iterate through all values and check ordering"""
+        tmp_iter = QPIterator(self)
+        event("values_agree_backwards", len(tmp_iter.model))
 
-       qp_count = 0
-       while (got_ret := tmp_iter.prev()[0]) == isclibs.ISC_R_SUCCESS:
-           qp_count += 1
+        qp_count = 0
+        while (got_ret := tmp_iter.prev()[0]) == isclibs.ISC_R_SUCCESS:
+            qp_count += 1
 
-       assert qp_count == len(tmp_iter.model)
+        assert qp_count == len(tmp_iter.model)
 
 
 TestTrees = BareQPTest.TestCase
@@ -376,4 +406,8 @@ TestTrees.settings = hypothesis.settings(
 
 # Or just run with pytest's unittest support
 if __name__ == "__main__":
+    # state = BareQPTest()
+    # state.add_random(dns.name.root)
+    # state.add_subdomain(dns.name.from_text("\000.\000.\000."))
+    # state.lookup_subdomain(dns.name.from_text("\000.\000.\000."))
     unittest.main()
