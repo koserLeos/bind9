@@ -46,6 +46,7 @@ check_PROGRAMS =	\
 	rwlock_test	\
 	safe_test	\
 	siphash_test	\
+	skiplist_test	\
 	sockaddr_test	\
 	spinlock_test	\
 	stats_test	\
@@ -56,6 +57,7 @@ check_PROGRAMS =	\
 	timer_test	\
 	tls_test	\
 	tlsdns_test	\
+	ttlwheel_test	\
 	udp_test	\
 	work_test
 

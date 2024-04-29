@@ -77,6 +77,7 @@ libisc_la_HEADERS =			\
 	include/isc/serial.h		\
 	include/isc/signal.h		\
 	include/isc/siphash.h		\
+	include/isc/skiplist.h		\
 	include/isc/sockaddr.h		\
 	include/isc/spinlock.h		\
 	include/isc/stats.h		\
@@ -92,6 +93,7 @@ libisc_la_HEADERS =			\
 	include/isc/timer.h		\
 	include/isc/tls.h		\
 	include/isc/tm.h		\
+	include/isc/ttlwheel.h		\
 	include/isc/types.h		\
 	include/isc/urcu.h		\
 	include/isc/url.h		\
@@ -183,6 +185,7 @@ libisc_la_SOURCES =		\
 	safe.c			\
 	serial.c		\
 	signal.c		\
+	skiplist.c		\
 	sockaddr.c		\
 	stats.c			\
 	stdio.c			\
@@ -196,6 +199,7 @@ libisc_la_SOURCES =		\
 	timer.c			\
 	tls.c			\
 	tm.c			\
+	ttlwheel.c		\
 	url.c			\
 	utf8.c			\
 	uv.c			\
