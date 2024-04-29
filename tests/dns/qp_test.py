@@ -46,6 +46,13 @@ isclibs.isc__mem_create(MCTXP)
 MCTX = MCTXP[0]
 
 
+# def event(*args):
+#    pass
+
+def print(*args):
+   pass
+
+
 @composite
 def subdomains(draw, named_bundle):
     parent = draw(named_bundle)
@@ -134,10 +141,18 @@ class QPIterator:
 
     def _find_predecesor(self, lookup: dns.name.Name):
         """ridiculously ineffective method for finding closest predecesor of a given name"""
+        print(self.sorted)
         for reversed_idx, present in enumerate(reversed(self.sorted)):
+            print(present, "?? < ??", lookup)
             if present < lookup:
-                print("_find_predecesor regular", len(self.sorted) - 1 - reversed_idx)
-                return len(self.sorted) - 1 - reversed_idx
+                print("yes!")
+                idx = len(self.sorted) - 1 - reversed_idx
+                print(
+                    "_find_predecesor regular, idx",
+                    len(self.sorted) - 1 - reversed_idx,
+                    self.sorted[idx],
+                )
+                return idx
         print("_find_predecesor wraparound", len(self.sorted) - 1)
         if len(self.sorted) > 0:
             # predecessor is BEFORE the first existing name, wrap around to the last name
@@ -292,6 +307,7 @@ class BareQPTest(RuleBasedStateMachine):
         event("init")
         self.iter_ = QPIterator(self)
 
+    @precondition(lambda self: self.iter_.is_valid())
     @rule()
     def iter_next(self):
         if not self.iter_.is_valid():
@@ -301,6 +317,7 @@ class BareQPTest(RuleBasedStateMachine):
         event("next", self.iter_.position)
         self.iter_.next_()
 
+    @precondition(lambda self: self.iter_.is_valid())
     @rule()
     def iter_prev(self):
         if not self.iter_.is_valid():
@@ -310,6 +327,7 @@ class BareQPTest(RuleBasedStateMachine):
         event("prev", self.iter_.position)
         self.iter_.prev()
 
+    @precondition(lambda self: self.iter_.is_valid())
     @rule()
     def iter_current(self):
         if not self.iter_.is_valid():
@@ -401,13 +419,18 @@ class BareQPTest(RuleBasedStateMachine):
 
 TestTrees = BareQPTest.TestCase
 TestTrees.settings = hypothesis.settings(
-    max_examples=100, deadline=None
-)  # , stateful_step_count=10
+    max_examples=1000,
+    deadline=None,
+    #stateful_step_count=10000,
+    #suppress_health_check=[hypothesis.HealthCheck.large_base_example, hypothesis.HealthCheck.too_slow]
+)
 
 # Or just run with pytest's unittest support
 if __name__ == "__main__":
-    # state = BareQPTest()
-    # state.add_random(dns.name.root)
-    # state.add_subdomain(dns.name.from_text("\000.\000.\000."))
-    # state.lookup_subdomain(dns.name.from_text("\000.\000.\000."))
-    unittest.main()
+    state = BareQPTest()
+    state.add_random(dns.name.from_text(r"."))
+    state.add_random(dns.name.from_text(r"\000."))
+    state.add_random(dns.name.from_text(r"\000.\000."))
+    state.add_random(dns.name.from_text(r"\000\009."))
+    state.lookup_subdomain(dns.name.from_text(r"\007."))
+    # unittest.main()
