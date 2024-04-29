@@ -37,6 +37,8 @@ static dns_rdatasetmethods_t methods = {
 	.getclosest = dns_rdatalist_getclosest,
 	.setownercase = dns_rdatalist_setownercase,
 	.getownercase = dns_rdatalist_getownercase,
+	.addrrsigs = dns_rdatalist_addrrsigs,
+	.getrrsigs = dns_rdatalist_getrrsigs,
 };
 
 void
@@ -430,4 +432,36 @@ dns_rdatalist_getownercase(const dns_rdataset_t *rdataset, dns_name_t *name) {
 			name->ndata[i] |= 0x20; /* set the lower case bit */
 		}
 	}
+}
+
+isc_result_t
+dns_rdatalist_addrrsigs(dns_rdataset_t *rdataset, dns_rdataset_t *rrsigs) {
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(dns_rdataset_isassociated(rdataset));
+	REQUIRE(DNS_RDATASET_VALID(rrsigs));
+	REQUIRE(dns_rdataset_isassociated(rrsigs));
+	REQUIRE(rdataset->rdclass == rrsigs->rdclass);
+	REQUIRE(rdataset->type != dns_rdatatype_rrsig);
+	REQUIRE(rrsigs->type == dns_rdatatype_rrsig);
+	REQUIRE(rdataset->type == rrsigs->covers);
+	REQUIRE((rdataset->attributes & DNS_RDATASETATTR_RRSIGS) == 0);
+
+	INSIST(rdataset->rdlist.rrsigs == NULL);
+
+	rdataset->rdlist.rrsigs = rrsigs;
+	rdataset->attributes |= DNS_RDATASETATTR_RRSIGS;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_rdatalist_getrrsigs(dns_rdataset_t *rdataset, dns_rdataset_t *rrsigs) {
+	REQUIRE(DNS_RDATASET_VALID(rdataset));
+	REQUIRE(dns_rdataset_isassociated(rdataset));
+	REQUIRE(DNS_RDATASET_VALID(rrsigs));
+	REQUIRE(!dns_rdataset_isassociated(rrsigs));
+	REQUIRE((rdataset->attributes & DNS_RDATASETATTR_RRSIGS) != 0);
+	REQUIRE(rdataset->rdlist.rrsigs != NULL);
+
+	dns_rdataset_clone(rdataset->rdlist.rrsigs, rrsigs);
+	return (ISC_R_SUCCESS);
 }

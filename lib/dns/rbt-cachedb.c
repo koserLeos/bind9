@@ -306,7 +306,16 @@ setup_delegation(rbtdb_search_t *search, dns_dbnode_t **nodep,
 					search->zonecut_header, search->now,
 					isc_rwlocktype_read,
 					rdataset DNS__DB_FLARG_PASS);
-		if (sigrdataset != NULL && search->zonecut_sigheader != NULL) {
+		if (sigrdataset != NULL &&
+		    search->zonecut_header->rrsigs != NULL)
+		{
+			dns__rbtdb_bindrrsigs(search->rbtdb, node,
+					      search->zonecut_header,
+					      search->now, isc_rwlocktype_read,
+					      sigrdataset DNS__DB_FLARG_PASS);
+		} else if (sigrdataset != NULL &&
+			   search->zonecut_sigheader != NULL)
+		{
 			dns__rbtdb_bindrdataset(
 				search->rbtdb, node, search->zonecut_sigheader,
 				search->now, isc_rwlocktype_read,
@@ -598,7 +607,12 @@ find_deepest_zonecut(rbtdb_search_t *search, dns_rbtnode_t *node,
 			dns__rbtdb_bindrdataset(search->rbtdb, node, found,
 						search->now, nlocktype,
 						rdataset DNS__DB_FLARG_PASS);
-			if (foundsig != NULL) {
+			if (found->rrsigs != NULL) {
+				dns__rbtdb_bindrrsigs(
+					search->rbtdb, node, found, search->now,
+					nlocktype,
+					sigrdataset DNS__DB_FLARG_PASS);
+			} else if (foundsig != NULL) {
 				dns__rbtdb_bindrdataset(
 					search->rbtdb, node, foundsig,
 					search->now, nlocktype,
@@ -738,7 +752,11 @@ find_coveringnsec(rbtdb_search_t *search, const dns_name_t *name,
 	if (found != NULL) {
 		dns__rbtdb_bindrdataset(search->rbtdb, node, found, now,
 					nlocktype, rdataset DNS__DB_FLARG_PASS);
-		if (foundsig != NULL) {
+		if (found->rrsigs != NULL) {
+			dns__rbtdb_bindrrsigs(search->rbtdb, node, found, now,
+					      nlocktype,
+					      sigrdataset DNS__DB_FLARG_PASS);
+		} else if (foundsig != NULL) {
 			dns__rbtdb_bindrdataset(search->rbtdb, node, foundsig,
 						now, nlocktype,
 						sigrdataset DNS__DB_FLARG_PASS);
@@ -1019,11 +1037,18 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			if (need_headerupdate(nsecheader, search.now)) {
 				update = nsecheader;
 			}
-			if (nsecsig != NULL) {
+			if (nsecheader->rrsigs != NULL) {
+				dns__rbtdb_bindrrsigs(
+					search.rbtdb, node, nsecheader,
+					search.now, nlocktype,
+					sigrdataset DNS__DB_FLARG_PASS);
+			} else if (nsecsig != NULL) {
 				dns__rbtdb_bindrdataset(
 					search.rbtdb, node, nsecsig, search.now,
 					nlocktype,
 					sigrdataset DNS__DB_FLARG_PASS);
+			}
+			if (nsecsig != NULL) {
 				if (need_headerupdate(nsecsig, search.now)) {
 					updatesig = nsecsig;
 				}
@@ -1064,11 +1089,18 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			if (need_headerupdate(nsheader, search.now)) {
 				update = nsheader;
 			}
-			if (nssig != NULL) {
+			if (nsheader->rrsigs != NULL) {
+				dns__rbtdb_bindrrsigs(
+					search.rbtdb, node, nsheader,
+					search.now, nlocktype,
+					sigrdataset DNS__DB_FLARG_PASS);
+			} else if (nssig != NULL) {
 				dns__rbtdb_bindrdataset(
 					search.rbtdb, node, nssig, search.now,
 					nlocktype,
 					sigrdataset DNS__DB_FLARG_PASS);
+			}
+			if (nssig != NULL) {
 				if (need_headerupdate(nssig, search.now)) {
 					updatesig = nssig;
 				}
@@ -1312,7 +1344,12 @@ cache_findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 
 	dns__rbtdb_bindrdataset(search.rbtdb, node, found, search.now,
 				nlocktype, rdataset DNS__DB_FLARG_PASS);
-	if (foundsig != NULL) {
+
+	if (found->rrsigs != NULL) {
+		dns__rbtdb_bindrrsigs(search.rbtdb, node, found, search.now,
+				      nlocktype,
+				      sigrdataset DNS__DB_FLARG_PASS);
+	} else if (foundsig != NULL) {
 		dns__rbtdb_bindrdataset(search.rbtdb, node, foundsig,
 					search.now, nlocktype,
 					sigrdataset DNS__DB_FLARG_PASS);
@@ -1424,10 +1461,17 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	if (found != NULL) {
 		dns__rbtdb_bindrdataset(rbtdb, rbtnode, found, now, nlocktype,
 					rdataset DNS__DB_FLARG_PASS);
-		if (!NEGATIVE(found) && foundsig != NULL) {
-			dns__rbtdb_bindrdataset(rbtdb, rbtnode, foundsig, now,
-						nlocktype,
-						sigrdataset DNS__DB_FLARG_PASS);
+		if (!NEGATIVE(found)) {
+			if (found->rrsigs != NULL) {
+				dns__rbtdb_bindrrsigs(
+					rbtdb, rbtnode, found, now, nlocktype,
+					sigrdataset DNS__DB_FLARG_PASS);
+			} else if (foundsig != NULL) {
+				dns__rbtdb_bindrdataset(
+					rbtdb, rbtnode, foundsig, now,
+					nlocktype,
+					sigrdataset DNS__DB_FLARG_PASS);
+			}
 		}
 	}
 

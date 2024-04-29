@@ -362,6 +362,12 @@ dns__rbtdb_bindrdataset(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
 			isc_rwlocktype_t locktype,
 			dns_rdataset_t *rdataset DNS__DB_FLARG);
 
+void
+dns__rbtdb_bindrrsigs(dns_rbtdb_t *rbtdb, dns_rbtnode_t *node,
+		      dns_slabheader_t *header, isc_stdtime_t now,
+		      isc_rwlocktype_t locktype,
+		      dns_rdataset_t *rdataset DNS__DB_FLARG);
+
 isc_result_t
 dns__rbtdb_nodefullname(dns_db_t *db, dns_dbnode_t *node, dns_name_t *name);
 
