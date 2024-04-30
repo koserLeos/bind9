@@ -849,6 +849,27 @@ ISC_RUN_TEST_IMPL(fixiterator) {
 
 	check_predecessors(qp, check3);
 	dns_qp_destroy(&qp);
+
+	const char insert4[][64] = { ".", "\\000.", "\\000.\\000.",
+				     "\\000\\009.", "" };
+	i = 0;
+
+	dns_qp_create(mctx, &string_methods, NULL, &qp);
+	while (insert4[i][0] != '\0') {
+		insert_str(qp, insert4[i++]);
+	}
+
+	fprintf(stderr, "QP DB 007\n");
+	qp_test_dumpqp(qp);
+	fprintf(stderr, "QP TRIE 007\n");
+	qp_test_dumptrie(qp);
+
+	static struct check_predecessors check4[] = { { "\\007.", "\\000\\009.",
+							DNS_R_PARTIALMATCH, 0 },
+						      { NULL, NULL, 0, 0 } };
+
+	check_predecessors(qp, check4);
+	dns_qp_destroy(&qp);
 }
 
 ISC_TEST_LIST_START
