@@ -46,11 +46,12 @@ isclibs.isc__mem_create(MCTXP)
 MCTX = MCTXP[0]
 
 
-# def event(*args):
-#    pass
-
-def print(*args):
+def event(*args):
    pass
+
+
+#def print(*args):
+#    pass
 
 
 @composite
@@ -117,6 +118,70 @@ def test_fromname_toname_roundtrip(pyname_source: dns.name.Name) -> None:
 
     pyname_target = iscname_target.pyname()
     assert pyname_source == pyname_target
+
+
+class QPChain:
+    def __init__(self, testcase):
+        self.testcase = testcase
+        self.iter_generation = testcase.generation
+        self.qp = testcase.qp
+
+        self.cchain = ffi.new("dns_qpchain_t *")
+        # print(id(self), isclibs.dns_qpiter_init)
+        isclibs.dns_qpchain_init(self.qp, self.cchain)
+
+    def length(self):
+        ret = isclibs.dns_qpchain_length(self.cchain)
+        print(self, 'length', ret)
+        return ret
+
+    def print(self):
+        print('C chain structure print out', self)
+        for chainidx in range(self.length()):
+            got_iscname, got_pval_r, _got_ival_r = self.node(chainidx)
+            print('idx', chainidx, got_iscname.pyname())
+
+    def check(self, pylookupname: dns.name.Name):
+        print('check chain for lookup', pylookupname)
+        print('model', sorted(self.testcase.model))
+        chainidx = 0
+        for idx in range(1, len(pylookupname) + 1):
+            parentname = pylookupname.split(idx)[1]
+            assert self.length() >= chainidx
+            if parentname not in self.testcase.model:
+                print(parentname, 'NOT present in model')
+                continue
+            print(parentname, 'IS present in model')
+            got_iscname, got_pval_r, _got_ival_r = self.node(chainidx)
+            print(self, 'idx', chainidx, got_iscname.pyname())
+            assert parentname == got_iscname.pyname(), (
+                "chain points to unexpected name, idx",
+                idx,
+            )
+            assert self.testcase.model[parentname].cobj == got_pval_r
+
+            chainidx += 1
+
+        assert (
+            self.length() == chainidx
+        ), "chain length does not match"
+
+    def node(self, level):
+        iscname = ISCName()
+        got_pval_r = ffi.new("void **")
+        got_ival_r = ffi.new("uint32_t *")
+        isclibs.dns_qpchain_node(
+            self.cchain, level, iscname.cobj, got_pval_r, got_ival_r
+        )
+        print(
+            id(self),
+            "qpchain_node",
+            "\n-> returned: ",
+            iscname.pyname(),
+            got_pval_r[0],
+            got_ival_r[0],
+        )
+        return iscname, got_pval_r[0], got_ival_r[0]
 
 
 class QPIterator:
@@ -247,6 +312,7 @@ class BareQPTest(RuleBasedStateMachine):
 
         self.model = {}
         self.iter_ = QPIterator(self)
+        self.chain = QPChain(self)
 
     names = Bundle("names")
     iterators = Bundle("iterators")
@@ -257,6 +323,7 @@ class BareQPTest(RuleBasedStateMachine):
         return  # TODO
 
         self.iter_ = QPIterator(self)
+        self.chain = QPChain(self)
         print("GENERATION ", self.generation)
 
     @rule(target=names, pyname=dns_names())
@@ -355,7 +422,13 @@ class BareQPTest(RuleBasedStateMachine):
         lookupname = ISCName(pylookupname)
         foundname = ISCName()
         ret = isclibs.dns_qp_lookup(
-            self.qp, lookupname.cobj, foundname.cobj, outiter.citer, NULL, NULL, NULL
+            self.qp,
+            lookupname.cobj,
+            foundname.cobj,
+            outiter.citer,
+            self.chain.cchain,
+            NULL,
+            NULL,
         )
         print("LOOKUP", ret, pylookupname)
         event("LOOKUP", ret)
@@ -384,6 +457,10 @@ class BareQPTest(RuleBasedStateMachine):
             assert (
                 parentname not in self.model
             ), "found parent node which reportedly does not exist"
+
+        self.chain.print()
+        # verify chain produced by lookup
+        self.chain.check(pylookupname)
 
         # iterator must point to the foundname or predecessor
         outiter.current()
@@ -421,16 +498,15 @@ TestTrees = BareQPTest.TestCase
 TestTrees.settings = hypothesis.settings(
     max_examples=1000,
     deadline=None,
-    #stateful_step_count=10000,
-    #suppress_health_check=[hypothesis.HealthCheck.large_base_example, hypothesis.HealthCheck.too_slow]
+    # stateful_step_count=10000,
+    # suppress_health_check=[hypothesis.HealthCheck.large_base_example, hypothesis.HealthCheck.too_slow]
 )
 
 # Or just run with pytest's unittest support
 if __name__ == "__main__":
     state = BareQPTest()
-    state.add_random(dns.name.from_text(r"."))
-    state.add_random(dns.name.from_text(r"\000."))
-    state.add_random(dns.name.from_text(r"\000.\000."))
-    state.add_random(dns.name.from_text(r"\000\009."))
-    state.lookup_subdomain(dns.name.from_text(r"\007."))
+    state.add_random(dns.name.from_text(r"a."))
+    state.add_random(dns.name.from_text(r"d.b.a."))
+    state.add_random(dns.name.from_text(r"z.d.b.a."))
+    state.lookup_subdomain(dns.name.from_text(r"f.c.b.a."))
     # unittest.main()

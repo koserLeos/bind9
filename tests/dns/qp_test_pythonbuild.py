@@ -96,6 +96,16 @@ dns_qp_lookup(dns_qp_t *qpr, const dns_name_t *name,
 	      dns_name_t *foundname, dns_qpiter_t *iter, dns_qpchain_t *chain,
 	      void **pval_r, uint32_t *ival_r);
 
+// FIXME: first argument's type is modified to make it work with CFFI
+void
+dns_qpchain_init(dns_qp_t *qpr, dns_qpchain_t *chain);
+
+unsigned int
+dns_qpchain_length(dns_qpchain_t *chain);
+
+void
+dns_qpchain_node(dns_qpchain_t *chain, unsigned int level, dns_name_t *name,
+		 void **pval_r, uint32_t *ival_r);
 """
 )
 
