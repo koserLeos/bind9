@@ -19,6 +19,13 @@ STATIC_ASSERT(sizeof(void *) <= sizeof(uint64_t),
 	      "pointers must fit in 64 bits");
 
 typedef struct skiplist_node skiplist_node_t;
+typedef struct skiplist_segment skiplist_segment_t;
+
+struct skiplist_segment {
+	uint32_t span;
+	uint32_t used;
+	uint64_t data[47];
+};
 
 struct skiplist_node {
 	uint32_t level;

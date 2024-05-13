@@ -78,6 +78,8 @@ struct dns_slabheader {
 	dns_trust_t	      trust;
 
 	unsigned int heap_index;
+
+	uint32_t ttl_index;
 	/*%<
 	 * Used for TTL-based cache cleaning.
 	 */

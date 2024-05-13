@@ -24,7 +24,6 @@
 #include <isc/file.h>
 #include <isc/hash.h>
 #include <isc/hashmap.h>
-#include <isc/heap.h>
 #include <isc/hex.h>
 #include <isc/loop.h>
 #include <isc/mem.h>
@@ -34,6 +33,7 @@
 #include <isc/refcount.h>
 #include <isc/result.h>
 #include <isc/rwlock.h>
+#include <isc/skiplist.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
 #include <isc/time.h>
@@ -153,7 +153,7 @@
 #define DNS_QPDB_LRUUPDATE_REGULAR 600
 
 /*%
- * Number of buckets for cache DB entries (locks, LRU lists, TTL heaps).
+ * Number of buckets for cache DB entries (locks, LRU lists).
  * There is a tradeoff issue about configuring this value: if this is too
  * small, it may cause heavier contention between threads; if this is too large,
  * LRU purge algorithm won't work well (entries tend to be purged prematurely).
@@ -269,13 +269,13 @@ struct qpcache {
 	qpcnodelist_t *deadnodes;
 
 	/*
-	 * Heaps.  These are used for TTL based expiry in a cache,
-	 * or for zone resigning in a zone DB.  hmctx is the memory
-	 * context to use for the heap (which differs from the main
-	 * database memory context in the case of a cache).
+	 * A skiplist is used for TTL based expiry in a cache, or for zone
+	 * resigning in a zone DB. sctx is the memory context to use for the
+	 * skiplist (which differs from the main database memory context in the
+	 * case of a cache).
 	 */
-	isc_mem_t *hmctx;
-	isc_heap_t **heaps;
+	isc_mem_t *smctx;
+	isc_skiplist_t *slist;
 
 	/* Locked by tree_lock. */
 	dns_qp_t *tree;
@@ -506,7 +506,7 @@ need_headerupdate(dns_slabheader_t *header, isc_stdtime_t now) {
  *
  * Caller must hold the node (write) lock.
  *
- * Note that the we do NOT touch the heap here, as the TTL has not changed.
+ * Note that the we do NOT touch the skiplist here, as the TTL has not changed.
  */
 static void
 update_header(qpcache_t *qpdb, dns_slabheader_t *header, isc_stdtime_t now) {
@@ -556,7 +556,7 @@ clean_cache_node(qpcache_t *qpdb, qpcnode_t *node) {
 	dns_slabheader_t *current = NULL, *top_prev = NULL, *top_next = NULL;
 
 	/*
-	 * Caller must be holding the node lock.
+	 * Caller must be holding the node lock.qpcac
 	 */
 
 	for (current = node->data; current != NULL; current = top_next) {
@@ -910,29 +910,30 @@ mark(dns_slabheader_t *header, uint_least16_t flag) {
 static void
 setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 	dns_ttl_t oldttl = header->ttl;
+	qpcache_t *qpdb;
+
+	/*
+	 * This is a cache. Adjust the skiplist if necessary.
+	 */
+	if (newttl == oldttl) {
+		return;
+	}
+
+	if (header->db == NULL || !dns_db_iscache(header->db)) {
+		header->ttl = newttl;
+		return;
+	}
+
+	qpdb = (qpcache_t *)header->db;
+
+	isc_skiplist_delete(qpdb->slist, header, header->ttl_index);
 
 	header->ttl = newttl;
 
-	if (header->db == NULL || !dns_db_iscache(header->db)) {
-		return;
-	}
-
-	/*
-	 * This is a cache. Adjust the heaps if necessary.
-	 */
-	if (header->heap == NULL || header->heap_index == 0 || newttl == oldttl)
-	{
-		return;
-	}
-
-	if (newttl < oldttl) {
-		isc_heap_increased(header->heap, header->heap_index);
-	} else {
-		isc_heap_decreased(header->heap, header->heap_index);
-	}
-
 	if (newttl == 0) {
-		isc_heap_delete(header->heap, header->heap_index);
+		header->ttl_index = UINT32_MAX;
+	} else {
+		header->ttl_index = isc_skiplist_insert(qpdb->slist, header);
 	}
 }
 
@@ -942,7 +943,7 @@ setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 static void
 expireheader(dns_slabheader_t *header, isc_rwlocktype_t *nlocktypep,
 	     isc_rwlocktype_t *tlocktypep, dns_expire_t reason DNS__DB_FLARG) {
-	setttl(header, 0);
+	//setttl(header, 0);
 	mark(header, DNS_SLABHEADERATTR_ANCIENT);
 	HEADERNODE(header)->dirty = 1;
 
@@ -2478,26 +2479,11 @@ prio_type(dns_typepair_t type) {
 	return (false);
 }
 
-/*%
- * These functions allow the heap code to rank the priority of each
- * element.  It returns true if v1 happens "sooner" than v2.
- */
-static bool
-ttl_sooner(void *v1, void *v2) {
-	dns_slabheader_t *h1 = v1;
-	dns_slabheader_t *h2 = v2;
+static uint32_t
+get_ttl(void *ptr) {
+	dns_slabheader_t *h = ptr;
 
-	return (h1->ttl < h2->ttl);
-}
-
-/*%
- * This function sets the heap index into the header.
- */
-static void
-set_index(void *what, unsigned int idx) {
-	dns_slabheader_t *h = what;
-
-	h->heap_index = idx;
+	return h->ttl;
 }
 
 static void
@@ -2576,14 +2562,10 @@ free_qpdb(qpcache_t *qpdb, bool log) {
 			     qpdb->node_lock_count, sizeof(qpcnodelist_t));
 	}
 	/*
-	 * Clean up heap objects.
+	 * Clean up skiplist.
 	 */
-	if (qpdb->heaps != NULL) {
-		for (i = 0; i < qpdb->node_lock_count; i++) {
-			isc_heap_destroy(&qpdb->heaps[i]);
-		}
-		isc_mem_cput(qpdb->hmctx, qpdb->heaps, qpdb->node_lock_count,
-			     sizeof(isc_heap_t *));
+	if (qpdb->slist != NULL) {
+		isc_skiplist_destroy(&qpdb->slist);
 	}
 
 	if (qpdb->rrsetstats != NULL) {
@@ -2607,7 +2589,7 @@ free_qpdb(qpcache_t *qpdb, bool log) {
 	isc_rwlock_destroy(&qpdb->lock);
 	qpdb->common.magic = 0;
 	qpdb->common.impmagic = 0;
-	isc_mem_detach(&qpdb->hmctx);
+	isc_mem_detach(&qpdb->smctx);
 
 	isc_mem_putanddetach(&qpdb->common.mctx, qpdb, sizeof(*qpdb));
 }
@@ -3236,9 +3218,10 @@ find_header:
 				ISC_LIST_PREPEND(qpdb->lru[idx], newheader,
 						 link);
 			}
-			INSIST(qpdb->heaps != NULL);
-			isc_heap_insert(qpdb->heaps[idx], newheader);
-			newheader->heap = qpdb->heaps[idx];
+
+			INSIST(qpdb->slist != NULL);
+			header->ttl_index = isc_skiplist_insert(qpdb->slist,
+								newheader);
 
 			/*
 			 * There are no other references to 'header' when
@@ -3255,9 +3238,11 @@ find_header:
 			dns_slabheader_destroy(&header);
 		} else {
 			idx = HEADERNODE(newheader)->locknum;
-			INSIST(qpdb->heaps != NULL);
-			isc_heap_insert(qpdb->heaps[idx], newheader);
-			newheader->heap = qpdb->heaps[idx];
+
+			INSIST(qpdb->slist != NULL);
+			header->ttl_index = isc_skiplist_insert(qpdb->slist,
+								newheader);
+
 			if (ZEROTTL(newheader)) {
 				newheader->last_used = qpdb->last_used + 1;
 				ISC_LIST_APPEND(qpdb->lru[idx], newheader,
@@ -3295,8 +3280,10 @@ find_header:
 		}
 
 		idx = HEADERNODE(newheader)->locknum;
-		isc_heap_insert(qpdb->heaps[idx], newheader);
-		newheader->heap = qpdb->heaps[idx];
+
+		newheader->ttl_index = isc_skiplist_insert(qpdb->slist,
+							   newheader);
+
 		if (ZEROTTL(newheader)) {
 			ISC_LIST_APPEND(qpdb->lru[idx], newheader, link);
 		} else {
@@ -3430,9 +3417,9 @@ cleanup:
 }
 
 static void
-expire_ttl_headers(qpcache_t *qpdb, unsigned int locknum,
-		   isc_rwlocktype_t *nlocktypep, isc_rwlocktype_t *tlocktypep,
-		   isc_stdtime_t now, bool cache_is_overmem DNS__DB_FLARG);
+expire_ttl_headers(qpcache_t *qpdb, isc_rwlocktype_t *nlocktypep,
+		   isc_rwlocktype_t *tlocktypep, isc_stdtime_t now,
+		   bool cache_is_overmem DNS__DB_FLARG);
 
 static isc_result_t
 addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
@@ -3563,7 +3550,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		cleanup_dead_nodes(qpdb, qpnode->locknum DNS__DB_FLARG_PASS);
 	}
 
-	expire_ttl_headers(qpdb, qpnode->locknum, &nlocktype, &tlocktype, now,
+	expire_ttl_headers(qpdb, &nlocktype, &tlocktype, now,
 			   cache_is_overmem DNS__DB_FLARG_PASS);
 
 	/*
@@ -3634,7 +3621,9 @@ deleterdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 
 	newheader = dns_slabheader_new(db, node);
 	newheader->type = DNS_TYPEPAIR_VALUE(type, covers);
-	setttl(newheader, 0);
+
+	isc_skiplist_delete(qpdb->slist, newheader, newheader->ttl_index);
+
 	atomic_init(&newheader->attributes, DNS_SLABHEADERATTR_NONEXISTENT);
 
 	NODE_WRLOCK(&qpdb->node_locks[qpnode->locknum].lock, &nlocktype);
@@ -3730,7 +3719,7 @@ dns__qpcache_create(isc_mem_t *mctx, const dns_name_t *origin,
 		    unsigned int argc, char *argv[],
 		    void *driverarg ISC_ATTR_UNUSED, dns_db_t **dbp) {
 	qpcache_t *qpdb = NULL;
-	isc_mem_t *hmctx = mctx;
+	isc_mem_t *smctx = mctx;
 	int i;
 
 	/* This database implementation only supports cache semantics */
@@ -3748,10 +3737,10 @@ dns__qpcache_create(isc_mem_t *mctx, const dns_name_t *origin,
 	isc_refcount_init(&qpdb->common.references, 1);
 
 	/*
-	 * If argv[0] exists, it points to a memory context to use for heap
+	 * If argv[0] exists, it points to a memory context to use for skiplist
 	 */
 	if (argc != 0) {
-		hmctx = (isc_mem_t *)argv[0];
+		smctx = (isc_mem_t *)argv[0];
 	}
 
 	isc_rwlock_init(&qpdb->lock);
@@ -3768,14 +3757,9 @@ dns__qpcache_create(isc_mem_t *mctx, const dns_name_t *origin,
 	}
 
 	/*
-	 * Create the heaps.
+	 * Create the skiplist.
 	 */
-	qpdb->heaps = isc_mem_cget(hmctx, qpdb->node_lock_count,
-				   sizeof(isc_heap_t *));
-	for (i = 0; i < (int)qpdb->node_lock_count; i++) {
-		isc_heap_create(hmctx, ttl_sooner, set_index, 0,
-				&qpdb->heaps[i]);
-	}
+	isc_skiplist_create(smctx, get_ttl, &qpdb->slist);
 
 	/*
 	 * Create deadnode lists.
@@ -3800,7 +3784,7 @@ dns__qpcache_create(isc_mem_t *mctx, const dns_name_t *origin,
 	 * mctx won't disappear out from under us.
 	 */
 	isc_mem_attach(mctx, &qpdb->common.mctx);
-	isc_mem_attach(hmctx, &qpdb->hmctx);
+	isc_mem_attach(smctx, &qpdb->smctx);
 
 	/*
 	 * Make a copy of the origin name.
@@ -4361,9 +4345,7 @@ deletedata(dns_db_t *db ISC_ATTR_UNUSED, dns_dbnode_t *node ISC_ATTR_UNUSED,
 	dns_slabheader_t *header = data;
 	qpcache_t *qpdb = (qpcache_t *)header->db;
 
-	if (header->heap != NULL && header->heap_index != 0) {
-		isc_heap_delete(header->heap, header->heap_index);
-	}
+	isc_skiplist_delete(qpdb->slist, header, header->ttl_index);
 
 	update_rrsetstats(qpdb->rrsetstats, header->type,
 			  atomic_load_acquire(&header->attributes), false);
@@ -4381,43 +4363,53 @@ deletedata(dns_db_t *db ISC_ATTR_UNUSED, dns_dbnode_t *node ISC_ATTR_UNUSED,
 	}
 }
 
+typedef struct lock_ctx {
+	bool cache_is_overmem;
+	qpcache_t *qpdb;
+	isc_rwlocktype_t *nlocktypep;
+	isc_rwlocktype_t *tlocktypep;
+} lock_ctx_t;
+
+static bool
+popaction_cb(void *user, void *header, uint32_t now) {
+	dns_slabheader_t *h = header;
+	lock_ctx_t *ctx = user;
+	uint32_t ttl;
+
+	INSIST(user != NULL);
+
+	ttl = h->ttl;
+
+	if (ctx->cache_is_overmem) {
+		ttl += STALE_TTL(h, ctx->qpdb);
+	}
+
+	if (ttl >= now - QPDB_VIRTUAL) {
+		expireheader(header, ctx->nlocktypep, ctx->tlocktypep,
+			     dns_expire_ttl DNS__DB_FLARG_PASS);
+
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * Caller must be holding the node write lock.
  */
 static void
-expire_ttl_headers(qpcache_t *qpdb, unsigned int locknum,
-		   isc_rwlocktype_t *nlocktypep, isc_rwlocktype_t *tlocktypep,
-		   isc_stdtime_t now, bool cache_is_overmem DNS__DB_FLARG) {
-	isc_heap_t *heap = qpdb->heaps[locknum];
+expire_ttl_headers(qpcache_t *qpdb, isc_rwlocktype_t *nlocktypep,
+		   isc_rwlocktype_t *tlocktypep, isc_stdtime_t now,
+		   bool cache_is_overmem DNS__DB_FLARG) {
+	struct lock_ctx ctx = {
+		.cache_is_overmem = cache_is_overmem,
+		.qpdb = qpdb,
+		.nlocktypep = nlocktypep,
+		.tlocktypep = tlocktypep,
+	};
 
-	for (size_t i = 0; i < DNS_QPDB_EXPIRE_TTL_COUNT; i++) {
-		dns_slabheader_t *header = isc_heap_element(heap, 1);
-
-		if (header == NULL) {
-			/* No headers left on this TTL heap; exit cleaning */
-			return;
-		}
-
-		dns_ttl_t ttl = header->ttl;
-
-		if (!cache_is_overmem) {
-			/* Only account for stale TTL if cache is not overmem */
-			ttl += STALE_TTL(header, qpdb);
-		}
-
-		if (ttl >= now - QPDB_VIRTUAL) {
-			/*
-			 * The header at the top of this TTL heap is not yet
-			 * eligible for expiry, so none of the other headers on
-			 * the same heap can be eligible for expiry, either;
-			 * exit cleaning.
-			 */
-			return;
-		}
-
-		expireheader(header, nlocktypep, tlocktypep,
-			     dns_expire_ttl DNS__DB_FLARG_PASS);
-	}
+	isc_skiplist_poprange(qpdb->slist, now, DNS_QPDB_EXPIRE_TTL_COUNT, &ctx,
+			      popaction_cb);
 }
 
 static dns_dbmethods_t qpdb_cachemethods = {
