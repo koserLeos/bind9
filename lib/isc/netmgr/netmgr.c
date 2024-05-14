@@ -1546,12 +1546,22 @@ isc_nmhandle_localaddr(isc_nmhandle_t *handle) {
 		uv_tcp_getsockname(&handle->sock->uv_handle.tcp,
 				   (struct sockaddr *)&addr.type.ss,
 				   &(int){ sizeof(addr.type.ss) });
+		if (addr.type.ss.ss_family == AF_INET6) {
+			addr.length = sizeof(addr.type.sin6);
+		} else {
+			addr.length = sizeof(addr.type.sin);
+		}
 		break;
 
 	case isc_nm_udpsocket:
 		uv_udp_getsockname(&handle->sock->uv_handle.udp,
 				   (struct sockaddr *)&addr.type.ss,
 				   &(int){ sizeof(addr.type.ss) });
+		if (addr.type.ss.ss_family == AF_INET6) {
+			addr.length = sizeof(addr.type.sin6);
+		} else {
+			addr.length = sizeof(addr.type.sin);
+		}
 		break;
 
 	default:
