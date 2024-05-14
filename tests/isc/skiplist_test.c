@@ -53,15 +53,21 @@ static struct entry entries_drift[] = {
 
 static void
 fill_entries_driftless(isc_skiplist_t *slist) {
+	uint64_t index;
+
 	for (size_t i = 0; i < ARRAY_SIZE(entries); i++) {
-		isc_skiplist_insert(slist, &entries[i]);
+		index = isc_skiplist_insert(slist, &entries[i]);
+		assert_int_not_equal(index, 0);
 	}
 }
 
 static void
 fill_entries_drift(isc_skiplist_t *slist) {
+	uint64_t index;
+
 	for (size_t i = 0; i < ARRAY_SIZE(entries_drift); i++) {
-		isc_skiplist_insert(slist, &entries_drift[i]);
+		index = isc_skiplist_insert(slist, &entries_drift[i]);
+		assert_int_not_equal(index, 0);
 	}
 }
 
@@ -75,7 +81,8 @@ static bool
 remove_direct(void *user, void *value, uint32_t range) {
 	struct entry *e = value;
 
-	INSIST(user == NULL && value != NULL);
+	REQUIRE(user == NULL && value != NULL);
+	REQUIRE(value != NULL);
 
 	assert_in_range(e->ttl, 0, range);
 
@@ -87,9 +94,11 @@ remove_drifting(void *user, void *value, uint32_t range) {
 	struct entry *e;
 
 	REQUIRE(value != NULL);
-	INSIST(user == NULL);
+	REQUIRE(user == NULL);
 
 	e = value;
+
+	assert_in_range(e->ttl, 0, range);
 
 	return e->ttl + e->drift < range;
 }
@@ -137,7 +146,7 @@ ISC_RUN_TEST_IMPL(isc_skiplist_insert) {
 
 ISC_RUN_TEST_IMPL(isc_skiplist_insert_make_duplicate) {
 	isc_skiplist_t *slist = NULL;
-	uint32_t index1, index2;
+	uint64_t index1, index2;
 
 	isc_skiplist_create(mctx, get_key, &slist);
 	assert_non_null(slist);
@@ -153,15 +162,19 @@ ISC_RUN_TEST_IMPL(isc_skiplist_insert_make_duplicate) {
 ISC_RUN_TEST_IMPL(isc_skiplist_delete) {
 	isc_skiplist_t *slist = NULL;
 	isc_result_t result;
-	uint32_t index;
+	uint64_t index;
 
 	isc_skiplist_create(mctx, get_key, &slist);
 	assert_non_null(slist);
 
 	index = isc_skiplist_insert(slist, &entries[0]);
+	assert_int_not_equal(index, 0);
 
 	result = isc_skiplist_delete(slist, &entries[0], index);
 	assert_int_equal(result, ISC_R_SUCCESS);
+
+	result = isc_skiplist_delete(slist, &entries[1], index);
+	assert_int_equal(result, ISC_R_NOTFOUND);
 
 	isc_skiplist_destroy(&slist);
 	assert_null(slist);

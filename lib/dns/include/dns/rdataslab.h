@@ -61,9 +61,9 @@ ISC_LANG_BEGINDECLS
 #define DNS_RDATASLAB_OFFLINE 0x01 /* RRSIG is for offline DNSKEY */
 
 struct dns_slabheader_proof {
-	dns_name_t	name;
-	void	       *neg;
-	void	       *negsig;
+	dns_name_t name;
+	void *neg;
+	void *negsig;
 	dns_rdatatype_t type;
 };
 
@@ -71,21 +71,16 @@ struct dns_slabheader {
 	/*%
 	 * Locked by the owning node's lock.
 	 */
-	uint32_t	      serial;
-	dns_ttl_t	      ttl;
-	dns_typepair_t	      type;
+	uint32_t serial;
+	dns_ttl_t ttl;
+	dns_typepair_t type;
 	atomic_uint_least16_t attributes;
-	dns_trust_t	      trust;
+	dns_trust_t trust;
 
 	unsigned int heap_index;
 
-	uint32_t ttl_index;
-	/*%<
-	 * Used for TTL-based cache cleaning.
-	 */
-
 	isc_stdtime_t resign;
-	unsigned int  resign_lsb : 1;
+	unsigned int resign_lsb : 1;
 
 	atomic_uint_fast16_t count;
 	/*%<
@@ -117,7 +112,7 @@ struct dns_slabheader {
 	 * this rdataset.
 	 */
 
-	dns_db_t     *db;
+	dns_db_t *db;
 	dns_dbnode_t *node;
 	/*%<
 	 * The database and database node objects containing
@@ -134,8 +129,13 @@ struct dns_slabheader {
 	 */
 	unsigned char upper[32];
 
-	isc_heap_t	   *heap;
-	dns_glue_t	   *glue_list;
+	uint64_t ttl_index;
+	/*%<
+	 * Used for TTL-based cache cleaning.
+	 */
+
+	isc_heap_t *heap;
+	dns_glue_t *glue_list;
 	struct cds_wfs_node wfs_node;
 };
 

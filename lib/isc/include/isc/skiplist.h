@@ -23,8 +23,9 @@
 
 typedef struct isc_skiplist isc_skiplist_t;
 
+typedef void (*isc_skiplist_index_update_fn_t)(void *user, uint64_t new_index);
 typedef bool (*isc_skiplist_popaction_t)(void *user, void *value, uint32_t);
-typedef uint32_t (*isc_skiplist_key_fn_t)(void *);
+typedef uint32_t (*isc_skiplist_key_fn_t)(void *user);
 
 ISC_LANG_BEGINDECLS
 
@@ -49,7 +50,7 @@ isc_skiplist_destroy(isc_skiplist_t **slistp);
  * \li	'*slist' is valid skiplist
  */
 
-uint32_t
+uint64_t
 isc_skiplist_insert(isc_skiplist_t *slist, void *value);
 /*%
  * Insert
@@ -72,7 +73,7 @@ isc_skiplist_update(isc_skiplist_t *slist, void *value, uint32_t new_key,
  */
 
 isc_result_t
-isc_skiplist_delete(isc_skiplist_t *slist, void *value, uint32_t index);
+isc_skiplist_delete(isc_skiplist_t *slist, void *value, uint64_t index);
 
 size_t
 isc_skiplist_poprange(isc_skiplist_t *slist, uint32_t range, size_t limit,

@@ -1,6 +1,7 @@
 #include <inttypes.h>
 #include <stdint.h>
 
+#include <isc/list.h>
 #include <isc/magic.h>
 #include <isc/mem.h>
 #include <isc/random.h>
@@ -11,31 +12,33 @@
 #define ISC_SKIPLIST_MAGIC ISC_MAGIC('S', 'k', 'i', 'p')
 #define SKIPLIST_VALID(s)  ISC_MAGIC_VALID(s, ISC_SKIPLIST_MAGIC)
 
-#define MAX_LEVEL   32
-#define MAX_INDEX   (MAX_LEVEL - 1)
-#define MAX_SEGMENT 16777215
+#define MAX_LEVEL 32
+#define MAX_INDEX (MAX_LEVEL - 1)
+
+#define SEGMENT_SATURATED_INDEX 26
+#define SEGMENT_SATURATED_SIZE	(32U << 26)
+
+#define UNSATURATED_INDEX(x) ISC_MIN(26, x)
 
 STATIC_ASSERT(sizeof(void *) <= sizeof(uint64_t),
 	      "pointers must fit in 64 bits");
 
 typedef struct skiplist_node skiplist_node_t;
-typedef struct skiplist_segment skiplist_segment_t;
+typedef struct skiplist_entry skiplist_entry_t;
+typedef ISC_LIST(skiplist_entry_t) skiplist_entrylist_t;
 
-struct skiplist_segment {
-	uint32_t span;
-	uint32_t used;
-	uint64_t data[47];
+struct skiplist_entry {
+	void *value;
+	ISC_LINK(skiplist_entry_t) link;
 };
 
 struct skiplist_node {
 	uint32_t level;
 	uint32_t key;
 
-	uint32_t value_size;
-	uint32_t segments;
+	uint64_t count;
 
-	uint32_t *cursors;
-	uint64_t **values;
+	skiplist_entrylist_t entries;
 
 	skiplist_node_t *nodes[];
 };
@@ -44,6 +47,13 @@ struct isc_skiplist {
 	uint32_t magic;
 	isc_mem_t *mctx;
 	isc_skiplist_key_fn_t key_fn;
+
+	uint64_t entry_chunk_span;
+	uint32_t *cursors;
+	skiplist_entry_t **entries;
+
+	skiplist_entrylist_t frees;
+
 	skiplist_node_t *head;
 };
 
@@ -60,86 +70,98 @@ node_create_raw(isc_mem_t *mctx, uint32_t key) {
 	*node = (skiplist_node_t){
 		.level = level,
 		.key = key,
-
-		.segments = 1,
+		.entries = ISC_LIST_INITIALIZER,
 	};
 
-	node->cursors = isc_mem_get(mctx, 1 * sizeof(uint32_t));
-	node->cursors[0] = 0;
-
-	node->values = isc_mem_get(mctx, 1 * sizeof(uint64_t *));
-	node->values[0] = isc_mem_get(mctx, 1 * sizeof(uint64_t));
-
-	return node;
+	return (node);
 }
 
-static void
-node_destroy(isc_mem_t *mctx, skiplist_node_t *node) {
-	isc_mem_put(mctx, node->cursors, node->segments * sizeof(uint32_t));
+static uint64_t
+insert_value(isc_skiplist_t *slist, skiplist_node_t *node, void *value) {
+	skiplist_entry_t *entry;
+	uint32_t cursor;
+	size_t i;
 
-	for (size_t i = 0; i < node->segments; i++) {
-		isc_mem_put(mctx, node->values[i], (1 << i) * sizeof(uint64_t));
+	if (!ISC_LIST_EMPTY(slist->frees)) {
+		fprintf(stderr, "===================== FREE!\n");
+		entry = ISC_LIST_HEAD(slist->frees);
+		ISC_LIST_UNLINK(slist->frees, entry, link);
+		goto found;
 	}
 
-	isc_mem_put(mctx, node->values, node->segments * sizeof(uint64_t *));
-
-	isc_mem_put(mctx, node, STRUCT_FLEX_SIZE(node, nodes, node->level));
-}
-
-static uint32_t
-insert_value(isc_mem_t *mctx, skiplist_node_t *node, void *value) {
-	uint32_t hi, lo;
-
-	node->value_size++;
-
-	for (lo = 0; lo < node->segments - 1; lo++) {
-		if (node->cursors[lo] < (1 << lo)) {
-			hi = node->cursors[lo];
-			node->values[lo][hi] = (uint64_t)((uintptr_t)value);
-
-			node->cursors[lo] = (1 << lo);
-
-			return (lo | (hi << 8));
+	for (i = 0; i < UNSATURATED_INDEX(slist->entry_chunk_span - 1); i++) {
+		cursor = slist->cursors[i];
+		if (cursor < (32U << i)) {
+			fprintf(stderr, "======== EARLY %zu, %u\n", i, cursor);
+			slist->cursors[i] = 32U << i;
+			entry = &slist->entries[i][cursor];
+			goto found;
 		}
 	}
 
-	/* unroll last iteration for special case */
-	if (node->cursors[lo] < (1 << lo)) {
-		hi = node->cursors[lo];
-		node->cursors[lo]++;
-
-		node->values[lo][hi] = (uint64_t)((uintptr_t)value);
-
-		return (lo | (hi << 8));
+	for (; i < slist->entry_chunk_span - 1; i++) {
+		cursor = slist->cursors[i];
+		if (cursor < SEGMENT_SATURATED_SIZE) {
+			fprintf(stderr, "======== SATURATED %zu, %u\n", i,
+				cursor);
+			slist->cursors[i] = SEGMENT_SATURATED_SIZE;
+			entry = &slist->entries[i][cursor];
+			goto found;
+		}
 	}
 
-	lo++;
+	INSIST(i == slist->entry_chunk_span - 1);
 
-	INSIST(lo == node->segments);
+	cursor = slist->cursors[i];
+	if (cursor < SEGMENT_SATURATED_SIZE) {
+		fprintf(stderr, "======== CURSOR MOVE %zu,%u\n", i, cursor);
+		slist->cursors[i]++;
+		entry = &slist->entries[i][cursor];
+		goto found;
+	}
 
-	node->cursors = isc_mem_reget(
-		mctx, node->cursors, ISC_CHECKED_MUL(lo, sizeof(uint32_t)),
-		ISC_CHECKED_MUL(lo + 1, sizeof(uint32_t)));
+	i++;
 
-	node->cursors[lo] = 1;
+	fprintf(stderr, "=================RESIZING TO %zu\n", i);
 
-	node->values = isc_mem_reget(
-		mctx, node->values, ISC_CHECKED_MUL(lo, sizeof(uint64_t *)),
-		ISC_CHECKED_MUL(lo + 1, sizeof(uint64_t *)));
+	slist->cursors = isc_mem_creget(slist->mctx, slist->cursors, i, i + 1,
+					sizeof(uint32_t));
 
-	node->values[lo] = isc_mem_get(mctx, (1 << lo) * sizeof(uint64_t));
-	node->values[lo][0] = (uint64_t)((uintptr_t)value);
+	slist->cursors[i] = 0;
 
-	node->segments = lo + 1;
+	slist->entries = isc_mem_creget(slist->mctx, slist->entries, i, i + 1,
+					sizeof(skiplist_entry_t *));
 
-	return lo;
+	slist->entries[i] = isc_mem_cget(slist->mctx, 32U << (i < 26 ? i : 26),
+					 sizeof(skiplist_entry_t));
+
+	slist->entry_chunk_span = i + 1;
+
+	entry = &slist->entries[i][0];
+
+found:
+	*entry = (skiplist_entry_t){
+		.value = value,
+		.link = ISC_LINK_INITIALIZER,
+	};
+
+	ISC_LIST_APPEND(node->entries, entry, link);
+
+	node->count++;
+
+	fprintf(stderr, "\n>>>>>\ninsert,ttl:%u,value:%p,node:%p\n<<<<<\n\n",
+		node->key, value, entry);
+
+	return ((uint64_t)(uintptr_t)entry);
 }
 
 void
 isc_skiplist_create(isc_mem_t *mctx, isc_skiplist_key_fn_t key_fn,
 		    isc_skiplist_t **slistp) {
-	isc_skiplist_t *slist;
+	skiplist_entry_t **entries;
 	skiplist_node_t *node;
+	isc_skiplist_t *slist;
+	uint32_t *cursors;
 
 	REQUIRE(slistp != NULL);
 	REQUIRE(*slistp == NULL);
@@ -148,17 +170,27 @@ isc_skiplist_create(isc_mem_t *mctx, isc_skiplist_key_fn_t key_fn,
 	*node = (skiplist_node_t){
 		.level = MAX_LEVEL,
 		.key = UINT32_MAX,
-		.value_size = UINT32_MAX,
+		.entries = ISC_LIST_INITIALIZER,
 	};
 
 	for (size_t i = 0; i < node->level; i++) {
 		node->nodes[i] = node;
 	}
 
+	cursors = isc_mem_cget(mctx, 1, sizeof(uint32_t));
+	cursors[0] = 0;
+
+	entries = isc_mem_cget(mctx, 1, sizeof(skiplist_node_t *));
+	entries[0] = isc_mem_cget(mctx, 32, sizeof(skiplist_node_t));
+
 	slist = isc_mem_get(mctx, sizeof(*slist));
 	*slist = (isc_skiplist_t){
 		.magic = ISC_SKIPLIST_MAGIC,
 		.key_fn = key_fn,
+		.entry_chunk_span = 1,
+		.cursors = cursors,
+		.entries = entries,
+		.frees = ISC_LIST_INITIALIZER,
 		.head = node,
 	};
 
@@ -183,18 +215,30 @@ isc_skiplist_destroy(isc_skiplist_t **slistp) {
 	node = slist->head->nodes[0];
 	while (node != slist->head) {
 		next = node->nodes[0];
-		node_destroy(slist->mctx, node);
+		isc_mem_put(slist->mctx, node,
+			    STRUCT_FLEX_SIZE(node, nodes, node->level));
 		node = next;
 	}
 
-	/* head doesn't have any data, so it's cleaned by hand */
 	isc_mem_put(slist->mctx, node,
 		    STRUCT_FLEX_SIZE(node, nodes, MAX_LEVEL));
+
+	isc_mem_cput(slist->mctx, slist->cursors, slist->entry_chunk_span,
+		     sizeof(uint32_t));
+
+	for (size_t i = 0; i < slist->entry_chunk_span; i++) {
+		isc_mem_cput(slist->mctx, slist->entries[i],
+			     32U << (i < 26 ? i : 26),
+			     sizeof(skiplist_entry_t));
+	}
+
+	isc_mem_cput(slist->mctx, slist->entries, slist->entry_chunk_span,
+		     sizeof(skiplist_entry_t *));
 
 	isc_mem_putanddetach(&slist->mctx, slist, sizeof(*slist));
 }
 
-uint32_t
+uint64_t
 isc_skiplist_insert(isc_skiplist_t *slist, void *value) {
 	skiplist_node_t *updates[MAX_LEVEL];
 	skiplist_node_t *node;
@@ -214,8 +258,7 @@ isc_skiplist_insert(isc_skiplist_t *slist, void *value) {
 		}
 
 		if (node->nodes[level]->key == key) {
-			return insert_value(slist->mctx, node->nodes[level],
-					    value);
+			return (insert_value(slist, node->nodes[level], value));
 		}
 
 		updates[level] = node;
@@ -228,20 +271,24 @@ isc_skiplist_insert(isc_skiplist_t *slist, void *value) {
 		updates[i]->nodes[i] = node;
 	}
 
-	return insert_value(slist->mctx, node, value);
+	return (insert_value(slist, node, value));
 }
 
 isc_result_t
-isc_skiplist_delete(isc_skiplist_t *slist, void *value, uint32_t index) {
+isc_skiplist_delete(isc_skiplist_t *slist, void *value, uint64_t index) {
+	skiplist_entry_t *entry;
 	skiplist_node_t *node;
-	uint32_t hi, lo, key;
+	uint32_t key;
 	int32_t level;
 
 	REQUIRE(SKIPLIST_VALID(slist));
+	REQUIRE(index != 0 && index != UINT32_MAX);
 
 	key = slist->key_fn(value);
 
 	INSIST(key != UINT32_MAX);
+
+	entry = (void *)((uintptr_t)index);
 
 	node = slist->head;
 	for (level = MAX_INDEX; level >= 0; level--) {
@@ -250,33 +297,37 @@ isc_skiplist_delete(isc_skiplist_t *slist, void *value, uint32_t index) {
 		}
 
 		if (node->nodes[level]->key == key) {
-			lo = index & 0xFF;
-			hi = index >> 8;
-
-			node->nodes[level]->value_size--;
-			node->nodes[level]->values[lo][hi] = 0x00;
-
-			if (lo != node->segments - 1) {
-				node->nodes[level]->cursors[lo] = lo;
-			}
-
-			return ISC_R_SUCCESS;
+			fprintf(stderr, ">>>>> del,ttl:%u,node:%p ...", key,
+				node);
+			INSIST(node->nodes[level]->count > 0);
+			INSIST(entry->value == value);
+			node->nodes[level]->count--;
+			ISC_LIST_UNLINK(node->nodes[level]->entries, entry,
+					link);
+			*entry = (skiplist_entry_t){
+				.value = NULL,
+				.link = ISC_LINK_INITIALIZER,
+			};
+			ISC_LIST_APPEND(slist->frees, entry, link);
+			fprintf(stderr, "ok\n");
+			return (ISC_R_SUCCESS);
 		}
 	}
 
-	return ISC_R_NOTFOUND;
+	return (ISC_R_NOTFOUND);
 }
 
 size_t
 isc_skiplist_poprange(isc_skiplist_t *slist, uint32_t range, size_t limit,
 		      void *user, isc_skiplist_popaction_t action) {
+	skiplist_entry_t *entry, *next_entry;
 	skiplist_node_t *updates[MAX_LEVEL];
 	size_t processed, removed;
-	skiplist_node_t *node;
-	size_t i, j;
+	skiplist_node_t *node, *next_node;
 	void *value;
 
 	REQUIRE(SKIPLIST_VALID(slist));
+	REQUIRE(action != NULL);
 
 	if (limit == 0) {
 		limit = SIZE_MAX;
@@ -289,44 +340,61 @@ isc_skiplist_poprange(isc_skiplist_t *slist, uint32_t range, size_t limit,
 
 	node = slist->head->nodes[0];
 	while (node->key < range) {
-		for (i = 0; i < node->segments; i++) {
-			for (j = 0; j < node->cursors[i]; j++) {
-				value = (void *)((uintptr_t)node->values[i][j]);
+		INSIST(node != slist->head);
 
-				if (value != NULL) {
-					if ((action)(user, value, range)) {
-						node->values[i][j] = 0x00;
-						node->value_size--;
-						removed++;
-					}
+		fprintf(stderr, "\n!!!!!\nrange,ttl:%u\n!!!!!\n", node->key);
 
-					processed++;
-					if (processed >= limit) {
-						goto out;
-					}
-				}
+		ISC_LIST_FOREACH_SAFE (node->entries, entry, link, next_entry) {
+			value = entry->value;
+
+			fprintf(stderr,
+				">>>>> range,ttl:%u,value:%p,node:%p ...",
+				node->key, value, entry);
+
+			INSIST(value != NULL);
+
+			if ((action)(user, value, range)) {
+				node->count--;
+				removed++;
+
+				ISC_LIST_UNLINK(node->entries, entry, link);
+				*entry = (skiplist_entry_t){
+					.value = NULL,
+					.link = ISC_LINK_INITIALIZER,
+				};
+				ISC_LIST_APPEND(slist->frees, entry, link);
+			}
+
+			fprintf(stderr, "ok\n");
+
+			processed++;
+			if (processed >= limit) {
+				goto out;
 			}
 		}
 
-		if (node->value_size != 0) {
-			node = node->nodes[0];
-		} else {
-			value = node->nodes[0];
+		if (ISC_LIST_EMPTY(node->entries)) {
+			INSIST(node->count == 0);
+			next_node = node->nodes[0];
 			memmove(updates, node->nodes,
 				node->level * sizeof(skiplist_node_t *));
-			node_destroy(slist->mctx, node);
-			node = value;
+			isc_mem_put(slist->mctx, node,
+				    STRUCT_FLEX_SIZE(node, nodes, node->level));
+			node = next_node;
+		} else {
+			node = node->nodes[0];
 		}
 	}
 
 out:
-	if (node->value_size == 0) {
+	if (ISC_LIST_EMPTY(node->entries) && node != slist->head) {
 		memmove(updates, node->nodes,
 			node->level * sizeof(skiplist_node_t *));
-		node_destroy(slist->mctx, node);
+		isc_mem_put(slist->mctx, node,
+			    STRUCT_FLEX_SIZE(node, nodes, node->level));
 	}
 
 	memmove(slist->head->nodes, updates, sizeof(updates));
 
-	return removed;
+	return (removed);
 }

@@ -919,22 +919,26 @@ setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 		return;
 	}
 
-	if (header->db == NULL || !dns_db_iscache(header->db)) {
+	if (header->db == NULL || !dns_db_iscache(header->db) ||
+	    header->ttl_index == 0)
+	{
 		header->ttl = newttl;
 		return;
 	}
 
 	qpdb = (qpcache_t *)header->db;
 
-	isc_skiplist_delete(qpdb->slist, header, header->ttl_index);
+	if (newttl == 0) {
+		isc_skiplist_delete(qpdb->slist, header, header->ttl_index);
+		header->ttl = 0;
+		header->ttl_index = 0;
+		return;
+	}
 
 	header->ttl = newttl;
 
-	if (newttl == 0) {
-		header->ttl_index = UINT32_MAX;
-	} else {
-		header->ttl_index = isc_skiplist_insert(qpdb->slist, header);
-	}
+	fprintf(stderr, "%%%% setttl!\n");
+	header->ttl_index = isc_skiplist_insert(qpdb->slist, header);
 }
 
 /*
@@ -943,13 +947,14 @@ setttl(dns_slabheader_t *header, dns_ttl_t newttl) {
 static void
 expireheader(dns_slabheader_t *header, isc_rwlocktype_t *nlocktypep,
 	     isc_rwlocktype_t *tlocktypep, dns_expire_t reason DNS__DB_FLARG) {
-	//setttl(header, 0);
+	// setttl(header, 0);
+	header->ttl = 0;
+	qpcache_t *qpdb = (qpcache_t *)header->db;
+
 	mark(header, DNS_SLABHEADERATTR_ANCIENT);
 	HEADERNODE(header)->dirty = 1;
 
 	if (isc_refcount_current(&HEADERNODE(header)->erefs) == 0) {
-		qpcache_t *qpdb = (qpcache_t *)header->db;
-
 		/*
 		 * If no one else is using the node, we can clean it up now.
 		 * We first need to gain a new reference to the node to meet a
@@ -970,6 +975,9 @@ expireheader(dns_slabheader_t *header, isc_rwlocktype_t *nlocktypep,
 					    dns_cachestatscounter_deletettl);
 			break;
 		case dns_expire_lru:
+			// TODO check this
+			isc_skiplist_delete(qpdb->slist, header,
+					    header->ttl_index);
 			isc_stats_increment(qpdb->cachestats,
 					    dns_cachestatscounter_deletelru);
 			break;
@@ -3220,8 +3228,9 @@ find_header:
 			}
 
 			INSIST(qpdb->slist != NULL);
-			header->ttl_index = isc_skiplist_insert(qpdb->slist,
-								newheader);
+			INSIST(newheader->ttl_index == 0);
+			newheader->ttl_index = isc_skiplist_insert(qpdb->slist,
+								   newheader);
 
 			/*
 			 * There are no other references to 'header' when
@@ -3240,8 +3249,9 @@ find_header:
 			idx = HEADERNODE(newheader)->locknum;
 
 			INSIST(qpdb->slist != NULL);
-			header->ttl_index = isc_skiplist_insert(qpdb->slist,
-								newheader);
+			INSIST(newheader->ttl_index == 0);
+			newheader->ttl_index = isc_skiplist_insert(qpdb->slist,
+								   newheader);
 
 			if (ZEROTTL(newheader)) {
 				newheader->last_used = qpdb->last_used + 1;
@@ -3279,11 +3289,13 @@ find_header:
 			return (DNS_R_UNCHANGED);
 		}
 
+		// TODO: why there are entries with an index already?
+		if (newheader->ttl_index == 0) {
+			newheader->ttl_index = isc_skiplist_insert(qpdb->slist,
+								   newheader);
+		}
+
 		idx = HEADERNODE(newheader)->locknum;
-
-		newheader->ttl_index = isc_skiplist_insert(qpdb->slist,
-							   newheader);
-
 		if (ZEROTTL(newheader)) {
 			ISC_LIST_APPEND(qpdb->lru[idx], newheader, link);
 		} else {
@@ -3623,6 +3635,7 @@ deleterdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	newheader->type = DNS_TYPEPAIR_VALUE(type, covers);
 
 	isc_skiplist_delete(qpdb->slist, newheader, newheader->ttl_index);
+	newheader->ttl_index = 0;
 
 	atomic_init(&newheader->attributes, DNS_SLABHEADERATTR_NONEXISTENT);
 
@@ -4346,6 +4359,7 @@ deletedata(dns_db_t *db ISC_ATTR_UNUSED, dns_dbnode_t *node ISC_ATTR_UNUSED,
 	qpcache_t *qpdb = (qpcache_t *)header->db;
 
 	isc_skiplist_delete(qpdb->slist, header, header->ttl_index);
+	header->ttl_index = 0;
 
 	update_rrsetstats(qpdb->rrsetstats, header->type,
 			  atomic_load_acquire(&header->attributes), false);
