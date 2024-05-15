@@ -1169,14 +1169,20 @@ no_nsid:
 		count++;
 	}
 
-	if (WANTRAD(client) && view != NULL && view->rad != NULL &&
-	    !dns_name_equal(view->rad, dns_rootname))
-	{
-		INSIST(count < DNS_EDNSOPTIONS);
-		ednsopts[count].code = DNS_OPT_RAD;
-		ednsopts[count].length = view->rad->length;
-		ednsopts[count].value = view->rad->ndata;
-		count++;
+	if (WANTRAD(client)) {
+		dns_name_t *rad = NULL;
+		if (dns_name_dynamic(&client->rad)) {
+			rad = &client->rad;
+		} else if (view != NULL && view->rad != NULL) {
+			rad = view->rad;
+		}
+		if (rad != NULL && !dns_name_equal(rad, dns_rootname)) {
+			INSIST(count < DNS_EDNSOPTIONS);
+			ednsopts[count].code = DNS_OPT_RAD;
+			ednsopts[count].length = rad->length;
+			ednsopts[count].value = rad->ndata;
+			count++;
+		}
 	}
 
 	/* Padding must be added last */
