@@ -1686,6 +1686,13 @@ default is used.
    to ``.`` then the EDNS option will not be added to the response.  There is
    no default.
 
+   When reporting-agent-domain is set at the view or options levels
+   named will log matching TXT of the prescribed form
+   (_er.<typelist>.<domain>.<extended-rcode>._er.<reporting-agent-domain>.)
+   to the dns-reporting-agent channel.
+
+   reporting-agent-domain can also be set at the zone level.
+
 .. namedconf:statement:: dnssec-must-be-secure
    :tags: deprecated
    :short: Defines hierarchies that must or may not be secure (signed and validated).
