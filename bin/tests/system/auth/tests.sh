@@ -195,6 +195,14 @@ grep "; RAD: rad.example.net" dig.out.test$n >/dev/null || ret=1
 status=$((status + ret))
 
 n=$((n + 1))
+echo_i "check that a zone RAD EDNS options is added to responses ($n)"
+ret=0
+$DIG $DIGOPTS @10.53.0.1 example.com >dig.out.test$n
+grep "; RAD: rad.example.com" dig.out.test$n >/dev/null || ret=1
+[ $ret -eq 0 ] || echo_i "failed"
+status=$((status + ret))
+
+n=$((n + 1))
 echo_i "check that RAD requests are logged and no RAD option is present in the response ($n)"
 ret=0
 nextpart ns1/named.run >/dev/null

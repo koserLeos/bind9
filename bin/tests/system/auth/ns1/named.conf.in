@@ -36,6 +36,7 @@ view main in {
 	zone example.com {
 		type primary;
 		file "example.com.db";
+		reporting-agent-domain "rad.example.com";
 	};
 };
 
