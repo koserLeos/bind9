@@ -193,6 +193,8 @@ struct ns_client {
 	dns_name_t    signername; /*%< [T]SIG key name */
 	dns_name_t   *signer;	  /*%< NULL if not valid sig */
 
+	dns_name_t rad; /* Zone rad domain */
+
 	isc_sockaddr_t peeraddr;
 	bool	       peeraddr_valid;
 	isc_netaddr_t  destaddr;
@@ -241,7 +243,7 @@ struct ns_client {
 #define NS_CLIENTATTR_WANTNSID	 0x00020 /*%< include nameserver ID */
 #define NS_CLIENTATTR_BADCOOKIE \
 	0x00040 /*%< Presented cookie is bad/out-of-date */
-#define NS_CLIENTATTR_WANTRAD      0x00080 /*%< include RAD */
+#define NS_CLIENTATTR_WANTRAD	   0x00080 /*%< include RAD */
 #define NS_CLIENTATTR_WANTAD	   0x00100 /*%< want AD in response if possible */
 #define NS_CLIENTATTR_WANTCOOKIE   0x00200 /*%< return a COOKIE */
 #define NS_CLIENTATTR_HAVECOOKIE   0x00400 /*%< has a valid COOKIE */
