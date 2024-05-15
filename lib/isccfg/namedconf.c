@@ -2100,7 +2100,6 @@ static cfg_clausedef_t view_clauses[] = {
 	{ "dns64", &cfg_type_dns64, CFG_CLAUSEFLAG_MULTI },
 	{ "dns64-contact", &cfg_type_astring, 0 },
 	{ "dns64-server", &cfg_type_astring, 0 },
-	{ "reporting-agent-domain", &cfg_type_astring, 0 },
 #ifdef USE_DNSRPS
 	{ "dnsrps-enable", &cfg_type_boolean, 0 },
 	{ "dnsrps-options", &cfg_type_bracketed_text, 0 },
@@ -2408,6 +2407,8 @@ static cfg_clausedef_t zone_clauses[] = {
 	{ "parental-source", &cfg_type_sockaddr4wild,
 	  CFG_ZONE_PRIMARY | CFG_ZONE_SECONDARY },
 	{ "parental-source-v6", &cfg_type_sockaddr6wild,
+	  CFG_ZONE_PRIMARY | CFG_ZONE_SECONDARY },
+	{ "reporting-agent-domain", &cfg_type_astring,
 	  CFG_ZONE_PRIMARY | CFG_ZONE_SECONDARY },
 	{ "request-expire", &cfg_type_boolean,
 	  CFG_ZONE_SECONDARY | CFG_ZONE_MIRROR },
