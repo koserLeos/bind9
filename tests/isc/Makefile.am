@@ -145,7 +145,20 @@ proxyudp_test_SOURCES =	\
 if HAVE_LIBNGTCP2
 
 check_PROGRAMS +=	\
-	quic_tls_test
+	quic_tls_test	\
+	ngtcp2_integration_test
+
+ngtcp2_integration_test_CPPFLAGS =	\
+	$(AM_CPPFLAGS)	\
+	$(LIBNGTCP2_CFLAGS)	\
+	$(OPENSSL_CFLAGS)
+
+ngtcp2_integration_test_LDADD =	\
+	$(LDADD)	\
+	$(LIBNGTCP2_LIBS)
+
+ngtcp2_integration_test_SOURCES =	\
+	ngtcp2_integration_test.c
 
 quic_tls_test_CPPFLAGS =	\
 	$(AM_CPPFLAGS)	\
