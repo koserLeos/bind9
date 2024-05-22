@@ -204,7 +204,6 @@ typedef struct rdatasetheader {
 	 */
 
 	dns_rbtnode_t *node;
-	isc_stdtime_t last_used;
 	ISC_LINK(struct rdatasetheader) link;
 
 	unsigned int heap_index;
@@ -559,10 +558,6 @@ rdataset_getnoqname(dns_rdataset_t *rdataset, dns_name_t *name,
 static isc_result_t
 rdataset_getclosest(dns_rdataset_t *rdataset, dns_name_t *name,
 		    dns_rdataset_t *neg, dns_rdataset_t *negsig);
-static bool
-need_headerupdate(rdatasetheader_t *header, isc_stdtime_t now);
-static void
-update_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, isc_stdtime_t now);
 static void
 expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, bool tree_locked,
 	      expire_t reason);
@@ -4807,27 +4802,6 @@ find_deepest_zonecut(rbtdb_search_t *search, dns_rbtnode_t *node,
 					      search->now, locktype,
 					      sigrdataset);
 			}
-			if (need_headerupdate(found, search->now) ||
-			    (foundsig != NULL &&
-			     need_headerupdate(foundsig, search->now)))
-			{
-				if (locktype != isc_rwlocktype_write) {
-					NODE_UNLOCK(lock, locktype);
-					NODE_LOCK(lock, isc_rwlocktype_write);
-					locktype = isc_rwlocktype_write;
-					POST(locktype);
-				}
-				if (need_headerupdate(found, search->now)) {
-					update_header(search->rbtdb, found,
-						      search->now);
-				}
-				if (foundsig != NULL &&
-				    need_headerupdate(foundsig, search->now))
-				{
-					update_header(search->rbtdb, foundsig,
-						      search->now);
-				}
-			}
 		}
 
 	node_exit:
@@ -4980,7 +4954,6 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	rdatasetheader_t *header, *header_prev, *header_next;
 	rdatasetheader_t *found, *nsheader;
 	rdatasetheader_t *foundsig, *nssig, *cnamesig;
-	rdatasetheader_t *update, *updatesig;
 	rdatasetheader_t *nsecheader, *nsecsig;
 	rbtdb_rdatatype_t sigtype, negtype;
 
@@ -5007,8 +4980,6 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	dns_fixedname_init(&search.zonecut_name);
 	dns_rbtnodechain_init(&search.chain);
 	search.now = now;
-	update = NULL;
-	updatesig = NULL;
 
 	RWLOCK(&search.rbtdb->tree_lock, isc_rwlocktype_read);
 
@@ -5216,16 +5187,10 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			}
 			bind_rdataset(search.rbtdb, node, nsecheader,
 				      search.now, locktype, rdataset);
-			if (need_headerupdate(nsecheader, search.now)) {
-				update = nsecheader;
-			}
 			if (nsecsig != NULL) {
 				bind_rdataset(search.rbtdb, node, nsecsig,
 					      search.now, locktype,
 					      sigrdataset);
-				if (need_headerupdate(nsecsig, search.now)) {
-					updatesig = nsecsig;
-				}
 			}
 			result = DNS_R_COVERINGNSEC;
 			goto node_exit;
@@ -5258,16 +5223,10 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			}
 			bind_rdataset(search.rbtdb, node, nsheader, search.now,
 				      locktype, rdataset);
-			if (need_headerupdate(nsheader, search.now)) {
-				update = nsheader;
-			}
 			if (nssig != NULL) {
 				bind_rdataset(search.rbtdb, node, nssig,
 					      search.now, locktype,
 					      sigrdataset);
-				if (need_headerupdate(nssig, search.now)) {
-					updatesig = nssig;
-				}
 			}
 			result = DNS_R_DELEGATION;
 			goto node_exit;
@@ -5319,33 +5278,13 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	{
 		bind_rdataset(search.rbtdb, node, found, search.now, locktype,
 			      rdataset);
-		if (need_headerupdate(found, search.now)) {
-			update = found;
-		}
 		if (!NEGATIVE(found) && foundsig != NULL) {
 			bind_rdataset(search.rbtdb, node, foundsig, search.now,
 				      locktype, sigrdataset);
-			if (need_headerupdate(foundsig, search.now)) {
-				updatesig = foundsig;
-			}
 		}
 	}
 
 node_exit:
-	if ((update != NULL || updatesig != NULL) &&
-	    locktype != isc_rwlocktype_write)
-	{
-		NODE_UNLOCK(lock, locktype);
-		NODE_LOCK(lock, isc_rwlocktype_write);
-		locktype = isc_rwlocktype_write;
-		POST(locktype);
-	}
-	if (update != NULL && need_headerupdate(update, search.now)) {
-		update_header(search.rbtdb, update, search.now);
-	}
-	if (updatesig != NULL && need_headerupdate(updatesig, search.now)) {
-		update_header(search.rbtdb, updatesig, search.now);
-	}
 
 	NODE_UNLOCK(lock, locktype);
 
@@ -5510,24 +5449,6 @@ cache_findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 	if (foundsig != NULL) {
 		bind_rdataset(search.rbtdb, node, foundsig, search.now,
 			      locktype, sigrdataset);
-	}
-
-	if (need_headerupdate(found, search.now) ||
-	    (foundsig != NULL && need_headerupdate(foundsig, search.now)))
-	{
-		if (locktype != isc_rwlocktype_write) {
-			NODE_UNLOCK(lock, locktype);
-			NODE_LOCK(lock, isc_rwlocktype_write);
-			locktype = isc_rwlocktype_write;
-			POST(locktype);
-		}
-		if (need_headerupdate(found, search.now)) {
-			update_header(search.rbtdb, found, search.now);
-		}
-		if (foundsig != NULL && need_headerupdate(foundsig, search.now))
-		{
-			update_header(search.rbtdb, foundsig, search.now);
-		}
 	}
 
 	NODE_UNLOCK(lock, locktype);
@@ -6507,9 +6428,6 @@ find_header:
 			if (header->rdh_ttl > newheader->rdh_ttl) {
 				set_ttl(rbtdb, header, newheader->rdh_ttl);
 			}
-			if (header->last_used != now) {
-				update_header(rbtdb, header, now);
-			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
 			{
@@ -6562,9 +6480,6 @@ find_header:
 			if (header->rdh_ttl > newheader->rdh_ttl) {
 				set_ttl(rbtdb, header, newheader->rdh_ttl);
 			}
-			if (header->last_used != now) {
-				update_header(rbtdb, header, now);
-			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
 			{
@@ -6591,9 +6506,6 @@ find_header:
 			newheader->down = NULL;
 			idx = newheader->node->locknum;
 			if (IS_CACHE(rbtdb)) {
-				if (ZEROTTL(newheader)) {
-					newheader->last_used = now;
-				}
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 			} else if (RESIGN(newheader)) {
@@ -6628,9 +6540,6 @@ find_header:
 			if (IS_CACHE(rbtdb)) {
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
-				if (ZEROTTL(newheader)) {
-					newheader->last_used = now;
-				}
 			} else if (RESIGN(newheader)) {
 				resign_insert(rbtdb, idx, newheader);
 				resign_delete(rbtdb, rbtversion, header);
@@ -6947,7 +6856,6 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	atomic_init(&newheader->count,
 		    atomic_fetch_add_relaxed(&init_count, 1));
 	newheader->trust = rdataset->trust;
-	newheader->last_used = now;
 	newheader->node = rbtnode;
 	if (rbtversion != NULL) {
 		newheader->serial = rbtversion->serial;
@@ -7150,7 +7058,6 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	newheader->closest = NULL;
 	atomic_init(&newheader->count,
 		    atomic_fetch_add_relaxed(&init_count, 1));
-	newheader->last_used = 0;
 	newheader->node = rbtnode;
 	if ((rdataset->attributes & DNS_RDATASETATTR_RESIGN) != 0) {
 		RDATASET_ATTR_SET(newheader, RDATASET_ATTR_RESIGN);
@@ -7261,7 +7168,6 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 			newheader->node = rbtnode;
 			newheader->resign = 0;
 			newheader->resign_lsb = 0;
-			newheader->last_used = 0;
 		} else {
 			free_rdataset(rbtdb, rbtdb->common.mctx, newheader);
 			goto unlock;
@@ -7355,7 +7261,6 @@ deleterdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		newheader->serial = 0;
 	}
 	atomic_init(&newheader->count, 0);
-	newheader->last_used = 0;
 	newheader->node = rbtnode;
 
 	nodefullname(db, node, nodename);
@@ -7533,7 +7438,6 @@ loading_addrdataset(void *arg, const dns_name_t *name,
 	newheader->closest = NULL;
 	atomic_init(&newheader->count,
 		    atomic_fetch_add_relaxed(&init_count, 1));
-	newheader->last_used = 0;
 	newheader->node = node;
 	setownercase(newheader, name);
 
@@ -10192,75 +10096,6 @@ no_glue:
 	goto restart;
 
 	/* UNREACHABLE */
-}
-
-/*%
- * Routines for LRU-based cache management.
- */
-
-/*%
- * See if a given cache entry that is being reused needs to be updated
- * in the LRU-list.  From the LRU management point of view, this function is
- * expected to return true for almost all cases.  When used with threads,
- * however, this may cause a non-negligible performance penalty because a
- * writer lock will have to be acquired before updating the list.
- * If DNS_RBTDB_LIMITLRUUPDATE is defined to be non 0 at compilation time, this
- * function returns true if the entry has not been updated for some period of
- * time.  We differentiate the NS or glue address case and the others since
- * experiments have shown that the former tends to be accessed relatively
- * infrequently and the cost of cache miss is higher (e.g., a missing NS records
- * may cause external queries at a higher level zone, involving more
- * transactions).
- *
- * Caller must hold the node (read or write) lock.
- */
-static bool
-need_headerupdate(rdatasetheader_t *header, isc_stdtime_t now) {
-	if (RDATASET_ATTR_GET(header, (RDATASET_ATTR_NONEXISTENT |
-				       RDATASET_ATTR_ANCIENT |
-				       RDATASET_ATTR_ZEROTTL)) != 0)
-	{
-		return (false);
-	}
-
-#if DNS_RBTDB_LIMITLRUUPDATE
-	if (header->type == dns_rdatatype_ns ||
-	    (header->trust == dns_trust_glue &&
-	     (header->type == dns_rdatatype_a ||
-	      header->type == dns_rdatatype_aaaa)))
-	{
-		/*
-		 * Glue records are updated if at least DNS_RBTDB_LRUUPDATE_GLUE
-		 * seconds have passed since the previous update time.
-		 */
-		return (header->last_used + DNS_RBTDB_LRUUPDATE_GLUE <= now);
-	}
-
-	/*
-	 * Other records are updated if DNS_RBTDB_LRUUPDATE_REGULAR seconds
-	 * have passed.
-	 */
-	return (header->last_used + DNS_RBTDB_LRUUPDATE_REGULAR <= now);
-#else
-	UNUSED(now);
-
-	return (true);
-#endif /* if DNS_RBTDB_LIMITLRUUPDATE */
-}
-
-/*%
- * Update the timestamp of a given cache entry and move it to the head
- * of the corresponding LRU list.
- *
- * Caller must hold the node (write) lock.
- *
- * Note that the we do NOT touch the heap here, as the TTL has not changed.
- */
-static void
-update_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, isc_stdtime_t now) {
-	INSIST(IS_CACHE(rbtdb));
-
-	header->last_used = now;
 }
 
 static void
