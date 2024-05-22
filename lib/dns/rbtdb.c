@@ -483,24 +483,6 @@ struct dns_rbtdb {
 	 */
 	uint32_t serve_stale_refresh;
 
-	/*
-	 * This is a linked list used to implement the LRU cache.  There will
-	 * be node_lock_count linked lists here.  Nodes in bucket 1 will be
-	 * placed on the linked list rdatasets[1].
-	 */
-	rdatasetheaderlist_t *rdatasets;
-
-	/*
-	 * Start point % node_lock_count for next LRU cleanup.
-	 */
-	atomic_uint lru_sweep;
-
-	/*
-	 * When performing LRU cleaning limit cleaning to headers that were
-	 * last used at or before this.
-	 */
-	atomic_uint last_used;
-
 	/*%
 	 * Temporary storage for stale cache nodes and dynamically deleted
 	 * nodes that await being cleaned up.
@@ -1143,17 +1125,6 @@ free_rbtdb(dns_rbtdb_t *rbtdb, bool log, isc_event_t *event) {
 	}
 
 	/*
-	 * Clean up LRU / re-signing order lists.
-	 */
-	if (rbtdb->rdatasets != NULL) {
-		for (i = 0; i < rbtdb->node_lock_count; i++) {
-			INSIST(ISC_LIST_EMPTY(rbtdb->rdatasets[i]));
-		}
-		isc_mem_put(rbtdb->common.mctx, rbtdb->rdatasets,
-			    rbtdb->node_lock_count *
-				    sizeof(rdatasetheaderlist_t));
-	}
-	/*
 	 * Clean up dead node buckets.
 	 */
 	if (rbtdb->deadnodes != NULL) {
@@ -1483,10 +1454,6 @@ free_rdataset(dns_rbtdb_t *rbtdb, isc_mem_t *mctx, rdatasetheader_t *rdataset) {
 			  atomic_load_acquire(&rdataset->attributes), false);
 
 	idx = rdataset->node->locknum;
-	if (ISC_LINK_LINKED(rdataset, link)) {
-		INSIST(IS_CACHE(rbtdb));
-		ISC_LIST_UNLINK(rbtdb->rdatasets[idx], rdataset, link);
-	}
 
 	if (rdataset->heap_index != 0) {
 		isc_heap_delete(rbtdb->heaps[idx], rdataset->heap_index);
@@ -6625,14 +6592,7 @@ find_header:
 			idx = newheader->node->locknum;
 			if (IS_CACHE(rbtdb)) {
 				if (ZEROTTL(newheader)) {
-					newheader->last_used =
-						atomic_load(&rbtdb->last_used) +
-						1;
-					ISC_LIST_APPEND(rbtdb->rdatasets[idx],
-							newheader, link);
-				} else {
-					ISC_LIST_PREPEND(rbtdb->rdatasets[idx],
-							 newheader, link);
+					newheader->last_used = now;
 				}
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
@@ -6669,14 +6629,7 @@ find_header:
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 				if (ZEROTTL(newheader)) {
-					newheader->last_used =
-						atomic_load(&rbtdb->last_used) +
-						1;
-					ISC_LIST_APPEND(rbtdb->rdatasets[idx],
-							newheader, link);
-				} else {
-					ISC_LIST_PREPEND(rbtdb->rdatasets[idx],
-							 newheader, link);
+					newheader->last_used = now;
 				}
 			} else if (RESIGN(newheader)) {
 				resign_insert(rbtdb, idx, newheader);
@@ -6725,13 +6678,6 @@ find_header:
 		idx = newheader->node->locknum;
 		if (IS_CACHE(rbtdb)) {
 			isc_heap_insert(rbtdb->heaps[idx], newheader);
-			if (ZEROTTL(newheader)) {
-				ISC_LIST_APPEND(rbtdb->rdatasets[idx],
-						newheader, link);
-			} else {
-				ISC_LIST_PREPEND(rbtdb->rdatasets[idx],
-						 newheader, link);
-			}
 		} else if (RESIGN(newheader)) {
 			resign_insert(rbtdb, idx, newheader);
 			resign_delete(rbtdb, rbtversion, header);
@@ -8358,14 +8304,6 @@ dns_rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 		if (result != ISC_R_SUCCESS) {
 			goto cleanup_node_locks;
 		}
-		rbtdb->rdatasets = isc_mem_get(
-			mctx,
-			rbtdb->node_lock_count * sizeof(rdatasetheaderlist_t));
-		for (i = 0; i < (int)rbtdb->node_lock_count; i++) {
-			ISC_LIST_INIT(rbtdb->rdatasets[i]);
-		}
-	} else {
-		rbtdb->rdatasets = NULL;
 	}
 
 	/*
@@ -10322,100 +10260,7 @@ static void
 update_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, isc_stdtime_t now) {
 	INSIST(IS_CACHE(rbtdb));
 
-	/* To be checked: can we really assume this? XXXMLG */
-	INSIST(ISC_LINK_LINKED(header, link));
-
-	ISC_LIST_UNLINK(rbtdb->rdatasets[header->node->locknum], header, link);
 	header->last_used = now;
-	ISC_LIST_PREPEND(rbtdb->rdatasets[header->node->locknum], header, link);
-}
-
-static size_t
-expire_lru_headers(dns_rbtdb_t *rbtdb, unsigned int locknum, size_t purgesize,
-		   bool tree_locked) {
-	rdatasetheader_t *header;
-	size_t purged = 0;
-
-	for (header = ISC_LIST_TAIL(rbtdb->rdatasets[locknum]);
-	     header != NULL &&
-	     header->last_used <= atomic_load(&rbtdb->last_used) &&
-	     purged <= purgesize;
-	     header = ISC_LIST_TAIL(rbtdb->rdatasets[locknum]))
-	{
-		/*
-		 * Unlink the entry at this point to avoid checking it
-		 * again even if it's currently used someone else and
-		 * cannot be purged at this moment.  This entry won't be
-		 * referenced any more (so unlinking is safe) since the
-		 * TTL will be reset to 0.
-		 */
-		ISC_LIST_UNLINK(rbtdb->rdatasets[locknum], header, link);
-		size_t header_size = rdataset_size(header);
-		expire_header(rbtdb, header, tree_locked, expire_lru);
-		purged += header_size;
-	}
-
-	return (purged);
-}
-
-/*%
- * Purge some stale (i.e. unused for some period - LRU based cleaning) cache
- * entries under the overmem condition.  To recover from this condition quickly,
- * we cleanup entries up to the size of newly added rdata (passed as purgesize).
- *
- * The LRU lists tails are processed in LRU order to the nearest second.
- *
- * A write lock on the tree must be held.
- */
-static void
-overmem_purge(dns_rbtdb_t *rbtdb, rdatasetheader_t *newheader,
-	      bool tree_locked) {
-	uint32_t locknum_start = atomic_fetch_add(&rbtdb->lru_sweep, 1) %
-				 rbtdb->node_lock_count;
-	uint32_t locknum = locknum_start;
-	/* Size of added data, possible node and possible ENT node. */
-	size_t purgesize = rdataset_size(newheader) +
-			   2 * dns__rbtnode_getsize(newheader->node);
-	size_t purged = 0;
-	isc_stdtime_t min_last_used = 0;
-	size_t max_passes = 8;
-
-again:
-	do {
-		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
-			  isc_rwlocktype_write);
-
-		purged += expire_lru_headers(rbtdb, locknum, purgesize - purged,
-					     tree_locked);
-
-		/*
-		 * Work out the oldest remaining last_used values of the list
-		 * tails as we walk across the array of lru lists.
-		 */
-		rdatasetheader_t *header =
-			ISC_LIST_TAIL(rbtdb->rdatasets[locknum]);
-		if (header != NULL &&
-		    (min_last_used == 0 || header->last_used < min_last_used))
-		{
-			min_last_used = header->last_used;
-		}
-		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
-			    isc_rwlocktype_write);
-		locknum = (locknum + 1) % rbtdb->node_lock_count;
-	} while (locknum != locknum_start && purged <= purgesize);
-
-	/*
-	 * Update rbtdb->last_used if we have walked all the list tails and have
-	 * not freed the required amount of memory.
-	 */
-	if (purged < purgesize) {
-		if (min_last_used != 0) {
-			atomic_store(&rbtdb->last_used, min_last_used);
-			if (max_passes-- > 0) {
-				goto again;
-			}
-		}
-	}
 }
 
 static void
@@ -10458,6 +10303,45 @@ expire_header(dns_rbtdb_t *rbtdb, rdatasetheader_t *header, bool tree_locked,
 			break;
 		}
 	}
+}
+
+/*%
+ * Purge some random cache entries under the overmem condition.  To recover from
+ * this condition quickly, we cleanup entries up to the size of newly added
+ * rdata (passed as purgesize).
+ *
+ * A write lock on the tree must be held.
+ */
+static void
+overmem_purge(dns_rbtdb_t *rbtdb, rdatasetheader_t *newheader,
+	      bool tree_locked) {
+	/* Size of added data, possible node and possible ENT node. */
+	size_t purgesize = rdataset_size(newheader) +
+			   2 * dns__rbtnode_getsize(newheader->node);
+	size_t purged = 0;
+
+	do {
+		dns_rbtnode_t *node = dns_rbt_findrandomleaf(rbtdb->tree);
+		uint32_t locknum = node->locknum;
+		rdatasetheader_t *header = NULL;
+		rdatasetheader_t *header_next = NULL;
+
+		NODE_LOCK(&rbtdb->node_locks[locknum].lock,
+			  isc_rwlocktype_write);
+
+		for (header = node->data,
+		    header_next = (header != NULL) ? header->next : NULL;
+		     header != NULL; header = header_next,
+		    header_next = (header != NULL) ? header->next : NULL)
+		{
+			size_t header_size = rdataset_size(header);
+
+			expire_header(rbtdb, header, tree_locked, expire_lru);
+			purged += header_size;
+		}
+		NODE_UNLOCK(&rbtdb->node_locks[locknum].lock,
+			    isc_rwlocktype_write);
+	} while (purged <= purgesize);
 }
 
 /*

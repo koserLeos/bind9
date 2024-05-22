@@ -370,6 +370,9 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep);
  *\li   #ISC_R_NOMEMORY Resource Limit: Out of Memory
  */
 
+dns_rbtnode_t *
+dns_rbt_findrandomleaf(dns_rbt_t *rbt);
+
 isc_result_t
 dns_rbt_findname(dns_rbt_t *rbt, const dns_name_t *name, unsigned int options,
 		 dns_name_t *foundname, void **data);
