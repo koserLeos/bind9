@@ -3056,7 +3056,7 @@ dns_rbt_findrandomleaf(dns_rbt_t *rbt) {
 
 	do {
 		uint8_t hindex = rbt->hindex;
-		uint32_t hash = isc_hash_bits32(hashval, rbt->hashbits[hindex]);
+		uint32_t hash = hash_32(hashval, rbt->hashbits[hindex]);
 
 		current = rbt->hashtable[hindex][hash];
 
