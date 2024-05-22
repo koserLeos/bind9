@@ -23,6 +23,7 @@
 #include <isc/hex.h>
 #include <isc/mem.h>
 #include <isc/once.h>
+#include <isc/random.h>
 #include <isc/refcount.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
@@ -2863,6 +2864,33 @@ dns_rbtnodechain_next(dns_rbtnodechain_t *chain, dns_name_t *name,
 	}
 
 	return (result);
+}
+
+dns_rbtnode_t *
+dns_rbt_findrandomleaf(dns_rbt_t *rbt) {
+	REQUIRE(VALID_RBT(rbt));
+
+	dns_rbtnode_t *current = NULL;
+	uint32_t hashval = isc_random32();
+
+	do {
+		uint8_t hindex = rbt->hindex;
+		uint32_t hash = isc_hash_bits32(hashval, rbt->hashbits[hindex]);
+
+		current = rbt->hashtable[hindex][hash];
+
+		if (current == NULL && rehashing_in_progress(rbt)) {
+			hindex = RBT_HASH_NEXTTABLE(rbt->hindex);
+			current = rbt->hashtable[hindex][hash];
+		}
+		hashval++;
+	} while (current == NULL);
+
+	while (current->down != NULL) {
+		current = current->down;
+	}
+
+	return (current);
 }
 
 isc_result_t

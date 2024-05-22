@@ -564,17 +564,6 @@ free_rbtdb(dns_rbtdb_t *rbtdb, bool log) {
 	}
 
 	/*
-	 * Clean up LRU / re-signing order lists.
-	 */
-	if (rbtdb->lru != NULL) {
-		for (i = 0; i < rbtdb->node_lock_count; i++) {
-			INSIST(ISC_LIST_EMPTY(rbtdb->lru[i]));
-		}
-		isc_mem_cput(rbtdb->common.mctx, rbtdb->lru,
-			     rbtdb->node_lock_count,
-			     sizeof(dns_slabheaderlist_t));
-	}
-	/*
 	 * Clean up dead node buckets.
 	 */
 	if (rbtdb->deadnodes != NULL) {
@@ -2835,15 +2824,7 @@ find_header:
 				dns__rbtdb_setttl(header, newheader->ttl);
 			}
 			if (header->last_used != now) {
-				ISC_LIST_UNLINK(
-					rbtdb->lru[RBTDB_HEADERNODE(header)
-							   ->locknum],
-					header, link);
 				header->last_used = now;
-				ISC_LIST_PREPEND(
-					rbtdb->lru[RBTDB_HEADERNODE(header)
-							   ->locknum],
-					header, link);
 			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
@@ -2900,15 +2881,7 @@ find_header:
 				dns__rbtdb_setttl(header, newheader->ttl);
 			}
 			if (header->last_used != now) {
-				ISC_LIST_UNLINK(
-					rbtdb->lru[RBTDB_HEADERNODE(header)
-							   ->locknum],
-					header, link);
 				header->last_used = now;
-				ISC_LIST_PREPEND(
-					rbtdb->lru[RBTDB_HEADERNODE(header)
-							   ->locknum],
-					header, link);
 			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
@@ -2938,13 +2911,7 @@ find_header:
 			idx = RBTDB_HEADERNODE(newheader)->locknum;
 			if (IS_CACHE(rbtdb)) {
 				if (ZEROTTL(newheader)) {
-					newheader->last_used =
-						rbtdb->last_used + 1;
-					ISC_LIST_APPEND(rbtdb->lru[idx],
-							newheader, link);
-				} else {
-					ISC_LIST_PREPEND(rbtdb->lru[idx],
-							 newheader, link);
+					newheader->last_used = now;
 				}
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
@@ -2984,13 +2951,7 @@ find_header:
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 				newheader->heap = rbtdb->heaps[idx];
 				if (ZEROTTL(newheader)) {
-					newheader->last_used =
-						rbtdb->last_used + 1;
-					ISC_LIST_APPEND(rbtdb->lru[idx],
-							newheader, link);
-				} else {
-					ISC_LIST_PREPEND(rbtdb->lru[idx],
-							 newheader, link);
+					newheader->last_used = now;
 				}
 			} else if (RESIGN(newheader)) {
 				dns__zonerbt_resigninsert(rbtdb, idx,
@@ -3041,13 +3002,6 @@ find_header:
 		if (IS_CACHE(rbtdb)) {
 			isc_heap_insert(rbtdb->heaps[idx], newheader);
 			newheader->heap = rbtdb->heaps[idx];
-			if (ZEROTTL(newheader)) {
-				ISC_LIST_APPEND(rbtdb->lru[idx], newheader,
-						link);
-			} else {
-				ISC_LIST_PREPEND(rbtdb->lru[idx], newheader,
-						 link);
-			}
 		} else if (RESIGN(newheader)) {
 			dns__zonerbt_resigninsert(rbtdb, idx, newheader);
 			dns__zonerbt_resigndelete(rbtdb, rbtversion,
@@ -3907,12 +3861,6 @@ dns__rbtdb_create(isc_mem_t *mctx, const dns_name_t *origin, dns_dbtype_t type,
 
 	if (IS_CACHE(rbtdb)) {
 		dns_rdatasetstats_create(mctx, &rbtdb->rrsetstats);
-		rbtdb->lru = isc_mem_get(mctx,
-					 rbtdb->node_lock_count *
-						 sizeof(dns_slabheaderlist_t));
-		for (i = 0; i < (int)rbtdb->node_lock_count; i++) {
-			ISC_LIST_INIT(rbtdb->lru[i]);
-		}
 	}
 
 	/*
@@ -4899,12 +4847,6 @@ dns__rbtdb_deletedata(dns_db_t *db ISC_ATTR_UNUSED,
 		update_rrsetstats(rbtdb->rrsetstats, header->type,
 				  atomic_load_acquire(&header->attributes),
 				  false);
-
-		if (ISC_LINK_LINKED(header, link)) {
-			int idx = RBTDB_HEADERNODE(header)->locknum;
-			INSIST(IS_CACHE(rbtdb));
-			ISC_LIST_UNLINK(rbtdb->lru[idx], header, link);
-		}
 
 		if (header->noqname != NULL) {
 			dns_slabheader_freeproof(db->mctx, &header->noqname);

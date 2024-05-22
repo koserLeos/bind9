@@ -304,6 +304,9 @@ dns_rbt_addnode(dns_rbt_t *rbt, const dns_name_t *name, dns_rbtnode_t **nodep);
  *\li   #ISC_R_NOSPACE  The name had more logical labels than are allowed.
  */
 
+dns_rbtnode_t *
+dns_rbt_findrandomleaf(dns_rbt_t *rbt);
+
 #define dns_rbt_findnode(rbt, name, foundname, node, chain, options, callback, \
 			 callback_arg)                                         \
 	dns__rbt_findnode(rbt, name, foundname, node, chain, options,          \
