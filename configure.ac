@@ -1575,11 +1575,11 @@ AC_SUBST([DTRACE])
 #
 AC_ARG_WITH([zonedb],
 	    [AS_HELP_STRING([--with-zonedb=detect],[specify default zone database type (default is "qpzone")])],
-	    [],[with_zonedb=qp])
-zonedb="qpzone"
+	    [],[with_zonedb=rbt])
+zonedb="rbt"
 AS_CASE([$with_zonedb],
 	[RBT*|rbt*],[zonedb="rbt"],
-        [QP|qp],[],
+        [QP|qp],[zonedb=qpzone],
 	[AC_MSG_ERROR([Unknown zone database type])]
        )
 AC_DEFINE_UNQUOTED([ZONEDB_DEFAULT], ["$zonedb"], [Default zone database type])
@@ -1590,11 +1590,11 @@ AC_DEFINE_UNQUOTED([ZONEDB_DEFAULT], ["$zonedb"], [Default zone database type])
 #
 AC_ARG_WITH([cachedb],
 	    [AS_HELP_STRING([--with-cachedb=detect],[specify default cache database type (default is "qpcache")])],
-	    [],[with_cachedb=qp])
-cachedb="qpcache"
+	    [],[with_cachedb=rbt])
+cachedb="rbt"
 AS_CASE([$with_cachedb],
 	[RBT*|rbt*],[cachedb="rbt"],
-        [QP*|qp*],[],
+        [QP*|qp*],[cachedb="qp"],
 	[AC_MSG_ERROR([Unknown cache database type])]
        )
 AC_DEFINE_UNQUOTED([CACHEDB_DEFAULT], ["$cachedb"], [Default cache database type])
