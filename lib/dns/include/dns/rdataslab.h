@@ -122,7 +122,6 @@ struct dns_slabheader {
 	 * this rdataset, if any.
 	 */
 
-	isc_stdtime_t last_used;
 	ISC_LINK(struct dns_slabheader) link;
 
 	/*%

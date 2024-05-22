@@ -118,78 +118,6 @@
 
 #define KEEPSTALE(rbtdb) ((rbtdb)->common.serve_stale_ttl > 0)
 
-/*%
- * Routines for LRU-based cache management.
- */
-
-/*%
- * See if a given cache entry that is being reused needs to be updated
- * in the LRU-list.  From the LRU management point of view, this function is
- * expected to return true for almost all cases.  When used with threads,
- * however, this may cause a non-negligible performance penalty because a
- * writer lock will have to be acquired before updating the list.
- * If DNS_RBTDB_LIMITLRUUPDATE is defined to be non 0 at compilation time, this
- * function returns true if the entry has not been updated for some period of
- * time.  We differentiate the NS or glue address case and the others since
- * experiments have shown that the former tends to be accessed relatively
- * infrequently and the cost of cache miss is higher (e.g., a missing NS records
- * may cause external queries at a higher level zone, involving more
- * transactions).
- *
- * Caller must hold the node (read or write) lock.
- */
-static bool
-need_headerupdate(dns_slabheader_t *header, isc_stdtime_t now) {
-	if (DNS_SLABHEADER_GETATTR(header, (DNS_SLABHEADERATTR_NONEXISTENT |
-					    DNS_SLABHEADERATTR_ANCIENT |
-					    DNS_SLABHEADERATTR_ZEROTTL)) != 0)
-	{
-		return (false);
-	}
-
-#if DNS_RBTDB_LIMITLRUUPDATE
-	if (header->type == dns_rdatatype_ns ||
-	    (header->trust == dns_trust_glue &&
-	     (header->type == dns_rdatatype_a ||
-	      header->type == dns_rdatatype_aaaa)))
-	{
-		/*
-		 * Glue records are updated if at least DNS_RBTDB_LRUUPDATE_GLUE
-		 * seconds have passed since the previous update time.
-		 */
-		return (header->last_used + DNS_RBTDB_LRUUPDATE_GLUE <= now);
-	}
-
-	/*
-	 * Other records are updated if DNS_RBTDB_LRUUPDATE_REGULAR seconds
-	 * have passed.
-	 */
-	return (header->last_used + DNS_RBTDB_LRUUPDATE_REGULAR <= now);
-#else
-	UNUSED(now);
-
-	return (true);
-#endif /* if DNS_RBTDB_LIMITLRUUPDATE */
-}
-
-/*%
- * Update the timestamp of a given cache entry and move it to the head
- * of the corresponding LRU list.
- *
- * Caller must hold the node (write) lock.
- *
- * Note that the we do NOT touch the heap here, as the TTL has not changed.
- */
-static void
-update_header(dns_rbtdb_t *rbtdb, dns_slabheader_t *header, isc_stdtime_t now) {
-	INSIST(IS_CACHE(rbtdb));
-
-	/* To be checked: can we really assume this? XXXMLG */
-	INSIST(ISC_LINK_LINKED(header, link));
-
-	header->last_used = now;
-}
-
 /*
  * Locking
  *
@@ -600,25 +528,6 @@ find_deepest_zonecut(rbtdb_search_t *search, dns_rbtnode_t *node,
 					search->now, nlocktype,
 					sigrdataset DNS__DB_FLARG_PASS);
 			}
-			if (need_headerupdate(found, search->now) ||
-			    (foundsig != NULL &&
-			     need_headerupdate(foundsig, search->now)))
-			{
-				if (nlocktype != isc_rwlocktype_write) {
-					NODE_FORCEUPGRADE(lock, &nlocktype);
-					POST(nlocktype);
-				}
-				if (need_headerupdate(found, search->now)) {
-					update_header(search->rbtdb, found,
-						      search->now);
-				}
-				if (foundsig != NULL &&
-				    need_headerupdate(foundsig, search->now))
-				{
-					update_header(search->rbtdb, foundsig,
-						      search->now);
-				}
-			}
 		}
 
 	node_exit:
@@ -773,7 +682,6 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	dns_slabheader_t *header_prev = NULL, *header_next = NULL;
 	dns_slabheader_t *found = NULL, *nsheader = NULL;
 	dns_slabheader_t *foundsig = NULL, *nssig = NULL, *cnamesig = NULL;
-	dns_slabheader_t *update = NULL, *updatesig = NULL;
 	dns_slabheader_t *nsecheader = NULL, *nsecsig = NULL;
 	dns_typepair_t sigtype, negtype;
 
@@ -1012,17 +920,11 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			dns__rbtdb_bindrdataset(search.rbtdb, node, nsecheader,
 						search.now, nlocktype,
 						rdataset DNS__DB_FLARG_PASS);
-			if (need_headerupdate(nsecheader, search.now)) {
-				update = nsecheader;
-			}
 			if (nsecsig != NULL) {
 				dns__rbtdb_bindrdataset(
 					search.rbtdb, node, nsecsig, search.now,
 					nlocktype,
 					sigrdataset DNS__DB_FLARG_PASS);
-				if (need_headerupdate(nsecsig, search.now)) {
-					updatesig = nsecsig;
-				}
 			}
 			result = DNS_R_COVERINGNSEC;
 			goto node_exit;
@@ -1057,17 +959,11 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			dns__rbtdb_bindrdataset(search.rbtdb, node, nsheader,
 						search.now, nlocktype,
 						rdataset DNS__DB_FLARG_PASS);
-			if (need_headerupdate(nsheader, search.now)) {
-				update = nsheader;
-			}
 			if (nssig != NULL) {
 				dns__rbtdb_bindrdataset(
 					search.rbtdb, node, nssig, search.now,
 					nlocktype,
 					sigrdataset DNS__DB_FLARG_PASS);
-				if (need_headerupdate(nssig, search.now)) {
-					updatesig = nssig;
-				}
 			}
 			result = DNS_R_DELEGATION;
 			goto node_exit;
@@ -1120,33 +1016,14 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	{
 		dns__rbtdb_bindrdataset(search.rbtdb, node, found, search.now,
 					nlocktype, rdataset DNS__DB_FLARG_PASS);
-		if (need_headerupdate(found, search.now)) {
-			update = found;
-		}
 		if (!NEGATIVE(found) && foundsig != NULL) {
 			dns__rbtdb_bindrdataset(search.rbtdb, node, foundsig,
 						search.now, nlocktype,
 						sigrdataset DNS__DB_FLARG_PASS);
-			if (need_headerupdate(foundsig, search.now)) {
-				updatesig = foundsig;
-			}
 		}
 	}
 
 node_exit:
-	if ((update != NULL || updatesig != NULL) &&
-	    nlocktype != isc_rwlocktype_write)
-	{
-		NODE_FORCEUPGRADE(lock, &nlocktype);
-		POST(nlocktype);
-	}
-	if (update != NULL && need_headerupdate(update, search.now)) {
-		update_header(search.rbtdb, update, search.now);
-	}
-	if (updatesig != NULL && need_headerupdate(updatesig, search.now)) {
-		update_header(search.rbtdb, updatesig, search.now);
-	}
-
 	NODE_UNLOCK(lock, &nlocktype);
 
 tree_exit:
@@ -1312,22 +1189,6 @@ cache_findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 		dns__rbtdb_bindrdataset(search.rbtdb, node, foundsig,
 					search.now, nlocktype,
 					sigrdataset DNS__DB_FLARG_PASS);
-	}
-
-	if (need_headerupdate(found, search.now) ||
-	    (foundsig != NULL && need_headerupdate(foundsig, search.now)))
-	{
-		if (nlocktype != isc_rwlocktype_write) {
-			NODE_FORCEUPGRADE(lock, &nlocktype);
-			POST(nlocktype);
-		}
-		if (need_headerupdate(found, search.now)) {
-			update_header(search.rbtdb, found, search.now);
-		}
-		if (foundsig != NULL && need_headerupdate(foundsig, search.now))
-		{
-			update_header(search.rbtdb, foundsig, search.now);
-		}
 	}
 
 	NODE_UNLOCK(lock, &nlocktype);

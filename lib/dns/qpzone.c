@@ -4783,7 +4783,6 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *dbnode, dns_dbversion_t *dbversion,
 	newheader->closest = NULL;
 	atomic_init(&newheader->count,
 		    atomic_fetch_add_relaxed(&init_count, 1));
-	newheader->last_used = 0;
 	newheader->node = node;
 	newheader->db = (dns_db_t *)qpdb;
 	if ((rdataset->attributes & DNS_RDATASETATTR_RESIGN) != 0) {

@@ -446,78 +446,6 @@ static atomic_uint_fast16_t init_count = 0;
  * Failure to follow this hierarchy can result in deadlock.
  */
 
-/*%
- * Routines for LRU-based cache management.
- */
-
-/*%
- * See if a given cache entry that is being reused needs to be updated
- * in the LRU-list.  From the LRU management point of view, this function is
- * expected to return true for almost all cases.  When used with threads,
- * however, this may cause a non-negligible performance penalty because a
- * writer lock will have to be acquired before updating the list.
- * If DNS_QPDB_LIMITLRUUPDATE is defined to be non 0 at compilation time, this
- * function returns true if the entry has not been updated for some period of
- * time.  We differentiate the NS or glue address case and the others since
- * experiments have shown that the former tends to be accessed relatively
- * infrequently and the cost of cache miss is higher (e.g., a missing NS records
- * may cause external queries at a higher level zone, involving more
- * transactions).
- *
- * Caller must hold the node (read or write) lock.
- */
-static bool
-need_headerupdate(dns_slabheader_t *header, isc_stdtime_t now) {
-	if (DNS_SLABHEADER_GETATTR(header, (DNS_SLABHEADERATTR_NONEXISTENT |
-					    DNS_SLABHEADERATTR_ANCIENT |
-					    DNS_SLABHEADERATTR_ZEROTTL)) != 0)
-	{
-		return (false);
-	}
-
-#if DNS_QPDB_LIMITLRUUPDATE
-	if (header->type == dns_rdatatype_ns ||
-	    (header->trust == dns_trust_glue &&
-	     (header->type == dns_rdatatype_a ||
-	      header->type == dns_rdatatype_aaaa)))
-	{
-		/*
-		 * Glue records are updated if at least DNS_QPDB_LRUUPDATE_GLUE
-		 * seconds have passed since the previous update time.
-		 */
-		return (header->last_used + DNS_QPDB_LRUUPDATE_GLUE <= now);
-	}
-
-	/*
-	 * Other records are updated if DNS_QPDB_LRUUPDATE_REGULAR seconds
-	 * have passed.
-	 */
-	return (header->last_used + DNS_QPDB_LRUUPDATE_REGULAR <= now);
-#else
-	UNUSED(now);
-
-	return (true);
-#endif /* if DNS_QPDB_LIMITLRUUPDATE */
-}
-
-/*%
- * Update the timestamp of a given cache entry and move it to the head
- * of the corresponding LRU list.
- *
- * Caller must hold the node (write) lock.
- *
- * Note that the we do NOT touch the heap here, as the TTL has not changed.
- */
-static void
-update_header(qpcache_t *qpdb, dns_slabheader_t *header, isc_stdtime_t now) {
-	/* To be checked: can we really assume this? XXXMLG */
-	INSIST(ISC_LINK_LINKED(header, link));
-
-	ISC_LIST_UNLINK(qpdb->lru[HEADERNODE(header)->locknum], header, link);
-	header->last_used = now;
-	ISC_LIST_PREPEND(qpdb->lru[HEADERNODE(header)->locknum], header, link);
-}
-
 /*
  * Locking:
  * If a routine is going to lock more than one lock in this module, then
@@ -1411,25 +1339,6 @@ find_deepest_zonecut(qpc_search_t *search, qpcnode_t *node,
 					     isc_rwlocktype_none,
 					     sigrdataset DNS__DB_FLARG_PASS);
 			}
-			if (need_headerupdate(found, search->now) ||
-			    (foundsig != NULL &&
-			     need_headerupdate(foundsig, search->now)))
-			{
-				if (nlocktype != isc_rwlocktype_write) {
-					NODE_FORCEUPGRADE(lock, &nlocktype);
-					POST(nlocktype);
-				}
-				if (need_headerupdate(found, search->now)) {
-					update_header(search->qpdb, found,
-						      search->now);
-				}
-				if (foundsig != NULL &&
-				    need_headerupdate(foundsig, search->now))
-				{
-					update_header(search->qpdb, foundsig,
-						      search->now);
-				}
-			}
 		}
 
 		NODE_UNLOCK(lock, &nlocktype);
@@ -1567,7 +1476,6 @@ find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	dns_slabheader_t *header_prev = NULL, *header_next = NULL;
 	dns_slabheader_t *found = NULL, *nsheader = NULL;
 	dns_slabheader_t *foundsig = NULL, *nssig = NULL, *cnamesig = NULL;
-	dns_slabheader_t *update = NULL, *updatesig = NULL;
 	dns_slabheader_t *nsecheader = NULL, *nsecsig = NULL;
 	dns_typepair_t sigtype, negtype;
 
@@ -1835,16 +1743,10 @@ find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			bindrdataset(search.qpdb, node, nsecheader, search.now,
 				     nlocktype, tlocktype,
 				     rdataset DNS__DB_FLARG_PASS);
-			if (need_headerupdate(nsecheader, search.now)) {
-				update = nsecheader;
-			}
 			if (nsecsig != NULL) {
 				bindrdataset(search.qpdb, node, nsecsig,
 					     search.now, nlocktype, tlocktype,
 					     sigrdataset DNS__DB_FLARG_PASS);
-				if (need_headerupdate(nsecsig, search.now)) {
-					updatesig = nsecsig;
-				}
 			}
 			result = DNS_R_COVERINGNSEC;
 			goto node_exit;
@@ -1879,16 +1781,10 @@ find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 			bindrdataset(search.qpdb, node, nsheader, search.now,
 				     nlocktype, tlocktype,
 				     rdataset DNS__DB_FLARG_PASS);
-			if (need_headerupdate(nsheader, search.now)) {
-				update = nsheader;
-			}
 			if (nssig != NULL) {
 				bindrdataset(search.qpdb, node, nssig,
 					     search.now, nlocktype, tlocktype,
 					     sigrdataset DNS__DB_FLARG_PASS);
-				if (need_headerupdate(nssig, search.now)) {
-					updatesig = nssig;
-				}
 			}
 			result = DNS_R_DELEGATION;
 			goto node_exit;
@@ -1941,32 +1837,14 @@ find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	{
 		bindrdataset(search.qpdb, node, found, search.now, nlocktype,
 			     tlocktype, rdataset DNS__DB_FLARG_PASS);
-		if (need_headerupdate(found, search.now)) {
-			update = found;
-		}
 		if (!NEGATIVE(found) && foundsig != NULL) {
 			bindrdataset(search.qpdb, node, foundsig, search.now,
 				     nlocktype, tlocktype,
 				     sigrdataset DNS__DB_FLARG_PASS);
-			if (need_headerupdate(foundsig, search.now)) {
-				updatesig = foundsig;
-			}
 		}
 	}
 
 node_exit:
-	if ((update != NULL || updatesig != NULL) &&
-	    nlocktype != isc_rwlocktype_write)
-	{
-		NODE_FORCEUPGRADE(lock, &nlocktype);
-		POST(nlocktype);
-	}
-	if (update != NULL && need_headerupdate(update, search.now)) {
-		update_header(search.qpdb, update, search.now);
-	}
-	if (updatesig != NULL && need_headerupdate(updatesig, search.now)) {
-		update_header(search.qpdb, updatesig, search.now);
-	}
 
 	NODE_UNLOCK(lock, &nlocktype);
 
@@ -2136,22 +2014,6 @@ findzonecut(dns_db_t *db, const dns_name_t *name, unsigned int options,
 	if (foundsig != NULL) {
 		bindrdataset(search.qpdb, node, foundsig, search.now, nlocktype,
 			     tlocktype, sigrdataset DNS__DB_FLARG_PASS);
-	}
-
-	if (need_headerupdate(found, search.now) ||
-	    (foundsig != NULL && need_headerupdate(foundsig, search.now)))
-	{
-		if (nlocktype != isc_rwlocktype_write) {
-			NODE_FORCEUPGRADE(lock, &nlocktype);
-			POST(nlocktype);
-		}
-		if (need_headerupdate(found, search.now)) {
-			update_header(search.qpdb, found, search.now);
-		}
-		if (foundsig != NULL && need_headerupdate(foundsig, search.now))
-		{
-			update_header(search.qpdb, foundsig, search.now);
-		}
 	}
 
 	NODE_UNLOCK(lock, &nlocktype);
@@ -2365,8 +2227,7 @@ expire_lru_headers(qpcache_t *qpdb, unsigned int locknum,
 	size_t purged = 0;
 
 	for (header = ISC_LIST_TAIL(qpdb->lru[locknum]);
-	     header != NULL && header->last_used <= qpdb->last_used &&
-	     purged <= purgesize;
+	     header != NULL && purged <= purgesize;
 	     header = ISC_LIST_TAIL(qpdb->lru[locknum]))
 	{
 		size_t header_size = rdataset_size(header);
@@ -2403,7 +2264,6 @@ overmem(qpcache_t *qpdb, dns_slabheader_t *newheader,
 	uint32_t locknum_start = qpdb->lru_sweep++ % qpdb->node_lock_count;
 	uint32_t locknum = locknum_start;
 	size_t purgesize, purged = 0;
-	isc_stdtime_t min_last_used = 0;
 	size_t max_passes = 8;
 
 	/*
@@ -2430,12 +2290,6 @@ again:
 		 * Work out the oldest remaining last_used values of the list
 		 * tails as we walk across the array of lru lists.
 		 */
-		dns_slabheader_t *header = ISC_LIST_TAIL(qpdb->lru[locknum]);
-		if (header != NULL &&
-		    (min_last_used == 0 || header->last_used < min_last_used))
-		{
-			min_last_used = header->last_used;
-		}
 		NODE_UNLOCK(&qpdb->node_locks[locknum].lock, &nlocktype);
 		locknum = (locknum + 1) % qpdb->node_lock_count;
 	} while (locknum != locknum_start && purged <= purgesize);
@@ -2445,11 +2299,8 @@ again:
 	 * not freed the required amount of memory.
 	 */
 	if (purged < purgesize) {
-		if (min_last_used != 0) {
-			qpdb->last_used = min_last_used;
-			if (max_passes-- > 0) {
-				goto again;
-			}
+		if (max_passes-- > 0) {
+			goto again;
 		}
 	}
 }
@@ -3133,15 +2984,6 @@ find_header:
 			if (header->ttl > newheader->ttl) {
 				setttl(header, newheader->ttl);
 			}
-			if (header->last_used != now) {
-				ISC_LIST_UNLINK(
-					qpdb->lru[HEADERNODE(header)->locknum],
-					header, link);
-				header->last_used = now;
-				ISC_LIST_PREPEND(
-					qpdb->lru[HEADERNODE(header)->locknum],
-					header, link);
-			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
 			{
@@ -3195,15 +3037,6 @@ find_header:
 			if (header->ttl > newheader->ttl) {
 				setttl(header, newheader->ttl);
 			}
-			if (header->last_used != now) {
-				ISC_LIST_UNLINK(
-					qpdb->lru[HEADERNODE(header)->locknum],
-					header, link);
-				header->last_used = now;
-				ISC_LIST_PREPEND(
-					qpdb->lru[HEADERNODE(header)->locknum],
-					header, link);
-			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
 			{
@@ -3229,7 +3062,6 @@ find_header:
 			newheader->down = NULL;
 			idx = HEADERNODE(newheader)->locknum;
 			if (ZEROTTL(newheader)) {
-				newheader->last_used = qpdb->last_used + 1;
 				ISC_LIST_APPEND(qpdb->lru[idx], newheader,
 						link);
 			} else {
@@ -3259,7 +3091,6 @@ find_header:
 			isc_heap_insert(qpdb->heaps[idx], newheader);
 			newheader->heap = qpdb->heaps[idx];
 			if (ZEROTTL(newheader)) {
-				newheader->last_used = qpdb->last_used + 1;
 				ISC_LIST_APPEND(qpdb->lru[idx], newheader,
 						link);
 			} else {
@@ -3472,7 +3303,6 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	*newheader = (dns_slabheader_t){
 		.type = DNS_TYPEPAIR_VALUE(rdataset->type, rdataset->covers),
 		.trust = rdataset->trust,
-		.last_used = now,
 		.node = qpnode,
 	};
 

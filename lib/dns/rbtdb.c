@@ -2823,9 +2823,6 @@ find_header:
 			if (header->ttl > newheader->ttl) {
 				dns__rbtdb_setttl(header, newheader->ttl);
 			}
-			if (header->last_used != now) {
-				header->last_used = now;
-			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
 			{
@@ -2880,9 +2877,6 @@ find_header:
 			if (header->ttl > newheader->ttl) {
 				dns__rbtdb_setttl(header, newheader->ttl);
 			}
-			if (header->last_used != now) {
-				header->last_used = now;
-			}
 			if (header->noqname == NULL &&
 			    newheader->noqname != NULL)
 			{
@@ -2910,9 +2904,6 @@ find_header:
 			newheader->down = NULL;
 			idx = RBTDB_HEADERNODE(newheader)->locknum;
 			if (IS_CACHE(rbtdb)) {
-				if (ZEROTTL(newheader)) {
-					newheader->last_used = now;
-				}
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 				newheader->heap = rbtdb->heaps[idx];
@@ -2950,9 +2941,6 @@ find_header:
 				INSIST(rbtdb->heaps != NULL);
 				isc_heap_insert(rbtdb->heaps[idx], newheader);
 				newheader->heap = rbtdb->heaps[idx];
-				if (ZEROTTL(newheader)) {
-					newheader->last_used = now;
-				}
 			} else if (RESIGN(newheader)) {
 				dns__zonerbt_resigninsert(rbtdb, idx,
 							  newheader);
@@ -3239,7 +3227,6 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 	*newheader = (dns_slabheader_t){
 		.type = DNS_TYPEPAIR_VALUE(rdataset->type, rdataset->covers),
 		.trust = rdataset->trust,
-		.last_used = now,
 		.node = rbtnode,
 	};
 
@@ -3457,7 +3444,6 @@ dns__rbtdb_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 	newheader->closest = NULL;
 	atomic_init(&newheader->count,
 		    atomic_fetch_add_relaxed(&init_count, 1));
-	newheader->last_used = 0;
 	newheader->node = rbtnode;
 	newheader->db = (dns_db_t *)rbtdb;
 	if ((rdataset->attributes & DNS_RDATASETATTR_RESIGN) != 0) {
