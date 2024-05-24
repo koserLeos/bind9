@@ -41,6 +41,12 @@
 	  DNS_SLABHEADERATTR_NONEXISTENT) != 0)
 
 /*
+ * Record overhead:
+ * compression pointer (2), type (2), class (2), ttl (4), length (2).
+ */
+#define RECORD_OVERHEAD 12
+
+/*
  * The rdataslab structure allows iteration to occur in both load order
  * and DNSSEC order.  The structure is as follows:
  *
@@ -159,7 +165,8 @@ fillin_offsets(unsigned char *offsetbase, unsigned int *offsettable,
 
 isc_result_t
 dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
-			   isc_region_t *region, unsigned int reservelen) {
+			   isc_region_t *region, unsigned int reservelen,
+			   unsigned int name_length) {
 	/*
 	 * Use &removed as a sentinel pointer for duplicate
 	 * rdata as rdata.data == NULL is valid.
@@ -177,6 +184,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	unsigned char *offsetbase = NULL;
 	unsigned int *offsettable = NULL;
 #endif /* if DNS_RDATASET_FIXED */
+	unsigned int datalen = 0;
 
 	buflen = reservelen + 2;
 
@@ -272,6 +280,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 #else  /* if DNS_RDATASET_FIXED */
 			buflen += (2 + x[i - 1].rdata.length);
 #endif /* if DNS_RDATASET_FIXED */
+			datalen += RECORD_OVERHEAD + x[i - 1].rdata.length;
 			/*
 			 * Provide space to store the per RR meta data.
 			 */
@@ -289,6 +298,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 #else  /* if DNS_RDATASET_FIXED */
 	buflen += (2 + x[i - 1].rdata.length);
 #endif /* if DNS_RDATASET_FIXED */
+	datalen += RECORD_OVERHEAD + x[i - 1].rdata.length;
 	/*
 	 * Provide space to store the per RR meta data.
 	 */
@@ -305,6 +315,15 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 		 * RR in the rdataset.
 		 */
 		result = DNS_R_SINGLETON;
+		goto free_rdatas;
+	}
+
+	/*
+	 * Can this RRset fit into a DNS message with space for a
+	 * EDNS DNS COOKIE?
+	 */
+	if (datalen > (0xffff - name_length - 12 - 2 - 2 - 11 - 28)) {
+		result = ISC_R_NOSPACE;
 		goto free_rdatas;
 	}
 
@@ -523,9 +542,10 @@ rdata_in_slab(unsigned char *slab, unsigned int reservelen,
 
 isc_result_t
 dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
-		    unsigned int reservelen, isc_mem_t *mctx,
-		    dns_rdataclass_t rdclass, dns_rdatatype_t type,
-		    unsigned int flags, unsigned char **tslabp) {
+		    unsigned int reservelen, unsigned int name_length,
+		    isc_mem_t *mctx, dns_rdataclass_t rdclass,
+		    dns_rdatatype_t type, unsigned int flags,
+		    unsigned char **tslabp) {
 	unsigned char *ocurrent = NULL, *ostart = NULL, *ncurrent = NULL;
 	unsigned char *tstart = NULL, *tcurrent = NULL, *data = NULL;
 	unsigned int ocount, ncount, count, olength, tlength, tcount, length;
@@ -542,6 +562,7 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 	unsigned char *offsetbase = NULL;
 	unsigned int *offsettable = NULL;
 #endif /* if DNS_RDATASET_FIXED */
+	unsigned int datalen = 0;
 
 	/*
 	 * XXX  Need parameter to allow "delete rdatasets in nslab" merge,
@@ -588,6 +609,7 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 		olength += length + 2;
 		ocurrent += length;
 #endif /* if DNS_RDATASET_FIXED */
+		datalen += RECORD_OVERHEAD + length;
 	}
 
 	/*
@@ -612,6 +634,7 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 #else  /* if DNS_RDATASET_FIXED */
 			tlength += nrdata.length + 2;
 #endif /* if DNS_RDATASET_FIXED */
+			datalen += RECORD_OVERHEAD + nrdata.length;
 			if (type == dns_rdatatype_rrsig) {
 				tlength++;
 			}
@@ -644,6 +667,14 @@ dns_rdataslab_merge(unsigned char *oslab, unsigned char *nslab,
 	}
 
 	if (tcount > 0xffff) {
+		return (ISC_R_NOSPACE);
+	}
+
+	/*
+	 * Can this RRset fit into a DNS message with space for a
+	 * EDNS DNS COOKIE?
+	 */
+	if (datalen > (0xffff - name_length - 12 - 2 - 2 - 11 - 28)) {
 		return (ISC_R_NOSPACE);
 	}
 

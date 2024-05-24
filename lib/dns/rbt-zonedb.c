@@ -1749,7 +1749,8 @@ loading_addrdataset(void *arg, const dns_name_t *name,
 	}
 
 	result = dns_rdataslab_fromrdataset(rdataset, rbtdb->common.mctx,
-					    &region, sizeof(dns_slabheader_t));
+					    &region, sizeof(dns_slabheader_t),
+					    name->length);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}

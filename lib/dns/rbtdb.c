@@ -2777,7 +2777,7 @@ find_header:
 					(unsigned char *)header,
 					(unsigned char *)newheader,
 					(unsigned int)(sizeof(*newheader)),
-					rbtdb->common.mctx,
+					nodename->length, rbtdb->common.mctx,
 					rbtdb->common.rdclass,
 					(dns_rdatatype_t)header->type, flags,
 					&merged);
@@ -3152,12 +3152,12 @@ addnoqname(isc_mem_t *mctx, dns_slabheader_t *newheader,
 	result = dns_rdataset_getnoqname(rdataset, &name, &neg, &negsig);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
-	result = dns_rdataslab_fromrdataset(&neg, mctx, &r1, 0);
+	result = dns_rdataslab_fromrdataset(&neg, mctx, &r1, 0, name.length);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup;
 	}
 
-	result = dns_rdataslab_fromrdataset(&negsig, mctx, &r2, 0);
+	result = dns_rdataslab_fromrdataset(&negsig, mctx, &r2, 0, name.length);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup;
 	}
@@ -3191,12 +3191,12 @@ addclosest(isc_mem_t *mctx, dns_slabheader_t *newheader,
 	result = dns_rdataset_getclosest(rdataset, &name, &neg, &negsig);
 	RUNTIME_CHECK(result == ISC_R_SUCCESS);
 
-	result = dns_rdataslab_fromrdataset(&neg, mctx, &r1, 0);
+	result = dns_rdataslab_fromrdataset(&neg, mctx, &r1, 0, name.length);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup;
 	}
 
-	result = dns_rdataslab_fromrdataset(&negsig, mctx, &r2, 0);
+	result = dns_rdataslab_fromrdataset(&negsig, mctx, &r2, 0, name.length);
 	if (result != ISC_R_SUCCESS) {
 		goto cleanup;
 	}
@@ -3271,15 +3271,16 @@ dns__rbtdb_addrdataset(dns_db_t *db, dns_dbnode_t *node,
 		now = 0;
 	}
 
-	result = dns_rdataslab_fromrdataset(rdataset, rbtdb->common.mctx,
-					    &region, sizeof(dns_slabheader_t));
-	if (result != ISC_R_SUCCESS) {
-		return (result);
-	}
-
 	name = dns_fixedname_initname(&fixed);
 	dns__rbtdb_nodefullname(db, node, name);
 	dns_rdataset_getownercase(rdataset, name);
+
+	result = dns_rdataslab_fromrdataset(rdataset, rbtdb->common.mctx,
+					    &region, sizeof(dns_slabheader_t),
+					    name->length);
+	if (result != ISC_R_SUCCESS) {
+		return (result);
+	}
 
 	newheader = (dns_slabheader_t *)region.base;
 	*newheader = (dns_slabheader_t){
@@ -3487,7 +3488,8 @@ dns__rbtdb_subtractrdataset(dns_db_t *db, dns_dbnode_t *node,
 	dns__rbtdb_nodefullname(db, node, nodename);
 
 	result = dns_rdataslab_fromrdataset(rdataset, rbtdb->common.mctx,
-					    &region, sizeof(dns_slabheader_t));
+					    &region, sizeof(dns_slabheader_t),
+					    nodename->length);
 	if (result != ISC_R_SUCCESS) {
 		return (result);
 	}
