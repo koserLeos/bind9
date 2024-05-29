@@ -23,7 +23,7 @@
  */
 isc_logcategory_t dns_categories[] = {
 	{ "notify", 0 },	{ "database", 0 },
-	{ "security", 0 },	{ "_placeholder", 0 },
+	{ "security", 0 },	{ "update", 0 },
 	{ "dnssec", 0 },	{ "resolver", 0 },
 	{ "xfer-in", 0 },	{ "xfer-out", 0 },
 	{ "dispatch", 0 },	{ "lame-servers", 0 },
