@@ -36,6 +36,7 @@ RNDCCMD="$RNDC -c ../_common/rndc.conf -p ${CONTROLPORT} -s"
 status=0
 n=0
 
+nextpartreset ns1/named.run
 nextpartreset ns3/named.run
 
 # wait for zone transfer to complete
@@ -62,6 +63,10 @@ has_positive_response() {
   grep "status: NOERROR" dig.out.post.test$n >/dev/null || return 1
   grep "ANSWER: 0," dig.out.post.test$n >/dev/null && return 1
   return 0
+}
+
+update_policy_log() {
+  nextpart $1 | sed -n 's/^[^ ]* [^ ]* \(update-policy:.*\)$/\1/p'
 }
 
 ret=0
@@ -91,6 +96,7 @@ digcomp knowngood.ns1.before dig.out.ns2 || ret=1
 
 ret=0
 echo_i "ensure an unrelated zone is mentioned in its NOTAUTH log"
+nextpart ns1/named.run >/dev/null
 $NSUPDATE -k ns1/ddns.key >nsupdate.out 2>&1 <<END && ret=1
 server 10.53.0.1 ${PORT}
 zone unconfigured.test
@@ -106,7 +112,20 @@ grep ' unconfigured.test: not authoritative' ns1/named.run \
 }
 
 ret=0
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+update_policy_log ns1/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
+ret=0
 echo_i "ensure a subdomain is mentioned in its NOTAUTH log"
+nextpart ns1/named.run >/dev/null
 $NSUPDATE -k ns1/ddns.key >nsupdate.out 2>&1 <<END && ret=1
 server 10.53.0.1 ${PORT}
 zone sub.sub.example.nil
@@ -122,8 +141,21 @@ grep ' sub.sub.example.nil: not authoritative' ns1/named.run \
 }
 
 ret=0
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+update_policy_log ns1/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
+ret=0
 echo_i "updating zone"
 # nsupdate will print a ">" prompt to stdout as it gets each input line.
+nextpart ns1/named.run >/dev/null
 $NSUPDATE -k ns1/ddns.key <<END >/dev/null || ret=1
 server 10.53.0.1 ${PORT}
 update add updated.example.nil. 600 A 10.10.10.1
@@ -131,6 +163,33 @@ add updated.example.nil. 600 TXT Foo
 delete t.example.nil.
 
 END
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
+ret=0
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+update_policy_log ns1/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+update-policy: using: signer=ddns-key.example.nil name=updated.example.nil addr=10.53.0.1 tcp=0 type=A target=
+update-policy: trying: grant zonesub-key.example.nil subdomain example.nil TXT
+update-policy: next rule: signer does not match identity
+update-policy: trying: grant ddns-key.example.nil subdomain example.nil ANY
+update-policy: matched: grant ddns-key.example.nil subdomain example.nil ANY
+update-policy: using: signer=ddns-key.example.nil name=updated.example.nil addr=10.53.0.1 tcp=0 type=TXT target=
+update-policy: trying: grant zonesub-key.example.nil subdomain example.nil TXT
+update-policy: next rule: signer does not match identity
+update-policy: trying: grant ddns-key.example.nil subdomain example.nil ANY
+update-policy: matched: grant ddns-key.example.nil subdomain example.nil ANY
+update-policy: using: signer=ddns-key.example.nil name=t.example.nil addr=10.53.0.1 tcp=0 type=A target=
+update-policy: trying: grant zonesub-key.example.nil subdomain example.nil TXT
+update-policy: next rule: signer does not match identity
+update-policy: trying: grant ddns-key.example.nil subdomain example.nil ANY
+update-policy: matched: grant ddns-key.example.nil subdomain example.nil ANY
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
 [ $ret = 0 ] || {
   echo_i "failed"
   status=1
@@ -175,12 +234,28 @@ pre=$($DIG $DIGOPTS +short new.other.nil. @10.53.0.1 a) || ret=1
 
 ret=0
 echo_i "updating zone"
+nextpart ns1/named.run >/dev/null
 # nsupdate will print a ">" prompt to stdout as it gets each input line.
 $NSUPDATE -4 -l -p ${PORT} -k ns1/session.key >/dev/null <<END || ret=1
 zone other.nil.
 update add new.other.nil. 600 IN A 10.10.10.1
 send
 END
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
+ret=0
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+update_policy_log ns1/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+update-policy: using: signer=local-ddns name=new.other.nil addr=127.0.0.1 tcp=0 type=A target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
 [ $ret = 0 ] || {
   echo_i "failed"
   status=1
@@ -208,6 +283,7 @@ digcomp knowngood.ns1.after dig.out.ns1 || ret=1
 
 ret=0
 echo_i "testing zone consistency checks"
+nextpart ns1/named.run >/dev/null
 # inserting an NS record without a corresponding A or AAAA record should fail
 $NSUPDATE -4 -l -p ${PORT} -k ns1/session.key >nsupdate.out 2>&1 <<END && ret=1
 update add other.nil. 600 in ns ns3.other.nil.
@@ -242,6 +318,39 @@ grep REFUSED nsupdate.out >/dev/null 2>&1 && ret=1
   status=1
 }
 
+ret=0
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+update_policy_log ns1/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+update-policy: using: signer=local-ddns name=other.nil addr=127.0.0.1 tcp=0 type=NS target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+update-policy: using: signer=local-ddns name=ns4.other.nil addr=127.0.0.1 tcp=0 type=A target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+update-policy: using: signer=local-ddns name=other.nil addr=127.0.0.1 tcp=0 type=NS target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+update-policy: using: signer=local-ddns name=ns5.other.nil addr=127.0.0.1 tcp=0 type=AAAA target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+update-policy: using: signer=local-ddns name=other.nil addr=127.0.0.1 tcp=0 type=NS target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+update-policy: using: signer=local-ddns name=other.nil addr=127.0.0.1 tcp=0 type=NS target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+update-policy: using: signer=local-ddns name=ns6.other.nil addr=127.0.0.1 tcp=0 type=A target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
 echo_i "sleeping 5 seconds for server to incorporate changes"
 sleep 5
 
@@ -259,6 +368,7 @@ grep ns6.other.nil dig.out.ns1 >/dev/null 2>&1 || ret=1
 
 ret=0
 echo_i "ensure 'check-mx ignore' allows adding MX records containing an address without a warning"
+nextpart ns1/named.run >/dev/null
 $NSUPDATE -k ns1/ddns.key >nsupdate.out 2>&1 <<END || ret=1
 server 10.53.0.1 ${PORT}
 update add mx03.example.nil 600 IN MX 10 10.53.0.1
@@ -272,13 +382,46 @@ grep "mx03.example.nil/MX:.*MX is an address" ns1/named.run >/dev/null 2>&1 && r
 }
 
 ret=0
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+update_policy_log ns1/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+update-policy: using: signer=ddns-key.example.nil name=mx03.example.nil addr=10.53.0.1 tcp=0 type=MX target=
+update-policy: trying: grant zonesub-key.example.nil subdomain example.nil TXT
+update-policy: next rule: signer does not match identity
+update-policy: trying: grant ddns-key.example.nil subdomain example.nil ANY
+update-policy: matched: grant ddns-key.example.nil subdomain example.nil ANY
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
+ret=0
 echo_i "ensure 'check-mx warn' allows adding MX records containing an address with a warning"
+nextpart ns1/named.run >/dev/null
 $NSUPDATE -4 -l -p ${PORT} -k ns1/session.key >nsupdate.out 2>&1 <<END || ret=1
 update add mx03.other.nil 600 IN MX 10 10.53.0.1
 send
 END
 grep REFUSED nsupdate.out >/dev/null 2>&1 && ret=1
 grep "mx03.other.nil/MX:.*MX is an address" ns1/named.run >/dev/null 2>&1 || ret=1
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
+ret=0
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+update_policy_log ns1/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+update-policy: using: signer=local-ddns name=mx03.other.nil addr=127.0.0.1 tcp=0 type=MX target=
+update-policy: trying: grant local-ddns local other.nil ANY
+update-policy: matched: grant local-ddns local other.nil ANY
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
 [ $ret = 0 ] || {
   echo_i "failed"
   status=1
