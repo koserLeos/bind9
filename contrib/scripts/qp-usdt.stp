@@ -1,0 +1,197 @@
+/*
+ * Copyright (C) Internet Systems Consortium, Inc. ("ISC")
+ *
+ * SPDX-License-Identifier: MPL-2.0
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, you can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * See the COPYRIGHT file distributed with this work for additional
+ * information regarding copyright ownership.
+ */
+
+/* Sample SystemTap script for tracing qp operations and chunks over time */
+
+global __fileline
+global __qp_timer
+global __qpmulti_timer
+
+global __program_start
+
+function get_location() {
+    addr = ustack(1)
+
+    if (addr in __fileline) {
+        fl = __fileline[addr]
+    } else {
+        fl = usymfileline(addr)
+        __fileline[addr] = fl
+    }
+
+    return fl
+}
+
+function qp_start() {
+    __qp_timer[ustack(1), $arg1] = ktime_get_ns()
+}
+
+function qp_stop() {
+    stop = ktime_get_ns()
+
+    start = __qp_timer[ustack(1), $arg1]
+    delete __qp_timer[ustack(1), $arg1]
+
+    return stop - start
+}
+
+function qpmulti_start() {
+    __qpmulti_timer[ustack(1), $arg1, $arg2] = ktime_get_ns()
+}
+
+function qpmulti_stop() {
+    stop = ktime_get_ns()
+
+    start = __qpmulti_timer[ustack(1), $arg1, $arg2]
+    delete __qpmulti_timer[ustack(1), $arg1, $arg2]
+
+    return stop - start
+}
+
+probe begin {
+    __program_start = ktime_get_ns()
+    printf("event,location,timestamp,duration,handled,leaf,used,free,hold\n");
+}
+
+probe process("/lib/libdns.so").mark("qp_compact_start") {
+    printf(
+        "qp_compact,%s,%ld,0,0,%u,%u,%u,%u\n",
+        get_location(), ktime_get_ns() - __program_start, $arg2, $arg3, $arg4, $arg5
+    )
+    qp_start()
+}
+
+probe process("/lib/libdns.so").mark("qp_compact_done") {
+    duration = qp_stop()
+    printf(
+        "qp_compact,%s,%ld,%ld,0,%u,%u,%u,%u\n",
+        get_location(), ktime_get_ns() - __program_start, duration, $arg2, $arg3, $arg4, $arg5
+    )
+}
+
+probe process("/lib/libdns.so").mark("qp_deletename_start") { qp_start() }
+probe process("/lib/libdns.so").mark("qp_deletename_done") {
+    duration = qp_stop()
+    printf(
+        "qp_deletename,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
+
+probe process("/lib/libdns.so").mark("qp_getname_start") { qp_start() }
+probe process("/lib/libdns.so").mark("qp_getname_done") {
+    duration = qp_stop()
+    printf(
+        "qp_getname,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
+
+probe process("/lib/libdns.so").mark("qp_insert_start") { qp_start() }
+probe process("/lib/libdns.so").mark("qp_insert_done") {
+    duration = qp_stop()
+    printf(
+        "qp_insert,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
+
+probe process("/lib/libdns.so").mark("qp_lookup_start") { qp_start() }
+probe process("/lib/libdns.so").mark("qp_lookup_done") {
+    duration = qp_stop()
+    printf(
+        "qp_lookup,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
+
+probe process("/lib/libdns.so").mark("qp_reclaim_chunks_start") { qp_start() }
+probe process("/lib/libdns.so").mark("qp_reclaim_chunks_done") {
+    duration = qp_stop()
+    printf(
+        "qp_reclaim_chunks,%s,%ld,%ld,%lu,%u,%u,%u,%u",
+        get_location(), ktime_get_ns() - __program_start, duration, $arg2, $arg3, $arg4, $arg5, $arg6
+    )
+}
+
+probe process("/lib/libdns.so").mark("qp_recycle_start") { qp_start() }
+probe process("/lib/libdns.so").mark("qp_recycle_done") {
+    duration = qp_stop()
+    printf(
+        "qp_recycle,%s,%ld,%ld,%lu,%u,%u,%u,%u\n",
+        get_location(), ktime_get_ns() - __program_start, duration, $arg2, $arg3, $arg4, $arg5, $arg6
+    )
+}
+
+probe process("/lib/libdns.so").mark("qpmulti_commit_start") { qpmulti_start() }
+probe process("/lib/libdns.so").mark("qpmulti_commit_done") {
+    duration = qpmulti_stop()
+    printf(
+        "qpmulti_commit,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
+
+probe process("/lib/libdns.so").mark("qpmulti_marksweep_start") { qpmulti_start() }
+probe process("/lib/libdns.so").mark("qpmulti_marksweep_done") {
+    duration = qpmulti_stop()
+    printf(
+        "qpmulti_marksweep,%s,%ld,%ld,%lu,%u,%u,%u,%u\n",
+        get_location(), ktime_get_ns() - __program_start, duration, $arg3, $arg4, $arg5, $arg6, $arg7
+    )
+}
+
+probe process("/lib/libdns.so").mark("qpmulti_query_start") { qpmulti_start() }
+probe process("/lib/libdns.so").mark("qpmulti_query_done") {
+    duration = qpmulti_stop()
+    printf(
+        "qpmulti_query,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
+
+probe process("/lib/libdns.so").mark("qpmulti_rollback_start") { qpmulti_start() }
+probe process("/lib/libdns.so").mark("qpmulti_rollback_done") {
+    duration = qpmulti_stop()
+    printf(
+        "qpmulti_rollback,%s,%ld,%ld,%u,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration, $arg3
+    )
+}
+
+probe process("/lib/libdns.so").mark("qpmulti_snapshot_start") { qpmulti_start() }
+probe process("/lib/libdns.so").mark("qpmulti_snapshot_done") {
+    duration = qpmulti_stop()
+    printf(
+        "qpmulti_snapshot,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
+
+probe process("/lib/libdns.so").mark("qpmulti_update_start") { qpmulti_start() }
+probe process("/lib/libdns.so").mark("qpmulti_update_done") {
+    duration = qpmulti_stop()
+    printf(
+        "qpmulti_update,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
+
+probe process("/lib/libdns.so").mark("qpmulti_write_start") { qpmulti_start() }
+probe process("/lib/libdns.so").mark("qpmulti_write_done") {
+    duration = qpmulti_stop()
+    printf(
+        "qpmulti_write,%s,%ld,%ld,0,0,0,0,0\n",
+        get_location(), ktime_get_ns() - __program_start, duration
+    )
+}
