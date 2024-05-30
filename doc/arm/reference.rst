@@ -7401,7 +7401,7 @@ records are also written to the zone's filename.
    Each rule grants or denies privileges. Rules are checked in the order in
    which they are specified in the :any:`update-policy` statement. Once a
    message has successfully matched a rule, the operation is immediately
-   granted or denied, and no further rules are examined. There are 16 types
+   granted or denied, and no further rules are examined. There are 23 types
    of rules; the rule type is specified by the ``ruletype`` field, and the
    interpretation of other fields varies depending on the rule type.
 
@@ -7457,11 +7457,12 @@ records are also written to the zone's filename.
      send
      EOF
 
-   The ruletype field has 18 values: ``name``, ``subdomain``, ``zonesub``,
+   The ruletype field has 23 values: ``name``, ``subdomain``, ``zonesub``,
    ``wildcard``, ``self``, ``selfsub``, ``selfwild``, ``ms-self``,
    ``ms-selfsub``, ``ms-subdomain``, ``ms-subdomain-self-rhs``, ``krb5-self``,
    ``krb5-selfsub``, ``krb5-subdomain``,  ``krb5-subdomain-self-rhs``,
-   ``tcp-self``, ``6to4-self``, and ``external``.
+   ``tcp-self``, ``6to4-self``, ``64-self``, ``60-self``, ``56-self``,
+   ``52-self``, ``48-self`` and ``external``.
 
    ``name``
        With exact-match semantics, this rule matches when the name being updated is identical to the contents of the ``name`` field.
@@ -7544,6 +7545,24 @@ records are also written to the zone's filename.
        The ``identity`` field must match the 6to4 prefix in ``ip6.arpa``. The ``name`` field should be set to ".". Note that, since identity is based on the client's IP address, it is not necessary for update request messages to be signed.
 
        In addition, if specified for an ``ip6.arpa`` name outside of the ``2.0.0.2.ip6.arpa`` namespace, the corresponding /48 reverse name can be updated. For example, TCP/IPv6 connections from 2001:DB8:ED0C::/48 can update records at ``C.0.D.E.8.B.D.0.1.0.0.2.ip6.arpa``.
+
+       .. note::
+           It is theoretically possible to spoof these TCP sessions.
+
+   ``64-self``, ``60-self``, ``56-self``, ``52-self``, ``48-self``
+       These allow records at reverse IPv6 names at the specified
+       nibble boundary to be updated if a TCP request comes from
+       an IPv6 address in the matching prefix.  These are intended
+       to allow ISP customers to add delgation records when using
+       DHCPv6 prefix delegations.
+
+       ::
+
+           grant * 64-self * NS DS;
+           grant ISP-DHCPv6-SERVER-KEY zonesub ANY;
+
+       Which will allow customers to add delegation records and the
+       DHCPv6 server to clean up when the lease expires.
 
        .. note::
            It is theoretically possible to spoof these TCP sessions.
