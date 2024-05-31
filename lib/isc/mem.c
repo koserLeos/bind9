@@ -551,7 +551,7 @@ destroy(isc_mem_t *ctx) {
 	isc_mutex_destroy(&ctx->lock);
 
 	if (ctx->checkfree) {
-		INSIST(atomic_load(&ctx->inuse) == 0);
+		INSIST(atomic_load_relaxed(&ctx->inuse) == 0);
 	}
 	sdallocx(ctx, sizeof(*ctx), ctx->jemalloc_flags);
 
@@ -634,14 +634,15 @@ isc__mem_rcu_barrier(isc_mem_t *ctx) {
 	 */
 	size_t inuse;
 	uint_fast32_t references;
-	for (inuse = atomic_load(&ctx->inuse),
+	for (inuse = atomic_load_relaxed(&ctx->inuse),
 	    references = isc_refcount_current(&ctx->references);
-	     inuse > 0 || references > 1; inuse = atomic_load(&ctx->inuse),
+	     inuse > 0 || references > 1;
+	     inuse = atomic_load_relaxed(&ctx->inuse),
 	    references = isc_refcount_current(&ctx->references))
 	{
 		rcu_barrier();
 
-		if (inuse == atomic_load(&ctx->inuse) &&
+		if (inuse == atomic_load_relaxed(&ctx->inuse) &&
 		    references == isc_refcount_current(&ctx->references))
 		{
 			break;
