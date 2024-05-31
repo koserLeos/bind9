@@ -23,17 +23,16 @@ extern isc_log_t	*dns_lctx;
 extern isc_logcategory_t dns_categories[];
 extern isc_logmodule_t	 dns_modules[];
 
-#define DNS_LOGCATEGORY_NOTIFY	 (&dns_categories[0])
-#define DNS_LOGCATEGORY_DATABASE (&dns_categories[1])
-#define DNS_LOGCATEGORY_SECURITY (&dns_categories[2])
-/* DNS_LOGCATEGORY_CONFIG superseded by CFG_LOGCATEGORY_CONFIG */
-#define DNS_LOGCATEGORY_DNSSEC	     (&dns_categories[4])
-#define DNS_LOGCATEGORY_RESOLVER     (&dns_categories[5])
-#define DNS_LOGCATEGORY_XFER_IN	     (&dns_categories[6])
-#define DNS_LOGCATEGORY_XFER_OUT     (&dns_categories[7])
-#define DNS_LOGCATEGORY_DISPATCH     (&dns_categories[8])
-#define DNS_LOGCATEGORY_LAME_SERVERS (&dns_categories[9])
-/* #define DNS_LOGCATEGORY_DELEGATION_ONLY removed */
+#define DNS_LOGCATEGORY_NOTIFY	      (&dns_categories[0])
+#define DNS_LOGCATEGORY_DATABASE      (&dns_categories[1])
+#define DNS_LOGCATEGORY_SECURITY      (&dns_categories[2])
+#define DNS_LOGCATEGORY_UPDATE	      (&dns_categories[3])
+#define DNS_LOGCATEGORY_DNSSEC	      (&dns_categories[4])
+#define DNS_LOGCATEGORY_RESOLVER      (&dns_categories[5])
+#define DNS_LOGCATEGORY_XFER_IN	      (&dns_categories[6])
+#define DNS_LOGCATEGORY_XFER_OUT      (&dns_categories[7])
+#define DNS_LOGCATEGORY_DISPATCH      (&dns_categories[8])
+#define DNS_LOGCATEGORY_LAME_SERVERS  (&dns_categories[9])
 #define DNS_LOGCATEGORY_EDNS_DISABLED (&dns_categories[10])
 #define DNS_LOGCATEGORY_RPZ	      (&dns_categories[11])
 #define DNS_LOGCATEGORY_RRL	      (&dns_categories[12])
