@@ -551,7 +551,7 @@ destroy(isc_mem_t *ctx) {
 	isc_mutex_destroy(&ctx->lock);
 
 	if (ctx->checkfree) {
-		INSIST(atomic_load(&ctx->inuse) == 0);
+		INSIST(atomic_load_relaxed(&ctx->inuse) == 0);
 	}
 	sdallocx(ctx, sizeof(*ctx), ctx->jemalloc_flags);
 
@@ -629,22 +629,29 @@ isc__mem_rcu_barrier(isc_mem_t *ctx) {
 	 * callbacks scheduled, we simply call the rcu_barrier()
 	 * until there's no progression in the memory freed.
 	 *
+	 * If there are more nested call_rcu() calls than five levels,
+	 * we are doing something horribly wrong...
+	 *
 	 * The overhead is negligible and it prevents rare assertion failures
 	 * caused by the check for memory leaks below.
 	 */
-	size_t inuse;
+	const size_t noprogress_max = 5;
+	size_t inuse, noprogress;
 	uint_fast32_t references;
-	for (inuse = atomic_load(&ctx->inuse),
+	for (inuse = atomic_load_relaxed(&ctx->inuse), noprogress = 0,
 	    references = isc_refcount_current(&ctx->references);
-	     inuse > 0 || references > 1; inuse = atomic_load(&ctx->inuse),
+	     (inuse > 0 || references > 1) && noprogress < noprogress_max;
+	     inuse = atomic_load_relaxed(&ctx->inuse),
 	    references = isc_refcount_current(&ctx->references))
 	{
 		rcu_barrier();
 
-		if (inuse == atomic_load(&ctx->inuse) &&
+		if (inuse == atomic_load_relaxed(&ctx->inuse) &&
 		    references == isc_refcount_current(&ctx->references))
 		{
-			break;
+			noprogress++;
+		} else {
+			noprogress = 0;
 		}
 	}
 }

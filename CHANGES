@@ -1,3 +1,7 @@
+6392.	[bug]		Make the isc__mem_rcu_barrier() function a bit more
+			robust while it is waiting for asynchronous memory
+			reclamations of the call_rcu() callbacks. [GL #4607]
+
 6391.	[bug]		Use a completely new memory context when flushing the
 			cache. [GL #2744]
 
