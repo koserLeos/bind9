@@ -24,6 +24,32 @@ New Features
   the maximum number of simultaneous recursive clients BIND has handled
   while running. :gl:`#4668`
 
+- Added self update-policy rules for reverse names for IPv6 prefix
+  lengths /48, /52, /56, /60 and /64 being common ISP prefix delegation
+  size.  The rule names are 48-self through 64-self and behave similarly
+  to 6to4-self.
+
+  A typical use would be where you have an IPv6 prefix delegation pool
+  and this would allow the clients to delegate reverse zones matching
+  the prefix delegation.
+  
+  ::
+
+     Prefix delegation pool: 2001:DB8::/32 with /48 delegations.
+
+     zone  8.b.d.0.1.0.0.2.IP6.ARPA {
+        ...
+        update-policy {
+           grant * 48-self . NS(10) DS(8);
+           grant dhcp6-server-key subzone ANY;
+        };
+     };
+  
+  This allows secure delegations to be added to 8.b.d.0.1.0.0.2.IP6.ARPA
+  at 0.0.0.0.8.b.d.0.1.0.0.2.IP6.ARPA through f.f.f.f.8.b.d.0.1.0.0.2.IP6.ARPA
+  and for the DHCPv6 server to remove the delegation when the prefix delegation
+  expires. :gl:`#4752`
+
 Removed Features
 ~~~~~~~~~~~~~~~~
 
