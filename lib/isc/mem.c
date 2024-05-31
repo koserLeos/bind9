@@ -629,14 +629,18 @@ isc__mem_rcu_barrier(isc_mem_t *ctx) {
 	 * callbacks scheduled, we simply call the rcu_barrier()
 	 * until there's no progression in the memory freed.
 	 *
+	 * If there are more nested call_rcu() calls than five levels,
+	 * we are doing something horribly wrong...
+	 *
 	 * The overhead is negligible and it prevents rare assertion failures
 	 * caused by the check for memory leaks below.
 	 */
-	size_t inuse;
+	const size_t noprogress_max = 5;
+	size_t inuse, noprogress;
 	uint_fast32_t references;
-	for (inuse = atomic_load_relaxed(&ctx->inuse),
+	for (inuse = atomic_load_relaxed(&ctx->inuse), noprogress = 0,
 	    references = isc_refcount_current(&ctx->references);
-	     inuse > 0 || references > 1;
+	     (inuse > 0 || references > 1) && noprogress < noprogress_max;
 	     inuse = atomic_load_relaxed(&ctx->inuse),
 	    references = isc_refcount_current(&ctx->references))
 	{
@@ -645,7 +649,9 @@ isc__mem_rcu_barrier(isc_mem_t *ctx) {
 		if (inuse == atomic_load_relaxed(&ctx->inuse) &&
 		    references == isc_refcount_current(&ctx->references))
 		{
-			break;
+			noprogress++;
+		} else {
+			noprogress = 0;
 		}
 	}
 }
