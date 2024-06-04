@@ -13,22 +13,15 @@
 
 #pragma once
 
-/* Known scheme type(s). */
-#define DNS_ZONEMD_SCHEME_SIMPLE (1)
+#include <dns/types.h>
 
-/* Known digest type(s). */
-#define DNS_ZONEMD_DIGEST_SHA384 (1)
-#define DNS_ZONEMD_DIGEST_SHA512 (2)
+#define DNS_ZONEMD_BUFFERSIZE (6U + 64U)
 
-/*
- *  \brief per RFC 8976
- */
-typedef struct dns_rdata_zonemd {
-	dns_rdatacommon_t common;
-	isc_mem_t *mctx;
-	uint32_t serial;
-	uint8_t scheme;
-	uint8_t digest_type;
-	unsigned char *digest;
-	uint16_t length;
-} dns_rdata_zonemd_t;
+isc_result_t
+dns_zonemd_buildrdata(dns_rdata_t *rdata, dns_db_t *db,
+		      dns_dbversion_t *version, uint8_t scheme,
+		      uint8_t algorithm, isc_mem_t *mctx, unsigned char *buf,
+		      size_t size);
+
+bool
+dns_zonemd_supported(dns_rdata_t *rdata);

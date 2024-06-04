@@ -29,6 +29,7 @@ options {
 	minimal-responses no;
 	version none;  // make statistics independent of the version number
 	allow-new-zones yes;
+	zonemd-check no;
 };
 
 statistics-channels { inet 10.53.0.3 port @EXTRAPORT1@ allow { localhost; }; };

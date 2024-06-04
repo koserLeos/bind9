@@ -317,6 +317,9 @@ options {
 	zero-no-soa-ttl <boolean>;
 	zero-no-soa-ttl-cache <boolean>;
 	zone-statistics ( full | terse | none | <boolean> );
+	zonemd-check <boolean>;
+	zonemd-dnssec-only <boolean>;
+	zonemd-required <boolean>;
 };
 
 parental-agents <string> [ port <integer> ] [ source ( <ipv4_address> | * ) ] [ source-v6 ( <ipv6_address> | * ) ] { ( <remote-servers> | <ipv4_address> [ port <integer> ] | <ipv6_address> [ port <integer> ] ) [ key <string> ] [ tls <string> ]; ... }; // may occur multiple times
@@ -590,5 +593,8 @@ view <string> [ <class> ] {
 	zero-no-soa-ttl <boolean>;
 	zero-no-soa-ttl-cache <boolean>;
 	zone-statistics ( full | terse | none | <boolean> );
+	zonemd-check <boolean>;
+	zonemd-dnssec-only <boolean>;
+	zonemd-required <boolean>;
 }; // may occur multiple times
 

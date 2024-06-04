@@ -138,6 +138,7 @@ libdns_la_HEADERS =			\
 	include/dns/xfrin.h		\
 	include/dns/zone.h		\
 	include/dns/zonekey.h		\
+	include/dns/zonemd.h		\
 	include/dns/zoneverify.h	\
 	include/dns/zt.h
 
@@ -259,6 +260,7 @@ libdns_la_SOURCES =			\
 	zone_p.h			\
 	zoneverify.c			\
 	zonekey.c			\
+	zonemd.c			\
 	zt.c
 
 if HAVE_GSSAPI

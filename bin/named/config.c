@@ -243,6 +243,9 @@ options {\n\
 	try-tcp-refresh yes; /* BIND 8 compat */\n\
 	zero-no-soa-ttl yes;\n\
 	zone-statistics terse;\n\
+	zonemd-check yes;\n\
+	zonemd-dnssec-only yes;\n\
+	zonemd-required no;\n\
 };\n\
 "
 
@@ -254,6 +257,7 @@ view \"_bind\" chaos {\n\
 	notify no;\n\
 	allow-new-zones no;\n\
 	max-cache-size 2M;\n\
+	zonemd-check no;\n\
 \n\
 	# Prevent use of this zone in DNS amplified reflection DoS attacks\n\
 	rate-limit {\n\

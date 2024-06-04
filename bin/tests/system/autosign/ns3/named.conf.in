@@ -283,6 +283,7 @@ zone "oldsigs.example" {
 	dnssec-policy jitter;
 	sig-signing-nodes 1000;
 	sig-signing-signatures 100;
+	zonemd-check no;
 };
 
 zone "prepub.example" {
@@ -328,6 +329,7 @@ zone "ttl4.example" {
 zone "delay.example" {
 	type primary;
 	file "delay.example.db";
+	zonemd-check no;
 };
 
 zone "nozsk.example" {
@@ -336,6 +338,7 @@ zone "nozsk.example" {
 	allow-update { any; };
 	inline-signing no;
 	dnssec-policy autosign;
+	zonemd-check no;
 };
 
 zone "inaczsk.example" {
@@ -344,6 +347,7 @@ zone "inaczsk.example" {
 	allow-update { any; };
 	inline-signing no;
 	dnssec-policy autosign;
+	zonemd-check no;
 };
 
 zone "noksk.example" {
@@ -352,6 +356,7 @@ zone "noksk.example" {
 	allow-update { any; };
 	inline-signing no;
 	dnssec-policy autosign;
+	zonemd-check no;
 };
 
 zone "sync.example" {

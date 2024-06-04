@@ -3367,6 +3367,7 @@ update_action(void *arg) {
 			 */
 			CHECK(dns_nsec3param_deletechains(db, ver, zone, true,
 							  &diff));
+			CHECK(dns_update_zonemd(db, ver, &diff));
 		} else if (has_dnskey && isdnssec(db, ver, privatetype)) {
 			dns_update_log_t log;
 			uint32_t interval =
@@ -3383,6 +3384,8 @@ update_action(void *arg) {
 					   isc_result_totext(result));
 				goto failure;
 			}
+		} else {
+			CHECK(dns_update_zonemd(db, ver, &diff));
 		}
 
 		maxrecords = dns_zone_getmaxrecords(zone);
