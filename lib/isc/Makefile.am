@@ -60,6 +60,7 @@ libisc_la_HEADERS =			\
 	include/isc/offset.h		\
 	include/isc/once.h		\
 	include/isc/os.h		\
+	include/isc/pause.h		\
 	include/isc/parseint.h		\
 	include/isc/pool.h		\
 	include/isc/portset.h		\

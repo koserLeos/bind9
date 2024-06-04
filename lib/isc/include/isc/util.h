@@ -183,19 +183,24 @@
 #define WAITUNTIL(cvp, lp, tp) isc_condition_waituntil((cvp), (lp), (tp))
 
 #define RWLOCK(lp, t)                                                         \
-	do {                                                                  \
+	{                                                                     \
 		ISC_UTIL_TRACE(fprintf(stderr, "RWLOCK %p, %d %s %d\n", (lp), \
 				       (t), __FILE__, __LINE__));             \
-		RUNTIME_CHECK(isc_rwlock_lock((lp), (t)) == ISC_R_SUCCESS);   \
+		isc_rwlock_lock((lp), (t));                                   \
 		ISC_UTIL_TRACE(fprintf(stderr, "RWLOCKED %p, %d %s %d\n",     \
 				       (lp), (t), __FILE__, __LINE__));       \
-	} while (0)
-#define RWUNLOCK(lp, t)                                                       \
-	do {                                                                  \
-		ISC_UTIL_TRACE(fprintf(stderr, "RWUNLOCK %p, %d %s %d\n",     \
-				       (lp), (t), __FILE__, __LINE__));       \
-		RUNTIME_CHECK(isc_rwlock_unlock((lp), (t)) == ISC_R_SUCCESS); \
-	} while (0)
+	}
+#define RWUNLOCK(lp, t)                                                   \
+	{                                                                 \
+		ISC_UTIL_TRACE(fprintf(stderr, "RWUNLOCK %p, %d %s %d\n", \
+				       (lp), (t), __FILE__, __LINE__));   \
+		isc_rwlock_unlock((lp), (t));                             \
+	}
+
+#define RDLOCK(lp)   RWLOCK(lp, isc_rwlocktype_read)
+#define RDUNLOCK(lp) RWUNLOCK(lp, isc_rwlocktype_read)
+#define WRLOCK(lp)   RWLOCK(lp, isc_rwlocktype_write)
+#define WRUNLOCK(lp) RWUNLOCK(lp, isc_rwlocktype_write)
 
 /*
  * List Macros.
@@ -305,6 +310,15 @@ mock_assert(const int result, const char *const expression,
 #define UNREACHABLE() ISC_UNREACHABLE()
 
 #endif /* UNIT_TESTING */
+
+/*%
+ * Runtime check which logs the error value returned by a POSIX Threads
+ * function and the error string that corresponds to it
+ */
+#define PTHREADS_RUNTIME_CHECK(func, ret)           \
+	if ((ret) != 0) {                           \
+		FATAL_SYSERROR(ret, "%s()", #func); \
+	}
 
 /*
  * Errors

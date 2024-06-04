@@ -270,6 +270,10 @@
 			reported as the covered value of the RRSIG when dumping
 			the cache contents. [GL #4314]
 
+6099.	[performance]	Change the internal read-write lock to modified C-RW-WP
+			algorithm that is more reader-writer fair and has better
+			performance for our workloads. [GL #1609]
+
 	--- 9.18.19 released ---
 
 6246.	[security]	Fix use-after-free error in TLS DNS code when sending
