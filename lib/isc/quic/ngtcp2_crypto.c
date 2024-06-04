@@ -23,7 +23,7 @@
 #include "quic_crypto.h"
 
 /* define to see ngtcp2 crypto related tracing information */
-/* #define NGTCP2_CRYPTO_TRACE 1 */
+#define NGTCP2_CRYPTO_TRACE 1
 
 #ifdef NGTCP2_CRYPTO_TRACE
 
