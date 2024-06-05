@@ -949,8 +949,8 @@ diff policy.expected.$n policy.log.$n || ret=1
 }
 
 n=$((n + 1))
-ret=0
 echo_i "check that 'update-policy tcp-self' refuses update of records for a different address from the client's own address via TCP ($n)"
+ret=0
 nextpart ns6/named.run >/dev/null
 $NSUPDATE -v >nsupdate.out.$n 2>&1 <<END && ret=1
 server 10.53.0.6 ${PORT}
@@ -978,6 +978,78 @@ update-policy: trying: grant * tcp-self . PTR(1) ANY(2) A
 update-policy: tcp-self=1.0.0.127.IN-ADDR.ARPA
 update-policy: next rule: tcp-self name does not match record name
 update-policy: no match found
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
+n=$((n + 1))
+ret=0
+echo_i "check that 'update-policy 6to4-self' refuses update of records via UDP over IPv4 ($n)"
+nextpart ns6/named.run >/dev/null
+REVERSE_NAME=6.0.0.0.5.3.a.0.2.0.0.2.ip6.arpa
+$NSUPDATE >nsupdate.out.$n 2>&1 <<END && ret=1
+server 10.53.0.6 ${PORT}
+local 10.53.0.6
+zone 2.0.0.2.ip6.arpa
+update add ${REVERSE_NAME} 600 NS localhost.
+send
+END
+grep REFUSED nsupdate.out.$n >/dev/null 2>&1 || ret=1
+$DIG $DIGOPTS @10.53.0.6 \
+  +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+  $REVERSE_NAME NS >dig.out.ns6.$n
+grep localhost. dig.out.ns6.$n >/dev/null 2>&1 && ret=1
+if test $ret -ne 0; then
+  echo_i "failed"
+  status=1
+fi
+
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+ret=0
+update_policy_log ns6/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+EOF
+diff policy.expected.$n policy.log.$n || ret=1
+[ $ret = 0 ] || {
+  echo_i "failed"
+  status=1
+}
+
+n=$((n + 1))
+echo_i "check that 'update-policy 6to4-self' permits update of records for the client's own address via TCP over IPv4 ($n)"
+ret=0
+nextpart ns6/named.run >/dev/null
+REVERSE_NAME=6.0.0.0.5.3.a.0.2.0.0.2.ip6.arpa
+$NSUPDATE -v >nsupdate.out.$n 2>&1 <<END || ret=1
+server 10.53.0.6 ${PORT}
+local 10.53.0.6
+zone 2.0.0.2.ip6.arpa
+update add ${REVERSE_NAME} 600 NS localhost.
+send
+END
+grep REFUSED nsupdate.out.$n >/dev/null 2>&1 && ret=1
+$DIG $DIGOPTS @10.53.0.6 \
+  +tcp +noadd +nosea +nostat +noquest +nocomm +nocmd \
+  $REVERSE_NAME NS >dig.out.ns6.$n || ret=1
+grep localhost. dig.out.ns6.$n >/dev/null 2>&1 || ret=1
+if test $ret -ne 0; then
+  echo_i "failed"
+  status=1
+fi
+
+n=$((n + 1))
+echo_i "check update-policy logs ($n)"
+ret=0
+update_policy_log ns6/named.run >policy.log.$n
+cat <<EOF >policy.expected.$n
+update-policy: using: signer= name=6.0.0.0.5.3.a.0.2.0.0.2.ip6.arpa addr=10.53.0.6 tcp=1 type=NS target=
+update-policy: trying: grant * 6to4-self . NS(10) DS(4)
+update-policy: 6to4-self=6.0.0.0.5.3.a.0.2.0.0.2.IP6.ARPA
+update-policy: matched: grant * 6to4-self . NS(10) DS(4)
 EOF
 diff policy.expected.$n policy.log.$n || ret=1
 [ $ret = 0 ] || {
