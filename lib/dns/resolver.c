@@ -1474,6 +1474,7 @@ fcount_incr(fetchctx_t *fctx, bool force) {
 		INSIST(counter->count > 0);
 		counter->dropped++;
 		fcount_logspill(fctx, counter, false);
+		inc_stats(fctx->res, dns_resstatscounter_zonequota);
 		result = ISC_R_QUOTA;
 	} else {
 		counter->allowed++;
@@ -4634,7 +4635,6 @@ fctx_create(dns_resolver_t *res, isc_loop_t *loop, const dns_name_t *name,
 	result = fcount_incr(fctx, false);
 	if (result != ISC_R_SUCCESS) {
 		result = fctx->res->quotaresp[dns_quotatype_zone];
-		inc_stats(res, dns_resstatscounter_zonequota);
 		goto cleanup_nameservers;
 	}
 
