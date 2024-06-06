@@ -36,6 +36,11 @@ Feature Changes
   :any:`allow-transfer` ACL must now be set at the :any:`zone`, :any:`view` or
   :namedconf:ref:`options` level to enable outgoing transfers. :gl:`#4728`
 
+- The minimum allowed value of ``resolver-query-timeout`` was lowered to
+  301 milliseconds instead of the earlier 10000 milliseconds (which is the
+  default). As earlier, values less than or equal to 300 are converted to
+  seconds before applying the limit. :gl:`#4320`
+
 Bug Fixes
 ~~~~~~~~~
 
