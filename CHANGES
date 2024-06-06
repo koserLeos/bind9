@@ -1,3 +1,7 @@
+6397.	[func]		Lower the minimum allowed value of the
+			'resolver-query-timeout' configuration value from 10000
+			milliseconds to 301 milliseconds. [GL #4320]
+
 6396.	[func]		Outgoing zone transfers are no longer enabled by
 			default. To enable them, an "allow-transfer" ACL
 			must be specified. [GL #4728]
