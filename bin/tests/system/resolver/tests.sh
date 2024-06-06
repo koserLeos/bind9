@@ -829,6 +829,7 @@ grep "ANSWER: [12]," dig.out.2.${n} >/dev/null || ret=1
 lines=$(awk '$1 == "mixedttl.tld." && $2 > 30 { print }' dig.out.2.${n} | wc -l)
 test ${lines:-1} -ne 0 && ret=1
 if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
 
 n=$((n + 1))
 echo_i "check resolver behavior when FORMERR for EDNS options happens (${n})"
@@ -840,6 +841,7 @@ dig_with_opts +tcp @10.53.0.5 options-formerr A >dig.out.${n} || ret=1
 grep "status: NOERROR" dig.out.${n} >/dev/null || ret=1
 nextpart ns5/named.run | grep "$msg" >/dev/null || ret=1
 if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
 
 n=$((n + 1))
 echo_i "GL#4612 regression test: DS query against broken NODATA responses (${n})"
@@ -848,7 +850,87 @@ ret=0
 dig_with_opts @10.53.0.7 a.a.gl6412 DS >dig.out.${n} || ret=1
 grep "status: SERVFAIL" dig.out.${n} >/dev/null || ret=1
 if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
 
+n=$((n + 1))
+echo_i "check that response codes have been logged with 'responselog yes;' ($n)"
+ret=0
+grep "responselog yes;" ns5/named.conf >/dev/null || ret=1
+grep "response: version.bind CH TXT NOERROR" ns5/named.run >/dev/null || ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+n=$((n + 1))
+echo_i "check that 'rndc responselog off' disables logging 'responselog yes;' ($n)"
+ret=0
+rndccmd 10.53.0.5 responselog off || ret=1
+dig_with_opts @10.53.0.5 should.not.be.logged >dig.ns5.out.${n} || ret=1
+grep "response: should.not.be.logged" ns5/named.run >/dev/null && ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+n=$((n + 1))
+echo_i "check that 'rndc responselog on' enables logging 'responselog yes;' ($n)"
+ret=0
+grep "response: should.be.logged" ns5/named.run >/dev/null && ret=1
+rndccmd 10.53.0.5 responselog on || ret=1
+dig_with_opts @10.53.0.5 should.be.logged >dig.ns5.out.${n} || ret=1
+grep "response: should.be.logged" ns5/named.run >/dev/null || ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+n=$((n + 1))
+echo_i "check that response codes have not been logged with default 'responselog' ($n)"
+ret=0
+grep "responselog" ns1/named.conf >/dev/null && ret=1
+grep "response: version.bind CH TXT NOERROR" ns1/named.run >/dev/null && ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+n=$((n + 1))
+echo_i "check that 'rndc responselog on' enables logging with default 'responselog' ($n)"
+ret=0
+grep "response: should.be.logged" ns1/named.run >/dev/null && ret=1
+rndccmd 10.53.0.1 responselog on || ret=1
+dig_with_opts @10.53.0.1 should.be.logged >dig.ns1.out.${n} || ret=1
+grep "response: should.be.logged" ns1/named.run >/dev/null || ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+n=$((n + 1))
+echo_i "check that 'rndc responselog off' disables logging with default 'responselog' ($n)"
+ret=0
+rndccmd 10.53.0.1 responselog off || ret=1
+dig_with_opts @10.53.0.1 should.not.be.logged >dig.ns1.out.${n} || ret=1
+grep "response: should.not.be.logged" ns1/named.run >/dev/null && ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+n=$((n + 1))
+echo_i "check that response codes have not been logged with 'responselog no;' ($n)"
+ret=0
+grep "responselog no;" ns6/named.conf >/dev/null || ret=1
+grep "response: version.bind CH TXT NOERROR" ns6/named.run >/dev/null && ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+n=$((n + 1))
+echo_i "check that 'rndc responselog on' enables logging with default 'responselog no;' ($n)"
+ret=0
+grep "response: should.be.logged" ns6/named.run >/dev/null && ret=1
+rndccmd 10.53.0.6 responselog on || ret=1
+dig_with_opts @10.53.0.6 should.be.logged >dig.ns6.out.${n} || ret=1
+grep "response: should.be.logged" ns6/named.run >/dev/null || ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+n=$((n + 1))
+echo_i "check that 'rndc responselog off' disables logging with default 'responselog no;' ($n)"
+ret=0
+rndccmd 10.53.0.6 responselog off || ret=1
+dig_with_opts @10.53.0.6 should.not.be.logged >dig.ns6.out.${n} || ret=1
+grep "response: should.not.be.logged" ns6/named.run >/dev/null && ret=1
+if [ $ret != 0 ]; then echo_i "failed"; fi
 status=$((status + ret))
 
 echo_i "exit status: $status"

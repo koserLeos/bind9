@@ -444,6 +444,10 @@ Currently supported commands are:
 
 .. program:: rndc
 
+.. option:: responselog [on | off]
+
+   Enable or disable response logging.
+
 .. option:: retransfer zone [class [view]]
 
    This command retransfers the given secondary zone from the primary server.
