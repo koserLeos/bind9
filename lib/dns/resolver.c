@@ -4631,7 +4631,8 @@ fctx_create(dns_resolver_t *res, isc_loop_t *loop, const dns_name_t *name,
 	/*
 	 * Are there too many simultaneous queries for this domain?
 	 */
-	result = fcount_incr(fctx, false);
+	bool exempt = ((fctx->options & DNS_FETCHOPT_PREFETCH) != 0);
+	result = fcount_incr(fctx, exempt);
 	if (result != ISC_R_SUCCESS) {
 		result = fctx->res->quotaresp[dns_quotatype_zone];
 		inc_stats(res, dns_resstatscounter_zonequota);
