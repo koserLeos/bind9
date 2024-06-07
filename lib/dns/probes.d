@@ -44,6 +44,23 @@ provider libdns {
 	probe qpmulti_txn_rollback_done(void *, void *, uint32_t);
 	probe qpmulti_txn_rollback_start(void *, void *);
 
+	probe qpcache_expire_ttl_start(void *, unsigned int locknum, uint32_t);
+	probe qpcache_expire_ttl_done(void *, unsigned int locknum, uint32_t, size_t expired);
+	probe qpcache_expire_lru_start(void *, unsigned int locknum, size_t purgesize);
+	probe qpcache_expire_lru_done(void *, unsigned int locknum, size_t purged);
+	probe qpcache_overmem_done(void *, size_t purged, size_t passes);
+	probe qpcache_overmem_start(void *);
+
+	/* dns_db interface */
+	probe qpcache_addrdataset_done(void *, void *, void *, bool);
+	probe qpcache_addrdataset_start(void *, void *, void *);
+	probe qpcache_expiredata_done(void *, void *, void *);
+	probe qpcache_expiredata_start(void *, void *, void *);
+	probe qpcache_find_done(void *, void * name, uint32_t now, unsigned int options, int result);
+	probe qpcache_find_start(void *, void * name, uint32_t now, unsigned int options);
+	probe qpcache_locknode(void *, void *, bool is_wrlock);
+	probe qpcache_unlocknode(void *, void *, bool is_wrlock);
+
 	probe xfrin_axfr_finalize_begin(void *, char *);
 	probe xfrin_axfr_finalize_end(void *, char *, int);
 	probe xfrin_connected(void *, char *, int);

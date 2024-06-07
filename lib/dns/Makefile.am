@@ -342,8 +342,15 @@ libdns_la_LIBADD += $(LMDB_LIBS)
 endif
 
 if !HAVE_SYSTEMTAP
-DTRACE_DEPS = libdns_la-xfrin.lo libdns_la-qp.lo
-DTRACE_OBJS = .libs/libdns_la-xfrin.$(OBJEXT) .libs/libdns_la-qp.$(OBJEXT)
+DTRACE_DEPS =			\
+	libdns_la-xfrin.lo	\
+	libdns_la-qp.lo		\
+	libdns_la-qpcache.lo
+
+DTRACE_OBJS =				\
+	.libs/libdns_la-xfrin.$(OBJEXT)	\
+	.libs/libdns_la-qp.$(OBJEXT)	\
+	.libs/libdns_la-qpcache.$(OBJEXT)
 endif
 
 include $(top_srcdir)/Makefile.dtrace
