@@ -36,6 +36,10 @@ Feature Changes
   :any:`allow-transfer` ACL must now be set at the :any:`zone`, :any:`view` or
   :namedconf:ref:`options` level to enable outgoing transfers. :gl:`#4728`
 
+- Fetches generated automatically in the result of :any:`prefetch` are now
+  exempt from the :any:`fetches-per-zone` and :any:`fetches-per-server` quotas.
+  :gl:`#4219`
+
 Bug Fixes
 ~~~~~~~~~
 
