@@ -1483,7 +1483,9 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find, dns_adbname_t *name) {
 			dns_adbaddrinfo_t *addrinfo = NULL;
 			entry = namehook->entry;
 
-			if (adbentry_overquota(entry)) {
+			if ((find->options & DNS_ADBFIND_QUOTAEXEMPT) == 0 &&
+			    adbentry_overquota(entry))
+			{
 				find->options |= DNS_ADBFIND_OVERQUOTA;
 				goto nextv4;
 			}
@@ -1505,7 +1507,9 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find, dns_adbname_t *name) {
 			dns_adbaddrinfo_t *addrinfo = NULL;
 			entry = namehook->entry;
 
-			if (adbentry_overquota(entry)) {
+			if ((find->options & DNS_ADBFIND_QUOTAEXEMPT) == 0 &&
+			    adbentry_overquota(entry))
+			{
 				find->options |= DNS_ADBFIND_OVERQUOTA;
 				goto nextv6;
 			}
