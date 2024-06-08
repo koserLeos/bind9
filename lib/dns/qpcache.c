@@ -61,6 +61,7 @@
 #include <dns/zonekey.h>
 
 #include "db_p.h"
+#include "probes.h"
 #include "qpcache_p.h"
 
 #define CHECK(op)                            \
@@ -3298,6 +3299,8 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 		return (result);
 	}
 
+	LIBDNS_QPCACHE_ADDRDATASET_START(db, node);
+
 	name = dns_fixedname_initname(&fixed);
 	dns_name_copy(&qpnode->name, name);
 	dns_rdataset_getownercase(rdataset, name);
@@ -3452,6 +3455,8 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 		/* Trigger memory cleaning */
 		isc_loop_rcu_barrier(isc_loop());
 	}
+
+	LIBDNS_QPCACHE_ADDRDATASET_DONE(db, node);
 
 	return (result);
 }
