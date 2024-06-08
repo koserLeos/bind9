@@ -3402,8 +3402,10 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 				  true);
 	}
 
+	LIBDNS_QPCACHE_ADDRDATASET_EXPIRE_TTL_START(qpdb, node);
 	expire_ttl_headers(qpdb, qpnode->locknum, &modctx, &nlocktype, now,
 			   cache_is_overmem DNS__DB_FLARG_PASS);
+	LIBDNS_QPCACHE_ADDRDATASET_EXPIRE_TTL_DONE(qpdb, node);
 
 	result = ISC_R_SUCCESS;
 	if (newnsec) {
@@ -3453,7 +3455,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node,
 
 	if (cache_is_overmem) {
 		/* Trigger memory cleaning */
-		isc_loop_rcu_barrier(isc_loop());
+		// isc_loop_rcu_barrier(isc_loop());
 	}
 
 	LIBDNS_QPCACHE_ADDRDATASET_DONE(db, node);
