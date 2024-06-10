@@ -646,31 +646,48 @@ wait_for_message() (
   grep -F "$1" wait_for_message.$n >/dev/null
 )
 
-nextpart ns6/named.run >/dev/null
-
-n=$((n + 1))
-echo_i "test max-transfer-time-in with 1 second timeout ($n)"
+# Restart ns1 with -T transferslowly
 stop_server ns1
 copy_setports ns1/named2.conf.in ns1/named.conf
 start_server --noclean --restart --port ${PORT} ns1 -- "-D xfer-ns1 $NS_PARAMS -T transferinsecs -T transferslowly"
 sleep 1
-$RNDCCMD 10.53.0.6 retransfer axfr-max-transfer-time 2>&1 | sed 's/^/ns6 /' | cat_i
+
+nextpart ns6/named.run >/dev/null
+
+n=$((n + 1))
+echo_i "test min-transfer-rate-in with 5 seconds timeout ($n)"
+$RNDCCMD 10.53.0.6 retransfer axfr-min-transfer-rate 2>&1 | sed 's/^/ns6 /' | cat_i
 tmp=0
-retry_quiet 10 wait_for_message "maximum transfer time exceeded: timed out" || tmp=1
+retry_quiet 10 wait_for_message "minimum transfer rate reached: timed out" || tmp=1
+if test $tmp != 0; then echo_i "failed"; fi
 status=$((status + tmp))
 
 nextpart ns6/named.run >/dev/null
 
 n=$((n + 1))
-echo_i "test max-transfer-idle-in with 50 seconds timeout ($n)"
+echo_i "test max-transfer-time-in with 1 second timeout ($n)"
+sleep 1
+$RNDCCMD 10.53.0.6 retransfer axfr-max-transfer-time 2>&1 | sed 's/^/ns6 /' | cat_i
+tmp=0
+retry_quiet 10 wait_for_message "maximum transfer time exceeded: timed out" || tmp=1
+if test $tmp != 0; then echo_i "failed"; fi
+status=$((status + tmp))
+
+# Restart ns1 with -T transferstuck
 stop_server ns1
 copy_setports ns1/named3.conf.in ns1/named.conf
 start_server --noclean --restart --port ${PORT} ns1 -- "-D xfer-ns1 $NS_PARAMS -T transferinsecs -T transferstuck"
 sleep 1
+
+nextpart ns6/named.run >/dev/null
+
+n=$((n + 1))
+echo_i "test max-transfer-idle-in with 50 seconds timeout ($n)"
 start=$(date +%s)
 $RNDCCMD 10.53.0.6 retransfer axfr-max-idle-time 2>&1 | sed 's/^/ns6 /' | cat_i
 tmp=0
 retry_quiet 60 wait_for_message "maximum idle time exceeded: timed out" || tmp=1
+if test $tmp != 0; then echo_i "failed"; fi
 if [ $tmp -eq 0 ]; then
   now=$(date +%s)
   diff=$((now - start))
