@@ -224,6 +224,7 @@ options {\n\
 	max-records 0;\n\
 	max-refresh-time 2419200; /* 4 weeks */\n\
 	max-retry-time 1209600; /* 2 weeks */\n\
+	min-transfer-rate-in 10240 5;\n\
 	max-transfer-idle-in 60;\n\
 	max-transfer-idle-out 60;\n\
 	max-transfer-time-in 120;\n\

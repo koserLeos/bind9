@@ -204,6 +204,7 @@ options {
 	min-ncache-ttl <duration>;
 	min-refresh-time <integer>;
 	min-retry-time <integer>;
+	min-transfer-rate-in <integer> <integer>;
 	minimal-any <boolean>;
 	minimal-responses ( no-auth | no-auth-recursive | <boolean> );
 	multi-master <boolean>;
@@ -486,6 +487,7 @@ view <string> [ <class> ] {
 	min-ncache-ttl <duration>;
 	min-refresh-time <integer>;
 	min-retry-time <integer>;
+	min-transfer-rate-in <integer> <integer>;
 	minimal-any <boolean>;
 	minimal-responses ( no-auth | no-auth-recursive | <boolean> );
 	multi-master <boolean>;
