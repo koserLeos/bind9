@@ -1,3 +1,8 @@
+6404.	[func]		Implement the new 'min-transfer-rate-in' configuration
+			option which sets a minimum amount of traffic rate
+			below which an incoming zone transfer gets canceled.
+			[GL #3914]
+
 6403.	[placeholder]
 
 6402.	[placeholder]
