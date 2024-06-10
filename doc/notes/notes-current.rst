@@ -24,6 +24,11 @@ New Features
   the maximum number of simultaneous recursive clients BIND has handled
   while running. :gl:`#4668`
 
+- A new option :any:`min-transfer-rate-in` has been added to view and zone
+  configurations to abort incoming zone transfers which run very slowly due to
+  network related issues. The default value is set to 10240 bytes in 5 minutes.
+  :gl:`#3914`
+
 Removed Features
 ~~~~~~~~~~~~~~~~
 
