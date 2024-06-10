@@ -28,9 +28,6 @@ provider libdns {
 	probe xfrin_sent(void *, char *, int);
 	probe xfrin_start(void *, char *);
 
-	probe qpcache_addrdataset_expire_ttl_start(void *, void *);
-	probe qpcache_addrdataset_expire_ttl_done(void *, void *);
-
-	probe qpcache_addrdataset_done(void *, void *);
-	probe qpcache_addrdataset_start(void *, void *);
+	probe qpcache_addrdataset_done(void *, uint32_t, bool overmem);
+	probe qpcache_addrdataset_start(void *, uint32_t);
 };

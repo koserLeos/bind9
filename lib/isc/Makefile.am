@@ -260,8 +260,8 @@ libisc_la_LIBADD +=		\
 endif HAVE_LIBXML2
 
 if !HAVE_SYSTEMTAP
-DTRACE_DEPS = libisc_la-rwlock.lo libisc_la-job.lo
-DTRACE_OBJS = .libs/libisc_la-rwlock.$(OBJEXT) .libs/libisc_la-job.$(OBJEXT)
+DTRACE_DEPS = libisc_la-rwlock.lo libisc_la-job.lo libisc_la-loop.lo
+DTRACE_OBJS = .libs/libisc_la-rwlock.$(OBJEXT) .libs/libisc_la-job.$(OBJEXT) .libs/libisc_la-loop.$(OBJEXT)
 endif
 
 include $(top_srcdir)/Makefile.dtrace

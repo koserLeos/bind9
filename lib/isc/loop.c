@@ -41,6 +41,7 @@
 #include "async_p.h"
 #include "job_p.h"
 #include "loop_p.h"
+#include "probes.h"
 
 /**
  * Private
@@ -238,6 +239,8 @@ static void
 quiescent_cb(uv_prepare_t *handle) {
 	isc_loop_t *loop = uv_handle_get_data(handle);
 
+	LIBISC_LOOP_QUIESCENT_CB_START(loop, loop->rcu_barrier);
+
 #if defined(RCU_QSBR)
 	/* safe memory reclamation */
 	rcu_quiescent_state();
@@ -251,6 +254,8 @@ quiescent_cb(uv_prepare_t *handle) {
 	if (loop->rcu_barrier) {
 		rcu_barrier();
 	}
+
+	LIBISC_LOOP_QUIESCENT_CB_DONE(loop, loop->rcu_barrier);
 }
 
 static void

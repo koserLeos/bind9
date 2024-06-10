@@ -27,4 +27,7 @@ provider libisc {
 	probe rwlock_wrlock_acq(void *);
 	probe rwlock_wrlock_req(void *);
 	probe rwlock_wrunlock(void *);
+
+	probe loop_quiescent_cb_done(void *, bool);
+	probe loop_quiescent_cb_start(void *, bool);
 };
