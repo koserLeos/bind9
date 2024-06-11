@@ -572,7 +572,7 @@ jemalloc_dep = null_dep
 if cc.has_header('malloc_np.h')
     config.set('HAVE_MALLOC_NP_H', 1)
 elif get_option('jemalloc').allowed()
-    jemalloc_dep = dependency('jemalloc', required: get_option('jemalloc').enabled())
+    jemalloc_dep = dependency('jemalloc', required: get_option('jemalloc'))
     if jemalloc_dep.found()
         config.set('HAVE_JEMALLOC', 1)
     endif
@@ -582,10 +582,10 @@ endif
 fstrm_dep = null_dep
 proto_dep = null_dep
 if get_option('dnstap').allowed()
-    protoc = find_program('protoc', required: get_option('dnstap').enabled())
+    protoc = find_program('protoc', required: get_option('dnstap'))
 
-    fstrm_dep = dependency('libfstrm', required: get_option('dnstap').enabled())
-    proto_dep = dependency('libprotobuf-c', required: get_option('dnstap').enabled())
+    fstrm_dep = dependency('libfstrm', required: get_option('dnstap'))
+    proto_dep = dependency('libprotobuf-c', required: get_option('dnstap'))
 
     if protoc.found() and fstrm_dep.found() and proto_dep.found()
         config.set('HAVE_DNSTAP', 1)
@@ -598,7 +598,7 @@ if get_option('stats-json').allowed()
     json_c_dep = dependency(
         'json-c',
         version: '>=0.11',
-        required: get_option('stats-json').enabled(),
+        required: get_option('stats-json'),
     )
 
     if json_c_dep.found()
@@ -610,7 +610,7 @@ endif
 xml2_dep = null_dep
 stats_xml_opt = get_option('stats-xml')
 if stats_xml_opt.allowed()
-    xml2_dep = dependency('libxml-2.0', version: '>=2.6.0', required: stats_xml_opt.enabled())
+    xml2_dep = dependency('libxml-2.0', version: '>=2.6.0', required: stats_xml_opt)
     if xml2_dep.found()
         config.set('HAVE_LIBXML2', 1)
     endif
@@ -621,7 +621,7 @@ if get_option('doh').allowed()
     nghttp2_dep = dependency(
         'libnghttp2',
         version: '>=1.6.0',
-        required: get_option('doh').enabled(),
+        required: get_option('doh'),
     )
     if nghttp2_dep.found()
         config.set('HAVE_LIBNGHTTP2', 1)
@@ -630,7 +630,7 @@ endif
 
 maxminddb_dep = null_dep
 if get_option('geoip').allowed()
-    maxminddb_dep = dependency('libmaxminddb', required: get_option('geoip').enabled())
+    maxminddb_dep = dependency('libmaxminddb', required: get_option('geoip'))
     if maxminddb_dep.found()
         config.set('HAVE_GEOIP2', 1)
         config.set_quoted('MAXMINDDB_PREFIX', maxminddb_dep.get_variable('prefix'))
@@ -642,7 +642,7 @@ endif
 krb5_dep = null_dep
 gssapi_dep = null_dep
 if get_option('gssapi').allowed()
-    krb5_config = find_program(get_option('krb5-config'), required: get_option('gssapi').enabled())
+    krb5_config = find_program(get_option('krb5-config'), required: get_option('gssapi'))
     if krb5_config.found()
         gssapi_dep = declare_dependency(
             compile_args: run_command(krb5_config, '--cflags', 'gssapi', check: true).stdout().split(),
@@ -696,7 +696,7 @@ endif
 
 idn2_dep = null_dep
 if get_option('idn').allowed()
-    idn2_dep = dependency('libidn2', required: get_option('idn').enabled())
+    idn2_dep = dependency('libidn2', required: get_option('idn'))
     if idn2_dep.found()
         config.set('HAVE_LIBIDN2', 1)
     endif
@@ -704,7 +704,7 @@ endif
 
 lmdb_dep = null_dep
 if get_option('lmdb').allowed()
-    lmdb_dep = dependency('lmdb', required: get_option('lmdb').enabled())
+    lmdb_dep = dependency('lmdb', required: get_option('lmdb'))
     if lmdb_dep.found()
         config.set('HAVE_LMDB', 1)
     endif
@@ -712,7 +712,7 @@ endif
 
 zlib_dep = null_dep
 if get_option('zlib').allowed()
-    zlib_dep = dependency('zlib', required: get_option('zlib').enabled())
+    zlib_dep = dependency('zlib', required: get_option('zlib'))
     if zlib_dep.found()
         config.set('HAVE_ZLIB', 1)
     endif
@@ -726,14 +726,6 @@ endif
 
 ## Leak detection in external libraries
 config.set10('ENABLE_LEAK_DETECTION', get_option('leak-detection').enabled())
-
-### Finalize configuration
-configure_file(output: 'config.h', configuration: config)
-
-add_project_arguments(
-    ['-include', meson.project_build_root() / 'config.h'],
-    language: 'c',
-)
 
 ### DTrace
 dtrace = find_program('dtrace', meson.project_source_root() / 'util' / 'dtrace.sh')
@@ -751,6 +743,22 @@ dtrace_object = generator(
     dtrace,
     output: '@BASENAME@.o',
     arguments: ['-s', '@INPUT@', '-G', '-o', '@OUTPUT@'],
+)
+
+if build_machine.system() == 'linux' and not get_option('tracing').disabled()
+    if cc.has_header('sys/sdt.h')
+        config.set('HAVE_SYSTEMTAP', 1)
+    elif get_option('tracing').enabled()
+        error('failed to find systemtap header')
+    endif
+endif
+
+### Finalize configuration
+configure_file(output: 'config.h', configuration: config)
+
+add_project_arguments(
+    ['-include', meson.project_build_root() / 'config.h'],
+    language: 'c',
 )
 
 ## Libraries/Binaries

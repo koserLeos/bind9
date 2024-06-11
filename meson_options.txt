@@ -98,6 +98,12 @@ option(
     choices: ['membarrier', 'bp', 'mb', 'qsbr'],
     description: 'Userspace RCU Flavor (non-membarrier RCU is only allowed in development builds)',
 )
+option(
+    'tracing',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable User Statically Defined Tracing support',
+)
 
 # Behavior
 option(
