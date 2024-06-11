@@ -1668,7 +1668,7 @@ shotgun:dot:
     - *setup_interfaces
     - make -j${BUILD_PARALLEL_JOBS:-1} -k all V=1
     - make DESTDIR="${INSTALL_PATH}" install
-    - git clone --depth 1 https://gitlab.isc.org/isc-projects/bind9-qa.git
+    - git clone --depth 1 --branch mnowak/stress-test-with-doh-dot https://gitlab.isc.org/isc-projects/bind9-qa.git
     - cd bind9-qa/stress
     - LD_LIBRARY_PATH="${INSTALL_PATH}/usr/local/lib" BIND_INSTALL_PATH="${INSTALL_PATH}/usr/local" WORKSPACE="${CI_PROJECT_DIR}" bash stress.sh
   needs:
@@ -1796,7 +1796,7 @@ stress:short:rpz:freebsd13:amd64:
     when: always
   timeout: 2h
 
-stress:authoritative:fedora:40:amd64:
+stress:authoritative:tcp+udp:fedora:40:amd64:
   <<: *fedora_40_amd64_image
   <<: *linux_amd64
   <<: *stress_test_long_job
@@ -1805,13 +1805,47 @@ stress:authoritative:fedora:40:amd64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/bin/flame
     MODE: authoritative
+    PROTOCOL: "tcp udp"
     RATE: 10000
     RUN_TIME: 60
   only:
     variables:
       - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /authoritative/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
 
-stress:recursive:fedora:40:amd64:
+stress:authoritative:doh+udp:fedora:40:amd64:
+  <<: *fedora_40_amd64_image
+  <<: *linux_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/bin/flame
+    MODE: authoritative
+    PROTOCOL: "doh udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /authoritative/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:authoritative:dot+udp:fedora:40:amd64:
+  <<: *fedora_40_amd64_image
+  <<: *linux_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    EXPECTED_TCP_RESPONSE_RATE: 85
+    FLAME: /usr/bin/flame
+    MODE: authoritative
+    PROTOCOL: "dot udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /authoritative/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:recursive:tcp+udp:fedora:40:amd64:
   <<: *fedora_40_amd64_image
   <<: *linux_amd64
   <<: *stress_test_long_job
@@ -1820,13 +1854,47 @@ stress:recursive:fedora:40:amd64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/bin/flame
     MODE: recursive
+    PROTOCOL: "tcp udp"
     RATE: 10000
     RUN_TIME: 60
   only:
     variables:
       - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /recursive/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
 
-stress:rpz:fedora:40:amd64:
+stress:recursive:doh+udp:fedora:40:amd64:
+  <<: *fedora_40_amd64_image
+  <<: *linux_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/bin/flame
+    MODE: recursive
+    PROTOCOL: "doh udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /recursive/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:recursive:dot+udp:fedora:40:amd64:
+  <<: *fedora_40_amd64_image
+  <<: *linux_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    EXPECTED_TCP_RESPONSE_RATE: 85
+    FLAME: /usr/bin/flame
+    MODE: recursive
+    PROTOCOL: "dot udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /recursive/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:rpz:tcp+udp:fedora:40:amd64:
   <<: *fedora_40_amd64_image
   <<: *linux_amd64
   <<: *stress_test_long_job
@@ -1835,13 +1903,46 @@ stress:rpz:fedora:40:amd64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/bin/flame
     MODE: rpz
+    PROTOCOL: "tcp udp"
     RATE: 1500
     RUN_TIME: 60
   only:
     variables:
       - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /rpz/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
 
-stress:authoritative:fedora:40:arm64:
+stress:rpz:doh+udp:fedora:40:amd64:
+  <<: *fedora_40_amd64_image
+  <<: *linux_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/bin/flame
+    MODE: rpz
+    PROTOCOL: "doh udp"
+    RATE: 1500
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /rpz/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:rpz:dot+udp:fedora:40:amd64:
+  <<: *fedora_40_amd64_image
+  <<: *linux_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/bin/flame
+    MODE: rpz
+    PROTOCOL: "dot udp"
+    RATE: 1500
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /rpz/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:authoritative:tcp+udp:fedora:40:arm64:
   <<: *fedora_40_arm64_image
   <<: *linux_arm64
   <<: *stress_test_long_job
@@ -1850,13 +1951,47 @@ stress:authoritative:fedora:40:arm64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/bin/flame
     MODE: authoritative
+    PROTOCOL: "tcp udp"
     RATE: 10000
     RUN_TIME: 60
   only:
     variables:
       - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /authoritative/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
 
-stress:recursive:fedora:40:arm64:
+stress:authoritative:doh+udp:fedora:40:arm64:
+  <<: *fedora_40_arm64_image
+  <<: *linux_arm64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/bin/flame
+    MODE: authoritative
+    PROTOCOL: "doh udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /authoritative/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
+
+stress:authoritative:dot+udp:fedora:40:arm64:
+  <<: *fedora_40_arm64_image
+  <<: *linux_arm64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    EXPECTED_TCP_RESPONSE_RATE: 85
+    FLAME: /usr/bin/flame
+    MODE: authoritative
+    PROTOCOL: "dot udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /authoritative/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
+
+stress:recursive:tcp+udp:fedora:40:arm64:
   <<: *fedora_40_arm64_image
   <<: *linux_arm64
   <<: *stress_test_long_job
@@ -1865,13 +2000,47 @@ stress:recursive:fedora:40:arm64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/bin/flame
     MODE: recursive
+    PROTOCOL: "tcp udp"
     RATE: 10000
     RUN_TIME: 60
   only:
     variables:
       - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /recursive/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
 
-stress:rpz:fedora:40:arm64:
+stress:recursive:doh+udp:fedora:40:arm64:
+  <<: *fedora_40_arm64_image
+  <<: *linux_arm64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/bin/flame
+    MODE: recursive
+    PROTOCOL: "doh udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /recursive/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
+
+stress:recursive:dot+udp:fedora:40:arm64:
+  <<: *fedora_40_arm64_image
+  <<: *linux_arm64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    EXPECTED_TCP_RESPONSE_RATE: 85
+    FLAME: /usr/bin/flame
+    MODE: recursive
+    PROTOCOL: "dot udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /recursive/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
+
+stress:rpz:tcp+udp:fedora:40:arm64:
   <<: *fedora_40_arm64_image
   <<: *linux_arm64
   <<: *stress_test_long_job
@@ -1880,13 +2049,46 @@ stress:rpz:fedora:40:arm64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/bin/flame
     MODE: rpz
+    PROTOCOL: "tcp udp"
     RATE: 1500
     RUN_TIME: 60
   only:
     variables:
       - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /rpz/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
 
-stress:authoritative:freebsd13:amd64:
+stress:rpz:doh+udp:fedora:40:arm64:
+  <<: *fedora_40_arm64_image
+  <<: *linux_arm64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/bin/flame
+    MODE: rpz
+    PROTOCOL: "doh udp"
+    RATE: 1500
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /rpz/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
+
+stress:rpz:dot+udp:fedora:40:arm64:
+  <<: *fedora_40_arm64_image
+  <<: *linux_arm64
+  <<: *stress_test_long_job
+  variables:
+    CC: gcc
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/bin/flame
+    MODE: rpz
+    PROTOCOL: "dot udp"
+    RATE: 1500
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /linux/i && $BIND_STRESS_TEST_MODE =~ /rpz/i && $BIND_STRESS_TEST_ARCH =~ /arm64/i)
+
+stress:authoritative:tcp+udp:freebsd13:amd64:
   <<: *freebsd_stress_amd64
   <<: *stress_test_long_job
   variables:
@@ -1894,13 +2096,29 @@ stress:authoritative:freebsd13:amd64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/local/bin/flame
     MODE: authoritative
+    PROTOCOL: "tcp udp"
     RATE: 10000
     RUN_TIME: 60
   only:
     variables:
       - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /freebsd/i && $BIND_STRESS_TEST_MODE =~ /authoritative/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
 
-stress:recursive:freebsd13:amd64:
+stress:authoritative:dot+udp:freebsd13:amd64:
+  <<: *freebsd_stress_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: clang
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/local/bin/flame
+    MODE: authoritative
+    PROTOCOL: "dot udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /freebsd/i && $BIND_STRESS_TEST_MODE =~ /authoritative/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:recursive:tcp+udp:freebsd13:amd64:
   <<: *freebsd_stress_amd64
   <<: *stress_test_long_job
   variables:
@@ -1908,13 +2126,29 @@ stress:recursive:freebsd13:amd64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/local/bin/flame
     MODE: recursive
+    PROTOCOL: "tcp udp"
     RATE: 10000
     RUN_TIME: 60
   only:
     variables:
       - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /freebsd/i && $BIND_STRESS_TEST_MODE =~ /recursive/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
 
-stress:rpz:freebsd13:amd64:
+stress:recursive:dot+udp:freebsd13:amd64:
+  <<: *freebsd_stress_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: clang
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/local/bin/flame
+    MODE: recursive
+    PROTOCOL: "dot udp"
+    RATE: 10000
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /freebsd/i && $BIND_STRESS_TEST_MODE =~ /recursive/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:rpz:tcp+udp:freebsd13:amd64:
   <<: *freebsd_stress_amd64
   <<: *stress_test_long_job
   variables:
@@ -1922,6 +2156,22 @@ stress:rpz:freebsd13:amd64:
     CFLAGS: "${CFLAGS_COMMON} -Og"
     FLAME: /usr/local/bin/flame
     MODE: rpz
+    PROTOCOL: "tcp udp"
+    RATE: 1500
+    RUN_TIME: 60
+  only:
+    variables:
+      - $CI_COMMIT_TAG || ($BIND_STRESS_TEST_OS =~ /freebsd/i && $BIND_STRESS_TEST_MODE =~ /rpz/i && $BIND_STRESS_TEST_ARCH =~ /amd64/i)
+
+stress:rpz:dot+udp:freebsd13:amd64:
+  <<: *freebsd_stress_amd64
+  <<: *stress_test_long_job
+  variables:
+    CC: clang
+    CFLAGS: "${CFLAGS_COMMON} -Og"
+    FLAME: /usr/local/bin/flame
+    MODE: rpz
+    PROTOCOL: "dot udp"
     RATE: 1500
     RUN_TIME: 60
   only:
