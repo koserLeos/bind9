@@ -14689,6 +14689,9 @@ zone_shutdown(void *arg) {
 		dns_zonemgr_releasezone(zone->zmgr, zone);
 	}
 
+	if (zone->view != NULL) {
+		LOCK(&zone->view->lock);
+	}
 	LOCK_ZONE(zone);
 	INSIST(zone != zone->raw);
 
@@ -14724,7 +14727,12 @@ zone_shutdown(void *arg) {
 	checkds_cancel(zone);
 
 	notify_cancel(zone);
+	UNLOCK_ZONE(zone);
+	if (zone->view != NULL) {
+		UNLOCK(&zone->view->lock);
+	}
 
+	LOCK_ZONE(zone);
 	forward_cancel(zone);
 
 	if (zone->timer != NULL) {
