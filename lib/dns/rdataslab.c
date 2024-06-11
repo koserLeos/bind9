@@ -1446,25 +1446,31 @@ rdataset_getownercase(const dns_rdataset_t *rdataset, dns_name_t *name) {
 	dns_db_locknode(header->db, header->node, isc_rwlocktype_read);
 
 	if (!CASESET(header)) {
-		goto unlock;
+		dns_db_unlocknode(header->db, header->node,
+				  isc_rwlocktype_read);
+		return;
 	}
 
 	if (CASEFULLYLOWER(header)) {
+		dns_db_unlocknode(header->db, header->node,
+				  isc_rwlocktype_read);
 		isc_ascii_lowercopy(name->ndata, name->ndata, name->length);
-	} else {
-		uint8_t *nd = name->ndata;
-		for (size_t i = 0; i < name->length; i++) {
-			if (mask == (1 << 7)) {
-				bits = header->upper[i / 8];
-				mask = 1;
-			} else {
-				mask <<= 1;
-			}
-			nd[i] = (bits & mask) ? isc_ascii_toupper(nd[i])
-					      : isc_ascii_tolower(nd[i]);
-		}
+		return;
 	}
 
-unlock:
+	uint8_t upper[sizeof(header->upper)];
+	memmove(upper, header->upper, sizeof(header->upper));
 	dns_db_unlocknode(header->db, header->node, isc_rwlocktype_read);
+
+	uint8_t *nd = name->ndata;
+	for (size_t i = 0; i < name->length; i++) {
+		if (mask == (1 << 7)) {
+			bits = upper[i / 8];
+			mask = 1;
+		} else {
+			mask <<= 1;
+		}
+		nd[i] = (bits & mask) ? isc_ascii_toupper(nd[i])
+				      : isc_ascii_tolower(nd[i]);
+	}
 }
