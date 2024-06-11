@@ -16,8 +16,10 @@
 #include <stdbool.h>
 #include <uv.h>
 
+#include <isc/region.h>
 #include <isc/result.h>
 #include <isc/tid.h>
+#include <isc/util.h>
 
 #define UV_VERSION(major, minor, patch) ((major << 16) | (minor << 8) | (patch))
 
