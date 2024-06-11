@@ -2002,6 +2002,15 @@ dns_zonemgr_set_tlsctx_cache(dns_zonemgr_t	*zmgr,
  */
 
 void
+dns_zone_stopreload(dns_zone_t *zone);
+/*%<
+ *      Stop the ongoing reload (active zone transfer) of specified zone if any.
+ *
+ * Requires:
+ *\li      'zone' to be a valid zone.
+ */
+
+void
 dns_zone_forcereload(dns_zone_t *zone);
 /*%<
  *      Force a reload of specified zone.
