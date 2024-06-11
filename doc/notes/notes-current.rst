@@ -29,6 +29,11 @@ New Features
   network related issues. The default value is set to 10240 bytes in 5 minutes.
   :gl:`#3914`
 
+- A new optional argument ``-force`` has been added to the command channel
+  command :option:`rndc retransfer`. When it is specified, :iscman:`named`
+  aborts the ongoing zone transfer, if there is one, before starting a new
+  transfer. :gl:`#2299`
+
 Removed Features
 ~~~~~~~~~~~~~~~~
 
