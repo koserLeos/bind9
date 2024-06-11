@@ -227,6 +227,8 @@ help(void) {
 	       "[/]\n"
 	       "                 +[no]http-plain-get      (Use GET instead of "
 	       "default POST method while using plain HTTP)\n"
+	       "                 +[no]human          (Make output more human"
+	       "readable)\n"
 	       "                 +[no]identify       (ID responders in short "
 	       "answers)\n"
 #ifdef HAVE_LIBIDN2
@@ -645,7 +647,7 @@ printmessage(dig_query_t *query, const isc_buffer_t *msgbuf, dns_message_t *msg,
 	isc_buffer_t *buf = NULL;
 	unsigned int len = OUTPUTBUF;
 	dns_master_style_t *style = NULL;
-	unsigned int styleflags = 0;
+	dns_masterstyle_flags_t styleflags = 0;
 	bool isquery = (msg == query->lookup->sendmsg);
 	bool dns64prefix = query->lookup->dns64prefix;
 
@@ -683,6 +685,9 @@ printmessage(dig_query_t *query, const isc_buffer_t *msgbuf, dns_message_t *msg,
 		}
 		if (query->lookup->expandaaaa) {
 			styleflags |= DNS_STYLEFLAG_EXPANDAAAA;
+		}
+		if (query->lookup->human) {
+			styleflags |= DNS_STYLEFLAG_HUMAN;
 		}
 		if (query->lookup->multiline) {
 			styleflags |= DNS_STYLEFLAG_OMIT_OWNER;
@@ -860,11 +865,22 @@ printmessage(dig_query_t *query, const isc_buffer_t *msgbuf, dns_message_t *msg,
 				       "testing what happens when an mDNS "
 				       "query is leaked to DNS\n");
 			}
-			printf(";; ->>HEADER<<- opcode: %s, status: %s, "
-			       "id: %u\n",
-			       opcodetext[msg->opcode],
-			       rcode_totext(msg->rcode), msg->id);
-			printf(";; flags:");
+			if (query->lookup->human) {
+				printf(";; HEADER:\n;    opcode: %s\n;"
+						"    status: %s\n;    id: %u\n",
+						opcodetext[msg->opcode],
+						rcode_totext(msg->rcode), msg->id);
+			} else {
+				printf(";; ->>HEADER<<- opcode: %s, "
+						"status: %s, id: %u\n",
+						opcodetext[msg->opcode],
+						rcode_totext(msg->rcode), msg->id);
+			}
+			if (query->lookup->human) {
+				printf(";    flags:");
+			} else {
+				printf("; flags:");
+			}
 			if ((msg->flags & DNS_MESSAGEFLAG_QR) != 0) {
 				printf(" qr");
 			}
@@ -890,7 +906,12 @@ printmessage(dig_query_t *query, const isc_buffer_t *msgbuf, dns_message_t *msg,
 				printf("; MBZ: 0x4");
 			}
 
-			printf("; QUERY: %u, ANSWER: %u, "
+			if (query->lookup->human) {
+				printf("\n;    records: ");
+			} else {
+				printf("; ");
+			}
+			printf("QUERY: %u, ANSWER: %u, "
 			       "AUTHORITY: %u, ADDITIONAL: %u\n",
 			       msg->counts[DNS_SECTION_QUESTION],
 			       msg->counts[DNS_SECTION_ANSWER],
@@ -1973,6 +1994,16 @@ plus_option(char *option, bool is_batchfile, bool *need_clone,
 #else
 			fprintf(stderr, ";; DoH support not enabled\n");
 #endif
+			break;
+		case 'u': /* human */
+			FULLCHECK("human");
+			if (state) {
+				printcmd = false;
+				lookup->stats = false;
+				lookup->rrcomments = -1;
+				lookup->identify = true;
+			}
+			lookup->human = state;
 			break;
 		default:
 			goto invalid_option;
