@@ -1,0 +1,158 @@
+# Features
+option(
+    'dnstap',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable dnstap packet logging',
+)
+option(
+    'dnsrps',
+    type: 'feature',
+    value: 'enabled',
+    description: 'DNS Response Policy Service',
+)
+option(
+    'doh',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable DNS over HTTPS',
+)
+option(
+    'fips',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Enable FIPS mode toggle',
+)
+option(
+    'geoip',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable GeoIP support',
+)
+option(
+    'gssapi',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable GSSAPI support',
+)
+option(
+    'idn',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable IDN support',
+)
+option(
+    'line',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable line editing in nsupdate and nslookup',
+)
+option(
+    'lmdb',
+    type: 'feature',
+    value: 'auto',
+    description: 'LMDB database to store configuration for "addzone" zones',
+)
+option(
+    'stats-json',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable JSON statistics',
+)
+option(
+    'stats-xml',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable XML statistics',
+)
+option(
+    'zlib',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable HTTP zlib compression',
+)
+
+option(
+    'krb5-config',
+    type: 'string',
+    value: 'krb5-config',
+    description: 'Path to krb5-config',
+)
+
+# Internals
+option(
+    'locktype',
+    type: 'combo',
+    choices: ['adaptive', 'system'],
+    description: 'Mutex lock type',
+)
+option(
+    'jemalloc',
+    type: 'feature',
+    value: 'auto',
+    description: 'Use jemalloc for allocation',
+)
+option(
+    'rcu-flavor',
+    type: 'combo',
+    choices: ['membarrier', 'bp', 'mb', 'qsbr'],
+    description: 'Userspace RCU Flavor (non-membarrier RCU is only allowed in development builds)',
+)
+option(
+    'tracing',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable User Statically Defined Tracing support',
+)
+
+# Behavior
+option(
+    'auto-validation',
+    type: 'feature',
+    value: 'enabled',
+    description: 'Turn on DNSSEC validation by default, using the IANA root key',
+)
+option(
+    'tcp-fastopen',
+    type: 'feature',
+    value: 'enabled',
+    description: 'Enable TCP Fast Open',
+)
+
+# Development
+option(
+    'developer',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Enable development mode',
+)
+option(
+    'cmocka',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Enable cmocka based tests',
+)
+option(
+    'fuzzing',
+    type: 'combo',
+    choices: ['none', 'afl', 'oss-fuzz'],
+    description: 'Enable fuzzing',
+)
+option(
+    'query-trace',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Enable query trace logging',
+)
+option(
+    'single-trace',
+    type: 'feature',
+    value: 'disabled',
+    description: 'Enable single-query trace logging',
+)
+option(
+    'leak-detection',
+    type: 'feature',
+    value: 'disabled',
+    description: 'enable the memory leak detection in external libraries (libxml2, libuv, OpenSSL)',
+)
