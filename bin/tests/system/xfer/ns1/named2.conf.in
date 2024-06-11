@@ -36,6 +36,11 @@ zone "." {
 	file "root.db";
 };
 
+zone "axfr-rndc-retransfer-force" {
+	type primary;
+	file "axfr-rndc-retransfer-force.db";
+};
+
 zone "axfr-min-transfer-rate" {
 	type primary;
 	file "axfr-min-transfer-rate.db";
