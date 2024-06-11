@@ -74,6 +74,39 @@ accept_connection(isc_nmsocket_t *ssock);
 static void
 quota_accept_cb(void *arg);
 
+static void
+tcp_dbg_log(const isc_nmsocket_t *sock, const isc_result_t result,
+	    const char *msg) {
+	const int level = ISC_LOG_DEBUG(99);
+
+	if (!isc_log_wouldlog(isc_lctx, level)) {
+		return;
+	}
+
+	char err_msg[256];
+	char peer_sabuf[ISC_SOCKADDR_FORMATSIZE];
+	char local_sabuf[ISC_SOCKADDR_FORMATSIZE];
+	const bool has_peer_info = !sock->accepting && sock->recv_cb != NULL;
+
+	err_msg[0] = peer_sabuf[0] = local_sabuf[0] = '\0';
+
+	isc_sockaddr_format(&sock->iface, local_sabuf, sizeof(local_sabuf));
+
+	if (has_peer_info) {
+		isc_sockaddr_format(&sock->peer, peer_sabuf,
+				    sizeof(peer_sabuf));
+	}
+
+	if (result != ISC_R_SUCCESS) {
+		snprintf(err_msg, sizeof(err_msg), " (error: %s)",
+			 isc_result_totext(result));
+	}
+
+	isc_log_write(isc_lctx, ISC_LOGCATEGORY_DEFAULT, ISC_LOGMODULE_NETMGR,
+		      level, " (%s%son %s): %s%s", peer_sabuf,
+		      has_peer_info ? " " : "", local_sabuf, msg, err_msg);
+}
+
 static isc_result_t
 tcp_connect_direct(isc_nmsocket_t *sock, isc__nm_uvreq_t *req) {
 	isc__networker_t *worker = NULL;
@@ -527,6 +560,8 @@ tcp_connection_cb(uv_stream_t *server, int status) {
 
 	if (status != 0) {
 		result = isc_uverr2result(status);
+		tcp_dbg_log(ssock, result,
+			    "TCP peer connection attempt early failure");
 		goto done;
 	}
 
@@ -543,6 +578,8 @@ tcp_connection_cb(uv_stream_t *server, int status) {
 	isc__nmsocket_init(csock, ssock->worker, isc_nm_tcpsocket,
 			   &ssock->iface, NULL);
 	isc__nmsocket_attach(ssock, &csock->server);
+
+	tcp_dbg_log(csock, ISC_R_SUCCESS, "TCP peer connection attempt");
 
 	if (csock->server->pquota != NULL) {
 		result = isc_quota_acquire_cb(csock->server->pquota,
@@ -909,6 +946,8 @@ accept_connection(isc_nmsocket_t *csock) {
 
 	csock->accepting = false;
 
+	tcp_dbg_log(csock, ISC_R_SUCCESS, "TCP connection has been accepted");
+
 	isc__nm_incstats(csock, STATID_ACCEPT);
 
 	/*
@@ -934,6 +973,8 @@ failure:
 				  "Accepting TCP connection failed: %s",
 				  isc_result_totext(result));
 	}
+
+	tcp_dbg_log(csock, result, "TCP connection has NOT been accepted");
 
 	isc__nmsocket_prep_destroy(csock);
 
@@ -1113,6 +1154,8 @@ tcp_close_sock(isc_nmsocket_t *sock) {
 		}
 		isc__nmsocket_detach(&sock->server);
 	}
+
+	tcp_dbg_log(sock, ISC_R_SUCCESS, "TCP connection closed");
 
 	isc__nmsocket_prep_destroy(sock);
 }
