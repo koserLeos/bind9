@@ -427,6 +427,11 @@ AS_CASE([$host],
 AC_CHECK_FUNCS([sysctlbyname])
 
 #
+# Check for sync_data_range
+#
+AC_CHECK_FUNCS([sync_file_range])
+
+#
 # Check for uid/gid setting variants
 #
 AC_CHECK_FUNCS([setresuid setreuid getresuid])
