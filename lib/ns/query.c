@@ -113,6 +113,8 @@
 	(((c)->query.attributes & NS_QUERYATTR_WANTRECURSION) != 0)
 /*% Is TCP? */
 #define TCP(c) (((c)->attributes & NS_CLIENTATTR_TCP) != 0)
+/*% This query needs to have been sent over TCP.  Return TC=1. */
+#define NEEDTCP(c) (((c)->attributes & NS_CLIENTATTR_NEEDTCP) != 0)
 
 /*% Want DNSSEC? */
 #define WANTDNSSEC(c) (((c)->attributes & NS_CLIENTATTR_WANTDNSSEC) != 0)
@@ -5632,6 +5634,16 @@ ns__query_start(query_ctx_t *qctx) {
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AA;
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AD;
 		qctx->client->message->rcode = dns_rcode_badcookie;
+		return (ns_query_done(qctx));
+	}
+
+	/*
+	 * Respond with TC=1 if we need TCP for this request.
+	 */
+	if (!TCP(qctx->client) && NEEDTCP(qctx->client)) {
+		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AA;
+		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AD;
+		qctx->client->message->flags |= DNS_MESSAGEFLAG_TC;
 		return (ns_query_done(qctx));
 	}
 
@@ -11709,6 +11721,19 @@ log_rad(ns_client_t *client) {
 	    dns_name_equal(client->view->rad, dns_rootname) ||
 	    !dns_name_israd(client->query.qname, client->view->rad))
 	{
+		return;
+	}
+
+	/*
+	 * Check for TCP or a good server cookie.  If neither send
+	 * back BADCOOKIE or TC=1.
+	 */
+	if (!TCP(client) && !HAVECOOKIE(client)) {
+		if (WANTCOOKIE(client)) {
+			client->attributes |= NS_CLIENTATTR_BADCOOKIE;
+		} else {
+			client->attributes |= NS_CLIENTATTR_NEEDTCP;
+		}
 		return;
 	}
 
