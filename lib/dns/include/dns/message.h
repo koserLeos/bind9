@@ -116,13 +116,14 @@
 #define DNS_OPT_SERVER_TAG    17 /*%< Server tag opt code */
 
 /*%< Experimental options [65001...65534] as per RFC6891 */
+#define DNS_OPT_ZONEVERSION 65001 /*%< Zone version (TBA) */
 
 /*%<
  * The maximum number of EDNS options we allow to set. Reserve space for the
  * options we know about. Extended DNS Errors may occur multiple times, but we
  * will set only one per message (for now).
  */
-#define DNS_EDNSOPTIONS 8
+#define DNS_EDNSOPTIONS 9
 
 /*%< EDNS0 extended DNS errors */
 #define DNS_EDE_OTHER		     0	/*%< Other Error */
