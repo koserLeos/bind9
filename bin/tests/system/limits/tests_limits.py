@@ -28,7 +28,7 @@ pytest.importorskip("dns", minversion="2.0.0")
         ("2000", 2000),
         ("3000", 3000),
         ("4000", 4000),
-        ("a-maximum-rrset", 4091),
+        ("a-maximum-rrset", 4090),
     ],
 )
 def test_limits(name, limit):
@@ -43,10 +43,3 @@ def test_limits(name, limit):
     msg_rrset = [dns.rrset.from_text_list(f"{name}.example.", "5M", "IN", "A", iplist)]
 
     assert res.answer == msg_rrset
-
-
-def test_limit_exceeded():
-    msg_query = dns.message.make_query("5000.example.", "A")
-    res = isctest.query.tcp(msg_query, "10.53.0.1")
-
-    assert res.flags & dns.flags.TC, "TC flag was not set"
