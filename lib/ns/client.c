@@ -102,6 +102,8 @@
 #define WANTEXPIRE(x)	(((x)->attributes & NS_CLIENTATTR_WANTEXPIRE) != 0)
 #define WANTPAD(x)	(((x)->attributes & NS_CLIENTATTR_WANTPAD) != 0)
 #define USEKEEPALIVE(x) (((x)->attributes & NS_CLIENTATTR_USEKEEPALIVE) != 0)
+#define WANTZONEVERSION(x) \
+	(((x)->attributes & NS_CLIENTATTR_WANTZONEVERSION) != 0)
 
 #define MANAGER_MAGIC	 ISC_MAGIC('N', 'S', 'C', 'm')
 #define VALID_MANAGER(m) ISC_MAGIC_VALID(m, MANAGER_MAGIC)
@@ -1019,6 +1021,7 @@ ns_client_addopt(ns_client_t *client, dns_message_t *message,
 	unsigned int flags;
 	unsigned char expire[4];
 	unsigned char advtimo[2];
+	unsigned char zoneversion[6];
 	dns_aclenv_t *env = NULL;
 
 	REQUIRE(NS_CLIENT_VALID(client));
@@ -1162,6 +1165,20 @@ no_nsid:
 		ednsopts[count].code = DNS_OPT_EDE;
 		ednsopts[count].length = client->ede->length;
 		ednsopts[count].value = client->ede->value;
+		count++;
+	}
+	if ((client->attributes & NS_CLIENTATTR_HAVEZONEVERSION) != 0) {
+		isc_buffer_t buf;
+
+		INSIST(count < DNS_EDNSOPTIONS);
+
+		zoneversion[0] = client->zoneversionlabels;
+		zoneversion[1] = 0;
+		isc_buffer_init(&buf, zoneversion + 2, sizeof(zoneversion) - 2);
+		isc_buffer_putuint32(&buf, client->zoneversion);
+		ednsopts[count].code = DNS_OPT_ZONEVERSION;
+		ednsopts[count].length = 6;
+		ednsopts[count].value = zoneversion;
 		count++;
 	}
 
@@ -1590,6 +1607,19 @@ process_opt(ns_client_t *client, dns_rdataset_t *opt) {
 				ns_stats_increment(
 					client->manager->sctx->nsstats,
 					ns_statscounter_keytagopt);
+				break;
+			case DNS_OPT_ZONEVERSION:
+				if (optlen == 0) {
+					if (!WANTZONEVERSION(client)) {
+						ns_stats_increment(
+							client->manager->sctx
+								->nsstats,
+							ns_statscounter_zoneversionopt);
+					}
+					client->attributes |=
+						NS_CLIENTATTR_WANTZONEVERSION;
+				}
+				isc_buffer_forward(&optbuf, optlen);
 				break;
 			default:
 				ns_stats_increment(

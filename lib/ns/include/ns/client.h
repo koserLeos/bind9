@@ -218,6 +218,8 @@ struct ns_client {
 	ISC_LINK(ns_client_t) rlink;
 	unsigned char  cookie[8];
 	uint32_t       expire;
+	uint32_t       zoneversion;
+	unsigned char  zoneversionlabels;
 	unsigned char *keytag;
 	uint16_t       keytag_len;
 
@@ -242,17 +244,18 @@ struct ns_client {
 #define NS_CLIENTATTR_BADCOOKIE \
 	0x00040 /*%< Presented cookie is bad/out-of-date */
 /* Obsolete: NS_CLIENTATTR_FILTER_AAAA_RC 0x00080 */
-#define NS_CLIENTATTR_WANTAD	   0x00100 /*%< want AD in response if possible */
-#define NS_CLIENTATTR_WANTCOOKIE   0x00200 /*%< return a COOKIE */
-#define NS_CLIENTATTR_HAVECOOKIE   0x00400 /*%< has a valid COOKIE */
-#define NS_CLIENTATTR_WANTEXPIRE   0x00800 /*%< return seconds to expire */
-#define NS_CLIENTATTR_HAVEEXPIRE   0x01000 /*%< return seconds to expire */
-#define NS_CLIENTATTR_WANTOPT	   0x02000 /*%< add opt to reply */
-#define NS_CLIENTATTR_HAVEECS	   0x04000 /*%< received an ECS option */
-#define NS_CLIENTATTR_WANTPAD	   0x08000 /*%< pad reply */
-#define NS_CLIENTATTR_USEKEEPALIVE 0x10000 /*%< use TCP keepalive */
-
-#define NS_CLIENTATTR_NOSETFC 0x20000 /*%< don't set servfail cache */
+#define NS_CLIENTATTR_WANTAD	      0x00100 /*%< want AD in response if possible */
+#define NS_CLIENTATTR_WANTCOOKIE      0x00200 /*%< return a COOKIE */
+#define NS_CLIENTATTR_HAVECOOKIE      0x00400 /*%< has a valid COOKIE */
+#define NS_CLIENTATTR_WANTEXPIRE      0x00800 /*%< return seconds to expire */
+#define NS_CLIENTATTR_HAVEEXPIRE      0x01000 /*%< return seconds to expire */
+#define NS_CLIENTATTR_WANTOPT	      0x02000 /*%< add opt to reply */
+#define NS_CLIENTATTR_HAVEECS	      0x04000 /*%< received an ECS option */
+#define NS_CLIENTATTR_WANTPAD	      0x08000 /*%< pad reply */
+#define NS_CLIENTATTR_USEKEEPALIVE    0x10000 /*%< use TCP keepalive */
+#define NS_CLIENTATTR_NOSETFC	      0x20000 /*%< don't set servfail cache */
+#define NS_CLIENTATTR_WANTZONEVERSION 0x40000 /*%< return zoneversion */
+#define NS_CLIENTATTR_HAVEZONEVERSION 0x80000 /*%< return zoneversion */
 
 /*
  * Flag to use with the SERVFAIL cache to indicate
