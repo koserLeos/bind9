@@ -22,6 +22,7 @@ options {
 	recursion no;
 	notify yes;
 	dnssec-validation no;
+	reporting-agent-domain "rad.example.net";
 };
 
 view main in {
@@ -35,6 +36,7 @@ view main in {
 	zone example.com {
 		type primary;
 		file "example.com.db";
+		reporting-agent-domain "rad.example.com";
 	};
 };
 

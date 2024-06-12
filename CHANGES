@@ -1,3 +1,7 @@
+6405.	[func]		Add support to add an RAD EDNS (Report Agent Domain)
+			option to responses and to log error reports sent to
+			the RAD to the dns-reporting-agent channel. [GL #3659]
+
 6404.	[placeholder]
 
 6403.	[placeholder]

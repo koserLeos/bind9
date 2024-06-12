@@ -113,6 +113,8 @@
 	(((c)->query.attributes & NS_QUERYATTR_WANTRECURSION) != 0)
 /*% Is TCP? */
 #define TCP(c) (((c)->attributes & NS_CLIENTATTR_TCP) != 0)
+/*% This query needs to have been sent over TCP.  Return TC=1. */
+#define NEEDTCP(c) (((c)->attributes & NS_CLIENTATTR_NEEDTCP) != 0)
 
 /*% Want DNSSEC? */
 #define WANTDNSSEC(c) (((c)->attributes & NS_CLIENTATTR_WANTDNSSEC) != 0)
@@ -5632,6 +5634,17 @@ ns__query_start(query_ctx_t *qctx) {
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AA;
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AD;
 		qctx->client->message->rcode = dns_rcode_badcookie;
+		qctx->client->attributes &= ~NS_CLIENTATTR_WANTRAD;
+		return (ns_query_done(qctx));
+	}
+
+	/*
+	 * Respond with TC=1 if we need TCP for this request.
+	 */
+	if (!TCP(qctx->client) && NEEDTCP(qctx->client)) {
+		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AA;
+		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AD;
+		qctx->client->message->flags |= DNS_MESSAGEFLAG_TC;
 		return (ns_query_done(qctx));
 	}
 
@@ -5772,12 +5785,30 @@ ns__query_start(query_ctx_t *qctx) {
 	if (qctx->is_zone) {
 		qctx->authoritative = true;
 		if (qctx->zone != NULL) {
-			if (dns_zone_gettype(qctx->zone) == dns_zone_mirror) {
+			dns_fixedname_t fixed;
+			dns_name_t *rad;
+			switch (dns_zone_gettype(qctx->zone)) {
+			case dns_zone_mirror:
 				qctx->authoritative = false;
-			}
-			if (dns_zone_gettype(qctx->zone) == dns_zone_staticstub)
-			{
+				break;
+			case dns_zone_staticstub:
 				qctx->is_staticstub_zone = true;
+				break;
+			case dns_zone_primary:
+			case dns_zone_secondary:
+				rad = dns_fixedname_initname(&fixed);
+				if (!dns_name_dynamic(&qctx->client->rad) &&
+				    dns_zone_getrad(qctx->zone, rad) ==
+					    ISC_R_SUCCESS)
+				{
+					dns_name_dup(
+						rad,
+						qctx->client->manager->mctx,
+						&qctx->client->rad);
+				}
+				break;
+			default:
+				break;
 			}
 		}
 	}
@@ -7156,6 +7187,8 @@ query_checkrrl(query_ctx_t *qctx, isc_result_t result) {
 							~DNS_MESSAGEFLAG_AD;
 						qctx->client->message->rcode =
 							dns_rcode_badcookie;
+						qctx->client->attributes &=
+							~NS_CLIENTATTR_WANTRAD;
 					} else {
 						qctx->client->message->flags |=
 							DNS_MESSAGEFLAG_TC;
@@ -11578,6 +11611,7 @@ ns_query_done(query_ctx_t *qctx) {
 	 */
 	if (qctx->client->query.restarts == 0 && !qctx->authoritative) {
 		qctx->client->message->flags &= ~DNS_MESSAGEFLAG_AA;
+		qctx->client->attributes &= ~NS_CLIENTATTR_WANTRAD;
 	}
 
 	/*
@@ -11693,6 +11727,52 @@ ns_query_done(query_ctx_t *qctx) {
 
 cleanup:
 	return (result);
+}
+
+static void
+log_rad(ns_client_t *client) {
+	char classbuf[DNS_RDATACLASS_FORMATSIZE];
+	char namebuf[DNS_NAME_FORMATSIZE];
+
+	client->attributes |= NS_CLIENTATTR_WANTRAD;
+
+	if (client->query.qtype != dns_rdatatype_txt ||
+	    client->view->rad == NULL ||
+	    dns_name_equal(client->view->rad, dns_rootname) ||
+	    !dns_name_israd(client->query.qname, client->view->rad))
+	{
+		return;
+	}
+
+	/*
+	 * Check for TCP or a good server cookie.  If neither send
+	 * back BADCOOKIE or TC=1.
+	 */
+	if (!TCP(client) && !HAVECOOKIE(client)) {
+		if (WANTCOOKIE(client)) {
+			client->attributes |= NS_CLIENTATTR_BADCOOKIE;
+		} else {
+			client->attributes |= NS_CLIENTATTR_NEEDTCP;
+		}
+	}
+
+	/*
+	 * Don't return RAD to error reports to prevent infinite
+	 * loops.
+	 */
+	client->attributes &= ~NS_CLIENTATTR_WANTRAD;
+
+	if (!isc_log_wouldlog(ns_lctx, ISC_LOG_INFO)) {
+		return;
+	}
+
+	dns_name_format(client->query.qname, namebuf, sizeof(namebuf));
+	dns_rdataclass_format(client->view->rdclass, classbuf,
+			      sizeof(classbuf));
+
+	isc_log_write(ns_lctx, NS_LOGCATEGORY_DRA, NS_LOGMODULE_QUERY,
+		      ISC_LOG_INFO, "dns-reporting-agent '%s/%s'", namebuf,
+		      classbuf);
 }
 
 static void
@@ -11963,6 +12043,7 @@ ns_query_start(ns_client_t *client, isc_nmhandle_t *handle) {
 	dns_rdatatypestats_increment(client->manager->sctx->rcvquerystats,
 				     qtype);
 
+	log_rad(client);
 	log_tat(client);
 
 	if (dns_rdatatype_ismeta(qtype)) {

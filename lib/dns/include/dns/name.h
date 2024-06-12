@@ -1350,6 +1350,14 @@ dns_name_size(const dns_name_t *name);
 /*%<
  * Return the amount of dynamically allocated memory associated with
  * 'name' (which is 0 if 'name' is not dynamic).
+ */
+
+bool
+dns_name_israd(const dns_name_t *name, const dns_name_t *rad);
+/*%<
+ * Determine if a name is a RAD reporting name.
+ * i.e. _er.TYPE.QNAME.EDE._er.rad.
+ * TYPE and EDE are not currently checked.
  *
  * Requires:
  * \li	'name' to be valid.
