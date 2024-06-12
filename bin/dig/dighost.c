@@ -706,6 +706,7 @@ clone_lookup(dig_lookup_t *lookold, bool servers) {
 	looknew->opcode = lookold->opcode;
 	looknew->expire = lookold->expire;
 	looknew->nsid = lookold->nsid;
+	looknew->zoneversion = lookold->zoneversion;
 	looknew->tcp_keepalive = lookold->tcp_keepalive;
 	looknew->header_only = lookold->header_only;
 	looknew->https_mode = lookold->https_mode;
@@ -1386,24 +1387,26 @@ typedef struct dig_ednsoptname {
 } dig_ednsoptname_t;
 
 dig_ednsoptname_t optnames[] = {
-	{ 1, "LLQ" },	       /* draft-sekar-dns-llq */
-	{ 2, "UL" },	       /* draft-ietf-dnssd-update-lease */
-	{ 3, "NSID" },	       /* RFC 5001 */
-	{ 5, "DAU" },	       /* RFC 6975 */
-	{ 6, "DHU" },	       /* RFC 6975 */
-	{ 7, "N3U" },	       /* RFC 6975 */
-	{ 8, "ECS" },	       /* RFC 7871 */
-	{ 9, "EXPIRE" },       /* RFC 7314 */
-	{ 10, "COOKIE" },      /* RFC 7873 */
-	{ 11, "KEEPALIVE" },   /* RFC 7828 */
-	{ 12, "PADDING" },     /* RFC 7830 */
-	{ 12, "PAD" },	       /* shorthand */
-	{ 13, "CHAIN" },       /* RFC 7901 */
-	{ 14, "KEY-TAG" },     /* RFC 8145 */
-	{ 15, "EDE" },	       /* ietf-dnsop-extended-error-16 */
-	{ 16, "CLIENT-TAG" },  /* draft-bellis-dnsop-edns-tags */
-	{ 17, "SERVER-TAG" },  /* draft-bellis-dnsop-edns-tags */
-	{ 26946, "DEVICEID" }, /* Brian Hartvigsen */
+	{ 1, "LLQ" },	      /* draft-sekar-dns-llq */
+	{ 2, "UL" },	      /* draft-ietf-dnssd-update-lease */
+	{ 3, "NSID" },	      /* RFC 5001 */
+	{ 5, "DAU" },	      /* RFC 6975 */
+	{ 6, "DHU" },	      /* RFC 6975 */
+	{ 7, "N3U" },	      /* RFC 6975 */
+	{ 8, "ECS" },	      /* RFC 7871 */
+	{ 9, "EXPIRE" },      /* RFC 7314 */
+	{ 10, "COOKIE" },     /* RFC 7873 */
+	{ 11, "KEEPALIVE" },  /* RFC 7828 */
+	{ 12, "PADDING" },    /* RFC 7830 */
+	{ 12, "PAD" },	      /* shorthand */
+	{ 13, "CHAIN" },      /* RFC 7901 */
+	{ 14, "KEY-TAG" },    /* RFC 8145 */
+	{ 15, "EDE" },	      /* ietf-dnsop-extended-error-16 */
+	{ 16, "CLIENT-TAG" }, /* draft-bellis-dnsop-edns-tags */
+	{ 17, "SERVER-TAG" }, /* draft-bellis-dnsop-edns-tags */
+	{ DNS_OPT_ZONEVERSION, "ZONEVERSION" }, /* draft-ietf-dnsop-zoneversion
+						 */
+	{ 26946, "DEVICEID" },			/* Brian Hartvigsen */
 };
 
 #define N_EDNS_OPTNAMES (sizeof(optnames) / sizeof(optnames[0]))
@@ -2594,6 +2597,14 @@ setup_lookup(dig_lookup_t *lookup) {
 		if (lookup->tcp_keepalive) {
 			INSIST(i < MAXOPTS);
 			opts[i].code = DNS_OPT_TCP_KEEPALIVE;
+			opts[i].length = 0;
+			opts[i].value = NULL;
+			i++;
+		}
+
+		if (lookup->zoneversion) {
+			INSIST(i < MAXOPTS);
+			opts[i].code = DNS_OPT_ZONEVERSION;
 			opts[i].length = 0;
 			opts[i].value = NULL;
 			i++;
