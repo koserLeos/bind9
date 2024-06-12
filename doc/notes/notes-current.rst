@@ -24,6 +24,9 @@ New Features
   the maximum number of simultaneous recursive clients BIND has handled
   while running. :gl:`#4668`
 
+- Add support for emitting reporting-agent-domain and logging responses.
+  :gl:`#3659`
+
 Removed Features
 ~~~~~~~~~~~~~~~~
 
