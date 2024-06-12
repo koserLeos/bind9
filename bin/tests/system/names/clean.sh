@@ -11,7 +11,6 @@
 # See the COPYRIGHT file distributed with this work for additional
 # information regarding copyright ownership.
 
-rm -f dig.*.test*
 rm -f ns*/named.memstats
 rm -f ns*/named.run
 rm -f ns*/named.pid
