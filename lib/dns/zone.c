@@ -19469,7 +19469,7 @@ dns_zonemgr_unreachableadd(dns_zonemgr_t *zmgr, isc_sockaddr_t *remote,
 }
 
 void
-dns_zone_stopreload(dns_zone_t *zone) {
+dns_zone_stopxfr(dns_zone_t *zone) {
 	dns_xfrin_t *xfr = NULL;
 
 	REQUIRE(DNS_ZONE_VALID(zone));

@@ -10568,7 +10568,7 @@ named_server_retransfercommand(named_server_t *server, isc_lex_t *lex,
 	     dns_zone_getredirecttype(zone) == dns_zone_secondary))
 	{
 		if (force) {
-			dns_zone_stopreload(zone);
+			dns_zone_stopxfr(zone);
 		}
 		dns_zone_forcereload(zone);
 	} else {
