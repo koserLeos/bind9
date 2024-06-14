@@ -55,6 +55,7 @@ struct dns_peer {
 	bool request_ixfr;
 	bool support_edns;
 	bool request_nsid;
+	bool request_zoneversion;
 	bool send_cookie;
 	bool require_cookie;
 	bool request_expire;
@@ -94,6 +95,7 @@ struct dns_peer {
 #define SERVER_PADDING_BIT	   13
 #define REQUEST_TCP_KEEPALIVE_BIT  14
 #define REQUIRE_COOKIE_BIT	   15
+#define REQUEST_ZONEVERSION	   16
 
 static void
 peerlist_delete(dns_peerlist_t **list);
@@ -373,6 +375,8 @@ ACCESS_OPTION(provideixfr, PROVIDE_IXFR_BIT, bool, provide_ixfr)
 ACCESS_OPTION(requestexpire, REQUEST_EXPIRE_BIT, bool, request_expire)
 ACCESS_OPTION(requestixfr, REQUEST_IXFR_BIT, bool, request_ixfr)
 ACCESS_OPTION(requestnsid, REQUEST_NSID_BIT, bool, request_nsid)
+ACCESS_OPTION(requestzoneversion, REQUEST_ZONEVERSION, bool,
+	      request_zoneversion)
 ACCESS_OPTION(requirecookie, REQUIRE_COOKIE_BIT, bool, require_cookie)
 ACCESS_OPTION(sendcookie, SEND_COOKIE_BIT, bool, send_cookie)
 ACCESS_OPTION(supportedns, SUPPORT_EDNS_BIT, bool, support_edns)

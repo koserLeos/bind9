@@ -113,6 +113,12 @@ isc_result_t
 dns_peer_getrequestnsid(dns_peer_t *peer, bool *retval);
 
 isc_result_t
+dns_peer_setrequestzoneversion(dns_peer_t *peer, bool newval);
+
+isc_result_t
+dns_peer_getrequestzoneversion(dns_peer_t *peer, bool *retval);
+
+isc_result_t
 dns_peer_setsendcookie(dns_peer_t *peer, bool newval);
 
 isc_result_t

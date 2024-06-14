@@ -254,6 +254,7 @@ options {
 	request-expire <boolean>;
 	request-ixfr <boolean>;
 	request-nsid <boolean>;
+	request-zoneversion <boolean>;
 	require-server-cookie <boolean>;
 	resolver-query-timeout <integer>;
 	resolver-use-dns64 <boolean>;
@@ -341,6 +342,7 @@ server <netprefix> {
 	request-expire <boolean>;
 	request-ixfr <boolean>;
 	request-nsid <boolean>;
+	request-zoneversion <boolean>;
 	require-cookie <boolean>;
 	send-cookie <boolean>;
 	tcp-keepalive <boolean>;
@@ -531,6 +533,7 @@ view <string> [ <class> ] {
 	request-expire <boolean>;
 	request-ixfr <boolean>;
 	request-nsid <boolean>;
+	request-zoneversion <boolean>;
 	require-server-cookie <boolean>;
 	resolver-query-timeout <integer>;
 	resolver-use-dns64 <boolean>;
@@ -556,6 +559,7 @@ view <string> [ <class> ] {
 		request-expire <boolean>;
 		request-ixfr <boolean>;
 		request-nsid <boolean>;
+		request-zoneversion <boolean>;
 		require-cookie <boolean>;
 		send-cookie <boolean>;
 		tcp-keepalive <boolean>;

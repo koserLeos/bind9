@@ -2475,6 +2475,7 @@ resquery_send(resquery_t *query) {
 			unsigned int flags = query->addrinfo->flags;
 			bool reqnsid = res->view->requestnsid;
 			bool sendcookie = res->view->sendcookie;
+			bool reqzoneversion = res->view->requestzoneversion;
 			bool tcpkeepalive = false;
 			unsigned char cookie[COOKIE_BUFFER_SIZE];
 			uint16_t padding = 0;
@@ -2517,8 +2518,6 @@ resquery_send(resquery_t *query) {
 			 */
 			if (peer != NULL) {
 				uint8_t ednsversion;
-				(void)dns_peer_getrequestnsid(peer, &reqnsid);
-				(void)dns_peer_getsendcookie(peer, &sendcookie);
 				result = dns_peer_getednsversion(peer,
 								 &ednsversion);
 				if (result == ISC_R_SUCCESS &&
@@ -2526,6 +2525,10 @@ resquery_send(resquery_t *query) {
 				{
 					version = ednsversion;
 				}
+				(void)dns_peer_getrequestnsid(peer, &reqnsid);
+				(void)dns_peer_getrequestzoneversion(
+					peer, &reqzoneversion);
+				(void)dns_peer_getsendcookie(peer, &sendcookie);
 			}
 			if (NOCOOKIE(query->addrinfo)) {
 				sendcookie = false;
@@ -2533,6 +2536,13 @@ resquery_send(resquery_t *query) {
 			if (reqnsid) {
 				INSIST(ednsopt < DNS_EDNSOPTIONS);
 				ednsopts[ednsopt].code = DNS_OPT_NSID;
+				ednsopts[ednsopt].length = 0;
+				ednsopts[ednsopt].value = NULL;
+				ednsopt++;
+			}
+			if (reqzoneversion) {
+				INSIST(ednsopt < DNS_EDNSOPTIONS);
+				ednsopts[ednsopt].code = DNS_OPT_ZONEVERSION;
 				ednsopts[ednsopt].length = 0;
 				ednsopts[ednsopt].value = NULL;
 				ednsopt++;
@@ -2591,8 +2601,14 @@ resquery_send(resquery_t *query) {
 			query->ednsversion = version;
 			result = fctx_addopt(fctx->qmessage, version, udpsize,
 					     ednsopts, ednsopt);
-			if (reqnsid && result == ISC_R_SUCCESS) {
-				query->options |= DNS_FETCHOPT_WANTNSID;
+			if (result == ISC_R_SUCCESS) {
+				if (reqnsid) {
+					query->options |= DNS_FETCHOPT_WANTNSID;
+				}
+				if (reqzoneversion) {
+					query->options |=
+						DNS_FETCHOPT_WANTZONEVERSION;
+				}
 			} else if (result != ISC_R_SUCCESS) {
 				/*
 				 * We couldn't add the OPT, but we'll
@@ -7186,6 +7202,65 @@ log_nsid(isc_buffer_t *opt, size_t nsid_len, resquery_t *query, int level,
 	isc_mem_put(mctx, buf, buflen);
 }
 
+static void
+log_zoneversion(isc_buffer_t *opt, size_t opt_len, resquery_t *query, int level,
+		isc_mem_t *mctx) {
+	static const char hex[17] = "0123456789abcdef";
+	char addrbuf[ISC_SOCKADDR_FORMATSIZE];
+	char namebuf[DNS_NAME_FORMATSIZE];
+	size_t buflen;
+	unsigned char *p, *data;
+	unsigned char *buf = NULL;
+	dns_name_t suffix = DNS_NAME_INITEMPTY;
+	unsigned int labels;
+
+	REQUIRE(opt_len <= UINT16_MAX);
+
+	/*
+	 * Don't log reflected ZONEVERSION option.
+	 */
+	if (opt_len == 0) {
+		return;
+	}
+
+	/* Enforced by dns_rdata_fromwire. */
+	INSIST(opt_len >= 2);
+
+	/*
+	 * Sanity check on label count.
+	 */
+	data = isc_buffer_current(opt);
+	labels = data[0] + 1;
+	if (dns_name_countlabels(query->fctx->name) < labels) {
+		return;
+	}
+
+	dns_name_split(query->fctx->name, labels, NULL, &suffix);
+	dns_name_format(&suffix, namebuf, sizeof(namebuf));
+
+	/* Allocate buffer for storing hex version of the NSID */
+	buflen = opt_len * 2 + 1;
+	buf = isc_mem_get(mctx, buflen);
+
+	/* Convert to hex */
+	p = buf;
+	for (size_t i = 0; i < opt_len; i++) {
+		*p++ = hex[(data[i] >> 4) & 0xf];
+		*p++ = hex[data[i] & 0xf];
+	}
+	*p = '\0';
+
+	isc_sockaddr_format(&query->addrinfo->sockaddr, addrbuf,
+			    sizeof(addrbuf));
+	dns_name_format(query->fctx->name, namebuf, sizeof(namebuf));
+	isc_log_write(dns_lctx, DNS_LOGCATEGORY_ZONEVERSION,
+		      DNS_LOGMODULE_RESOLVER, level,
+		      "received ZONEVERSION %s from %s for %s zone %s", buf,
+		      addrbuf, query->fctx->info, namebuf);
+
+	isc_mem_put(mctx, buf, buflen);
+}
+
 static bool
 iscname(dns_message_t *message, dns_name_t *name) {
 	isc_result_t result;
@@ -7920,6 +7995,7 @@ rctx_opt(respctx_t *rctx) {
 	isc_result_t result;
 	bool seen_cookie = false;
 	bool seen_nsid = false;
+	bool seen_zoneversion = false;
 
 	result = dns_rdataset_first(rctx->opt);
 	if (result != ISC_R_SUCCESS) {
@@ -7981,6 +8057,19 @@ rctx_opt(respctx_t *rctx) {
 					  dns_resstatscounter_cookieok);
 				dns_adb_setcookie(fctx->adb, query->addrinfo,
 						  optvalue, optlen);
+			}
+			break;
+		case DNS_OPT_ZONEVERSION:
+			if (seen_zoneversion) {
+				break;
+			}
+			seen_zoneversion = true;
+
+			if ((query->options & DNS_FETCHOPT_WANTZONEVERSION) !=
+			    0)
+			{
+				log_zoneversion(&optbuf, optlen, query,
+						ISC_LOG_INFO, fctx->mctx);
 			}
 			break;
 		default:
