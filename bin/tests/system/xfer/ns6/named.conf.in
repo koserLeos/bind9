@@ -58,6 +58,12 @@ zone "edns-expire" {
 	file "edns-expire.bk";
 };
 
+zone "axfr-rndc-retransfer-force" {
+	type secondary;
+	primaries { 10.53.0.1; };
+	file "axfr-rndc-retransfer-force.bk";
+};
+
 zone "axfr-min-transfer-rate" {
 	type secondary;
 	min-transfer-rate-in 100000 5; # this is tested as seconds, when used with '-T transferinsecs' (i.e. 100000 bytes in 5 seconds)

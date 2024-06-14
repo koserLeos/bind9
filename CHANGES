@@ -1,3 +1,8 @@
+6405.	[func]		Implement a new '-force' option for the
+			'rndc retransfer' command, which aborts an ongoing
+			zone transfer, if there is one, before starting a new
+			transfer. [GL #2299]
+
 6404.	[func]		Implement the new 'min-transfer-rate-in' configuration
 			option which sets a minimum amount of traffic rate
 			below which an incoming zone transfer gets canceled.

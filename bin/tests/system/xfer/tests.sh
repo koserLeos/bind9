@@ -655,6 +655,26 @@ sleep 1
 nextpart ns6/named.run >/dev/null
 
 n=$((n + 1))
+echo_i "test rndc retransfer -force ($n)"
+sleep 1
+tmp=0
+$RNDCCMD 10.53.0.6 retransfer axfr-rndc-retransfer-force 2>&1 | sed 's/^/ns6 /' | cat_i
+# Wait for at least one message
+msg="'axfr-rndc-retransfer-force/IN' from 10.53.0.1#${PORT}: received"
+retry_quiet 5 wait_for_message "$msg" || tmp=1
+# Issue a retransfer-force command which should cancel the ongoing transfer and start a new one
+$RNDCCMD 10.53.0.6 retransfer -force axfr-rndc-retransfer-force 2>&1 | sed 's/^/ns6 /' | cat_i
+msg="'axfr-rndc-retransfer-force/IN' from 10.53.0.1#${PORT}: Transfer status: operation canceled"
+retry_quiet 5 wait_for_message "$msg" || tmp=1
+# Wait for the new transfer to complete successfully
+msg="'axfr-rndc-retransfer-force/IN' from 10.53.0.1#${PORT}: Transfer status: success"
+retry_quiet 30 wait_for_message "$msg" || tmp=1
+if test $tmp != 0; then echo_i "failed"; fi
+status=$((status + tmp))
+
+nextpart ns6/named.run >/dev/null
+
+n=$((n + 1))
 echo_i "test min-transfer-rate-in with 5 seconds timeout ($n)"
 $RNDCCMD 10.53.0.6 retransfer axfr-min-transfer-rate 2>&1 | sed 's/^/ns6 /' | cat_i
 tmp=0
