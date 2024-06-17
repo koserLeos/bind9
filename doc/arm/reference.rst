@@ -2250,6 +2250,16 @@ Boolean Options
    option in its response, then its contents are logged in the ``nsid``
    category at level ``info``. The default is ``no``.
 
+.. namedconf:statement:: request-zoneversion
+   :tags: query
+   :short: Controls whether an empty EDNS(0) ZONEVERSION option is sent with all queries to authoritative name servers during iterative resolution.
+
+   If ``yes``, then an empty EDNS(0) ZONEVERSION option is sent
+   with all queries to authoritative name servers during iterative
+   resolution. If the authoritative server returns an ZONEVERSION
+   option in its response, then its contents are logged in the
+   ``zoneversion`` category at level ``info``. The default is ``no``.
+
 .. namedconf:statement:: require-cookie
    :tags: query
    :short: Controls whether responses without a server cookie are accepted
@@ -5729,6 +5739,7 @@ and :namedconf:ref:`options` blocks:
    - :namedconf:ref:`request-expire`
    - :namedconf:ref:`request-ixfr`
    - :namedconf:ref:`request-nsid`
+   - :namedconf:ref:`request-zoneversion`
    - :namedconf:ref:`require-cookie`
    - :namedconf:ref:`send-cookie`
    - :namedconf:ref:`transfer-format`

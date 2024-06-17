@@ -3545,6 +3545,45 @@ cleanup:
 }
 
 static isc_result_t
+render_zoneversion(dns_message_t *msg, unsigned char *optdata,
+		   isc_buffer_t *target) {
+	isc_result_t result = ISC_R_SUCCESS;
+	unsigned int labels = optdata[0];
+	unsigned int type = optdata[1];
+	char buf[sizeof("4000000000")];
+	char namebuf[DNS_NAME_FORMATSIZE];
+	dns_name_t *name = ISC_LIST_HEAD(msg->sections[DNS_SECTION_QUESTION]);
+	dns_name_t suffix = DNS_NAME_INITEMPTY;
+
+	if (msg->counts[DNS_SECTION_QUESTION] != 1 || name == NULL ||
+	    dns_name_countlabels(name) < labels + 1)
+	{
+		ADD_STRING(target, "invalid");
+		return (ISC_R_SUCCESS);
+	}
+
+	dns_name_split(name, labels + 1, NULL, &suffix);
+	dns_name_format(&suffix, namebuf, sizeof(namebuf));
+
+	if (type == 0) {
+		uint32_t serial = optdata[2] << 24 | optdata[3] << 16 |
+				  optdata[4] << 8 | optdata[5];
+		ADD_STRING(target, "SOA-SERIAL: ");
+		snprintf(buf, sizeof(buf), "%u", serial);
+		ADD_STRING(target, buf);
+	} else {
+		ADD_STRING(target, "(TYPE: ");
+		snprintf(buf, sizeof(buf), "%u", type);
+		ADD_STRING(target, buf);
+	}
+	ADD_STRING(target, " (");
+	ADD_STRING(target, namebuf);
+	ADD_STRING(target, ")");
+cleanup:
+	return (result);
+}
+
+static isc_result_t
 dns_message_pseudosectiontoyaml(dns_message_t *msg, dns_pseudosection_t section,
 				const dns_master_style_t *style,
 				dns_messagetextflag_t flags,
@@ -3804,6 +3843,9 @@ dns_message_pseudosectiontoyaml(dns_message_t *msg, dns_pseudosection_t section,
 					POST(optlen);
 					continue;
 				}
+			} else if (optcode == DNS_OPT_ZONEVERSION) {
+				INDENT(style);
+				ADD_STRING(target, "ZONEVERSION:");
 			} else {
 				INDENT(style);
 				ADD_STRING(target, "OPT=");
@@ -3863,6 +3905,14 @@ dns_message_pseudosectiontoyaml(dns_message_t *msg, dns_pseudosection_t section,
 					if (msg->cc_bad) {
 						ADD_STRING(target, " (bad)");
 					}
+					ADD_STRING(target, "\n");
+					continue;
+				} else if (optcode == DNS_OPT_ZONEVERSION) {
+					if (optcode == DNS_OPT_ZONEVERSION) {
+						ADD_STRING(target, "# ");
+					}
+					render_zoneversion(msg, optdata,
+							   target);
 					ADD_STRING(target, "\n");
 					continue;
 				}
@@ -4195,6 +4245,8 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 					POST(optlen);
 					continue;
 				}
+			} else if (optcode == DNS_OPT_ZONEVERSION) {
+				ADD_STRING(target, "; ZONEVERSION:");
 			} else {
 				ADD_STRING(target, "; OPT=");
 				snprintf(buf, sizeof(buf), "%u:", optcode);
@@ -4254,6 +4306,12 @@ dns_message_pseudosectiontotext(dns_message_t *msg, dns_pseudosection_t section,
 						ADD_STRING(target, " (bad)");
 					}
 					ADD_STRING(target, "\n");
+					continue;
+				} else if (optcode == DNS_OPT_ZONEVERSION) {
+					ADD_STRING(target, "(");
+					render_zoneversion(msg, optdata,
+							   target);
+					ADD_STRING(target, ")\n");
 					continue;
 				}
 

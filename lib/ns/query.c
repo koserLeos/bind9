@@ -8070,6 +8070,39 @@ query_getexpire(query_ctx_t *qctx) {
 	}
 }
 
+/*
+ * Set the zone version, if requested, when answering from a secondary,
+ * mirror, or primary zone.
+ */
+static void
+query_getzoneversion(query_ctx_t *qctx) {
+	CCTRACE(ISC_LOG_DEBUG(3), __func__);
+
+	if (qctx->zone == NULL || !qctx->is_zone ||
+	    qctx->client->query.restarts != 0 ||
+	    (qctx->client->attributes & NS_CLIENTATTR_WANTZONEVERSION) == 0)
+	{
+		return;
+	}
+
+	if (dns_zone_gettype(qctx->zone) == dns_zone_secondary ||
+	    dns_zone_gettype(qctx->zone) == dns_zone_mirror ||
+	    dns_zone_gettype(qctx->zone) == dns_zone_primary)
+	{
+		uint32_t serial;
+		isc_result_t result = dns_zone_getserial(qctx->zone, &serial);
+		if (result == ISC_R_SUCCESS) {
+			qctx->client->attributes |=
+				NS_CLIENTATTR_HAVEZONEVERSION;
+			qctx->client->zoneversion = serial;
+			qctx->client->zoneversionlabels =
+				dns_name_countlabels(
+					dns_zone_getorigin(qctx->zone)) -
+				1;
+		}
+	}
+}
+
 /*%
  * Fill the ANSWER section of a positive response.
  */
@@ -8232,6 +8265,11 @@ query_respond(query_ctx_t *qctx) {
 	 * Set expire time
 	 */
 	query_getexpire(qctx);
+
+	/*
+	 * Set the zone version
+	 */
+	query_getzoneversion(qctx);
 
 	result = query_addanswer(qctx);
 	if (result != ISC_R_COMPLETE) {
