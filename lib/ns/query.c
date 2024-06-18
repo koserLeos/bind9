@@ -6349,10 +6349,27 @@ recparam_match(const ns_query_recparam_t *param, dns_rdatatype_t qtype,
 	       const dns_name_t *qname, const dns_name_t *qdomain) {
 	REQUIRE(param != NULL);
 
-	return (param->qtype == qtype && param->qname != NULL &&
-		qname != NULL && param->qdomain != NULL && qdomain != NULL &&
-		dns_name_equal(param->qname, qname) &&
-		dns_name_equal(param->qdomain, qdomain));
+	if (param->qtype != qtype) {
+		return (false);
+	}
+
+	if (qname != NULL && param->qname_hash != -1) {
+		if (dns_name_hash(qname) != param->qname_hash) {
+			return (false);
+		}
+	} else if (qname != NULL || param->qname_hash != -1) {
+		return (false);
+	}
+
+	if (qdomain != NULL && param->qdomain_hash != -1) {
+		if (dns_name_hash(qdomain) != param->qdomain_hash) {
+			return (false);
+		}
+	} else if (qdomain != NULL || param->qdomain_hash != -1) {
+		return (false);
+	}
+
+	return (true);
 }
 
 /*%
@@ -6367,17 +6384,15 @@ recparam_update(ns_query_recparam_t *param, dns_rdatatype_t qtype,
 	param->qtype = qtype;
 
 	if (qname == NULL) {
-		param->qname = NULL;
+		param->qname_hash = -1;
 	} else {
-		param->qname = dns_fixedname_initname(&param->fqname);
-		dns_name_copy(qname, param->qname);
+		param->qname_hash = dns_name_hash(qname);
 	}
 
 	if (qdomain == NULL) {
-		param->qdomain = NULL;
+		param->qdomain_hash = -1;
 	} else {
-		param->qdomain = dns_fixedname_initname(&param->fqdomain);
-		dns_name_copy(qdomain, param->qdomain);
+		param->qdomain_hash = dns_name_hash(qdomain);
 	}
 }
 static void
