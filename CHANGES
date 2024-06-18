@@ -1,3 +1,7 @@
+6405.	[bug]		Stop updating find.result_v4 and find.result_v4 in
+			clean_finds_at_name.  The values are supposed to be
+			static. [GL #4118]
+
 6404.	[placeholder]
 
 6403.	[placeholder]
