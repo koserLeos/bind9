@@ -22141,7 +22141,7 @@ zone_rekey(dns_zone_t *zone) {
 			   isc_result_totext(result));
 	}
 
-	if (kasp != NULL) {
+	if (kasp != NULL && !offlineksk) {
 		/*
 		 * Check DS at parental agents. Clear ongoing checks.
 		 */
@@ -22181,6 +22181,15 @@ zone_rekey(dns_zone_t *zone) {
 				goto failure;
 			}
 		}
+	} else if (offlineksk) {
+		/*
+		 * With offline-ksk enabled we don't run the keymgr.
+		 * Instead we derive the states from the timing metadata.
+		 */
+		dns_zone_lock_keyfiles(zone);
+		result = dns_keymgr_offline(&zone->origin, &keys, kasp, now,
+					    &nexttime);
+		dns_zone_unlock_keyfiles(zone);
 	}
 
 	KASP_UNLOCK(kasp);
@@ -22198,6 +22207,25 @@ zone_rekey(dns_zone_t *zone) {
 		bool cdnskeypub = true;
 		bool sane_diff, sane_dnskey;
 		isc_stdtime_t when;
+
+		result = dns_dnssec_updatekeys(&dnskeys, &keys, &rmkeys,
+					       &zone->origin, ttl, &diff, mctx,
+					       dnssec_report);
+		/*
+		 * Keys couldn't be updated for some reason;
+		 * try again later.
+		 */
+		if (result != ISC_R_SUCCESS) {
+			dnssec_log(zone, ISC_LOG_ERROR,
+				   "zone_rekey:couldn't update zone keys: %s",
+				   isc_result_totext(result));
+			goto failure;
+		}
+
+		if (offlineksk) {
+			/* We can skip a lot of things */
+			goto post_sync;
+		}
 
 		/*
 		 * Publish CDS/CDNSKEY DELETE records if the zone is
@@ -22264,20 +22292,6 @@ zone_rekey(dns_zone_t *zone) {
 			digests = dns_kasp_digests(zone->defaultkasp);
 		}
 
-		result = dns_dnssec_updatekeys(&dnskeys, &keys, &rmkeys,
-					       &zone->origin, ttl, &diff, mctx,
-					       dnssec_report);
-		/*
-		 * Keys couldn't be updated for some reason;
-		 * try again later.
-		 */
-		if (result != ISC_R_SUCCESS) {
-			dnssec_log(zone, ISC_LOG_ERROR,
-				   "zone_rekey:couldn't update zone keys: %s",
-				   isc_result_totext(result));
-			goto failure;
-		}
-
 		/*
 		 * Update CDS / CDNSKEY records.
 		 */
@@ -22330,6 +22344,7 @@ zone_rekey(dns_zone_t *zone) {
 			goto failure;
 		}
 
+	post_sync:
 		/*
 		 * See if any pre-existing keys have newly become active;
 		 * also, see if any new key is for a new algorithm, as in that
