@@ -1670,6 +1670,8 @@ shotgun:dot:
     - make DESTDIR="${INSTALL_PATH}" install
     - git clone --depth 1 https://gitlab.isc.org/isc-projects/bind9-qa.git
     - cd bind9-qa/stress
+    - sysctl kern.corefile
+    - ( sleep 300; killall -SIGSEGV named ) &
     - LD_LIBRARY_PATH="${INSTALL_PATH}/usr/local/lib" BIND_INSTALL_PATH="${INSTALL_PATH}/usr/local" WORKSPACE="${CI_PROJECT_DIR}" bash stress.sh
   needs:
     - job: autoreconf
