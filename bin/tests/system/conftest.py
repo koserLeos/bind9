@@ -14,17 +14,20 @@ import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
 import time
 from typing import Any, List, Optional
 
+import pyroute2  # TODO confitional
 import pytest
 
 pytest.register_assert_rewrite("isctest")
 
 import isctest
 from isctest.vars.dirs import SYSTEM_TEST_DIR_GIT_PATH
+from namespaces import Namespace
 
 
 # Silence warnings caused by passing a pytest fixture to another fixture.
@@ -87,6 +90,7 @@ def pytest_configure(config):
     # Ensure this hook only runs on the main pytest instance if xdist is
     # used to spawn other workers.
     if not XDIST_WORKER:
+        Namespace("user").__enter__()
         if config.pluginmanager.has_plugin("xdist") and config.option.numprocesses:
             # system tests depend on module scope for setup & teardown
             # enforce use "loadscope" scheduler or disable paralelism
@@ -459,12 +463,24 @@ def run_tests_sh(system_test_dir, shell):
     return run_tests
 
 
+@pytest.fixture(scope="module")
+def namespace(shell):
+    with Namespace("net"):
+        shell("ifconfig.sh", ["up"])
+        with pyroute2.IPRoute() as ipr:
+            lo = ipr.link_lookup(ifname="lo")[0]
+            ipr.route("add", gateway="127.0.0.1", oif=lo)
+            ipr.route("add", family=socket.AF_INET6, gateway="::1", oif=lo)
+        yield
+
+
 @pytest.fixture(scope="module", autouse=True)
 def system_test(  # pylint: disable=too-many-arguments,too-many-statements
     request,
     system_test_dir,
     shell,
     perl,
+    namespace,
 ):
     """
     Driver of the test setup/teardown process. Used automatically for every test module.
