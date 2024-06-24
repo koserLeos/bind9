@@ -1,3 +1,6 @@
+6405.	[bug]		Adjust key state and timing metadata if dnssec-policy
+			key lifetime configuration is updated. [GL #4677]
+
 6404.	[placeholder]
 
 6403.	[placeholder]

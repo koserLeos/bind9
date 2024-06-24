@@ -42,6 +42,9 @@ Bug Fixes
 - An RPZ response's SOA record TTL was set to 1 instead of the SOA TTL, if
   ``add-soa`` was used. This has been fixed. :gl:`#3323`
 
+- When reconfiguring the key lifetime in a :any:`dnssec-policy`, keys already
+  in use were not affected. This has been fixed. :gl:`#4677`
+
 Known Issues
 ~~~~~~~~~~~~
 
