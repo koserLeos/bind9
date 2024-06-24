@@ -1671,8 +1671,6 @@ shotgun:dot:
     - git clone --depth 1 https://gitlab.isc.org/isc-projects/bind9-qa.git
     - ( if freebsd-version >/dev/null 2>&1; then sleep 120; while pgrep named; do date; vmstat -h ; swapinfo -h; echo; sleep 30; done; fi > freebsd-memory-stats.txt ) &
     - cd bind9-qa/stress
-    - sysctl kern.corefile
-    - ( sleep 500; killall -SIGSEGV named ) &
     - LD_LIBRARY_PATH="${INSTALL_PATH}/usr/local/lib" BIND_INSTALL_PATH="${INSTALL_PATH}/usr/local" WORKSPACE="${CI_PROJECT_DIR}" bash stress.sh
   after_script:
     - cp /var/log/messages var_log_messages.txt
