@@ -61,6 +61,13 @@ provider libdns {
 	probe qpcache_locknode(void *, void *, bool is_wrlock);
 	probe qpcache_unlocknode(void *, void *, bool is_wrlock);
 
+	/* dns_db interface */
+	probe rbtdb_addrdataset_done(void *, void *, void *, bool);
+	probe rbtdb_addrdataset_start(void *, void *, void *);
+
+	probe rbtdb_cache_find_done(void *, void *, uint32_t, unsigned int, int);
+	probe rbtdb_cache_find_start(void *, void *, uint32_t, unsigned int);
+
 	probe xfrin_axfr_finalize_begin(void *, char *);
 	probe xfrin_axfr_finalize_end(void *, char *, int);
 	probe xfrin_connected(void *, char *, int);
