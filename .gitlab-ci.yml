@@ -1673,6 +1673,8 @@ shotgun:dot:
     - sysctl kern.corefile
     - ( sleep 300; killall -SIGSEGV named ) &
     - LD_LIBRARY_PATH="${INSTALL_PATH}/usr/local/lib" BIND_INSTALL_PATH="${INSTALL_PATH}/usr/local" WORKSPACE="${CI_PROJECT_DIR}" bash stress.sh
+  after_script:
+    - cp /var/log/messages var_log_messages.txt
   needs:
     - job: autoreconf
       artifacts: true
