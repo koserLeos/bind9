@@ -1,3 +1,7 @@
+6405.	[bug]		Remove false positive "success resolving" log message
+			when QNAME minimisation is in effect and the final
+			result is NXDOMAIN. [GL #4748]
+
 6404.	[placeholder]
 
 6403.	[placeholder]
