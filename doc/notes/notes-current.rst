@@ -20,6 +20,12 @@ Security Fixes
 New Features
 ~~~~~~~~~~~~
 
+- Added support for Offline KSK. You can pregenerated ZSKs, create
+  a Key Signing Request (KSR), and sign it to create a Signed Key
+  Response (SKR) with the 'dnssec-ksr' tool. The SKR can be imported
+  into :any:`named` with the newly added ``rndc skr -import`` command.
+  :gl:`#1128`
+
 - Added a new statistics variable ``recursive high-water`` that reports
   the maximum number of simultaneous recursive clients BIND has handled
   while running. :gl:`#4668`
