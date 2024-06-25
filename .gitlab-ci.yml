@@ -1673,18 +1673,17 @@ shotgun:dot:
     - date
     - make DESTDIR="${INSTALL_PATH}" install
     - date
-    - git clone --depth 1 https://gitlab.isc.org/isc-projects/bind9-qa.git
+    - git clone --depth 1 --branch mnowak/freebsd-mem-info https://gitlab.isc.org/isc-projects/bind9-qa.git
     - date
-    - ( if freebsd-version >/dev/null 2>&1; then sleep 120; while pgrep named; do date; vmstat -h ; swapinfo -h; echo; sleep 30; done; fi > freebsd-memory-stats.txt ) &
+    #- ( if freebsd-version >/dev/null 2>&1; then sleep 120; while pgrep named; do date; vmstat -h ; swapinfo -h; echo; sleep 30; done; fi > freebsd-memory-stats.txt ) &
     - date
     - cd bind9-qa/stress
     - date
     - LD_LIBRARY_PATH="${INSTALL_PATH}/usr/local/lib" BIND_INSTALL_PATH="${INSTALL_PATH}/usr/local" WORKSPACE="${CI_PROJECT_DIR}" bash stress.sh
     - date
   after_script:
-    - date
     - cp /var/log/messages var_log_messages.txt
-    - date
+    - dmesg > dmesg.txt
   needs:
     - job: autoreconf
       artifacts: true
