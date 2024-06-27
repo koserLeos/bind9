@@ -125,14 +125,6 @@ In general, pointers should only be used to match `_start` and `_end` probes.
 
 #### <a name="qpmulti"></a>qpmulti
 
-- `qpmulti_commit_start:` Fires when a transaction commit starts.
-    - `void *` qpmulti pointer
-    - `void *` modifiable qp-trie pointer
-
-- `qpmulti_commit_done:` Fires when a transaction commit is finished.
-    - `void *` qpmulti pointer
-    - `void *` modifiable qp-trie pointer
-
 - `qpmulti_marksweep_start`: Fires when chunk cleanup starts.
     - `void *` qpmulti pointer
     - `void *` writer qp-trie pointer
