@@ -345,12 +345,14 @@ if !HAVE_SYSTEMTAP
 DTRACE_DEPS =			\
 	libdns_la-xfrin.lo	\
 	libdns_la-qp.lo		\
-	libdns_la-qpcache.lo
+	libdns_la-qpcache.lo	\
+	libdns_la-rbt-cachedb.lo
 
-DTRACE_OBJS =				\
-	.libs/libdns_la-xfrin.$(OBJEXT)	\
-	.libs/libdns_la-qp.$(OBJEXT)	\
-	.libs/libdns_la-qpcache.$(OBJEXT)
+DTRACE_OBJS =					\
+	.libs/libdns_la-xfrin.$(OBJEXT)		\
+	.libs/libdns_la-qp.$(OBJEXT)		\
+	.libs/libdns_la-qpcache.$(OBJEXT)	\
+	.libs/libdns_la-rbt-cachedb.$(OBJEXT)
 endif
 
 include $(top_srcdir)/Makefile.dtrace
