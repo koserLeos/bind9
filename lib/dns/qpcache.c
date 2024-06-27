@@ -1558,7 +1558,7 @@ find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	REQUIRE(VALID_QPDB((qpcache_t *)db));
 	REQUIRE(version == NULL);
 
-	LIBDNS_QPCACHE_FIND_START(db, name, now, options);
+	LIBDNS_QPCACHE_FIND_START(db, (void *)name, now, options);
 
 	if (now == 0) {
 		now = isc_stdtime_now();
@@ -1975,7 +1975,7 @@ tree_exit:
 
 	update_cachestats(search.qpdb, result);
 
-	LIBDNS_QPCACHE_FIND_DONE(db, name, now, options, result);
+	LIBDNS_QPCACHE_FIND_DONE(db, (void *)name, now, options, result);
 
 	return (result);
 }

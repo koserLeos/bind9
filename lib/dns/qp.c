@@ -1737,10 +1737,10 @@ dns_qp_deletename(dns_qp_t *qp, const dns_name_t *name, void **pval_r,
 	dns_qpkey_t key;
 	size_t keylen;
 
-	LIBDNS_QP_DELETENAME_START(qp, name);
+	LIBDNS_QP_DELETENAME_START(qp, (void *)name);
 	keylen = dns_qpkey_fromname(key, name);
 	result = dns_qp_deletekey(qp, key, keylen, pval_r, ival_r);
-	LIBDNS_QP_DELETENAME_DONE(qp, name, key);
+	LIBDNS_QP_DELETENAME_DONE(qp, (void *)name, key);
 
 	return (result);
 }
@@ -2002,10 +2002,10 @@ dns_qp_getname(dns_qpreadable_t qpr, const dns_name_t *name, void **pval_r,
 	dns_qpkey_t key;
 	size_t keylen;
 
-	LIBDNS_QP_GETNAME_START(qpr.qp, name);
+	LIBDNS_QP_GETNAME_START(qpr.qp, (void *)name);
 	keylen = dns_qpkey_fromname(key, name);
 	result = dns_qp_getkey(qpr, key, keylen, pval_r, ival_r);
-	LIBDNS_QP_GETNAME_DONE(qpr.qp, name, key);
+	LIBDNS_QP_GETNAME_DONE(qpr.qp, (void *)name, key);
 
 	return (result);
 }
@@ -2198,7 +2198,7 @@ dns_qp_lookup(dns_qpreadable_t qpr, const dns_name_t *name,
 	REQUIRE(QP_VALID(qp));
 	REQUIRE(foundname == NULL || ISC_MAGIC_VALID(name, DNS_NAME_MAGIC));
 
-	LIBDNS_QP_LOOKUP_START(qp, name, iter, chain);
+	LIBDNS_QP_LOOKUP_START(qp, (void *)name, iter, chain);
 
 	searchlen = dns_qpkey_fromname(search, name);
 
@@ -2214,7 +2214,8 @@ dns_qp_lookup(dns_qpreadable_t qpr, const dns_name_t *name,
 
 	n = get_root(qp);
 	if (n == NULL) {
-		LIBDNS_QP_LOOKUP_DONE(qpr.qp, name, iter, chain, false, false);
+		LIBDNS_QP_LOOKUP_DONE(qpr.qp, (void *)name, iter, chain, false,
+				      false);
 		return (ISC_R_NOTFOUND);
 	}
 	iter->stack[0] = n;
@@ -2303,7 +2304,7 @@ dns_qp_lookup(dns_qpreadable_t qpr, const dns_name_t *name,
 		SET_IF_NOT_NULL(pval_r, leaf_pval(n));
 		SET_IF_NOT_NULL(ival_r, leaf_ival(n));
 		maybe_set_name(qp, n, foundname);
-		LIBDNS_QP_LOOKUP_DONE(qp, name, iter, chain, true,
+		LIBDNS_QP_LOOKUP_DONE(qp, (void *)name, iter, chain, true,
 				      result == DNS_R_PARTIALMATCH);
 		return (result);
 	}
@@ -2319,8 +2320,8 @@ dns_qp_lookup(dns_qpreadable_t qpr, const dns_name_t *name,
 			SET_IF_NOT_NULL(pval_r, leaf_pval(n));
 			SET_IF_NOT_NULL(ival_r, leaf_ival(n));
 			maybe_set_name(qp, n, foundname);
-			LIBDNS_QP_LOOKUP_DONE(qp, name, iter, chain, true,
-					      true);
+			LIBDNS_QP_LOOKUP_DONE(qp, (void *)name, iter, chain,
+					      true, true);
 			return (DNS_R_PARTIALMATCH);
 		} else {
 			/*
@@ -2333,7 +2334,7 @@ dns_qp_lookup(dns_qpreadable_t qpr, const dns_name_t *name,
 	}
 
 	/* nothing was found at all */
-	LIBDNS_QP_LOOKUP_DONE(qp, name, iter, chain, false, false);
+	LIBDNS_QP_LOOKUP_DONE(qp, (void *)name, iter, chain, false, false);
 	return (ISC_R_NOTFOUND);
 }
 
