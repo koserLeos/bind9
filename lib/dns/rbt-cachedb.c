@@ -62,6 +62,7 @@
 #include <dns/zonekey.h>
 
 #include "db_p.h"
+#include "probes.h"
 #include "rbtdb_p.h"
 
 #define CHECK(op)                            \
@@ -786,6 +787,8 @@ cache_find(dns_db_t *db, const dns_name_t *name, dns_dbversion_t *version,
 	REQUIRE(VALID_RBTDB((dns_rbtdb_t *)db));
 	REQUIRE(version == NULL);
 
+	LIBDNS_RBTDB_CACHE_FIND_START(db, (void *)name, now, options);
+
 	if (now == 0) {
 		now = isc_stdtime_now();
 	}
@@ -1175,6 +1178,9 @@ tree_exit:
 	dns_rbtnodechain_reset(&search.chain);
 
 	update_cachestats(search.rbtdb, result);
+
+	LIBDNS_RBTDB_CACHE_FIND_DONE(db, (void *)name, now, options, result);
+
 	return (result);
 }
 
