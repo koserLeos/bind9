@@ -41,3 +41,18 @@ def tcp(
     if port is None:
         port = int(os.environ["PORT"])
     return dns.query.tcp(message, ip, timeout, port=port, source=source)
+
+
+def tls(  # pylint: disable=too-many-arguments
+    message: dns.message.Message,
+    ip: str,
+    port: Optional[int] = None,
+    source: Optional[str] = None,
+    timeout: int = QUERY_TIMEOUT,
+    verify: Optional[bool] = None,
+) -> dns.message.Message:
+    if port is None:
+        port = int(os.environ["TLSPORT"])
+    if verify is None:
+        verify = False
+    return dns.query.tls(message, ip, timeout, port=port, source=source, verify=verify)
