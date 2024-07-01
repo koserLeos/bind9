@@ -711,18 +711,11 @@ isc_tls_cipher_suites_valid(const char *cipher_suites) {
 
 void
 isc_tlsctx_set_cipher_suites(isc_tlsctx_t *ctx, const char *cipher_suites) {
-#ifdef HAVE_SSL_CTX_SET_CIPHERSUITES
 	REQUIRE(ctx != NULL);
 	REQUIRE(cipher_suites != NULL);
 	REQUIRE(*cipher_suites != '\0');
 
 	RUNTIME_CHECK(SSL_CTX_set_ciphersuites(ctx, cipher_suites) == 1);
-#else
-	UNUSED(ctx);
-	UNUSED(cipher_suites);
-
-	UNREACHABLE();
-#endif
 }
 
 void
