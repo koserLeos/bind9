@@ -580,8 +580,6 @@ pylint:
   needs: []
   variables:
     PYTHONPATH: "${CI_PROJECT_DIR}/bin/tests/system"
-  before_script:
-    - pip install --upgrade dnspython
   script:
     - pylint --rcfile $CI_PROJECT_DIR/.pylintrc $(git ls-files '*.py' | grep -vE '(ans\.py|dangerfile\.py|^bin/tests/system/)')
       # Ignore Pylint wrong-import-position error in system test to enable use of pytest.importorskip
@@ -632,8 +630,6 @@ checkbashisms:
 
 mypy:
   <<: *precheck_job
-  before_script:
-    - pip install --upgrade dnspython
   script:
     - mypy "bin/tests/system/isctest/"
 
