@@ -36,6 +36,9 @@ Feature Changes
   :any:`allow-transfer` ACL must now be set at the :any:`zone`, :any:`view` or
   :namedconf:ref:`options` level to enable outgoing transfers. :gl:`#4728`
 
+- OpenSSL 1.1.1 or better (or equivalent LibreSSL version) is now required to
+  compile BIND 9. :gl:`#2806`
+	     
 Bug Fixes
 ~~~~~~~~~
 
