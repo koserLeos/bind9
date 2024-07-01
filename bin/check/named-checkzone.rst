@@ -94,6 +94,10 @@ Options
    Mode ``full`` checks that delegation NS records refer to A or AAAA
    records (both in-zone and out-of-zone hostnames). It also checks that
    glue address records in the zone match those advertised by the child.
+
+   Mode ``full`` checks that the zone is served by a server with AAAA
+   addresses if there is a AAAA RRset in the zone.
+
    Mode ``local`` only checks NS records which refer to in-zone
    hostnames or verifies that some required glue exists, i.e., when the
    name server is in a child zone.

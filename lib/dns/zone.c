@@ -370,6 +370,7 @@ struct dns_zone {
 	dns_checkmxfunc_t checkmx;
 	dns_checksrvfunc_t checksrv;
 	dns_checknsfunc_t checkns;
+	dns_checkaaaafunc_t checkaaaa;
 	/*%
 	 * Zones in certain states such as "waiting for zone transfer"
 	 * or "zone transfer in progress" are kept on per-state linked lists
@@ -2849,8 +2850,8 @@ zone_check_srv(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 }
 
 static bool
-zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
-		dns_name_t *owner) {
+zone_check_glue(dns_zone_t *zone, dns_db_t *db, bool *has_aaaa,
+		dns_name_t *name, dns_name_t *owner) {
 	bool answer = true;
 	isc_result_t result, tresult;
 	char ownerbuf[DNS_NAME_FORMATSIZE];
@@ -2918,11 +2919,17 @@ zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 			if (dns_rdataset_isassociated(&a)) {
 				dns_rdataset_disassociate(&a);
 			}
+			if (has_aaaa != NULL) {
+				*has_aaaa = true;
+			}
 			dns_rdataset_disassociate(&aaaa);
 			return (true);
 		}
 		if (tresult == DNS_R_DELEGATION || tresult == DNS_R_DNAME) {
 			dns_rdataset_disassociate(&aaaa);
+		}
+		if (tresult == DNS_R_GLUE && has_aaaa != NULL) {
+			*has_aaaa = true;
 		}
 		if (result == DNS_R_GLUE || tresult == DNS_R_GLUE) {
 			/*
@@ -3148,6 +3155,45 @@ isspf(const dns_rdata_t *rdata) {
 }
 
 static bool
+isservedbyaaaa(dns_zone_t *zone, dns_db_t *db, dns_name_t *name) {
+	dns_rdataset_t rdataset;
+	dns_fixedname_t found;
+	dns_name_t *foundname = dns_fixedname_initname(&found);
+	isc_result_t result;
+
+	/*
+	 * Outside of zone, assume good when loading in named.
+	 */
+	if (!dns_name_issubdomain(name, &zone->origin)) {
+		if (zone->checkaaaa != NULL) {
+			return (zone->checkaaaa(zone, name));
+		}
+		return (true);
+	}
+
+	dns_rdataset_init(&rdataset);
+	result = dns_db_find(db, &zone->origin, NULL, dns_rdatatype_aaaa, 0, 0,
+			     NULL, foundname, &rdataset, NULL);
+	if (dns_rdataset_isassociated(&rdataset)) {
+		dns_rdataset_disassociate(&rdataset);
+	}
+	switch (result) {
+	case DNS_R_DELEGATION:
+		if (zone->checkaaaa != NULL) {
+			return (zone->checkaaaa(zone, name));
+		}
+		/*
+		 * Treat as success.
+		 */
+		return (true);
+	case ISC_R_SUCCESS:
+		return (true);
+	default:
+		return (false);
+	}
+}
+
+static bool
 integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 	dns_dbiterator_t *dbiterator = NULL;
 	dns_dbnode_t *node = NULL;
@@ -3162,6 +3208,7 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 	dns_name_t *bottom;
 	isc_result_t result;
 	bool ok = true, have_spf, have_txt;
+	bool has_aaaa = false;
 	int level;
 	char namebuf[DNS_NAME_FORMATSIZE];
 
@@ -3216,7 +3263,9 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 			dns_rdataset_current(&rdataset, &rdata);
 			result = dns_rdata_tostruct(&rdata, &ns, NULL);
 			RUNTIME_CHECK(result == ISC_R_SUCCESS);
-			if (!zone_check_glue(zone, db, &ns.name, name)) {
+			if (!zone_check_glue(zone, db, &has_aaaa, &ns.name,
+					     name))
+			{
 				ok = false;
 			}
 			dns_rdata_reset(&rdata);
@@ -3280,7 +3329,7 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 		result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_srv,
 					     0, 0, &rdataset, NULL);
 		if (result != ISC_R_SUCCESS) {
-			goto checkspf;
+			goto checkforaaaa;
 		}
 		result = dns_rdataset_first(&rdataset);
 		while (result == ISC_R_SUCCESS) {
@@ -3295,7 +3344,20 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 		}
 		dns_rdataset_disassociate(&rdataset);
 
-	checkspf:
+	checkforaaaa:
+		/*
+		 * Check if there is an AAAA RRset in the zone.
+		 */
+		if (!has_aaaa) {
+			result = dns_db_findrdataset(db, node, NULL,
+						     dns_rdatatype_aaaa, 0, 0,
+						     &rdataset, NULL);
+			if (result == ISC_R_SUCCESS) {
+				has_aaaa = true;
+				dns_rdataset_disassociate(&rdataset);
+			}
+		}
+
 		/*
 		 * Check if there is a type SPF record without an
 		 * SPF-formatted type TXT record also being present.
@@ -3343,6 +3405,36 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 	next:
 		dns_db_detachnode(db, &node);
 		result = dns_dbiterator_next(dbiterator);
+	}
+
+	if (has_aaaa) {
+		has_aaaa = false;
+		result = dns_db_find(db, &zone->origin, NULL, dns_rdatatype_ns,
+				     0, 0, NULL, name, &rdataset, NULL);
+		if (result != ISC_R_SUCCESS) {
+			if (dns_rdataset_isassociated(&rdataset)) {
+				dns_rdataset_disassociate(&rdataset);
+			}
+			goto cleanup;
+		}
+		result = dns_rdataset_first(&rdataset);
+		while (result == ISC_R_SUCCESS) {
+			dns_rdataset_current(&rdataset, &rdata);
+			result = dns_rdata_tostruct(&rdata, &ns, NULL);
+			RUNTIME_CHECK(result == ISC_R_SUCCESS);
+			dns_rdata_reset(&rdata);
+			if (isservedbyaaaa(zone, db, &ns.name)) {
+				has_aaaa = true;
+				break;
+			}
+			result = dns_rdataset_next(&rdataset);
+		}
+		dns_rdataset_disassociate(&rdataset);
+		if (!has_aaaa) {
+			dns_zone_log(zone, ISC_LOG_WARNING,
+				     "zone has AAAA records but is not served "
+				     "by IPv6 servers");
+		}
 	}
 
 cleanup:
@@ -19895,6 +19987,12 @@ void
 dns_zone_setcheckns(dns_zone_t *zone, dns_checknsfunc_t checkns) {
 	REQUIRE(DNS_ZONE_VALID(zone));
 	zone->checkns = checkns;
+}
+
+void
+dns_zone_setcheckaaaa(dns_zone_t *zone, dns_checkaaaafunc_t checkaaaa) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+	zone->checkaaaa = checkaaaa;
 }
 
 void

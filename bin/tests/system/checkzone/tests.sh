@@ -208,5 +208,21 @@ echo $lines
 if [ $ret != 0 ]; then echo_i "failed"; fi
 status=$((status + ret))
 
+echo_i "Checking for 'zone has AAAA records but is not served by IPv6 servers' warning ($n)"
+ret=0
+$CHECKZONE example zones/warn.no-aaaa.server.db >test.out1.$n 2>&1 || ret=1
+grep "zone has AAAA records but is not served by IPv6 servers" test.out1.$n >/dev/null || ret=1
+n=$((n + 1))
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
+echo_i "Checking for 'zone has AAAA records but is not served by IPv6 servers' warning for glue ($n)"
+ret=0
+$CHECKZONE example zones/warn.no-aaaa.server.glue.db >test.out1.$n 2>&1 || ret=1
+grep "zone has AAAA records but is not served by IPv6 servers" test.out1.$n >/dev/null || ret=1
+n=$((n + 1))
+if [ $ret != 0 ]; then echo_i "failed"; fi
+status=$((status + ret))
+
 echo_i "exit status: $status"
 [ $status -eq 0 ] || exit 1

@@ -157,11 +157,85 @@ logged(char *key, int value) {
 }
 
 static bool
+checkaaaa(dns_zone_t *zone, const dns_name_t *name) {
+	char namebuf[DNS_NAME_FORMATSIZE + 1];
+	char ownerbuf[DNS_NAME_FORMATSIZE + 1];
+	/*
+	 * Not all getaddrinfo implementations distinguish NODATA
+	 * from NXDOMAIN with PF_INET6 so use PF_UNSPEC and look at
+	 * the returned ai_family values.
+	 */
+	struct addrinfo hints = {
+		.ai_flags = AI_CANONNAME,
+		.ai_family = PF_UNSPEC,
+		.ai_socktype = SOCK_STREAM,
+		.ai_protocol = IPPROTO_TCP,
+	}, *ai = NULL, *cur;
+	bool has_aaaa = false;
+	int result;
+
+	dns_name_format(name, namebuf, sizeof(namebuf) - 1);
+	/*
+	 * Turn off search.
+	 */
+	if (dns_name_countlabels(name) > 1U) {
+		strlcat(namebuf, ".", sizeof(namebuf));
+	}
+	dns_name_format(dns_zone_getorigin(zone), ownerbuf, sizeof(ownerbuf));
+
+	result = getaddrinfo(namebuf, NULL, &hints, &ai);
+	dns_name_format(name, namebuf, sizeof(namebuf) - 1);
+	if (result == 0) {
+		cur = ai;
+		while (cur != NULL) {
+			if (cur->ai_family == AF_INET6) {
+				has_aaaa = true;
+				break;
+			}
+			cur = cur->ai_next;
+		}
+	}
+	if (ai != NULL) {
+		freeaddrinfo(ai);
+	}
+
+	switch (result) {
+	case 0:
+		return (has_aaaa);
+#if defined(EAI_NODATA) && (EAI_NODATA != EAI_NONAME)
+	case EAI_NODATA:
+#endif /* if defined(EAI_NODATA) && (EAI_NODATA != EAI_NONAME) */
+	case EAI_NONAME:
+		if (!logged(namebuf, ERR_NO_ADDRESSES)) {
+			dns_zone_log(zone, ISC_LOG_ERROR,
+				     "%s/NS '%s' (out of zone) "
+				     "has no addresses records (A or AAAA)",
+				     ownerbuf, namebuf);
+			add(namebuf, ERR_NO_ADDRESSES);
+		}
+		return (false);
+	default:
+		if (!logged(namebuf, ERR_LOOKUP_FAILURE)) {
+			dns_zone_log(zone, ISC_LOG_WARNING,
+				     "getaddrinfo(%s) failed: %s", namebuf,
+				     gai_strerror(result));
+			add(namebuf, ERR_LOOKUP_FAILURE);
+		}
+		return (true);
+	}
+}
+
+static bool
 checkns(dns_zone_t *zone, const dns_name_t *name, const dns_name_t *owner,
 	dns_rdataset_t *a, dns_rdataset_t *aaaa) {
 	dns_rdataset_t *rdataset;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
-	struct addrinfo hints, *ai, *cur;
+	struct addrinfo hints = {
+		.ai_flags = AI_CANONNAME,
+		.ai_family = PF_UNSPEC,
+		.ai_socktype = SOCK_STREAM,
+		.ai_protocol = IPPROTO_TCP,
+	}, *ai = NULL, *cur;
 	char namebuf[DNS_NAME_FORMATSIZE + 1];
 	char ownerbuf[DNS_NAME_FORMATSIZE];
 	char addrbuf[sizeof("xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:123.123.123.123")];
@@ -179,12 +253,6 @@ checkns(dns_zone_t *zone, const dns_name_t *name, const dns_name_t *owner,
 	if (a == NULL || aaaa == NULL) {
 		return (answer);
 	}
-
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_flags = AI_CANONNAME;
-	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
 
 	dns_name_format(name, namebuf, sizeof(namebuf) - 1);
 	/*
@@ -370,24 +438,25 @@ checkmissing:
 			add(namebuf, ERR_MISSING_GLUE);
 		}
 	}
-	freeaddrinfo(ai);
+	if (ai != NULL) {
+		freeaddrinfo(ai);
+	}
 	return (answer);
 }
 
 static bool
 checkmx(dns_zone_t *zone, const dns_name_t *name, const dns_name_t *owner) {
-	struct addrinfo hints, *ai, *cur;
+	struct addrinfo hints = {
+		.ai_flags = AI_CANONNAME,
+		.ai_family = PF_UNSPEC,
+		.ai_socktype = SOCK_STREAM,
+		.ai_protocol = IPPROTO_TCP,
+	}, *ai = NULL, *cur;
 	char namebuf[DNS_NAME_FORMATSIZE + 1];
 	char ownerbuf[DNS_NAME_FORMATSIZE];
 	int result;
 	int level = ISC_LOG_ERROR;
 	bool answer = true;
-
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_flags = AI_CANONNAME;
-	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
 
 	dns_name_format(name, namebuf, sizeof(namebuf) - 1);
 	/*
@@ -433,7 +502,9 @@ checkmx(dns_zone_t *zone, const dns_name_t *name, const dns_name_t *owner) {
 				}
 			}
 		}
-		freeaddrinfo(ai);
+		if (ai != NULL) {
+			freeaddrinfo(ai);
+		}
 		return (answer);
 
 	case EAI_NONAME:
@@ -463,18 +534,17 @@ checkmx(dns_zone_t *zone, const dns_name_t *name, const dns_name_t *owner) {
 
 static bool
 checksrv(dns_zone_t *zone, const dns_name_t *name, const dns_name_t *owner) {
-	struct addrinfo hints, *ai, *cur;
+	struct addrinfo hints = {
+		.ai_flags = AI_CANONNAME,
+		.ai_family = PF_UNSPEC,
+		.ai_socktype = SOCK_STREAM,
+		.ai_protocol = IPPROTO_TCP,
+	}, *ai = NULL, *cur;
 	char namebuf[DNS_NAME_FORMATSIZE + 1];
 	char ownerbuf[DNS_NAME_FORMATSIZE];
 	int result;
 	int level = ISC_LOG_ERROR;
 	bool answer = true;
-
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_flags = AI_CANONNAME;
-	hints.ai_family = PF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
 
 	dns_name_format(name, namebuf, sizeof(namebuf) - 1);
 	/*
@@ -520,7 +590,9 @@ checksrv(dns_zone_t *zone, const dns_name_t *name, const dns_name_t *owner) {
 				}
 			}
 		}
-		freeaddrinfo(ai);
+		if (ai != NULL) {
+			freeaddrinfo(ai);
+		}
 		return (answer);
 
 	case EAI_NONAME:
@@ -632,6 +704,7 @@ load_zone(isc_mem_t *mctx, const char *zonename, const char *filename,
 	}
 	if (docheckns) {
 		dns_zone_setcheckns(zone, checkns);
+		dns_zone_setcheckaaaa(zone, checkaaaa);
 	}
 	if (dochecksrv) {
 		dns_zone_setchecksrv(zone, checksrv);
