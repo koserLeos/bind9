@@ -27,44 +27,12 @@
 #if !HAVE_BIO_READ_EX
 int
 BIO_read_ex(BIO *b, void *data, size_t dlen, size_t *readbytes);
-#endif
+#endif /* !HAVE_BIO_READ_EX */
 
 #if !HAVE_BIO_WRITE_EX
 int
 BIO_write_ex(BIO *b, const void *data, size_t dlen, size_t *written);
-#endif
-
-#if !HAVE_OPENSSL_INIT_CRYPTO
-
-#define OPENSSL_INIT_NO_LOAD_CRYPTO_STRINGS 0x00000001L
-#define OPENSSL_INIT_LOAD_CRYPTO_STRINGS    0x00000002L
-#define OPENSSL_INIT_ADD_ALL_CIPHERS	    0x00000004L
-#define OPENSSL_INIT_ADD_ALL_DIGESTS	    0x00000008L
-#define OPENSSL_INIT_NO_ADD_ALL_CIPHERS	    0x00000010L
-#define OPENSSL_INIT_NO_ADD_ALL_DIGESTS	    0x00000020L
-
-int
-OPENSSL_init_crypto(uint64_t opts, const void *settings);
-#endif
-
-#if !HAVE_OPENSSL_INIT_SSL
-#define OPENSSL_INIT_NO_LOAD_SSL_STRINGS 0x00100000L
-#define OPENSSL_INIT_LOAD_SSL_STRINGS	 0x00200000L
-
-int
-OPENSSL_init_ssl(uint64_t opts, const void *settings);
-
-#endif
-
-#if !HAVE_OPENSSL_CLEANUP
-void
-OPENSSL_cleanup(void);
-#endif
-
-#if !HAVE_X509_STORE_UP_REF
-int
-X509_STORE_up_ref(X509_STORE *v);
-#endif /* !HAVE_OPENSSL_CLEANUP */
+#endif /* !HAVE_BIO_WRITE_EX */
 
 #if !HAVE_SSL_CTX_SET1_CERT_STORE
 void

@@ -668,17 +668,7 @@ AC_CHECK_FUNCS([ERR_get_error_all])
 AC_CHECK_FUNCS([BIO_read_ex BIO_write_ex])
 AC_CHECK_FUNCS([EVP_MD_CTX_get0_md])
 AC_CHECK_FUNCS([EVP_PKEY_eq])
-AC_CHECK_FUNCS([OPENSSL_init_ssl OPENSSL_init_crypto OPENSSL_cleanup])
-AC_CHECK_FUNCS([SSL_CTX_set_keylog_callback])
-AC_CHECK_FUNCS([SSL_CTX_set1_cert_store X509_STORE_up_ref])
-AC_CHECK_FUNCS([SSL_SESSION_is_resumable])
-
-#
-# Check for algorithm support in OpenSSL
-#
-
-AC_CHECK_FUNCS([EVP_DigestSignInit EVP_DigestVerifyInit], [:],
-	       [AC_MSG_FAILURE([EVP_DigestSignInit/EVP_DigestVerifyInit support in OpenSSL is mandatory.])])
+AC_CHECK_FUNCS([SSL_CTX_set1_cert_store])
 
 #
 # Check whether FIPS mode is available and whether we should enable it

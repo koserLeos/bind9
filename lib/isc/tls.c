@@ -195,15 +195,12 @@ isc_tlsctx_attach(isc_tlsctx_t *src, isc_tlsctx_t **ptarget) {
 	*ptarget = src;
 }
 
-#if HAVE_SSL_CTX_SET_KEYLOG_CALLBACK
 /*
  * Callback invoked by the SSL library whenever a new TLS pre-master secret
  * needs to be logged.
  */
 static void
-sslkeylogfile_append(const SSL *ssl, const char *line) {
-	UNUSED(ssl);
-
+sslkeylogfile_append(const SSL *ssl ISC_ATTR_UNUSED, const char *line) {
 	isc_log_write(isc_lctx, ISC_LOGCATEGORY_SSLKEYLOG, ISC_LOGMODULE_NETMGR,
 		      ISC_LOG_INFO, "%s", line);
 }
@@ -219,9 +216,6 @@ sslkeylogfile_init(isc_tlsctx_t *ctx) {
 		SSL_CTX_set_keylog_callback(ctx, sslkeylogfile_append);
 	}
 }
-#else /* HAVE_SSL_CTX_SET_KEYLOG_CALLBACK */
-#define sslkeylogfile_init(ctx)
-#endif /* HAVE_SSL_CTX_SET_KEYLOG_CALLBACK */
 
 isc_result_t
 isc_tlsctx_createclient(isc_tlsctx_t **ctxp) {
@@ -1481,30 +1475,6 @@ isc_tlsctx_client_session_cache_detach(
 	isc_mem_putanddetach(&cache->mctx, cache, sizeof(*cache));
 }
 
-static bool
-ssl_session_seems_resumable(const SSL_SESSION *sess) {
-#ifdef HAVE_SSL_SESSION_IS_RESUMABLE
-	/*
-	 * If SSL_SESSION_is_resumable() is available, let's use that. It
-	 * is expected to be available on OpenSSL >= 1.1.1 and its modern
-	 * siblings.
-	 */
-	return (SSL_SESSION_is_resumable(sess) != 0);
-#else
-	/*
-	 * Taking into consideration that OpenSSL 1.1.0 uses opaque
-	 * pointers for SSL_SESSION, we cannot implement a replacement for
-	 * SSL_SESSION_is_resumable() manually. Let's use a sensible
-	 * approximation for that, then: if there is an associated session
-	 * ticket or session ID, then, most likely, the session is
-	 * resumable.
-	 */
-	unsigned int session_id_len = 0;
-	(void)SSL_SESSION_get_id(sess, &session_id_len);
-	return (SSL_SESSION_has_ticket(sess) || session_id_len > 0);
-#endif
-}
-
 void
 isc_tlsctx_client_session_cache_keep(isc_tlsctx_client_session_cache_t *cache,
 				     char *remote_peer_name, isc_tls_t *tls) {
@@ -1522,7 +1492,7 @@ isc_tlsctx_client_session_cache_keep(isc_tlsctx_client_session_cache_t *cache,
 	if (sess == NULL) {
 		ERR_clear_error();
 		return;
-	} else if (!ssl_session_seems_resumable(sess)) {
+	} else if (SSL_SESSION_is_resumable(sess) == 0) {
 		SSL_SESSION_free(sess);
 		return;
 	}
