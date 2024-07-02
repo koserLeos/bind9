@@ -23,6 +23,7 @@
 #include <isc/hash.h>
 #include <isc/hashmap.h>
 #include <isc/hex.h>
+#include <isc/lex.h>
 #include <isc/loop.h>
 #include <isc/md.h>
 #include <isc/mutex.h>
@@ -79,11 +80,13 @@
 #include <dns/request.h>
 #include <dns/resolver.h>
 #include <dns/rriterator.h>
+#include <dns/skr.h>
 #include <dns/soa.h>
 #include <dns/ssu.h>
 #include <dns/stats.h>
 #include <dns/time.h>
 #include <dns/tsig.h>
+#include <dns/ttl.h>
 #include <dns/update.h>
 #include <dns/xfrin.h>
 #include <dns/zone.h>
@@ -497,6 +500,12 @@ struct dns_zone {
 	dns_update_state_t *rss_state;
 
 	isc_stats_t *gluecachestats;
+
+	/*%
+	 * Offline KSK signed key responses.
+	 */
+	dns_skr_t *skr;
+	dns_skrbundle_t *skrbundle;
 };
 
 #define zonediff_init(z, d)                \
@@ -1270,6 +1279,10 @@ zone_free(dns_zone_t *zone) {
 	}
 	if (!ISC_LIST_EMPTY(zone->checkds_ok)) {
 		clear_keylist(&zone->checkds_ok, zone->mctx);
+	}
+	if (zone->skr != NULL) {
+		zone->skrbundle = NULL;
+		dns_skr_detach(&zone->skr);
 	}
 
 	zone->journalsize = -1;
@@ -5732,6 +5745,38 @@ dns_zone_getkasp(dns_zone_t *zone) {
 	return (kasp);
 }
 
+static void
+dns_zone_setskr(dns_zone_t *zone, dns_skr_t *skr) {
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	LOCK_ZONE(zone);
+	zone->skrbundle = NULL;
+	if (zone->skr != NULL) {
+		dns_skr_detach(&zone->skr);
+	}
+	if (skr != NULL) {
+		dns_skr_attach(skr, &zone->skr);
+	}
+	UNLOCK_ZONE(zone);
+}
+
+dns_skrbundle_t *
+dns_zone_getskrbundle(dns_zone_t *zone) {
+	dns_skrbundle_t *bundle;
+
+	REQUIRE(DNS_ZONE_VALID(zone));
+
+	LOCK_ZONE(zone);
+	if (inline_raw(zone) && zone->secure != NULL) {
+		bundle = zone->secure->skrbundle;
+	} else {
+		bundle = zone->skrbundle;
+	}
+	UNLOCK_ZONE(zone);
+
+	return (bundle);
+}
+
 void
 dns_zone_setoption(dns_zone_t *zone, dns_zoneopt_t option, bool value) {
 	REQUIRE(DNS_ZONE_VALID(zone));
@@ -6556,11 +6601,16 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 	dns_rdataset_t rdataset;
 	unsigned int i;
 	dns_rdata_rrsig_t rrsig;
-	bool kasp = zone->kasp;
+	dns_kasp_t *kasp = zone->kasp;
 	bool found;
+	bool offlineksk = false;
 	int64_t timewarn = 0, timemaybe = 0;
 
 	dns_rdataset_init(&rdataset);
+
+	if (kasp != NULL) {
+		offlineksk = dns_kasp_offlineksk(kasp);
+	}
 
 	if (type == dns_rdatatype_nsec3) {
 		result = dns_db_findnsec3node(db, name, false, &node);
@@ -6597,7 +6647,9 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 
 		if (!dns_rdatatype_iskeymaterial(type)) {
 			bool warn = false, deleted = false;
-			if (delsig_ok(&rrsig, keys, nkeys, kasp, &warn)) {
+			if (delsig_ok(&rrsig, keys, nkeys, (kasp != NULL),
+				      &warn))
+			{
 				result = update_one_rr(db, ver, zonediff->diff,
 						       DNS_DIFFOP_DELRESIGN,
 						       name, rdataset.ttl,
@@ -6667,7 +6719,7 @@ del_sigs(dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
 				 * iff there is a new offline signature.
 				 */
 				if (!dst_key_inactive(keys[i]) &&
-				    !dst_key_isprivate(keys[i]))
+				    !dst_key_isprivate(keys[i]) && !offlineksk)
 				{
 					int64_t timeexpire = dns_time64_from32(
 						rrsig.timeexpire);
@@ -6754,9 +6806,11 @@ add_sigs(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name, dns_zone_t *zone,
 	isc_buffer_t buffer;
 	unsigned int i;
 	bool use_kasp = false;
+	bool offlineksk = false;
 
 	if (zone->kasp != NULL) {
 		use_kasp = true;
+		offlineksk = dns_kasp_offlineksk(zone->kasp);
 	}
 
 	dns_rdataset_init(&rdataset);
@@ -6787,10 +6841,10 @@ add_sigs(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name, dns_zone_t *zone,
 
 	for (i = 0; i < nkeys; i++) {
 		/* Don't add signatures for offline or inactive keys */
-		if (!dst_key_isprivate(keys[i])) {
+		if (!dst_key_isprivate(keys[i]) && !offlineksk) {
 			continue;
 		}
-		if (dst_key_inactive(keys[i])) {
+		if (dst_key_inactive(keys[i]) && !offlineksk) {
 			continue;
 		}
 
@@ -6821,9 +6875,20 @@ add_sigs(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name, dns_zone_t *zone,
 			/*
 			 * Don't consider inactive keys or offline keys.
 			 */
-			(void)dst_key_have_ksk_and_zsk(keys, nkeys, i, true,
-						       ksk, zsk, NULL,
-						       &have_zsk);
+			if (!dst_key_isprivate(keys[i]) && offlineksk && zsk) {
+				continue;
+			}
+			if (dst_key_inactive(keys[i]) && offlineksk && zsk) {
+				continue;
+			}
+
+			if (offlineksk) {
+				have_zsk = true;
+			} else {
+				(void)dst_key_have_ksk_and_zsk(keys, nkeys, i,
+							       true, ksk, zsk,
+							       NULL, &have_zsk);
+			}
 
 			if (dns_rdatatype_iskeymaterial(type)) {
 				/*
@@ -6886,8 +6951,20 @@ add_sigs(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name, dns_zone_t *zone,
 
 		/* Calculate the signature, creating a RRSIG RDATA. */
 		isc_buffer_clear(&buffer);
-		CHECK(dns_dnssec_sign(name, &rdataset, keys[i], &inception,
-				      &expire, mctx, &buffer, &sig_rdata));
+
+		if (offlineksk && dns_rdatatype_iskeymaterial(type)) {
+			/* Look up the signature in the SKR bundle */
+			dns_skrbundle_t *bundle = dns_zone_getskrbundle(zone);
+			if (bundle == NULL) {
+				CHECK(DNS_R_NOSKRBUNDLE);
+			}
+			CHECK(dns_skrbundle_getsig(bundle, keys[i], type,
+						   &sig_rdata));
+		} else {
+			CHECK(dns_dnssec_sign(name, &rdataset, keys[i],
+					      &inception, &expire, mctx,
+					      &buffer, &sig_rdata));
+		}
 
 		/* Update the database and journal with the RRSIG. */
 		/* XXX inefficient - will cause dataset merging */
@@ -7381,10 +7458,14 @@ sign_a_node(dns_db_t *db, dns_zone_t *zone, dns_name_t *name,
 	dns_rdataset_t rdataset;
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 	dns_stats_t *dnssecsignstats;
-
+	bool offlineksk = false;
 	isc_buffer_t buffer;
 	unsigned char data[1024];
 	bool seen_soa, seen_ns, seen_rr, seen_nsec, seen_nsec3, seen_ds;
+
+	if (zone->kasp != NULL) {
+		offlineksk = dns_kasp_offlineksk(zone->kasp);
+	}
 
 	result = dns_db_allrdatasets(db, node, version, 0, 0, &iterator);
 	if (result != ISC_R_SUCCESS) {
@@ -7489,8 +7570,19 @@ sign_a_node(dns_db_t *db, dns_zone_t *zone, dns_name_t *name,
 
 		/* Calculate the signature, creating a RRSIG RDATA. */
 		isc_buffer_clear(&buffer);
-		CHECK(dns_dnssec_sign(name, &rdataset, key, &inception, &expire,
-				      mctx, &buffer, &rdata));
+		if (offlineksk && dns_rdatatype_iskeymaterial(rdataset.type)) {
+			/* Look up the signature in the SKR bundle */
+			dns_skrbundle_t *bundle = dns_zone_getskrbundle(zone);
+			if (bundle == NULL) {
+				CHECK(DNS_R_NOSKRBUNDLE);
+			}
+			CHECK(dns_skrbundle_getsig(bundle, key, rdataset.type,
+						   &rdata));
+		} else {
+			CHECK(dns_dnssec_sign(name, &rdataset, key, &inception,
+					      &expire, mctx, &buffer, &rdata));
+		}
+
 		/* Update the database and journal with the RRSIG. */
 		/* XXX inefficient - will cause dataset merging */
 		CHECK(update_one_rr(db, version, diff, DNS_DIFFOP_ADDRESIGN,
@@ -21809,6 +21901,84 @@ update_ttl(dns_rdataset_t *rdataset, dns_name_t *name, dns_ttl_t ttl,
 	return (ISC_R_SUCCESS);
 }
 
+static isc_result_t
+remove_rdataset(dns_zone_t *zone, dns_diff_t *diff, dns_rdataset_t *rdataset) {
+	if (!dns_rdataset_isassociated(rdataset)) {
+		return (ISC_R_SUCCESS);
+	}
+
+	for (isc_result_t result = dns_rdataset_first(rdataset);
+	     result == ISC_R_SUCCESS; result = dns_rdataset_next(rdataset))
+	{
+		dns_rdata_t rdata = DNS_RDATA_INIT;
+		dns_difftuple_t *tuple = NULL;
+		isc_result_t r;
+
+		dns_rdataset_current(rdataset, &rdata);
+		r = dns_difftuple_create(zone->mctx, DNS_DIFFOP_DEL,
+					 &zone->origin, rdataset->ttl, &rdata,
+					 &tuple);
+		dns_diff_append(diff, &tuple);
+		if (r != ISC_R_SUCCESS) {
+			return (r);
+		}
+	}
+	return (ISC_R_SUCCESS);
+}
+
+static isc_result_t
+add_tuple(dns_diff_t *diff, dns_difftuple_t *tuple) {
+	isc_result_t result;
+	dns_difftuple_t *copy = NULL;
+
+	CHECK(dns_difftuple_copy(tuple, &copy));
+	dns_diff_appendminimal(diff, &copy);
+
+failure:
+	return (result);
+}
+
+static isc_result_t
+zone_apply_skrbundle(dns_zone_t *zone, dns_skrbundle_t *bundle,
+		     dns_rdataset_t *dnskeyset, dns_rdataset_t *cdsset,
+		     dns_rdataset_t *cdnskeyset, dns_diff_t *diff) {
+	isc_result_t result = ISC_R_SUCCESS;
+	dns_kasp_t *kasp = zone->kasp;
+
+	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(DNS_KASP_VALID(kasp));
+	REQUIRE(DNS_SKRBUNDLE_VALID(bundle));
+
+	/* Remove existing DNSKEY, CDS, and CDNSKEY records. */
+	CHECK(remove_rdataset(zone, diff, dnskeyset));
+	CHECK(remove_rdataset(zone, diff, cdsset));
+	CHECK(remove_rdataset(zone, diff, cdnskeyset));
+
+	/* Add the records from the bundle. */
+	dns_difftuple_t *tuple = ISC_LIST_HEAD(bundle->diff.tuples);
+	while (tuple != NULL) {
+		switch (tuple->rdata.type) {
+		case dns_rdatatype_dnskey:
+			CHECK(add_tuple(diff, tuple));
+			break;
+		case dns_rdatatype_cdnskey:
+		case dns_rdatatype_cds:
+			CHECK(add_tuple(diff, tuple));
+			break;
+		case dns_rdatatype_rrsig:
+			/* Not interested in right now */
+			break;
+		default:
+			INSIST(0);
+		}
+
+		tuple = ISC_LIST_NEXT(tuple, link);
+	}
+
+failure:
+	return (result);
+}
+
 static void
 zone_rekey(dns_zone_t *zone) {
 	isc_result_t result;
@@ -21820,10 +21990,13 @@ zone_rekey(dns_zone_t *zone) {
 	dns_dnsseckey_t *key = NULL;
 	dns_diff_t diff, _sig_diff;
 	dns_kasp_t *kasp;
+	dns_skrbundle_t *bundle = NULL;
 	dns__zonediff_t zonediff;
 	bool commit = false, newactive = false;
 	bool newalg = false;
 	bool fullsign;
+	bool offlineksk = false;
+	uint32_t sigval = 0;
 	dns_ttl_t ttl = 3600;
 	const char *dir = NULL;
 	isc_mem_t *mctx = NULL;
@@ -21866,14 +22039,13 @@ zone_rekey(dns_zone_t *zone) {
 	ttl = soaset.ttl;
 	dns_rdataset_disassociate(&soaset);
 
-	/*
-	 * Only update DNSKEY TTL if we have a policy.
-	 */
 	if (kasp != NULL) {
 		ttl = dns_kasp_dnskeyttl(kasp);
+		offlineksk = dns_kasp_offlineksk(kasp);
+		sigval = dns_kasp_sigvalidity_dnskey(kasp);
 	}
 
-	/* Get the DNSKEY rdataset */
+	/* Get the current DNSKEY rdataset */
 	result = dns_db_findrdataset(db, node, ver, dns_rdatatype_dnskey,
 				     dns_rdatatype_none, 0, &keyset, &keysigs);
 	if (result == ISC_R_SUCCESS) {
@@ -21884,7 +22056,7 @@ zone_rekey(dns_zone_t *zone) {
 		 */
 		if (kasp == NULL) {
 			ttl = keyset.ttl;
-		} else if (ttl != keyset.ttl) {
+		} else if (ttl != keyset.ttl && !offlineksk) {
 			result = update_ttl(&keyset, &zone->origin, ttl, &diff);
 			if (result != ISC_R_SUCCESS) {
 				dnssec_log(zone, ISC_LOG_ERROR,
@@ -21915,12 +22087,13 @@ zone_rekey(dns_zone_t *zone) {
 		goto failure;
 	}
 
-	/* Get the CDS rdataset */
+	/* Get the current CDS rdataset */
 	result = dns_db_findrdataset(db, node, ver, dns_rdatatype_cds,
 				     dns_rdatatype_none, 0, &cdsset, NULL);
 	if (result != ISC_R_SUCCESS && dns_rdataset_isassociated(&cdsset)) {
 		dns_rdataset_disassociate(&cdsset);
-	} else if (result == ISC_R_SUCCESS && kasp != NULL && ttl != cdsset.ttl)
+	} else if (result == ISC_R_SUCCESS && kasp != NULL &&
+		   ttl != cdsset.ttl && !offlineksk)
 	{
 		result = update_ttl(&cdsset, &zone->origin, ttl, &diff);
 		if (result != ISC_R_SUCCESS) {
@@ -21934,13 +22107,13 @@ zone_rekey(dns_zone_t *zone) {
 		cdsset.ttl = ttl;
 	}
 
-	/* Get the CDNSKEY rdataset */
+	/* Get the current CDNSKEY rdataset */
 	result = dns_db_findrdataset(db, node, ver, dns_rdatatype_cdnskey,
 				     dns_rdatatype_none, 0, &cdnskeyset, NULL);
 	if (result != ISC_R_SUCCESS && dns_rdataset_isassociated(&cdnskeyset)) {
 		dns_rdataset_disassociate(&cdnskeyset);
 	} else if (result == ISC_R_SUCCESS && kasp != NULL &&
-		   ttl != cdnskeyset.ttl)
+		   ttl != cdnskeyset.ttl && !offlineksk)
 	{
 		result = update_ttl(&cdnskeyset, &zone->origin, ttl, &diff);
 		if (result != ISC_R_SUCCESS) {
@@ -21962,6 +22135,64 @@ zone_rekey(dns_zone_t *zone) {
 	 */
 	fullsign = DNS_ZONEKEY_OPTION(zone, DNS_ZONEKEY_FULLSIGN);
 
+	if (offlineksk) {
+		/* Lookup the correct bundle in the SKR. */
+		LOCK_ZONE(zone);
+		if (zone->skr == NULL) {
+			UNLOCK_ZONE(zone);
+			dnssec_log(zone, ISC_LOG_DEBUG(1),
+				   "zone_rekey:dns_skr_lookup failed: "
+				   "no SKR available");
+			result = DNS_R_NOSKRFILE;
+			goto failure;
+		}
+		bundle = dns_skr_lookup(zone->skr, now, sigval);
+		zone->skrbundle = bundle;
+		UNLOCK_ZONE(zone);
+
+		if (bundle == NULL) {
+			char nowstr[26]; /* Minimal buf per ctime_r() spec. */
+			char utc[sizeof("YYYYMMDDHHSSMM")];
+			isc_buffer_t b;
+			isc_region_t r;
+			isc_buffer_init(&b, utc, sizeof(utc));
+
+			isc_stdtime_tostring(now, nowstr, sizeof(nowstr));
+			(void)dns_time32_totext(now, &b);
+			isc_buffer_usedregion(&b, &r);
+			dnssec_log(zone, ISC_LOG_DEBUG(1),
+				   "zone_rekey:dns_skr_lookup failed: "
+				   "no available SKR bundle for time "
+				   "%.*s (%s)",
+				   (int)r.length, r.base, nowstr);
+			result = DNS_R_NOSKRBUNDLE;
+			goto failure;
+		}
+
+		result = zone_apply_skrbundle(zone, bundle, &keyset, &cdsset,
+					      &cdnskeyset, &diff);
+		if (result != ISC_R_SUCCESS) {
+			dnssec_log(zone, ISC_LOG_DEBUG(1),
+				   "zone_rekey:zone_apply_skrbundle failed: %s",
+				   isc_result_totext(result));
+			goto failure;
+		}
+		dns_skrbundle_t *next = ISC_LIST_NEXT(bundle, link);
+		if (next != NULL) {
+			if (nexttime == 0) {
+				nexttime = next->inception;
+			}
+		} else {
+			dnssec_log(zone, ISC_LOG_WARNING,
+				   "zone_rekey: last bundle in skr, please "
+				   "import new skr file");
+		}
+	}
+
+	/*
+	 * DNSSEC Key and Signing Policy
+	 */
+
 	KASP_LOCK(kasp);
 
 	dns_zone_lock_keyfiles(zone);
@@ -21975,7 +22206,7 @@ zone_rekey(dns_zone_t *zone) {
 			   isc_result_totext(result));
 	}
 
-	if (kasp != NULL) {
+	if (kasp != NULL && !offlineksk) {
 		/*
 		 * Check DS at parental agents. Clear ongoing checks.
 		 */
@@ -22015,6 +22246,15 @@ zone_rekey(dns_zone_t *zone) {
 				goto failure;
 			}
 		}
+	} else if (offlineksk) {
+		/*
+		 * With offline-ksk enabled we don't run the keymgr.
+		 * Instead we derive the states from the timing metadata.
+		 */
+		dns_zone_lock_keyfiles(zone);
+		result = dns_keymgr_offline(&zone->origin, &keys, kasp, now,
+					    &nexttime);
+		dns_zone_unlock_keyfiles(zone);
 	}
 
 	KASP_UNLOCK(kasp);
@@ -22032,6 +22272,25 @@ zone_rekey(dns_zone_t *zone) {
 		bool cdnskeypub = true;
 		bool sane_diff, sane_dnskey;
 		isc_stdtime_t when;
+
+		result = dns_dnssec_updatekeys(&dnskeys, &keys, &rmkeys,
+					       &zone->origin, ttl, &diff, mctx,
+					       dnssec_report);
+		/*
+		 * Keys couldn't be updated for some reason;
+		 * try again later.
+		 */
+		if (result != ISC_R_SUCCESS) {
+			dnssec_log(zone, ISC_LOG_ERROR,
+				   "zone_rekey:couldn't update zone keys: %s",
+				   isc_result_totext(result));
+			goto failure;
+		}
+
+		if (offlineksk) {
+			/* We can skip a lot of things */
+			goto post_sync;
+		}
 
 		/*
 		 * Publish CDS/CDNSKEY DELETE records if the zone is
@@ -22098,20 +22357,6 @@ zone_rekey(dns_zone_t *zone) {
 			digests = dns_kasp_digests(zone->defaultkasp);
 		}
 
-		result = dns_dnssec_updatekeys(&dnskeys, &keys, &rmkeys,
-					       &zone->origin, ttl, &diff, mctx,
-					       dnssec_report);
-		/*
-		 * Keys couldn't be updated for some reason;
-		 * try again later.
-		 */
-		if (result != ISC_R_SUCCESS) {
-			dnssec_log(zone, ISC_LOG_ERROR,
-				   "zone_rekey:couldn't update zone keys: %s",
-				   isc_result_totext(result));
-			goto failure;
-		}
-
 		/*
 		 * Update CDS / CDNSKEY records.
 		 */
@@ -22164,6 +22409,7 @@ zone_rekey(dns_zone_t *zone) {
 			goto failure;
 		}
 
+	post_sync:
 		/*
 		 * See if any pre-existing keys have newly become active;
 		 * also, see if any new key is for a new algorithm, as in that
@@ -24157,4 +24403,274 @@ dns_zone_makedb(dns_zone_t *zone, dns_db_t **dbp) {
 	*dbp = db;
 
 	return (ISC_R_SUCCESS);
+}
+
+/*
+ * Offline KSK.
+ */
+#define READLINE(lex, opt, token)
+
+#define NEXTTOKEN(lex, opt, token)                       \
+	{                                                \
+		ret = isc_lex_gettoken(lex, opt, token); \
+		if (ret != ISC_R_SUCCESS)                \
+			goto cleanup;                    \
+	}
+
+#define BADTOKEN()                           \
+	{                                    \
+		ret = ISC_R_UNEXPECTEDTOKEN; \
+		goto cleanup;                \
+	}
+
+#define TOKENSIZ (8 * 1024)
+#define STR(t)	 ((t).value.as_textregion.base)
+
+static isc_result_t
+parse_rr(isc_lex_t *lex, isc_mem_t *mctx, char *owner, dns_name_t *origin,
+	 dns_rdataclass_t rdclass, isc_buffer_t *buf, dns_ttl_t *ttl,
+	 dns_rdatatype_t *rdtype, dns_rdata_t **rdata) {
+	dns_rdatacallbacks_t callbacks;
+	dns_fixedname_t dfname;
+	dns_name_t *dname = NULL;
+	dns_rdataclass_t clas;
+	isc_buffer_t b;
+	isc_token_t token;
+	unsigned int opt = ISC_LEXOPT_EOL;
+	isc_result_t ret = ISC_R_SUCCESS;
+
+	isc_lex_setcomments(lex, ISC_LEXCOMMENT_DNSMASTERFILE);
+
+	/* Read the domain name */
+	if (!strcmp(owner, "@")) {
+		BADTOKEN();
+	}
+	dname = dns_fixedname_initname(&dfname);
+	isc_buffer_init(&b, owner, strlen(owner));
+	isc_buffer_add(&b, strlen(owner));
+	ret = dns_name_fromtext(dname, &b, dns_rootname, 0, NULL);
+	if (ret != ISC_R_SUCCESS) {
+		return (ret);
+	}
+	if (dns_name_compare(dname, origin) != 0) {
+		return (DNS_R_BADOWNERNAME);
+	}
+	isc_buffer_clear(&b);
+
+	/* Read the next word: either TTL, class, or type */
+	NEXTTOKEN(lex, opt, &token);
+	if (token.type != isc_tokentype_string) {
+		BADTOKEN();
+	}
+
+	/* If it's a TTL, read the next one */
+	ret = dns_ttl_fromtext(&token.value.as_textregion, ttl);
+	if (ret == ISC_R_SUCCESS) {
+		NEXTTOKEN(lex, opt, &token);
+	}
+	if (token.type != isc_tokentype_string) {
+		BADTOKEN();
+	}
+
+	/* If it's a class, read the next one */
+	ret = dns_rdataclass_fromtext(&clas, &token.value.as_textregion);
+	if (ret == ISC_R_SUCCESS) {
+		if (clas != rdclass) {
+			BADTOKEN();
+		}
+		NEXTTOKEN(lex, opt, &token);
+	}
+	if (token.type != isc_tokentype_string) {
+		BADTOKEN();
+	}
+
+	/* Must be the record type */
+	ret = dns_rdatatype_fromtext(rdtype, &token.value.as_textregion);
+	if (ret != ISC_R_SUCCESS) {
+		BADTOKEN();
+	}
+	switch (*rdtype) {
+	case dns_rdatatype_dnskey:
+	case dns_rdatatype_cdnskey:
+	case dns_rdatatype_cds:
+	case dns_rdatatype_rrsig:
+		/* Allowed record types */
+		break;
+	default:
+		BADTOKEN();
+	}
+
+	dns_rdatacallbacks_init(&callbacks);
+	ret = dns_rdata_fromtext(*rdata, rdclass, *rdtype, lex, dname, 0, mctx,
+				 buf, &callbacks);
+cleanup:
+	isc_lex_setcomments(lex, 0);
+	return (ret);
+}
+
+isc_result_t
+dns_zone_import_skr(dns_zone_t *zone, const char *file) {
+	dns_skr_t *skr = NULL;
+	dns_skrbundle_t *bundle = NULL;
+	char bundlebuf[1024];
+	uint32_t bundle_id;
+	isc_result_t result;
+	isc_lex_t *lex = NULL;
+	isc_lexspecials_t specials;
+	isc_token_t token;
+	unsigned int opt = ISC_LEXOPT_EOL;
+
+	REQUIRE(DNS_ZONE_VALID(zone));
+	REQUIRE(zone->kasp != NULL);
+	REQUIRE(file != NULL);
+
+	isc_lex_create(zone->mctx, TOKENSIZ, &lex);
+	memset(specials, 0, sizeof(specials));
+	specials['('] = 1;
+	specials[')'] = 1;
+	specials['"'] = 1;
+	isc_lex_setspecials(lex, specials);
+	result = isc_lex_openfile(lex, file);
+	if (result != ISC_R_SUCCESS) {
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+			      DNS_LOGMODULE_ZONE, ISC_LOG_ERROR,
+			      "unable to open ksr file %s: %s", file,
+			      isc_result_totext(result));
+		isc_lex_destroy(&lex);
+		return (result);
+	}
+
+	dns_skr_create(zone->mctx, file, &zone->origin, zone->rdclass, &skr);
+
+	for (result = isc_lex_gettoken(lex, opt, &token);
+	     result == ISC_R_SUCCESS;
+	     result = isc_lex_gettoken(lex, opt, &token))
+	{
+		if (token.type == isc_tokentype_eol) {
+			continue;
+		}
+
+		if (token.type != isc_tokentype_string) {
+			/* Create new bundle */
+			CHECK(DNS_R_SYNTAX);
+		}
+
+		if (strcmp(STR(token), ";;") == 0) {
+			/* New bundle */
+			CHECK(isc_lex_gettoken(lex, opt, &token));
+			if (token.type != isc_tokentype_string ||
+			    strcmp(STR(token), "SignedKeyResponse") != 0)
+			{
+				CHECK(DNS_R_SYNTAX);
+			}
+
+			/* Version */
+			CHECK(isc_lex_gettoken(lex, opt, &token));
+			if (token.type != isc_tokentype_string ||
+			    strcmp(STR(token), "1.0") != 0)
+			{
+				CHECK(DNS_R_SYNTAX);
+			}
+
+			/* Date and time of bundle */
+			CHECK(isc_lex_gettoken(lex, opt, &token));
+			if (token.type != isc_tokentype_string) {
+				CHECK(DNS_R_SYNTAX);
+			}
+			if (strcmp(STR(token), "generated") == 0) {
+				/* Final bundle */
+				goto readline;
+			}
+			if (token.type != isc_tokentype_string) {
+				CHECK(DNS_R_SYNTAX);
+			}
+
+			/* Add previous bundle */
+			if (bundle != NULL) {
+				dns_skr_addbundle(skr, &bundle);
+			}
+
+			/* Create new bundle */
+			sscanf(STR(token), "%s", bundlebuf);
+			CHECK(dns_time32_fromtext(bundlebuf, &bundle_id));
+			bundle = NULL;
+			dns_skrbundle_create(zone->mctx, &zone->origin,
+					     zone->rdclass,
+					     (isc_stdtime_t)bundle_id, &bundle);
+
+		readline:
+			/* Read remainder of header line */
+			do {
+				CHECK(isc_lex_gettoken(lex, opt, &token));
+			} while (token.type != isc_tokentype_eol);
+		} else {
+			isc_buffer_t buf;
+			dns_rdata_t *rdata = NULL;
+			u_char rdatabuf[DST_KEY_MAXSIZE];
+			dns_rdatatype_t rdtype;
+			dns_ttl_t ttl = dns_kasp_dnskeyttl(zone->kasp);
+
+			/* Parse record */
+			rdata = isc_mem_get(zone->mctx, sizeof(*rdata));
+			dns_rdata_init(rdata);
+			isc_buffer_init(&buf, rdatabuf, sizeof(rdatabuf));
+			result = parse_rr(lex, zone->mctx, STR(token),
+					  &zone->origin, zone->rdclass, &buf,
+					  &ttl, &rdtype, &rdata);
+			if (result != ISC_R_SUCCESS) {
+				isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+					      DNS_LOGMODULE_ZONE,
+					      ISC_LOG_DEBUG(1),
+					      "read skr file %s(%lu) parse rr "
+					      "failed: %s",
+					      file, isc_lex_getsourceline(lex),
+					      isc_result_totext(result));
+				isc_mem_put(zone->mctx, rdata, sizeof(*rdata));
+				goto failure;
+			}
+
+			/* Create new diff tuple */
+			dns_diffop_t op = (rdtype == dns_rdatatype_rrsig)
+						  ? DNS_DIFFOP_ADDRESIGN
+						  : DNS_DIFFOP_ADD;
+			dns_difftuple_t *tuple = NULL;
+
+			CHECK(dns_difftuple_create(skr->mctx, op, &zone->origin,
+						   ttl, rdata, &tuple));
+
+			dns_skrbundle_addtuple(bundle, &tuple);
+			INSIST(tuple == NULL);
+
+			isc_mem_put(zone->mctx, rdata, sizeof(*rdata));
+		}
+	}
+
+	if (result != ISC_R_EOF) {
+		CHECK(DNS_R_SYNTAX);
+	}
+	result = ISC_R_SUCCESS;
+
+	/* Add final bundle */
+	if (bundle != NULL) {
+		dns_skr_addbundle(skr, &bundle);
+	}
+
+	dns_zone_setskr(zone, skr);
+
+	dnssec_log(zone, ISC_LOG_DEBUG(1), "imported skr file %s", file);
+
+failure:
+	if (result != ISC_R_SUCCESS) {
+		isc_log_write(dns_lctx, DNS_LOGCATEGORY_GENERAL,
+			      DNS_LOGMODULE_ZONE, ISC_LOG_DEBUG(1),
+			      "read skr file %s(%lu) failed: %s", file,
+			      isc_lex_getsourceline(lex),
+			      isc_result_totext(result));
+	}
+
+	/* Clean up */
+	isc_lex_destroy(&lex);
+	dns_skr_detach(&skr);
+
+	return (result);
 }

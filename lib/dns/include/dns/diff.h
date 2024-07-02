@@ -153,6 +153,13 @@ dns_difftuple_copy(dns_difftuple_t *orig, dns_difftuple_t **copyp);
  */
 
 void
+diff_tuple_tordataset(dns_difftuple_t *t, dns_rdata_t *rdata,
+		      dns_rdatalist_t *rdl, dns_rdataset_t *rds);
+/*%<
+ * Convert a tuple to an rdataset.
+ */
+
+void
 dns_diff_init(isc_mem_t *mctx, dns_diff_t *diff);
 /*%<
  * Initialize a diff.

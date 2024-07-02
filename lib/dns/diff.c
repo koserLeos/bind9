@@ -623,7 +623,7 @@ dns_diff_sort(dns_diff_t *diff, dns_diff_compare_func *compare) {
  * an rdatalist structure for it to refer to.
  */
 
-static void
+void
 diff_tuple_tordataset(dns_difftuple_t *t, dns_rdata_t *rdata,
 		      dns_rdatalist_t *rdl, dns_rdataset_t *rds) {
 	REQUIRE(DNS_DIFFTUPLE_VALID(t));
